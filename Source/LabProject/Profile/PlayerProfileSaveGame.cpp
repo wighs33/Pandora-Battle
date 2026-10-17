@@ -164,7 +164,10 @@ UPdSaveGame* UProfileSaveEnvelope::DecodeProfile() const
 	}
 
 	// v1의 미사용 Pandora 선택/배치/포인트 필드는 태그 직렬화에서 건너뛴다.
-	if (DecodedProfile->ProfileDataVersion == 1) DecodedProfile->ProfileDataVersion = PlayerProfileDataVersion::Current;
+	if (DecodedProfile->ProfileDataVersion == 1)
+	{
+		DecodedProfile->ProfileDataVersion = PlayerProfileDataVersion::Current;
+	}
 	if (!DecodedProfile->IsCurrentFormat())
 	{
 		UE_LOG(LogProfileSaveEnvelope, Error,

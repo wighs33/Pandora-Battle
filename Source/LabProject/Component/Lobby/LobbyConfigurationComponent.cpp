@@ -77,9 +77,15 @@ void ULobbyConfigurationComponent::SelectLobbyMap(FName MapKey)
 	ALobbyGameMode* GameMode = GetLobbyGameMode();
 	ULobbyRuntimeSubsystem* Runtime = GameMode->GetGameInstance()->GetSubsystem<ULobbyRuntimeSubsystem>();
 	FLobbyMatchMapOption Option;
-	if (!FindConfiguredMapOption(MapKey, Option)) { return; }
+	if (!FindConfiguredMapOption(MapKey, Option))
+	{
+		return;
+	}
 	Runtime->SetLobbySelectedMapKey(Option.MapKey);
-	if (ALobbyGameState* State = GameMode->GetGameState<ALobbyGameState>()) { State->SetSelectedMapOption(Option); }
+	if (ALobbyGameState* State = GameMode->GetGameState<ALobbyGameState>())
+	{
+		State->SetSelectedMapOption(Option);
+	}
 }
 
 FName ULobbyConfigurationComponent::GetFirstMapKey()

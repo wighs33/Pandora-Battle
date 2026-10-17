@@ -535,7 +535,10 @@ void USkillSummonAction::FinishSummonRiseAndActivateLaser()
 void USkillSummonAction::StartSummonLifetimeTimerOrEnd()
 {
 	// Duration 소환은 준비·상승 시간을 포함한 스킬의 공통 종료 시점을 따른다.
-	if (GetAbility()->HasDurationDeadline()) return;
+	if (GetAbility()->HasDurationDeadline())
+	{
+		return;
+	}
 
 	if (SummonDurationTask)
 	{

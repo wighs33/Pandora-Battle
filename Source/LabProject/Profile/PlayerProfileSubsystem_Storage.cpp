@@ -37,32 +37,52 @@ void UPlayerProfileSubsystem::Deinitialize()
 
 bool UPlayerProfileSubsystem::LoadProfile()
 {
-	if (!GetOrCreateProfile()) return false;
+	if (!GetOrCreateProfile())
+	{
+		return false;
+	}
 	ProfileProgressChanged.Broadcast();
 	return true;
 }
 
 void UPlayerProfileSubsystem::SaveProfile()
 {
-	if (GetOrCreateProfile()) RequestProfileSave(true);
+	if (GetOrCreateProfile())
+	{
+		RequestProfileSave(true);
+	}
 }
 
 UPdSaveGame* UPlayerProfileSubsystem::GetOrCreateProfile()
 {
-	if (GetGameInstance()->IsDedicatedServerInstance()) return nullptr;
+	if (GetGameInstance()->IsDedicatedServerInstance())
+	{
+		return nullptr;
+	}
 	// 기본 스킨 지급은 프로필을 처음 읽거나 초기화할 때만 한다.
 	// 스킨 목록은 GameInstance가 살아 있는 동안 바뀌지 않는다.
-	if (ProfileSaveGame) return ProfileSaveGame;
+	if (ProfileSaveGame)
+	{
+		return ProfileSaveGame;
+	}
 
 	bool bRecoveredFromFallback = false;
 	ProfileSaveGame = LoadBestAvailableSaveGame(bRecoveredFromFallback);
 	const bool bCreatedNewProfile = !ProfileSaveGame;
-	if (bCreatedNewProfile) ProfileSaveGame = CreateConfiguredSaveGameObject();
-	if (!ProfileSaveGame) return nullptr;
+	if (bCreatedNewProfile)
+	{
+		ProfileSaveGame = CreateConfiguredSaveGameObject();
+	}
+	if (!ProfileSaveGame)
+	{
+		return nullptr;
+	}
 
 	const bool bDefaultsChanged = EnsureDefaultUnlockedSkins(*ProfileSaveGame);
 	if (bCreatedNewProfile || bRecoveredFromFallback || bDefaultsChanged)
+	{
 		RequestProfileSave(bCreatedNewProfile || bRecoveredFromFallback);
+	}
 	return ProfileSaveGame;
 }
 
@@ -72,7 +92,10 @@ UPdSaveGame* UPlayerProfileSubsystem::LoadBestAvailableSaveGame(bool& bOutRecove
 	FString BestSlot;
 	for (const FString& Slot : {LocalProfileSlot, BackupSlot, ShutdownSlot})
 	{
-		if (!UGameplayStatics::DoesSaveGameExist(Slot, 0)) continue;
+		if (!UGameplayStatics::DoesSaveGameExist(Slot, 0))
+		{
+			continue;
+		}
 		UProfileSaveEnvelope* Envelope = Cast<UProfileSaveEnvelope>(UGameplayStatics::LoadGameFromSlot(Slot, 0));
 		UPdSaveGame* Candidate = Envelope ? Envelope->DecodeProfile() : nullptr;
 		if (!Candidate)
@@ -104,7 +127,10 @@ UPdSaveGame* UPlayerProfileSubsystem::LoadBestAvailableSaveGame(bool& bOutRecove
 
 void UPlayerProfileSubsystem::RequestProfileSave(bool bSaveImmediately)
 {
-	if (bIsDeinitializing || !ProfileSaveGame) return;
+	if (bIsDeinitializing || !ProfileSaveGame)
+	{
+		return;
+	}
 	if (ProfileSaveGame->SaveRevision == TNumericLimits<int64>::Max())
 	{
 		UE_LOG(LogPlayerProfile, Error, TEXT("Profile revision is exhausted; refusing to save."));
@@ -120,12 +146,17 @@ void UPlayerProfileSubsystem::RequestProfileSave(bool bSaveImmediately)
 void UPlayerProfileSubsystem::EnsureSaveTicker()
 {
 	if (!bIsDeinitializing && !SaveTickerHandle.IsValid())
+	{
 		SaveTickerHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &ThisClass::TickPendingSaves), SaveTickerIntervalSeconds);
+	}
 }
 
 bool UPlayerProfileSubsystem::TickPendingSaves(float)
 {
-	if (!bIsDeinitializing && bProfileDirty && !bSaveInFlight && SaveDeadline <= FPlatformTime::Seconds()) BeginAsyncSave();
+	if (!bIsDeinitializing && bProfileDirty && !bSaveInFlight && SaveDeadline <= FPlatformTime::Seconds())
+	{
+		BeginAsyncSave();
+	}
 	if (bIsDeinitializing || !bProfileDirty || SaveDeadline == TNumericLimits<double>::Max())
 	{
 		SaveTickerHandle.Reset();
@@ -136,7 +167,10 @@ bool UPlayerProfileSubsystem::TickPendingSaves(float)
 
 void UPlayerProfileSubsystem::BeginAsyncSave()
 {
-	if (!ProfileSaveGame || bSaveInFlight) return;
+	if (!ProfileSaveGame || bSaveInFlight)
+	{
+		return;
+	}
 	SaveSnapshot = UProfileSaveEnvelope::CreateFromProfile(ProfileSaveGame, this);
 	if (!SaveSnapshot)
 	{
@@ -155,7 +189,10 @@ void UPlayerProfileSubsystem::BeginAsyncSave()
 
 void UPlayerProfileSubsystem::HandlePrimarySaveCompleted(bool bSucceeded)
 {
-	if (bIsDeinitializing) return;
+	if (bIsDeinitializing)
+	{
+		return;
+	}
 	if (!bSucceeded)
 	{
 		UE_LOG(LogPlayerProfile, Error, TEXT("Failed to save primary profile."));
@@ -172,7 +209,10 @@ void UPlayerProfileSubsystem::HandlePrimarySaveCompleted(bool bSucceeded)
 
 void UPlayerProfileSubsystem::HandleBackupSaveCompleted(bool bSucceeded)
 {
-	if (bIsDeinitializing) return;
+	if (bIsDeinitializing)
+	{
+		return;
+	}
 	if (!bSucceeded)
 	{
 		UE_LOG(LogPlayerProfile, Warning, TEXT("Primary profile saved, but backup write failed."));
@@ -191,7 +231,9 @@ void UPlayerProfileSubsystem::ScheduleSaveRetry()
 	++SaveRetryCount;
 	SaveDeadline = SaveRetryCount <= MaxSaveRetryAttempts ? FPlatformTime::Seconds() + SaveRetryDelaySeconds : TNumericLimits<double>::Max();
 	if (SaveRetryCount > MaxSaveRetryAttempts)
+	{
 		UE_LOG(LogPlayerProfile, Error, TEXT("Profile save retries exhausted; keeping live data for shutdown recovery."));
+	}
 	EnsureSaveTicker();
 }
 
@@ -199,15 +241,23 @@ void UPlayerProfileSubsystem::FinishAsyncSave()
 {
 	bSaveInFlight = false;
 	SaveSnapshot = nullptr;
-	if (bProfileDirty) EnsureSaveTicker();
+	if (bProfileDirty)
+	{
+		EnsureSaveTicker();
+	}
 }
 
 void UPlayerProfileSubsystem::FlushPendingSaveToShutdownSlot()
 {
-	if ((!bProfileDirty && !bSaveInFlight) || !ProfileSaveGame) return;
+	if ((!bProfileDirty && !bSaveInFlight) || !ProfileSaveGame)
+	{
+		return;
+	}
 	UProfileSaveEnvelope* Snapshot = UProfileSaveEnvelope::CreateFromProfile(ProfileSaveGame, this);
 	if (!Snapshot || !UGameplayStatics::SaveGameToSlot(Snapshot, ShutdownSlot, 0))
+	{
 		UE_LOG(LogPlayerProfile, Error, TEXT("Failed to flush live profile to shutdown recovery slot."));
+	}
 }
 
 UPdSaveGame* UPlayerProfileSubsystem::CreateConfiguredSaveGameObject() const

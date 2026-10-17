@@ -358,7 +358,10 @@ void UPdAbilitySystemComponent::ApplyAbilityBlockAndCancelTags(const FGameplayTa
 	bool bExecuteCancelTags, const FGameplayTagContainer& CancelTags)
 {
 	Super::ApplyAbilityBlockAndCancelTags(AbilityTags, RequestingAbility, bEnableBlockTags, BlockTags, false, CancelTags);
-	if (!bExecuteCancelTags || CancelTags.IsEmpty()) return;
+	if (!bExecuteCancelTags || CancelTags.IsEmpty())
+	{
+		return;
+	}
 	ABILITYLIST_SCOPE_LOCK();
 	for (FGameplayAbilitySpec& Spec : GetActivatableAbilities())
 	{

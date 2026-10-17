@@ -34,7 +34,10 @@ void UGameSettingsWidget::NativeConstruct()
 	{
 		TGuardValue<bool> Guard(bSynchronizing, true);
 		CB_SettingsLanguage->ClearOptions();
-		for (EGuideLanguage Language : UiLanguage::All()) CB_SettingsLanguage->AddOption(UiLanguage::NativeName(Language));
+		for (EGuideLanguage Language : UiLanguage::All())
+		{
+			CB_SettingsLanguage->AddOption(UiLanguage::NativeName(Language));
+		}
 	}
 	CB_SettingsLanguage->OnSelectionChanged.AddUniqueDynamic(this, &ThisClass::HandleLanguageSelected);
 	Btn_Done->OnClicked.AddUniqueDynamic(this, &ThisClass::CloseSettings);
@@ -92,15 +95,24 @@ void UGameSettingsWidget::NativeDestruct()
 
 void UGameSettingsWidget::OnMenuLanguageChanged()
 {
-	if (!CB_SettingsLanguage || !GetLocalization()) return;
+	if (!CB_SettingsLanguage || !GetLocalization())
+	{
+		return;
+	}
 	TGuardValue<bool> Guard(bSynchronizing, true);
 	CB_SettingsLanguage->SetSelectedOption(UiLanguage::NativeName(GetLocalization()->GetLanguage()));
-	if (Txt_SettingsHint) Txt_SettingsHint->SetText(MenuText(bLanguageSaveFailed ? TEXT("Settings.SaveFailed") : TEXT("Settings.Hint")));
+	if (Txt_SettingsHint)
+	{
+		Txt_SettingsHint->SetText(MenuText(bLanguageSaveFailed ? TEXT("Settings.SaveFailed") : TEXT("Settings.Hint")));
+	}
 }
 
 void UGameSettingsWidget::HandleLanguageSelected(FString Option, ESelectInfo::Type SelectionType)
 {
-	if (bSynchronizing || SelectionType == ESelectInfo::Direct || !GetLocalization()) return;
+	if (bSynchronizing || SelectionType == ESelectInfo::Direct || !GetLocalization())
+	{
+		return;
+	}
 	for (EGuideLanguage Language : UiLanguage::All())
 	{
 		if (Option == UiLanguage::NativeName(Language))
@@ -122,7 +134,12 @@ UWidget* UGameSettingsWidget::GenerateLanguageOption(FString Option)
 	if (const UMenuLocalizationSubsystem* Localization = GetLocalization())
 	{
 		for (EGuideLanguage Language : UiLanguage::All())
-			if (Option == UiLanguage::NativeName(Language)) Font.FontObject = Localization->GetFontForLanguage(Language);
+		{
+			if (Option == UiLanguage::NativeName(Language))
+			{
+				Font.FontObject = Localization->GetFontForLanguage(Language);
+			}
+		}
 	}
 	Text->SetFont(Font);
 	// 글자색은 콤보 스타일의 전경색(로비 팀 콤보와 같은 크림색)을 따른다.
@@ -133,9 +150,14 @@ UWidget* UGameSettingsWidget::GenerateLanguageOption(FString Option)
 
 void UGameSettingsWidget::HandleVolumeChanged(float Value)
 {
-	if (bSynchronizing) return;
+	if (bSynchronizing)
+	{
+		return;
+	}
 	if (UAudioSettingsSubsystem* Audio = GetGameInstance()->GetSubsystem<UAudioSettingsSubsystem>())
+	{
 		Audio->SetMasterVolumePercent(FMath::RoundToInt(Value * 100.f));
+	}
 }
 
 void UGameSettingsWidget::RefreshVolume(int32 Percent)
@@ -147,16 +169,23 @@ void UGameSettingsWidget::RefreshVolume(int32 Percent)
 
 void UGameSettingsWidget::HandleMouseSensitivityChanged(float Value)
 {
-	if (bSynchronizing) return;
+	if (bSynchronizing)
+	{
+		return;
+	}
 	if (ULocalPlayerSettingsSubsystem* Settings = ULocalPlayerSettingsSubsystem::Get(GetOwningPlayer()))
+	{
 		Settings->SetMouseSensitivitySliderValue(Value);
+	}
 	RefreshMouseSensitivityText();
 }
 
 void UGameSettingsWidget::RefreshMouseSensitivityText()
 {
 	if (const ULocalPlayerSettingsSubsystem* Settings = ULocalPlayerSettingsSubsystem::Get(GetOwningPlayer()))
+	{
 		Txt_MouseSensitivityValue->SetText(FText::FromString(FString::Printf(TEXT("%d%%"), Settings->GetMouseSensitivityPercent())));
+	}
 }
 
 // 가이드는 설정 화면 위 같은 층에 올린다. 설정이 바로 아래에 있으므로 가이드 안의 설정 버튼은 숨긴다.
@@ -165,9 +194,15 @@ void UGameSettingsWidget::OpenGuide()
 	APlayerController* Controller = GetOwningPlayer();
 	const UWidgetClassDefinition* Definition = UWidgetClassDefinition::ResolveWidgetClassDefinition(this);
 	const TSubclassOf<UGuideWidget> GuideClass = Definition ? Definition->GetGuideWidgetClass() : nullptr;
-	if (!Controller || !GuideClass || ActiveGuideWidget) return;
+	if (!Controller || !GuideClass || ActiveGuideWidget)
+	{
+		return;
+	}
 	ActiveGuideWidget = CreateWidget<UGuideWidget>(Controller, GuideClass);
-	if (!ActiveGuideWidget) return;
+	if (!ActiveGuideWidget)
+	{
+		return;
+	}
 	ActiveGuideWidget->SetOpenedFromGameSettings(true);
 	ActiveGuideWidget->OnGuideClosed.AddUniqueDynamic(this, &ThisClass::HandleGuideClosed);
 	GetOwningLocalPlayer()->GetSubsystem<UUiSubsystem>()->PushScreen(UUiScreen::CreateBlocking(Controller, ActiveGuideWidget,
@@ -177,7 +212,10 @@ void UGameSettingsWidget::OpenGuide()
 
 void UGameSettingsWidget::HandleGuideClosed(UGuideWidget* ClosedGuideWidget)
 {
-	if (ClosedGuideWidget != ActiveGuideWidget) return;
+	if (ClosedGuideWidget != ActiveGuideWidget)
+	{
+		return;
+	}
 	ActiveGuideWidget->OnGuideClosed.RemoveDynamic(this, &ThisClass::HandleGuideClosed);
 	ActiveGuideWidget = nullptr;
 }
@@ -212,6 +250,8 @@ void UGameSettingsWidget::ShowPage(int32 PageIndex)
 void UGameSettingsWidget::CloseSettings()
 {
     if (UCommonActivatableWidget* Screen = UCommonUIActionRouterBase::FindOwningActivatable(GetCachedWidget(), GetOwningLocalPlayer()))
+    {
         Screen->DeactivateWidget();
+    }
     RemoveFromParent();
 }

@@ -94,7 +94,10 @@ void UUiSubsystem::Deinitialize()
 	}
 
 	ReleaseConfiguredWidgetDefinitionPreload();
-	if (ScreenRoot) ScreenRoot->RemoveFromParent();
+	if (ScreenRoot)
+	{
+		ScreenRoot->RemoveFromParent();
+	}
 	ScreenRoot = nullptr;
 	StatusViewModel = nullptr;
 	WidgetClassDefinition = nullptr;
@@ -402,10 +405,16 @@ APlayerController* UUiSubsystem::GetLocalPlayerController() const
 void UUiSubsystem::PushScreen(UCommonActivatableWidget* Screen, EUiScreenLayer Layer)
 {
     APlayerController* Controller = GetLocalPlayerController();
-    if (!Controller || !Screen || bIsDeinitializing) return;
+    if (!Controller || !Screen || bIsDeinitializing)
+    {
+    	return;
+    }
     if (!ScreenRoot || ScreenRoot->GetWorld() != Controller->GetWorld())
     {
-        if (ScreenRoot) ScreenRoot->RemoveFromParent();
+        if (ScreenRoot)
+        {
+        	ScreenRoot->RemoveFromParent();
+        }
         ScreenRoot = CreateWidget<UUiLayerRoot>(Controller);
         ScreenRoot->AddToPlayerScreen(UUiLayerRoot::ViewportZOrder);
     }
@@ -429,27 +438,44 @@ void UUiSubsystem::PlayerControllerChanged(APlayerController* NewPlayerControlle
 {
     CloseGameSettings();
     Super::PlayerControllerChanged(NewPlayerController);
-    if (ScreenRoot) ScreenRoot->RemoveFromParent();
+    if (ScreenRoot)
+    {
+    	ScreenRoot->RemoveFromParent();
+    }
     ScreenRoot = nullptr;
 }
 
 void UUiSubsystem::OpenGameSettings(UUserWidget* OwnerMenu)
 {
-	if (bIsDeinitializing || !IsValid(OwnerMenu) || OwnerMenu->GetOwningLocalPlayer() != GetLocalPlayer()) return;
+	if (bIsDeinitializing || !IsValid(OwnerMenu) || OwnerMenu->GetOwningLocalPlayer() != GetLocalPlayer())
+	{
+		return;
+	}
 	if (ActiveGameSettings && ActiveGameSettings->GetParent())
 	{
 		if (UCommonActivatableWidget* Screen = UCommonUIActionRouterBase::FindOwningActivatable(
 			ActiveGameSettings->GetCachedWidget(), GetLocalPlayer()))
+		{
 			Screen->RequestRefreshFocus();
+		}
 		return;
 	}
 	const UWidgetClassDefinition* Definition = UWidgetClassDefinition::ResolveWidgetClassDefinition(OwnerMenu);
 	APlayerController* Controller = GetLocalPlayerController();
-	if (!Definition || !Controller) return;
+	if (!Definition || !Controller)
+	{
+		return;
+	}
 	const TSubclassOf<UGameSettingsWidget> SettingsClass = Definition->SettingsWidgetClass.LoadSynchronous();
-	if (!SettingsClass) return;
+	if (!SettingsClass)
+	{
+		return;
+	}
 	ActiveGameSettings = CreateWidget<UGameSettingsWidget>(Controller, SettingsClass);
-	if (!ActiveGameSettings) return;
+	if (!ActiveGameSettings)
+	{
+		return;
+	}
 	SettingsOwner = OwnerMenu;
 	PushScreen(UUiScreen::CreateBlocking(Controller, ActiveGameSettings, ActiveGameSettings->GetInitialFocusTarget(),
 		FSimpleDelegate::CreateUObject(ActiveGameSettings, &UGameSettingsWidget::CloseSettings)), EUiScreenLayer::Modal);
@@ -463,11 +489,17 @@ bool UUiSubsystem::HasActiveScreen(const UWorld* World) const
 
 bool UUiSubsystem::CloseGameSettings(const UUserWidget* ExpectedOwner)
 {
-	if (ExpectedOwner && SettingsOwner.Get() != ExpectedOwner) return false;
+	if (ExpectedOwner && SettingsOwner.Get() != ExpectedOwner)
+	{
+		return false;
+	}
 	UGameSettingsWidget* Settings = ActiveGameSettings;
 	ActiveGameSettings = nullptr;
 	SettingsOwner.Reset();
-	if (!IsValid(Settings) || !Settings->GetParent()) return false;
+	if (!IsValid(Settings) || !Settings->GetParent())
+	{
+		return false;
+	}
 	Settings->CloseSettings();
 	return true;
 }

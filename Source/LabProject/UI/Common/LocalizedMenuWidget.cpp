@@ -24,7 +24,10 @@ void ULocalizedMenuWidget::NativeConstruct()
 	{
 		Localization->OnLanguageChanged.AddUniqueDynamic(this, &ThisClass::RefreshLocalizedText);
 	}
-	if (Btn_GameSettings) Btn_GameSettings->OnClicked.AddUniqueDynamic(this, &ThisClass::OpenGameSettings);
+	if (Btn_GameSettings)
+	{
+		Btn_GameSettings->OnClicked.AddUniqueDynamic(this, &ThisClass::OpenGameSettings);
+	}
 	ApplyLocalizedBindings();
 	// 위젯 Tick은 Slate가 그리는 도중에 돌아 커서 아래 위젯을 아직 다 모르므로, 그리기 전(PreTick)에 지난 프레임 화면으로 찾는다.
 	if (FSlateApplication::IsInitialized())
@@ -46,7 +49,10 @@ void ULocalizedMenuWidget::NativeDestruct()
 		HoverTooltip->RemoveFromParent();
 		HoverTooltip = nullptr;
 	}
-	if (Btn_GameSettings) Btn_GameSettings->OnClicked.RemoveDynamic(this, &ThisClass::OpenGameSettings);
+	if (Btn_GameSettings)
+	{
+		Btn_GameSettings->OnClicked.RemoveDynamic(this, &ThisClass::OpenGameSettings);
+	}
 	if (UMenuLocalizationSubsystem* Localization = GetLocalization())
 	{
 		Localization->OnLanguageChanged.RemoveDynamic(this, &ThisClass::RefreshLocalizedText);
@@ -79,7 +85,10 @@ void ULocalizedMenuWidget::RefreshLocalizedText()
 void ULocalizedMenuWidget::ApplyLocalizedBindings()
 {
 	const UMenuLocalizationSubsystem* Localization = GetLocalization();
-	if (!Localization || !WidgetTree) return;
+	if (!Localization || !WidgetTree)
+	{
+		return;
+	}
 	WidgetTree->ForEachWidget([Localization](UWidget* Widget)
 	{
 		if (UTextBlock* Text = Cast<UTextBlock>(Widget))
@@ -92,7 +101,9 @@ void ULocalizedMenuWidget::ApplyLocalizedBindings()
 	for (const auto& Binding : MenuTextBindings)
 	{
 		if (UTextBlock* Text = Cast<UTextBlock>(GetWidgetFromName(Binding.Key)))
+		{
 			Text->SetText(Localization->GetTextOrFallback(Binding.Value, Text->GetText()));
+		}
 	}
 	for (const auto& Binding : MenuTooltipBindings)
 	{
@@ -101,7 +112,9 @@ void ULocalizedMenuWidget::ApplyLocalizedBindings()
 	for (const auto& Binding : MenuHintBindings)
 	{
 		if (UEditableTextBox* Edit = Cast<UEditableTextBox>(GetWidgetFromName(Binding.Key)))
+		{
 			Edit->SetHintText(Localization->GetText(Binding.Value));
+		}
 	}
 	// 연결 없이 에셋에 직접 적은 툴팁도 같은 설명 패널로 옮긴다. 옮긴 뒤에는 엔진 툴팁이 비어 다시 옮겨지지 않는다.
 	WidgetTree->ForEachWidget([this](UWidget* Widget)
@@ -128,7 +141,10 @@ void ULocalizedMenuWidget::UpdateHoverTooltip()
 	const FText* Text = Widget ? HoverTooltipTexts.Find(Widget) : nullptr;
 	if (!Text || Text->IsEmptyOrWhitespace())
 	{
-		if (HoverTooltip) HoverTooltip->Hide();
+		if (HoverTooltip)
+		{
+			HoverTooltip->Hide();
+		}
 		return;
 	}
 	if (!HoverTooltip)
@@ -169,7 +185,9 @@ void ULocalizedMenuWidget::OpenGameSettings()
 {
 	ULocalPlayer* LocalPlayer = GetOwningLocalPlayer();
 	if (UUiSubsystem* Ui = LocalPlayer ? LocalPlayer->GetSubsystem<UUiSubsystem>() : nullptr)
+	{
 		Ui->OpenGameSettings(this);
+	}
 }
 
 bool ULocalizedMenuWidget::CloseGameSettings()

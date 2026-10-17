@@ -41,7 +41,9 @@ void URecordEntryWidget::RefreshUI()
 		Txt_Result->SetColorAndOpacity(FSlateColor(Record.bWin ? FLinearColor(0.58f, 0.9f, 0.7f) : FLinearColor(1.0f, 0.58f, 0.64f)));
 	}
 	if (UBorder* Badge = Cast<UBorder>(GetWidgetFromName(TEXT("ResultBadge"))))
+	{
 		Badge->SetBrushColor(Record.bWin ? FLinearColor(0.06f, 0.22f, 0.16f) : FLinearColor(0.26f, 0.07f, 0.12f));
+	}
 
 	if (Txt_Kills)
 	{

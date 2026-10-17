@@ -58,7 +58,13 @@ UWidget* UUiScreen::NativeGetDesiredFocusTarget() const
 
 bool UUiScreen::NativeOnHandleBackAction()
 {
-    if (OnBack.IsBound()) OnBack.Execute();
-    else DeactivateWidget();
+    if (OnBack.IsBound())
+    {
+        OnBack.Execute();
+    }
+    else
+    {
+        DeactivateWidget();
+    }
     return true;
 }

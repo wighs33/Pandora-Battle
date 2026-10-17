@@ -20,20 +20,39 @@
 
 void USkillWaitAction::OnStart()
 {
-	if (Seconds <= 0.0f) { Finish(); return; }
-	if (!GetWorld()) { Finish(false); return; }
+	if (Seconds <= 0.0f)
+	{
+		Finish();
+		return;
+	}
+	if (!GetWorld())
+	{
+		Finish(false);
+		return;
+	}
 	GetWorld()->GetTimerManager().SetTimer(Timer, FTimerDelegate::CreateUObject(this, &ThisClass::Finish, true), Seconds, false);
 }
 void USkillWaitAction::OnStop()
 {
-	if (GetWorld()) GetWorld()->GetTimerManager().ClearTimer(Timer);
+	if (GetWorld())
+	{
+		GetWorld()->GetTimerManager().ClearTimer(Timer);
+	}
 }
 
 void USkillWaitEventAction::OnStart()
 {
-	if (!GetAbility() || !GetWorld() || !EventTag.IsValid()) { Finish(false); return; }
+	if (!GetAbility() || !GetWorld() || !EventTag.IsValid())
+	{
+		Finish(false);
+		return;
+	}
 	Task = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(GetAbility(), EventTag, nullptr, true, true);
-	if (!Task) { Finish(false); return; }
+	if (!Task)
+	{
+		Finish(false);
+		return;
+	}
 	Task->EventReceived.AddDynamic(this, &ThisClass::Received);
 	GetWorld()->GetTimerManager().SetTimer(Timer, this, &ThisClass::TimedOut, FMath::Max(Timeout, 0.01f), false);
 	Task->ReadyForActivation();
@@ -42,11 +61,17 @@ void USkillWaitEventAction::Received(FGameplayEventData Payload)
 {
 	FSkillActionContext Context = GetContext();
 	Context.EventData = Payload;
-	if (Payload.Target) Context.TargetActor = const_cast<AActor*>(Payload.Target.Get());
+	if (Payload.Target)
+	{
+		Context.TargetActor = const_cast<AActor*>(Payload.Target.Get());
+	}
 	if (Payload.TargetData.Num() > 0)
 	{
 		const FGameplayAbilityTargetData* Data = Payload.TargetData.Get(0);
-		if (Data && Data->HasEndPoint()) Context.Transform = Data->GetEndPointTransform();
+		if (Data && Data->HasEndPoint())
+		{
+			Context.Transform = Data->GetEndPointTransform();
+		}
 	}
 	SetContext(Context);
 	Finish();
@@ -54,7 +79,10 @@ void USkillWaitEventAction::Received(FGameplayEventData Payload)
 void USkillWaitEventAction::TimedOut() { Finish(false); }
 void USkillWaitEventAction::OnStop()
 {
-	if (GetWorld()) GetWorld()->GetTimerManager().ClearTimer(Timer);
+	if (GetWorld())
+	{
+		GetWorld()->GetTimerManager().ClearTimer(Timer);
+	}
 	if (Task)
 	{
 		Task->EventReceived.RemoveAll(this);
@@ -65,9 +93,17 @@ void USkillWaitEventAction::OnStop()
 
 void USkillMontageAction::OnStart()
 {
-	if (!GetAbility() || !Montage) { Finish(false); return; }
+	if (!GetAbility() || !Montage)
+	{
+		Finish(false);
+		return;
+	}
 	Task = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(GetAbility(), NAME_None, Montage);
-	if (!Task) { Finish(false); return; }
+	if (!Task)
+	{
+		Finish(false);
+		return;
+	}
 	Task->OnCompleted.AddDynamic(this, &ThisClass::Completed);
 	Task->OnInterrupted.AddDynamic(this, &ThisClass::Interrupted);
 	Task->OnCancelled.AddDynamic(this, &ThisClass::Interrupted);
@@ -77,14 +113,19 @@ void USkillMontageAction::Completed() { Finish(); }
 void USkillMontageAction::Interrupted() { Finish(false); }
 void USkillMontageAction::OnStop()
 {
-	if (!Task) return;
+	if (!Task)
+	{
+		return;
+	}
 	Task->OnCompleted.RemoveAll(this);
 	Task->OnInterrupted.RemoveAll(this);
 	Task->OnCancelled.RemoveAll(this);
 	if (GetAbility() && GetAbility()->GetCurrentMontage() == Montage)
 	{
 		if (UAbilitySystemComponent* ASC = GetAbility()->GetAbilitySystemComponentFromActorInfo())
+		{
 			ASC->CurrentMontageStop(0.1f);
+		}
 	}
 	Task->EndTask();
 	Task = nullptr;
@@ -100,10 +141,16 @@ UAbilityTask_ApplyRootMotionConstantForce* USkillDashAction::CreateTask(UGamepla
 void USkillDashAction::OnStart()
 {
 	ACharacterBase* Character = GetAbility() ? GetAbility()->GetPdCharacterFromActorInfo() : nullptr;
-	if (!Character || Speed <= 0.0f || Duration <= 0.0f) { Finish(false); return; }
+	if (!Character || Speed <= 0.0f || Duration <= 0.0f)
+	{
+		Finish(false);
+		return;
+	}
 	FVector Direction = Character->GetLastMovementInputVector();
 	if (const auto* Movement = Character->GetCharacterMovement(); Movement && !Movement->GetCurrentAcceleration().IsNearlyZero())
+	{
 		Direction = Movement->GetCurrentAcceleration();
+	}
 	for (int32 Index = 0; Index < GetContext().EventData.TargetData.Num(); ++Index)
 	{
 		const auto* Data = GetContext().EventData.TargetData.Get(Index);
@@ -112,14 +159,24 @@ void USkillDashAction::OnStart()
 		{
 			// TargetData는 월드 위치를 담는다. 대시에는 캐릭터에서 그 위치로 가는 방향이 필요하다.
 			const FVector ToTarget = (Hit->Location - Character->GetActorLocation()).GetSafeNormal2D();
-			if (!ToTarget.IsNearlyZero()) Direction = ToTarget;
+			if (!ToTarget.IsNearlyZero())
+			{
+				Direction = ToTarget;
+			}
 			break;
 		}
 	}
-	if (Direction.IsNearlyZero()) Direction = Character->GetActorForwardVector();
+	if (Direction.IsNearlyZero())
+	{
+		Direction = Character->GetActorForwardVector();
+	}
 	Task = CreateTask(GetAbility(), Direction.GetSafeNormal2D(), Speed, Duration,
 		Character->GetCharacterMovement()->GetMaxSpeed(), bEnableGravity);
-	if (!Task) { Finish(false); return; }
+	if (!Task)
+	{
+		Finish(false);
+		return;
+	}
 	GetAbility()->SpawnConfiguredCharacterDecal();
 	ContactDamage.Start(*GetAbility(), *this);
 	if (const auto* Skill = GetAbility()->GetSourceSkillDataAsset(); Skill && Skill->Niagara.GameplayCueTag.IsValid())
@@ -138,14 +195,19 @@ void USkillDashAction::Completed()
 {
 	FSkillActionContext Context = GetContext();
 	if (GetAbility() && GetAbility()->GetAvatarActorFromActorInfo())
+	{
 		Context.Transform = GetAbility()->GetAvatarActorFromActorInfo()->GetActorTransform();
+	}
 	SetContext(Context);
 	Finish();
 }
 void USkillDashAction::OnStop()
 {
 	ContactDamage.Stop();
-	if (!Task) return;
+	if (!Task)
+	{
+		return;
+	}
 	Task->OnFinish.RemoveAll(this);
 	Task->EndTask();
 	Task = nullptr;
@@ -154,13 +216,28 @@ void USkillDashAction::OnStop()
 void USkillGameplayEffectAction::OnStart()
 {
 	USkillAbility* Ability = GetAbility();
-	if (Ability && !Ability->K2_HasAuthority()) { Finish(); return; }
-	if (!Ability || !Ability->CanRunActions() || !Effect.GameplayEffectClass) { Finish(false); return; }
+	if (Ability && !Ability->K2_HasAuthority())
+	{
+		Finish();
+		return;
+	}
+	if (!Ability || !Ability->CanRunActions() || !Effect.GameplayEffectClass)
+	{
+		Finish(false);
+		return;
+	}
 	AActor* Target = bApplyToSelf ? Ability->GetAvatarActorFromActorInfo() : GetContext().TargetActor.Get();
 	UAbilitySystemComponent* TargetASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Target);
 	FGameplayEffectSpecHandle Spec = Ability->MakeOutgoingGameplayEffectSpec(Effect.GameplayEffectClass, Ability->GetAbilityLevel());
-	if (!TargetASC || !Spec.IsValid()) { Finish(false); return; }
-	if (Effect.MagnitudeDataTag.IsValid()) Spec.Data->SetSetByCallerMagnitude(Effect.MagnitudeDataTag, static_cast<float>(Effect.Magnitude));
+	if (!TargetASC || !Spec.IsValid())
+	{
+		Finish(false);
+		return;
+	}
+	if (Effect.MagnitudeDataTag.IsValid())
+	{
+		Spec.Data->SetSetByCallerMagnitude(Effect.MagnitudeDataTag, static_cast<float>(Effect.Magnitude));
+	}
 	TargetASC->ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
 	Finish();
 }
@@ -168,11 +245,23 @@ void USkillGameplayEffectAction::OnStart()
 void USkillAreaDamageAction::OnStart()
 {
 	USkillAbility* Ability = GetAbility();
-	if (Ability && !Ability->K2_HasAuthority()) { Finish(); return; }
+	if (Ability && !Ability->K2_HasAuthority())
+	{
+		Finish();
+		return;
+	}
 	ACharacterBase* Source = Ability ? Ability->GetPdCharacterFromActorInfo() : nullptr;
-	if (!Source || !Ability->CanRunActions() || !GetWorld() || Radius <= 0.0f) { Finish(false); return; }
+	if (!Source || !Ability->CanRunActions() || !GetWorld() || Radius <= 0.0f)
+	{
+		Finish(false);
+		return;
+	}
 	const FGameplayEffectSpecHandle Spec = Ability->MakeActionDamageSpec(Damage);
-	if (!Spec.IsValid()) { Finish(false); return; }
+	if (!Spec.IsValid())
+	{
+		Finish(false);
+		return;
+	}
 	TArray<FOverlapResult> Overlaps;
 	FCollisionQueryParams Query(SCENE_QUERY_STAT(SkillActionArea), false, Source);
 	GetWorld()->OverlapMultiByObjectType(Overlaps, GetContext().Transform.GetLocation(), FQuat::Identity,
@@ -181,10 +270,15 @@ void USkillAreaDamageAction::OnStart()
 	for (const FOverlapResult& Overlap : Overlaps)
 	{
 		ACharacterBase* Target = Cast<ACharacterBase>(Overlap.GetActor());
-		if (!Target || Visited.Contains(Target) || !Source->CanDamageCharacterByTeam(Target)) continue;
+		if (!Target || Visited.Contains(Target) || !Source->CanDamageCharacterByTeam(Target))
+		{
+			continue;
+		}
 		Visited.Add(Target);
 		if (UAbilitySystemComponent* ASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Target))
+		{
 			ASC->ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
+		}
 	}
 	Finish();
 }
@@ -192,9 +286,17 @@ void USkillAreaDamageAction::OnStart()
 void USkillSpawnActorAction::OnStart()
 {
 	USkillAbility* Ability = GetAbility();
-	if (Ability && !Ability->K2_HasAuthority()) { Finish(); return; }
+	if (Ability && !Ability->K2_HasAuthority())
+	{
+		Finish();
+		return;
+	}
 	AActor* Avatar = Ability ? Ability->GetAvatarActorFromActorInfo() : nullptr;
-	if (!Avatar || !Ability->CanRunActions() || !GetWorld() || !ActorClass) { Finish(false); return; }
+	if (!Avatar || !Ability->CanRunActions() || !GetWorld() || !ActorClass)
+	{
+		Finish(false);
+		return;
+	}
 	FTransform Transform = Offset * GetContext().Transform;
 	if (bProjectToGround)
 	{
@@ -202,11 +304,17 @@ void USkillSpawnActorAction::OnStart()
 		PdSkillGroundProjection::FGroundProjectionResult Ground;
 		if (PdSkillGroundProjection::TryProjectToGround(GetWorld(), Transform.GetLocation(),
 			LabCollisionChannels::VisibilityTrace(), 100.0, 10000.0, Ignore, Ground))
+		{
 			Transform.SetLocation(Ground.Location);
+		}
 	}
 	AActor* Spawned = GetWorld()->SpawnActorDeferred<AActor>(ActorClass, Transform, Avatar,
 		Cast<APawn>(Avatar), ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
-	if (!Spawned) { Finish(false); return; }
+	if (!Spawned)
+	{
+		Finish(false);
+		return;
+	}
 	Spawned->SetReplicates(true);
 	if (ASkillEffectArea* Area = Cast<ASkillEffectArea>(Spawned))
 	{
@@ -221,7 +329,11 @@ void USkillSpawnActorAction::OnStart()
 void USkillProjectileAction::OnStart()
 {
 	USkillAbility* Ability = GetAbility();
-	if (Ability && !Ability->K2_HasAuthority()) { Finish(); return; }
+	if (Ability && !Ability->K2_HasAuthority())
+	{
+		Finish();
+		return;
+	}
 	AActor* Avatar = Ability ? Ability->GetAvatarActorFromActorInfo() : nullptr;
 	if (!Avatar || !Ability->CanRunActions() || !GetWorld() || !ProjectileClass || Speed <= 0.0f)
 	{
@@ -235,21 +347,31 @@ void USkillProjectileAction::OnStart()
 	const FTransform Transform((TargetLocation - Location).Rotation(), Location);
 	Projectile = GetWorld()->SpawnActorDeferred<ASkillProjectile>(ProjectileClass, Transform, Avatar,
 		Cast<APawn>(Avatar), ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
-	if (!Projectile) { Finish(false); return; }
+	if (!Projectile)
+	{
+		Finish(false);
+		return;
+	}
 	Projectile->OnSkillImpact.AddUObject(this, &ThisClass::Impacted);
 	Projectile->OnDestroyed.AddDynamic(this, &ThisClass::ProjectileDestroyed);
 	const FGameplayEffectSpecHandle DamageSpec = Ability->MakeActionDamageSpec(Damage);
 	Projectile->SetDebuffEffectSpecHandle(Ability->MakeActionStatusSpec(), Ability->GetSourceSkillDataAsset()->StatusEffectDataAsset);
 	Projectile->PrepareProjectile(DamageSpec);
 	UGameplayStatics::FinishSpawningActor(Projectile, Transform);
-	if (!IsRunning() || !IsValid(Projectile)) return;
+	if (!IsRunning() || !IsValid(Projectile))
+	{
+		return;
+	}
 	const float FlightLifeSpan = FMath::Max(MaxFlightSeconds, 0.01f);
 	Projectile->SetLifeSpan(Ability->HasDurationDeadline() ? FMath::Min(FlightLifeSpan, Ability->GetRemainingDuration()) : FlightLifeSpan);
 	Projectile->LaunchProjectile(TargetLocation, Speed, DamageSpec);
 }
 void USkillProjectileAction::Impacted(AActor* Target, const FHitResult& Hit)
 {
-	if (!IsRunning()) return;
+	if (!IsRunning())
+	{
+		return;
+	}
 	if (Projectile)
 	{
 		Projectile->OnSkillImpact.RemoveAll(this);
@@ -267,7 +389,10 @@ void USkillProjectileAction::Impacted(AActor* Target, const FHitResult& Hit)
 		OnImpact->OnFinished.AddUObject(this, &ThisClass::ImpactActionFinished);
 		OnImpact->Start(GetAbility(), Context);
 	}
-	else Finish();
+	else
+	{
+		Finish();
+	}
 }
 void USkillProjectileAction::ImpactActionFinished(USkillAction* Child, bool bSucceeded) { Finish(bSucceeded); }
 void USkillProjectileAction::ProjectileDestroyed(AActor* Actor)
@@ -294,7 +419,11 @@ void USkillProjectileAction::OnStop()
 void USkillRepeatAction::OnStart()
 {
 	CompletedCount = 0;
-	if (!Action || !GetWorld()) { Finish(false); return; }
+	if (!Action || !GetWorld())
+	{
+		Finish(false);
+		return;
+	}
 	RunNext();
 }
 void USkillRepeatAction::RunNext()
@@ -305,14 +434,28 @@ void USkillRepeatAction::RunNext()
 }
 void USkillRepeatAction::ChildFinished(USkillAction* Child, bool bSucceeded)
 {
-	if (!IsRunning()) return;
-	if (!bSucceeded) { Finish(false); return; }
-	if (Count > 0 && ++CompletedCount >= Count) { Finish(); return; }
+	if (!IsRunning())
+	{
+		return;
+	}
+	if (!bSucceeded)
+	{
+		Finish(false);
+		return;
+	}
+	if (Count > 0 && ++CompletedCount >= Count)
+	{
+		Finish();
+		return;
+	}
 	GetWorld()->GetTimerManager().SetTimer(Timer, this, &ThisClass::RunNext, FMath::Max(Interval, 0.01f), false);
 }
 void USkillRepeatAction::OnStop()
 {
-	if (GetWorld()) GetWorld()->GetTimerManager().ClearTimer(Timer);
+	if (GetWorld())
+	{
+		GetWorld()->GetTimerManager().ClearTimer(Timer);
+	}
 	if (Current)
 	{
 		Current->OnFinished.RemoveAll(this);

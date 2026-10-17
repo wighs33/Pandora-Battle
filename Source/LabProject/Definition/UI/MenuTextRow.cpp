@@ -22,6 +22,9 @@ const FText& FMenuTextRow::GetTranslation(EGuideLanguage Language) const
 FText FMenuTextRow::Resolve(EGuideLanguage Language) const
 {
 	const FText& Translation = GetTranslation(Language);
-	if (!Translation.IsEmptyOrWhitespace()) return Translation;
+	if (!Translation.IsEmptyOrWhitespace())
+	{
+		return Translation;
+	}
 	return !English.IsEmptyOrWhitespace() ? English : Korean;
 }

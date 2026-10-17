@@ -35,7 +35,10 @@ void UInfoPaintCanvas::Initialize(UInfoWidget* InOwnerWidget, UPaintCanvasWidget
 
 void UInfoPaintCanvas::Shutdown()
 {
-	if (Preview) Preview->Shutdown();
+	if (Preview)
+	{
+		Preview->Shutdown();
+	}
 	Preview = nullptr;
 	CancelStroke();
 	HideActiveCanvas();
@@ -56,7 +59,10 @@ bool UInfoPaintCanvas::SetVisible(const bool bVisible)
 
 	if (!bVisible)
 	{
-		if (Preview) Preview->Shutdown();
+		if (Preview)
+		{
+			Preview->Shutdown();
+		}
 		if (PaintCanvasWidget)
 		{
 			PaintCanvasWidget->SetVisibility(ESlateVisibility::Collapsed);
@@ -94,11 +100,18 @@ bool UInfoPaintCanvas::SetVisible(const bool bVisible)
 	OpaqueCanvasDisplayMaterialInstance->SetTextureParameterValue(CanvasTextureParameterName, RenderTarget);
 	PaintCanvasImage->SetBrushFromMaterial(OpaqueCanvasDisplayMaterialInstance);
 	if (UImage* Speech = PaintCanvasWidget->GetSpeechPreviewImage())
+	{
 		Speech->SetBrushFromMaterial(OpaqueCanvasDisplayMaterialInstance);
-	if (!Preview) Preview = NewObject<UInfoPaintPreviewRenderer>(this);
+	}
+	if (!Preview)
+	{
+		Preview = NewObject<UInfoPaintPreviewRenderer>(this);
+	}
 	const APdHUD* HUD = OwnerWidget->GetOwningPlayer()->GetHUD<APdHUD>();
 	if (const UWidgetClassDefinition* Definition = HUD ? HUD->GetWidgetClassDefinition() : nullptr)
+	{
 		Preview->Show(PlayerCharacter, PaintCanvasWidget, RenderTarget, Definition->GetSkinWidgetSettings());
+	}
 	PaintCanvasImage->SetVisibility(ESlateVisibility::Visible);
 	PaintCanvasWidget->SetIsEnabled(true);
 	PaintCanvasWidget->SetVisibility(ESlateVisibility::Visible);
@@ -216,7 +229,10 @@ bool UInfoPaintCanvas::PaintAtScreenPosition(const FVector2D& ScreenSpacePositio
 		? PlayerCharacter->GetPaintCanvasComponent()
 		: nullptr;
 	const bool bPainted = PaintCanvasComponent && PaintCanvasComponent->PaintAtNormalizedLocation(DrawLocation);
-	if (bPainted && Preview) Preview->Refresh();
+	if (bPainted && Preview)
+	{
+		Preview->Refresh();
+	}
 	return bPainted;
 }
 

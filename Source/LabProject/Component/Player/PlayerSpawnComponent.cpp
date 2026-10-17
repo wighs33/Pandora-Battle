@@ -77,7 +77,10 @@ void UPlayerSpawnComponent::MarkPlayerStartUsed(AController* Player, AActor* Pla
 	if (Player)
 	{
 		TWeakObjectPtr<AActor>& Previous = AssignedPlayerStartsByController.FindOrAdd(TObjectKey<AController>(Player));
-		if (Previous.IsValid() && Previous.Get() != PlayerStart) { UsedPlayerStarts.Remove(Previous.Get()); }
+		if (Previous.IsValid() && Previous.Get() != PlayerStart)
+		{
+			UsedPlayerStarts.Remove(Previous.Get());
+		}
 		Previous = PlayerStart;
 	}
 }
@@ -314,7 +317,10 @@ void UPlayerSpawnComponent::FinishPlayerRespawn(TWeakObjectPtr<AController> Weak
 	if (!TryGetPlayerRespawnTransform(Controller, Transform))
 	{
 		UE_LOG(LogPlayerSpawn, Error, TEXT("No respawn PlayerStart for %s."), *GetNameSafe(Controller));
-		if (PdController) { PdController->Client_HideRespawnDelayCountdown(); }
+		if (PdController)
+		{
+			PdController->Client_HideRespawnDelayCountdown();
+		}
 		return;
 	}
 
@@ -329,7 +335,10 @@ void UPlayerSpawnComponent::FinishPlayerRespawn(TWeakObjectPtr<AController> Weak
 	if (!IsValid(Pawn))
 	{
 		Pawn = WeakDeadPawn.Get();
-		if (IsValid(Pawn)) { Controller->Possess(Pawn); }
+		if (IsValid(Pawn))
+		{
+			Controller->Possess(Pawn);
+		}
 	}
 	const bool bCreatedPawn = !IsValid(Pawn);
 	if (bCreatedPawn)
@@ -349,10 +358,19 @@ void UPlayerSpawnComponent::FinishPlayerRespawn(TWeakObjectPtr<AController> Weak
 			Pawn->ForceNetUpdate();
 		}
 		Controller->SetControlRotation(Transform.GetRotation().Rotator());
-		if (PdController) { PdController->Client_ResetRespawnedPawnStateAtTransform(Pawn, Transform); }
+		if (PdController)
+		{
+			PdController->Client_ResetRespawnedPawnStateAtTransform(Pawn, Transform);
+		}
 	}
-	if (PdController) { PdController->Client_HideRespawnDelayCountdown(); }
-	if (IsValid(Pawn)) { OnPlayerRespawned.Broadcast(Cast<APlayerController>(Controller), bCreatedPawn); }
+	if (PdController)
+	{
+		PdController->Client_HideRespawnDelayCountdown();
+	}
+	if (IsValid(Pawn))
+	{
+		OnPlayerRespawned.Broadcast(Cast<APlayerController>(Controller), bCreatedPawn);
+	}
 }
 
 bool UPlayerSpawnComponent::TryGetPlayerRespawnTransform(AController* Controller, FTransform& OutTransform)
@@ -365,9 +383,15 @@ bool UPlayerSpawnComponent::TryGetPlayerRespawnTransform(AController* Controller
 	if (RespawnLocation == EPlayerRespawnLocation::RandomPlayerStart)
 	{
 		Start = FindRandomRespawnPlayerStart(Controller, *MatchRules);
-		if (Start) { LastRandomRespawnPlayerStartNames.FindOrAdd(TObjectKey<AController>(Controller)) = Start->GetFName(); }
+		if (Start)
+		{
+			LastRandomRespawnPlayerStartNames.FindOrAdd(TObjectKey<AController>(Controller)) = Start->GetFName();
+		}
 	}
-	if (!Start) { return false; }
+	if (!Start)
+	{
+		return false;
+	}
 	OutTransform = Start->GetActorTransform();
 	return true;
 }

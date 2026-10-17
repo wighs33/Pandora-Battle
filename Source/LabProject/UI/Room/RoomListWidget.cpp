@@ -185,7 +185,9 @@ void URoomListWidget::SetInfo()
 void URoomListWidget::RefreshUI()
 {
 	if (Txt_EmptyRooms)
+	{
 		Txt_EmptyRooms->SetVisibility(SessionInfos.IsEmpty() ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	}
 
 	for (int32 Index = 0; Index < Rooms.Num(); ++Index)
 	{

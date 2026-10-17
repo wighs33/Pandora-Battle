@@ -422,7 +422,10 @@ void ULobbyUserWidget::OnMenuLanguageChanged()
 		const int32 Selected = Cbb_TeamColor->GetSelectedIndex();
 		Cbb_TeamColor->ClearSelection();
 		Cbb_TeamColor->RefreshOptions();
-		if (Selected != INDEX_NONE) Cbb_TeamColor->SetSelectedIndex(Selected);
+		if (Selected != INDEX_NONE)
+		{
+			Cbb_TeamColor->SetSelectedIndex(Selected);
+		}
 	}
 	RefreshUI();
 }
@@ -435,7 +438,9 @@ UWidget* ULobbyUserWidget::GenerateTeamOption(FString Option)
 	Font.Size = 20;
 	Font.TypefaceFontName = NAME_None;
 	if (const UMenuLocalizationSubsystem* Localization = GetLocalization())
+	{
 		Font.FontObject = Localization->GetFontForLanguage(Localization->GetLanguage());
+	}
 	Text->SetFont(Font);
 	Text->SetColorAndOpacity(FSlateColor(FLinearColor(1.f, 0.89f, 0.61f)));
 	return Text;

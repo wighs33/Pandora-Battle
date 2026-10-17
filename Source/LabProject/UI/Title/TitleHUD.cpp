@@ -94,7 +94,10 @@ ATitleHUD::ATitleHUD(const FObjectInitializer& ObjectInitializer)
 
 void ATitleHUD::InitializeTitleCharacter()
 {
-	if (!TitleWidget || !TitleCharacterMesh->GetSkeletalMeshAsset() || !TitleCharacterDisplayMaterial) return;
+	if (!TitleWidget || !TitleCharacterMesh->GetSkeletalMeshAsset() || !TitleCharacterDisplayMaterial)
+	{
+		return;
+	}
 
 	// 초상화 조명이 레벨에 닿지 않게 한다. 이 메시만 캡처한다.
 	SetActorLocation(FVector(0, 0, -100000));
@@ -133,7 +136,10 @@ void ATitleHUD::BeginTitleBlink()
 void ATitleHUD::PlayTitleAnimation(UAnimSequenceBase* Animation, const bool bLoop)
 {
 	UAnimInstance* AnimInstance = TitleCharacterMesh->GetAnimInstance();
-	if (!AnimInstance || Animation == CurrentTitleAnimation) return;
+	if (!AnimInstance || Animation == CurrentTitleAnimation)
+	{
+		return;
+	}
 	CurrentTitleAnimation = Animation;
 	if (!Animation)
 	{
@@ -151,7 +157,10 @@ void ATitleHUD::PlayTitleAnimation(UAnimSequenceBase* Animation, const bool bLoo
 
 void ATitleHUD::ShowTitleSpeech()
 {
-	if (!TitleWidget) return;
+	if (!TitleWidget)
+	{
+		return;
+	}
 	// 인사말은 항상 처음에 나오고 무작위 목록에는 들어가지 않는다.
 	FName TextKey = LunaGreetingKey;
 	if (LastTitleTip == INDEX_NONE)
@@ -162,7 +171,10 @@ void ATitleHUD::ShowTitleSpeech()
 	{
 		// 방금 보여 준 팁만 빼고 고른다.
 		int32 Tip = FMath::RandRange(1, LastTitleTip > 0 ? LunaChat::TipCount - 1 : LunaChat::TipCount);
-		if (LastTitleTip > 0 && Tip >= LastTitleTip) ++Tip;
+		if (LastTitleTip > 0 && Tip >= LastTitleTip)
+		{
+			++Tip;
+		}
 		LastTitleTip = Tip;
 		TextKey = LunaChat::TipKey(Tip);
 	}
@@ -179,7 +191,10 @@ void ATitleHUD::ShowTitleSpeech()
 
 void ATitleHUD::HideTitleSpeech()
 {
-	if (TitleWidget) TitleWidget->HideLunaSpeech();
+	if (TitleWidget)
+	{
+		TitleWidget->HideLunaSpeech();
+	}
 	TitleMouthElapsed = -1.f;
 	TitleCharacterMesh->SetMorphTarget(TitleMouthMorph, 0.f);
 	PlayTitleAnimation(nullptr);
@@ -192,7 +207,10 @@ void ATitleHUD::HideTitleSpeech()
 void ATitleHUD::BindLunaChat()
 {
 	ULunaChatSubsystem* Luna = UGameInstance::GetSubsystem<ULunaChatSubsystem>(GetGameInstance());
-	if (!TitleWidget || !Luna) return;
+	if (!TitleWidget || !Luna)
+	{
+		return;
+	}
 	TitleWidget->OnLunaQuestionSubmitted().AddUObject(this, &ATitleHUD::HandleLunaQuestion);
 	LunaReplyUpdatedHandle = Luna->OnReplyUpdated().AddUObject(this, &ATitleHUD::HandleLunaReplyUpdated);
 	LunaReplyFinishedHandle = Luna->OnReplyFinished().AddUObject(this, &ATitleHUD::HandleLunaReplyFinished);
@@ -202,7 +220,10 @@ void ATitleHUD::BindLunaChat()
 
 void ATitleHUD::UnbindLunaChat()
 {
-	if (TitleWidget) TitleWidget->OnLunaQuestionSubmitted().RemoveAll(this);
+	if (TitleWidget)
+	{
+		TitleWidget->OnLunaQuestionSubmitted().RemoveAll(this);
+	}
 	if (ULunaChatSubsystem* Luna = UGameInstance::GetSubsystem<ULunaChatSubsystem>(GetGameInstance()))
 	{
 		Luna->OnReplyUpdated().Remove(LunaReplyUpdatedHandle);
@@ -217,7 +238,10 @@ void ATitleHUD::UnbindLunaChat()
 void ATitleHUD::BindBossRaid()
 {
 	UBackendClientSubsystem* Backend = UGameInstance::GetSubsystem<UBackendClientSubsystem>(GetGameInstance());
-	if (!TitleWidget || !Backend) return;
+	if (!TitleWidget || !Backend)
+	{
+		return;
+	}
 	TitleWidget->OnBossRaidRequested().AddUObject(this, &ATitleHUD::HandleBossRaidRequested);
 	Backend->OnMatchJoinFinished.AddUniqueDynamic(this, &ATitleHUD::HandleBossRaidJoinFinished);
 	Backend->OnBossRaidStatusUpdated.AddUniqueDynamic(this, &ATitleHUD::HandleBossRaidStatusUpdated);
@@ -230,7 +254,10 @@ void ATitleHUD::BindBossRaid()
 
 void ATitleHUD::UnbindBossRaid()
 {
-	if (TitleWidget) TitleWidget->OnBossRaidRequested().RemoveAll(this);
+	if (TitleWidget)
+	{
+		TitleWidget->OnBossRaidRequested().RemoveAll(this);
+	}
 	if (UBackendClientSubsystem* Backend = UGameInstance::GetSubsystem<UBackendClientSubsystem>(GetGameInstance()))
 	{
 		Backend->OnMatchJoinFinished.RemoveDynamic(this, &ATitleHUD::HandleBossRaidJoinFinished);
@@ -244,7 +271,10 @@ void ATitleHUD::UnbindBossRaid()
 void ATitleHUD::HandleBossRaidRequested()
 {
 	UBackendClientSubsystem* Backend = UGameInstance::GetSubsystem<UBackendClientSubsystem>(GetGameInstance());
-	if (!TitleWidget || !Backend || Backend->IsMatchJoinInProgress()) return;
+	if (!TitleWidget || !Backend || Backend->IsMatchJoinInProgress())
+	{
+		return;
+	}
 	bBossRaidJoinPending = true;
 	TitleWidget->SetBossRaidJoining(true);
 	ShowLunaChatText(GetLunaChatLine(BossRaidJoiningKey,
@@ -255,12 +285,21 @@ void ATitleHUD::HandleBossRaidRequested()
 
 void ATitleHUD::HandleBossRaidJoinFinished(const bool bSucceeded, const FString& ErrorMessage)
 {
-	if (!bBossRaidJoinPending) return;
+	if (!bBossRaidJoinPending)
+	{
+		return;
+	}
 	bBossRaidJoinPending = false;
 	// 성공하면 클라이언트는 이미 레이드 맵으로 이동 중이고, 타이틀은 이 레벨과 함께 닫힌다.
-	if (bSucceeded) return;
+	if (bSucceeded)
+	{
+		return;
+	}
 
-	if (TitleWidget) TitleWidget->SetBossRaidJoining(false);
+	if (TitleWidget)
+	{
+		TitleWidget->SetBossRaidJoining(false);
+	}
 	// 그사이 레이드가 닫혔거나 오늘 도전을 다 썼으면 다시 시도해 보라는 대신 그 이유를 알린다.
 	const UBackendClientSubsystem* Backend = UGameInstance::GetSubsystem<UBackendClientSubsystem>(GetGameInstance());
 	if (Backend && Backend->GetLastMatchJoinErrorCode() == TEXT("no_attempts_left"))
@@ -279,9 +318,18 @@ void ATitleHUD::HandleBossRaidJoinFinished(const bool bSucceeded, const FString&
 void ATitleHUD::HandleBossRaidStatusUpdated(const bool bOpen)
 {
 	UBackendClientSubsystem* Backend = UGameInstance::GetSubsystem<UBackendClientSubsystem>(GetGameInstance());
-	if (TitleWidget) TitleWidget->SetBossRaidOpen(bOpen);
-	if (!Backend) return;
-	if (TitleWidget) TitleWidget->SetBossRaidDetails(Backend->GetBossRaidStatus(), Backend->GetBossRaidStanding());
+	if (TitleWidget)
+	{
+		TitleWidget->SetBossRaidOpen(bOpen);
+	}
+	if (!Backend)
+	{
+		return;
+	}
+	if (TitleWidget)
+	{
+		TitleWidget->SetBossRaidDetails(Backend->GetBossRaidStatus(), Backend->GetBossRaidStanding());
+	}
 	if (Backend->GetBossRaidStatus().bHasRaid && !bBossRaidStandingRequested)
 	{
 		bBossRaidStandingRequested = true;
@@ -293,11 +341,20 @@ void ATitleHUD::HandleBossRaidStatusUpdated(const bool bOpen)
 void ATitleHUD::HandleBossRaidStandingUpdated()
 {
 	UBackendClientSubsystem* Backend = UGameInstance::GetSubsystem<UBackendClientSubsystem>(GetGameInstance());
-	if (!Backend) return;
-	if (TitleWidget) TitleWidget->SetBossRaidDetails(Backend->GetBossRaidStatus(), Backend->GetBossRaidStanding());
+	if (!Backend)
+	{
+		return;
+	}
+	if (TitleWidget)
+	{
+		TitleWidget->SetBossRaidDetails(Backend->GetBossRaidStatus(), Backend->GetBossRaidStanding());
+	}
 
 	const FBackendBossRaidStanding& Standing = Backend->GetBossRaidStanding();
-	if (!Backend->ConsumeBossRaidPlayed() || bBossRaidRewardAnnounced || Standing.Damage <= 0) return;
+	if (!Backend->ConsumeBossRaidPlayed() || bBossRaidRewardAnnounced || Standing.Damage <= 0)
+	{
+		return;
+	}
 	FFormatNamedArguments Arguments;
 	Arguments.Add(TEXT("Damage"), FText::AsNumber(Standing.Damage));
 	Arguments.Add(TEXT("Rank"), FText::AsNumber(Standing.Rank));
@@ -309,7 +366,10 @@ void ATitleHUD::HandleBossRaidStandingUpdated()
 void ATitleHUD::HandleBossRaidRewardClaimed(const int32 Gold)
 {
 	bBossRaidRewardAnnounced = true;
-	if (TitleWidget) TitleWidget->RefreshLocalProfile();
+	if (TitleWidget)
+	{
+		TitleWidget->RefreshLocalProfile();
+	}
 	FFormatNamedArguments Arguments;
 	Arguments.Add(TEXT("Gold"), FText::AsNumber(Gold));
 	SayLunaLine(FText::Format(GetLunaChatLine(BossRaidRewardKey, NSLOCTEXT("TitleHUD", "BossRaidReward",
@@ -326,7 +386,10 @@ void ATitleHUD::SayLunaLine(const FText& Line)
 void ATitleHUD::HandleLunaQuestion(const FString& Question)
 {
 	ULunaChatSubsystem* Luna = UGameInstance::GetSubsystem<ULunaChatSubsystem>(GetGameInstance());
-	if (!Luna || !Luna->Ask(Question)) return;
+	if (!Luna || !Luna->Ask(Question))
+	{
+		return;
+	}
 	// Luna는 답의 첫 단어가 올 때까지 입을 다문 채 듣는다.
 	ShowLunaChatText(GetLunaChatLine(LunaChatThinkingKey,
 		NSLOCTEXT("TitleHUD", "LunaChatThinking", "Hmm, let me think...")), false);
@@ -351,7 +414,10 @@ void ATitleHUD::HandleLunaReplyFinished(const bool bSucceeded, const FString& Re
 
 void ATitleHUD::ShowLunaChatText(const FText& Text, const bool bSpeaking)
 {
-	if (!TitleWidget) return;
+	if (!TitleWidget)
+	{
+		return;
+	}
 	// 대화를 하면 답을 다 읽을 때까지 돌아가며 보여 주던 팁을 대신한다.
 	bLunaChatActive = true;
 	GetWorldTimerManager().ClearTimer(TitleSpeechTimer);
@@ -359,7 +425,10 @@ void ATitleHUD::ShowLunaChatText(const FText& Text, const bool bSpeaking)
 	PlayTitleAnimation(bSpeaking ? TalkingAnimation : ThinkingAnimation);
 	if (bShown && bSpeaking && bTitleMouthAvailable)
 	{
-		if (TitleMouthElapsed < 0.f) TitleMouthElapsed = 0.f;
+		if (TitleMouthElapsed < 0.f)
+		{
+			TitleMouthElapsed = 0.f;
+		}
 	}
 	else
 	{
@@ -380,7 +449,10 @@ FVector2D ATitleHUD::GetTitleCharacterHeadTopUV() const
 	const FBoxSphereBounds& CharacterBounds = TitleCharacterMesh->Bounds;
 	const FVector HeadTop = CharacterBounds.Origin + FVector(0, 0, CharacterBounds.BoxExtent.Z);
 	const FVector ViewPoint = TitleCharacterCapture->GetComponentTransform().InverseTransformPositionNoScale(HeadTop);
-	if (!TitleCharacterRenderTarget || ViewPoint.X <= UE_KINDA_SMALL_NUMBER) return FVector2D(0.5, 0.0);
+	if (!TitleCharacterRenderTarget || ViewPoint.X <= UE_KINDA_SMALL_NUMBER)
+	{
+		return FVector2D(0.5, 0.0);
+	}
 	// 씬 캡처는 가로 FOV를 쓰고, 세로 범위는 렌더 타깃의 비율을 따른다.
 	const double TanHalfFov = FMath::Tan(FMath::DegreesToRadians(TitleCharacterCapture->FOVAngle * 0.5f));
 	const double Aspect = double(TitleCharacterRenderTarget->SizeX) / FMath::Max(1, TitleCharacterRenderTarget->SizeY);
@@ -399,7 +471,10 @@ void ATitleHUD::Tick(float DeltaSeconds)
 		const float MouthPhase = TitleMouthElapsed / FMath::Max(0.05f, MouthCycleDuration);
 		TitleCharacterMesh->SetMorphTarget(TitleMouthMorph, 0.5f - 0.5f * FMath::Cos(2.f * UE_PI * MouthPhase));
 	}
-	if (TitleBlinkElapsed < 0.f) return;
+	if (TitleBlinkElapsed < 0.f)
+	{
+		return;
+	}
 	TitleBlinkElapsed += DeltaSeconds;
 	const float Phase = TitleBlinkElapsed / FMath::Max(0.05f, BlinkDuration);
 	if (Phase >= 1.f)
@@ -456,11 +531,17 @@ void ATitleHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	GetWorldTimerManager().ClearTimer(TitleSpeechTimer);
 	TitleMouthElapsed = -1.f;
 	TitleCharacterMesh->SetMorphTarget(TitleMouthMorph, 0.f);
-	if (TitleWidget) TitleWidget->HideLunaSpeech();
+	if (TitleWidget)
+	{
+		TitleWidget->HideLunaSpeech();
+	}
 	TitleCharacterCapture->bCaptureEveryFrame = false;
 	TitleCharacterCapture->TextureTarget = nullptr;
 	TitleCharacterRenderTarget = nullptr;
-	if (Screen) Screen->DeactivateWidget();
+	if (Screen)
+	{
+		Screen->DeactivateWidget();
+	}
 	Screen = nullptr;
 	if (GameResultWidget)
 	{

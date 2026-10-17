@@ -111,7 +111,9 @@ void UCreateRoomPopupWidget::HandleCreateClicked()
 void UCreateRoomPopupWidget::HandleCancelClicked()
 {
 	if (UCommonActivatableWidget* Screen = UCommonUIActionRouterBase::FindOwningActivatable(GetCachedWidget(), GetOwningLocalPlayer()))
+	{
 		Screen->DeactivateWidget();
+	}
 	RemoveFromParent();
 }
 

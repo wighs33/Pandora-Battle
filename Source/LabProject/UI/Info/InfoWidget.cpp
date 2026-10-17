@@ -719,7 +719,10 @@ void UInfoWidget::RefreshDragHintVisibility() const
 
 void UInfoWidget::SetCanvasExportButtonVisible(const bool bVisible) const
 {
-	if (Btn_ClosePaint) Btn_ClosePaint->SetVisibility(bVisible ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	if (Btn_ClosePaint)
+	{
+		Btn_ClosePaint->SetVisibility(bVisible ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	}
 	if (Btn_CanvasExport)
 	{
 		Btn_CanvasExport->SetVisibility(bVisible ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
@@ -733,7 +736,10 @@ void UInfoWidget::SetCanvasExportButtonVisible(const bool bVisible) const
 
 void UInfoWidget::SetPandoraUpgradeButtonVisible(const bool bVisible)
 {
-	if (!bVisible) ClosePandoraDrawerForNavigation();
+	if (!bVisible)
+	{
+		ClosePandoraDrawerForNavigation();
+	}
 	RefreshPandoraDrawerLabel();
 	if (Btn_PandoraUpgrade)
 	{
@@ -743,7 +749,10 @@ void UInfoWidget::SetPandoraUpgradeButtonVisible(const bool bVisible)
 
 bool UInfoWidget::AttachPandoraTree(UPandoraTreeWidget* Tree)
 {
-	if (!PandoraTreeHost || !Tree) return false;
+	if (!PandoraTreeHost || !Tree)
+	{
+		return false;
+	}
 	HideDetailWidgets();
 	PandoraTreeHost->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 	if (Tree->GetParent() != PandoraTreeHost)
@@ -754,9 +763,18 @@ bool UInfoWidget::AttachPandoraTree(UPandoraTreeWidget* Tree)
 	}
 	AttachedPandoraTree = Tree;
 	bPandoraDrawerExpanded = true;
-	if (RightWidgetSwitcher) RightWidgetSwitcher->SetVisibility(ESlateVisibility::Hidden);
-	if (CharacterPanel) CharacterPanel->SetVisibility(ESlateVisibility::Hidden);
-	if (UWidget* Memo = GetWidgetFromName(TEXT("Txt_Memo_LocaleFit"))) Memo->SetVisibility(ESlateVisibility::Hidden);
+	if (RightWidgetSwitcher)
+	{
+		RightWidgetSwitcher->SetVisibility(ESlateVisibility::Hidden);
+	}
+	if (CharacterPanel)
+	{
+		CharacterPanel->SetVisibility(ESlateVisibility::Hidden);
+	}
+	if (UWidget* Memo = GetWidgetFromName(TEXT("Txt_Memo_LocaleFit")))
+	{
+		Memo->SetVisibility(ESlateVisibility::Hidden);
+	}
 	RefreshPandoraDrawerLabel();
 	return true;
 }
@@ -765,25 +783,49 @@ void UInfoWidget::OnPandoraDrawerClosed()
 {
 	AttachedPandoraTree.Reset();
 	bPandoraDrawerExpanded = false;
-	if (PandoraTreeHost) PandoraTreeHost->SetVisibility(ESlateVisibility::Collapsed);
-	if (RightWidgetSwitcher) RightWidgetSwitcher->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
-	if (CharacterPanel) CharacterPanel->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
-	if (UWidget* Memo = GetWidgetFromName(TEXT("Txt_Memo_LocaleFit"))) Memo->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	if (PandoraTreeHost)
+	{
+		PandoraTreeHost->SetVisibility(ESlateVisibility::Collapsed);
+	}
+	if (RightWidgetSwitcher)
+	{
+		RightWidgetSwitcher->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	}
+	if (CharacterPanel)
+	{
+		CharacterPanel->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	}
+	if (UWidget* Memo = GetWidgetFromName(TEXT("Txt_Memo_LocaleFit")))
+	{
+		Memo->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	}
 	RefreshPandoraDrawerLabel();
 }
 
 void UInfoWidget::ClosePandoraDrawerForNavigation()
 {
-	if (!bPandoraDrawerExpanded) return;
-	if (UPandoraTreeWidget* Tree = AttachedPandoraTree.Get()) Tree->HidePandoraTreeImmediately();
+	if (!bPandoraDrawerExpanded)
+	{
+		return;
+	}
+	if (UPandoraTreeWidget* Tree = AttachedPandoraTree.Get())
+	{
+		Tree->HidePandoraTreeImmediately();
+	}
 }
 
 void UInfoWidget::RefreshPandoraDrawerLabel()
 {
 	const FText Label = MenuTextOrFallback(bPandoraDrawerExpanded ? TEXT("Pandora.Collapse") : TEXT("Pandora.Expand"),
 		FText::FromString(bPandoraDrawerExpanded ? TEXT("Collapse") : TEXT("Expand")));
-	if (PandoraDrawerAction) PandoraDrawerAction->SetText(Label);
-	if (PandoraDrawerArrow) PandoraDrawerArrow->SetText(FText::FromString(bPandoraDrawerExpanded ? TEXT("‹") : TEXT("›")));
+	if (PandoraDrawerAction)
+	{
+		PandoraDrawerAction->SetText(Label);
+	}
+	if (PandoraDrawerArrow)
+	{
+		PandoraDrawerArrow->SetText(FText::FromString(bPandoraDrawerExpanded ? TEXT("‹") : TEXT("›")));
+	}
 	SetHoverTooltip(Btn_PandoraUpgrade, MenuTextOrFallback(
 		bPandoraDrawerExpanded ? TEXT("Pandora.CollapseHint") : TEXT("Pandora.ExpandHint"), Label));
 }

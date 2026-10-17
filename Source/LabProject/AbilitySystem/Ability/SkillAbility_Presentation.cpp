@@ -70,7 +70,9 @@ void USkillAbility::StartConfiguredMissilePresentation()
 void USkillAbility::SetMissileTargeting(FName AimParameter, FName TargetSocket)
 {
 	if (ASkillVisualActor* PresentationActor = ActiveSkillPresentationActor.Get())
+	{
 		PresentationActor->SetMissileTargeting(AimParameter, TargetSocket);
+	}
 }
 
 void USkillAbility::UpdateConfiguredMissilePresentationTargets(const TArray<AActor*>& TargetActors)
@@ -121,7 +123,10 @@ void USkillAbility::SpawnConfiguredCharacterDecal()
 	const float FinalSize =
 		DecalSettings.bGrowDecalSize && DecalSettings.FinalDecalSize > 0.0 ? static_cast<float>(DecalSettings.FinalDecalSize) : StartSize;
 	const float LifeSpan = HasDurationDeadline() ? GetRemainingDuration() : 2.0f;
-	if (LifeSpan <= 0.0f) return;
+	if (LifeSpan <= 0.0f)
+	{
+		return;
+	}
 	const float GrowthDuration = DecalSettings.bGrowDecalSize && !FMath::IsNearlyEqual(StartSize, FinalSize) ? LifeSpan : 0.0f;
 
 	FGameplayCueParameters DecalCueParameters;

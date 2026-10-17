@@ -131,7 +131,9 @@ void UShopPreviewPanelWidget::ApplyMessage()
 			EffectiveMessage = FText::Format(EffectiveMessage, Name);
 		}
 		if (UiData && UiData->bValid && UiData->bOwned && EffectiveMessage.IsEmpty())
+		{
 			EffectiveMessage = MenuTextOrFallback(TEXT("Shop.Owned"), OwnedText);
+		}
 		Txt_Message->SetText(EffectiveMessage);
 		Txt_Message->SetVisibility(EffectiveMessage.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::SelfHitTestInvisible);
 	}

@@ -387,7 +387,12 @@ TArray<FPrimaryAssetId> UPlayerProfileSubsystem::GetOwnedSkinAssetIds()
 	if (const UPdSaveGame* Profile = GetOrCreateProfile())
 	{
 		for (const auto& Skin : Profile->PlayerSkinData.GrantedSkinsById)
-			if (Skin.Value > 0) Result.Add(Skin.Key);
+		{
+			if (Skin.Value > 0)
+			{
+				Result.Add(Skin.Key);
+			}
+		}
 	}
 	return Result;
 }

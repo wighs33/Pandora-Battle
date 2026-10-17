@@ -50,17 +50,29 @@ void AStatusEffectGameplayCue::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 bool AStatusEffectGameplayCue::ApplyEffect(AActor* Target, bool bPlayStartSound)
 {
-	if (!IsValid(Target)) return false;
+	if (!IsValid(Target))
+	{
+		return false;
+	}
 
 	if (!IsValid(EffectComponent) && EffectSystem)
 	{
 		USceneComponent* AttachComponent = Target->FindComponentByClass<USkeletalMeshComponent>();
-		if (!AttachComponent) AttachComponent = Target->GetRootComponent();
-		if (!AttachComponent) return false;
+		if (!AttachComponent)
+		{
+			AttachComponent = Target->GetRootComponent();
+		}
+		if (!AttachComponent)
+		{
+			return false;
+		}
 
 		EffectComponent = UNiagaraFunctionLibrary::SpawnSystemAttached(EffectSystem, AttachComponent, AttachSocketName,
 			FVector::ZeroVector, FRotator::ZeroRotator, EAttachLocation::KeepRelativeOffset, false, true, ENCPoolMethod::None, true);
-		if (EffectComponent) EffectComponent->SetWorldScale3D(EffectScale);
+		if (EffectComponent)
+		{
+			EffectComponent->SetWorldScale3D(EffectScale);
+		}
 	}
 
 	if (bPlayStartSound && !bHasPlayedStartSound && StartSound)
@@ -74,7 +86,10 @@ bool AStatusEffectGameplayCue::ApplyEffect(AActor* Target, bool bPlayStartSound)
 
 void AStatusEffectGameplayCue::RemoveEffect()
 {
-	if (IsValid(EffectComponent)) EffectComponent->DestroyComponent();
+	if (IsValid(EffectComponent))
+	{
+		EffectComponent->DestroyComponent();
+	}
 	EffectComponent = nullptr;
 	bHasPlayedStartSound = false;
 }

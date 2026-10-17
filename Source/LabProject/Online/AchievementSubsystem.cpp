@@ -65,7 +65,10 @@ void UAchievementSubsystem::Deinitialize()
 
 void UAchievementSubsystem::EvaluateAndUnlockAchievements()
 {
-	if (GetGameInstance()->IsDedicatedServerInstance()) return;
+	if (GetGameInstance()->IsDedicatedServerInstance())
+	{
+		return;
+	}
 
 	const UAchievementDefinition* AchievementDefinition = ResolveAchievementDefinition();
 	if (!AchievementDefinition)
@@ -283,7 +286,10 @@ void UAchievementSubsystem::HandleAchievementDefinitionContentReady()
 	}
 	BeginAchievementPresentationPreload();
 
-	if (bEvaluationPending) EvaluateAndUnlockAchievements();
+	if (bEvaluationPending)
+	{
+		EvaluateAndUnlockAchievements();
+	}
 }
 
 IOnlineSubsystem* UAchievementSubsystem::ResolveOnlineSubsystem() const

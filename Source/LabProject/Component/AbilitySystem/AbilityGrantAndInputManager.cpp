@@ -195,21 +195,29 @@ bool UAbilityGrantAndInputManager::HasActiveAbilityOfAnyClass(const UPdAbilitySy
 // 누름은 즉시 전달한다. 키 해제를 사용하는 능력만 입력 대상을 기록한다.
 void UAbilityGrantAndInputManager::HandleAbilityInputPressed(UPdAbilitySystemComponent& AbilitySystemComponent, const FGameplayTag& InputTag)
 {
-	if (!InputTag.IsValid()) return;
+	if (!InputTag.IsValid())
+	{
+		return;
+	}
 
 	// 활성화 콜백이 능력 목록을 바꿀 수 있으므로 입력 시점의 핸들만 먼저 수집한다.
 	TArray<FGameplayAbilitySpecHandle> Handles;
 	for (const FGameplayAbilitySpec& Spec : AbilitySystemComponent.GetActivatableAbilities())
 	{
 		if (Spec.Ability && Spec.GetDynamicSpecSourceTags().HasTagExact(InputTag))
+		{
 			Handles.Add(Spec.Handle);
+		}
 	}
 
 	FScopedAbilityListLock AbilityListLock(AbilitySystemComponent);
 	for (const FGameplayAbilitySpecHandle Handle : Handles)
 	{
 		FGameplayAbilitySpec* Spec = AbilitySystemComponent.FindAbilitySpecFromHandle(Handle);
-		if (!Spec || !Spec->Ability) continue;
+		if (!Spec || !Spec->Ability)
+		{
+			continue;
+		}
 
 		const UPdGameplayAbility* Ability = Cast<UPdGameplayAbility>(Spec->Ability);
 		const bool bUsesInputRelease = Ability && Ability->UsesInputRelease(*Spec);
@@ -236,7 +244,9 @@ void UAbilityGrantAndInputManager::HandleAbilityInputPressed(UPdAbilitySystemCom
 		if (!bUsesInputRelease)
 		{
 			if (FGameplayAbilitySpec* CurrentSpec = AbilitySystemComponent.FindAbilitySpecFromHandle(Handle))
+			{
 				CurrentSpec->InputPressed = false;
+			}
 		}
 	}
 }
@@ -259,7 +269,10 @@ void UAbilityGrantAndInputManager::HandleAbilityInputReleased(
 	for (const FGameplayAbilitySpecHandle Handle : Handles)
 	{
 		FGameplayAbilitySpec* Spec = AbilitySystemComponent.FindAbilitySpecFromHandle(Handle);
-		if (!Spec) continue;
+		if (!Spec)
+		{
+			continue;
+		}
 		// 모든 기존 누름 상태를 콜백 전에 정리해, 콜백에서 들어온 새 Press를 덮어쓰지 않는다.
 		Spec->InputPressed = false;
 		if (Spec->Ability && Spec->IsActive())
@@ -273,7 +286,12 @@ void UAbilityGrantAndInputManager::HandleAbilityInputReleased(
 	const FDelegateHandle EndedHandle = AbilitySystemComponent.OnAbilityEnded.AddLambda([&Targets](const FAbilityEndedData& Data)
 	{
 		for (FReleaseTarget& Target : Targets)
-			if (Target.Handle == Data.AbilitySpecHandle) Target.bEnded = true;
+		{
+			if (Target.Handle == Data.AbilitySpecHandle)
+			{
+				Target.bEnded = true;
+			}
+		}
 	});
 	ON_SCOPE_EXIT { AbilitySystemComponent.OnAbilityEnded.Remove(EndedHandle); };
 	for (const FReleaseTarget& Target : Targets)
@@ -294,7 +312,10 @@ void UAbilityGrantAndInputManager::SendInputToActiveAbility(
 	// 월드 전환 중에는 입력 기록만 소비하고, 사라진 Owner/Avatar에 콜백을 전달하지 않는다.
 	const auto ActorInfo = AbilitySystemComponent.AbilityActorInfo;
 	if (!ActorInfo.IsValid() || !ActorInfo->OwnerActor.IsValid() || !ActorInfo->AvatarActor.IsValid()
-		|| !ActorInfo->IsLocallyControlled()) return;
+		|| !ActorInfo->IsLocallyControlled())
+	{
+		return;
+	}
 	FScopedAbilityListLock AbilityListLock(AbilitySystemComponent);
 	FGameplayAbilitySpec* Spec = AbilitySystemComponent.FindAbilitySpecFromHandle(Handle);
 	if (!Spec || !Spec->IsActive())
@@ -307,7 +328,10 @@ void UAbilityGrantAndInputManager::SendInputToActiveAbility(
 	bool bEnded = false;
 	const FDelegateHandle EndedHandle = AbilitySystemComponent.OnAbilityEnded.AddLambda([&bEnded, Handle](const FAbilityEndedData& Data)
 	{
-		if (Data.AbilitySpecHandle == Handle) bEnded = true;
+		if (Data.AbilitySpecHandle == Handle)
+		{
+			bEnded = true;
+		}
 	});
 	ON_SCOPE_EXIT { AbilitySystemComponent.OnAbilityEnded.Remove(EndedHandle); };
 	if (!bPressed)
@@ -331,8 +355,14 @@ void UAbilityGrantAndInputManager::SendInputToActiveAbility(
 	// WaitInput* 태스크의 Generic Event 전송과는 별개이며, 이 RPC는 Generic Event를 발생시키지 않는다.
 	if (Spec->Ability->bReplicateInputDirectly && !AbilitySystemComponent.IsOwnerActorAuthoritative())
 	{
-		if (bPressed) AbilitySystemComponent.ServerSetInputPressed(Handle);
-		else AbilitySystemComponent.ServerSetInputReleased(Handle);
+		if (bPressed)
+		{
+			AbilitySystemComponent.ServerSetInputPressed(Handle);
+		}
+		else
+		{
+			AbilitySystemComponent.ServerSetInputReleased(Handle);
+		}
 	}
 	if (bPressed)
 	{

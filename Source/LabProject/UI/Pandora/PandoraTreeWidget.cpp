@@ -115,7 +115,10 @@ void UPandoraTreeWidget::NativeDestruct()
 void UPandoraTreeWidget::NativeTick(const FGeometry& MyGeometry, const float InDeltaTime)
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
-	if (bDockedInInfo) UpdateDrawerReveal(InDeltaTime, MyGeometry.GetLocalSize().X);
+	if (bDockedInInfo)
+	{
+		UpdateDrawerReveal(InDeltaTime, MyGeometry.GetLocalSize().X);
+	}
 
 	if (bPandoraDescriptionDirty)
 	{
@@ -225,7 +228,10 @@ void UPandoraTreeWidget::ShowPandoraTree()
 	}
 	else
 	{
-		if (SlideInLeft) PlayAnimation(SlideInLeft, 0.0f, 1, EUMGSequencePlayMode::Forward, 1.0f, false);
+		if (SlideInLeft)
+		{
+			PlayAnimation(SlideInLeft, 0.0f, 1, EUMGSequencePlayMode::Forward, 1.0f, false);
+		}
 		SpawnCharacterPreview();
 	}
 }
@@ -796,7 +802,10 @@ void UPandoraTreeWidget::UpdateDrawerReveal(const float DeltaTime, const float D
 		const float Smooth = FMath::SmoothStep(0.0f, 1.0f, DrawerReveal);
 		PandoraDrawerContent->SetRenderTranslation(FVector2D(-DrawerWidth * (1.0f - Smooth), 0));
 	}
-	if (bDrawerClosing && DrawerReveal <= 0.0f) FinishHidePandoraTree();
+	if (bDrawerClosing && DrawerReveal <= 0.0f)
+	{
+		FinishHidePandoraTree();
+	}
 }
 
 void UPandoraTreeWidget::ClearHideTimer()

@@ -542,7 +542,9 @@ void UTitleWidget::HandleRecordCloseClicked()
 
 	UnbindRecordCloseButton();
 	if (UCommonActivatableWidget* Screen = UCommonUIActionRouterBase::FindOwningActivatable(RecordWidget->GetCachedWidget(), GetOwningLocalPlayer()))
+	{
 		Screen->DeactivateWidget();
+	}
 	RecordWidget->RemoveFromParent();
 }
 
@@ -681,7 +683,10 @@ void UTitleWidget::OpenGuide()
 
 	PresentMenuPopup(GuideWidget, FSimpleDelegate::CreateWeakLambda(this, [this]()
 	{
-		if (UGuideWidget* Guide = Cast<UGuideWidget>(GuideWidget)) Guide->CloseGuide();
+		if (UGuideWidget* Guide = Cast<UGuideWidget>(GuideWidget))
+		{
+			Guide->CloseGuide();
+		}
 	}));
 }
 
@@ -818,7 +823,10 @@ void UTitleWidget::LoadLocalProfile() const
 
 void UTitleWidget::StartQuickMatch()
 {
-	if (ActiveQuickMatchRequestId != 0) return;
+	if (ActiveQuickMatchRequestId != 0)
+	{
+		return;
+	}
 	SetQuickMatchEnabled(false);
 	UOnlineSessionsSubsystem* OnlineSessionsSubsystem = GetGameInstance()
 		? GetGameInstance()->GetSubsystem<UOnlineSessionsSubsystem>()

@@ -645,7 +645,10 @@ FVector ASkillVisualActor::ResolveCharacterFloorLocation(ACharacterBase* Charact
 
 void ASkillVisualActor::SetMissileTargeting(FName InAimParameter, FName InTargetSocket)
 {
-	if (!HasAuthority()) return;
+	if (!HasAuthority())
+	{
+		return;
+	}
 	MissileAimParameter = InAimParameter;
 	MissileTargetSocket = InTargetSocket;
 	RefreshLocalPresentation();

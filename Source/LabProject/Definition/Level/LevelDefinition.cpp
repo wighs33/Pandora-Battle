@@ -159,7 +159,10 @@ FName ULevelDefinition::ResolveIngameLevelKey(FName LevelKey) const
 {
 	for (const FLobbyMatchMapOption& Level : IngameLevels)
 	{
-		if (!LevelKey.IsNone() && Level.MapKey == LevelKey) { return LevelKey; }
+		if (!LevelKey.IsNone() && Level.MapKey == LevelKey)
+		{
+			return LevelKey;
+		}
 	}
 	return NAME_None;
 }

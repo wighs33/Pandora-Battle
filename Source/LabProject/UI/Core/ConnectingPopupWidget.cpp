@@ -45,7 +45,10 @@ void UConnectingPopupWidget::SetCancelButtonEnabled(const bool bEnabled)
 
 void UConnectingPopupWidget::HandleCancelClicked()
 {
-	if (!bCancelButtonEnabled) return;
+	if (!bCancelButtonEnabled)
+	{
+		return;
+	}
 	OnCanceled.Broadcast();
 }
 

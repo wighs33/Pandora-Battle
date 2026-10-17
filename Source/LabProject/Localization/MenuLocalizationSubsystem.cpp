@@ -34,14 +34,23 @@ void UMenuLocalizationSubsystem::Initialize(FSubsystemCollectionBase& Collection
 
 bool UMenuLocalizationSubsystem::SetLanguage(EGuideLanguage NewLanguage)
 {
-	if (!UiLanguage::IsSupported(NewLanguage)) return false;
+	if (!UiLanguage::IsSupported(NewLanguage))
+	{
+		return false;
+	}
 	const bool bChanged = Language != NewLanguage;
 	Language = NewLanguage;
 	UUiSettingsSaveGame* Saved = Cast<UUiSettingsSaveGame>(UGameplayStatics::CreateSaveGameObject(UUiSettingsSaveGame::StaticClass()));
 	Saved->Language = Language;
 	const bool bSaved = UGameplayStatics::SaveGameToSlot(Saved, SettingsSlot, 0);
-	if (!bSaved) UE_LOG(LogMenuLocalization, Warning, TEXT("Could not save the language selection."));
-	if (bChanged) OnLanguageChanged.Broadcast();
+	if (!bSaved)
+	{
+		UE_LOG(LogMenuLocalization, Warning, TEXT("Could not save the language selection."));
+	}
+	if (bChanged)
+	{
+		OnLanguageChanged.Broadcast();
+	}
 	return bSaved;
 }
 
@@ -59,7 +68,10 @@ FText UMenuLocalizationSubsystem::GetTextOrFallback(FName Key, const FText& Fall
 	if (Row)
 	{
 		const FText Result = Row->Resolve(Language);
-		if (!Result.IsEmptyOrWhitespace()) return Result;
+		if (!Result.IsEmptyOrWhitespace())
+		{
+			return Result;
+		}
 	}
 	return Fallback;
 }
@@ -72,7 +84,10 @@ UFont* UMenuLocalizationSubsystem::GetFontForLanguage(EGuideLanguage FontLanguag
 void UMenuLocalizationSubsystem::ApplyLanguageFont(UTextBlock& Text) const
 {
 	UFont* Font = GetFontForLanguage(Language);
-	if (!Font) return;
+	if (!Font)
+	{
+		return;
+	}
 	FSlateFontInfo Info = Text.GetFont();
 	Info.FontObject = Font;
 	Info.TypefaceFontName = NAME_None;
@@ -81,7 +96,10 @@ void UMenuLocalizationSubsystem::ApplyLanguageFont(UTextBlock& Text) const
 
 FText UMenuLocalizationSubsystem::GetProductText(const UObject* Product, FName Field, const FText& Fallback) const
 {
-	if (!Product) return Fallback;
+	if (!Product)
+	{
+		return Fallback;
+	}
 	// 짧은 이름이 같은 상품이 번역을 나눠 쓰지 않도록 애셋 전체 경로를 키로 쓴다.
 	const FName Key(*FString::Printf(TEXT("Product.%s.%s"), *Product->GetPathName(), *Field.ToString()));
 	return GetTextOrFallback(Key, Fallback);

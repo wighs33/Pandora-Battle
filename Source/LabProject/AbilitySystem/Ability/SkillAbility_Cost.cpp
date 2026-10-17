@@ -170,7 +170,10 @@ void USkillAbility::GetResourceCosts(const FGameplayAbilitySpecHandle Handle,
 	const UAbilitySystemComponent* ASC = ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr;
 	const FGameplayAbilitySpec* Spec = ASC && Handle.IsValid() ? ASC->FindAbilitySpecFromHandle(Handle) : GetCurrentAbilitySpec();
 	const USkillDefinition* Skill = ResolveSourceSkillDataAsset(Spec ? Spec->SourceObject.Get() : nullptr);
-	if (!Skill) return;
+	if (!Skill)
+	{
+		return;
+	}
 	ManaCost = static_cast<float>(FMath::Max(Skill->ManaCost, 0.0));
 	const APawn* AvatarPawn = ActorInfo ? Cast<APawn>(ActorInfo->AvatarActor.Get()) : nullptr;
 	StaminaCost = AvatarPawn && AvatarPawn->IsPlayerControlled() ? GetDefaultActionStaminaCost(AvatarPawn) : 0.0f;

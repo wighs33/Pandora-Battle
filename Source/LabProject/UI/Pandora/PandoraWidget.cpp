@@ -243,14 +243,25 @@ void UPandoraWidget::SetPandoraInfo()
 
 	// 잠겼거나 배우지 않은 노드도 이름은 읽을 수 있게 두고, 메달만 어둡게 한다.
 	for (const FName Name : { FName(TEXT("PandoraName")), FName(TEXT("LevelText")) })
-		if (UWidget* Label = GetWidgetFromName(Name)) Label->SetRenderOpacity(1.0f);
+	{
+		if (UWidget* Label = GetWidgetFromName(Name))
+		{
+			Label->SetRenderOpacity(1.0f);
+		}
+	}
 	if (UWidget* Icon = GetWidgetFromName(TEXT("PandoraIcon")))
+	{
 		Icon->SetRenderOpacity(ViewData.bCanSpend ? 0.85f : ViewData.ContentOpacity);
+	}
 
 	if (UWidget* Ready = GetWidgetFromName(TEXT("GrowthReady")))
+	{
 		Ready->SetVisibility(ViewData.bCanSpend ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	}
 	if (UWidget* ReadyRing = GetWidgetFromName(TEXT("GrowthReadyRing")))
+	{
 		ReadyRing->SetVisibility(ViewData.bCanSpend ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	}
 	RefreshEquipHintState(IsHovered());
 }
 

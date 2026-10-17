@@ -140,7 +140,10 @@ void ALobbyHUD::RefreshLobbyUI()
 void ALobbyHUD::NotifyLobbyWidgetOpened()
 {
     RefreshPlayerHudVisibility();
-    if (LobbyScreen) LobbyScreen->RequestRefreshFocus();
+    if (LobbyScreen)
+    {
+    	LobbyScreen->RequestRefreshFocus();
+    }
 }
 
 void ALobbyHUD::NotifyLobbyWidgetClosed()

@@ -317,7 +317,9 @@ void UShopWidget::RefreshAndSelectProduct(UObject* ProductObject, const EShopPro
 void UShopWidget::HandleCloseClicked()
 {
 	if (UCommonActivatableWidget* Screen = UCommonUIActionRouterBase::FindOwningActivatable(GetCachedWidget(), GetOwningLocalPlayer()))
+	{
 		Screen->DeactivateWidget();
+	}
 	RemoveFromParent();
 }
 

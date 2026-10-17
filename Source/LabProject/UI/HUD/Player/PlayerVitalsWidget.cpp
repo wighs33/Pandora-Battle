@@ -214,7 +214,10 @@ void UPlayerVitalsWidget::HandleResourceChanged(const FOnAttributeChangeData& Da
 
 void UPlayerVitalsWidget::RefreshResourceReadouts()
 {
-	if (!BoundAbilitySystemComponent) return;
+	if (!BoundAbilitySystemComponent)
+	{
+		return;
+	}
 	const auto Number = [this](FGameplayAttribute Attribute)
 	{
 		return FText::AsNumber(FMath::Max(0, FMath::RoundToInt(BoundAbilitySystemComponent->GetNumericAttribute(Attribute))));

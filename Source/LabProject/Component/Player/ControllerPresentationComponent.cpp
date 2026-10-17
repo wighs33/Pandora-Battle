@@ -175,7 +175,10 @@ bool UControllerPresentationComponent::TickTravelLoadingScreenReady(float)
 	}
 	const bool bWaiting = LoadingScreenWaiting.Get(false);
 	SetTrainingRoomLoadingPaused(bWaiting);
-	if (!bWaiting) TravelLoadingReadyTickerHandle.Reset();
+	if (!bWaiting)
+	{
+		TravelLoadingReadyTickerHandle.Reset();
+	}
 	return bWaiting;
 }
 

@@ -37,7 +37,10 @@ void ARoomHUD::BeginPlay()
 
 void ARoomHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	if (Screen) Screen->DeactivateWidget();
+	if (Screen)
+	{
+		Screen->DeactivateWidget();
+	}
 	Screen = nullptr;
 	if (RoomListWidget)
 	{

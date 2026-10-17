@@ -97,7 +97,10 @@ void AExperienceGameMode::EndPlay(const EEndPlayReason::Type EndPlayReason)
 void AExperienceGameMode::InitGameState()
 {
 	Super::InitGameState();
-	if (IsRuntimeContentReady()) { MatchFlowComponent->InitializeGameState(); }
+	if (IsRuntimeContentReady())
+	{
+		MatchFlowComponent->InitializeGameState();
+	}
 	StartExperienceLoad();
 }
 
@@ -325,7 +328,10 @@ bool AExperienceGameMode::RequestAbortMatchToTitle(APlayerController* Requesting
 // 필수 경기 콘텐츠와 지정된 Experience가 모두 준비된 뒤 입장을 허용한다.
 bool AExperienceGameMode::CanStartGameplay() const
 {
-	if (!IsRuntimeContentReady()) { return false; }
+	if (!IsRuntimeContentReady())
+	{
+		return false;
+	}
 	if (!GetConfiguredExperienceId().IsValid())
 	{
 		return true;
@@ -388,7 +394,10 @@ void AExperienceGameMode::BeginRuntimeContentPreload()
 	for (const FSoftObjectPath& Path : {Definitions.MatchRule.ToSoftObjectPath(),
 		Definitions.LevelDefinition.ToSoftObjectPath(), Definitions.DefaultProvision.ToSoftObjectPath()})
 	{
-		if (!Path.IsNull()) { Paths.AddUnique(Path); }
+		if (!Path.IsNull())
+		{
+			Paths.AddUnique(Path);
+		}
 	}
 	if (Paths.IsEmpty())
 	{

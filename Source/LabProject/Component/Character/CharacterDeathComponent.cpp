@@ -114,7 +114,10 @@ void UCharacterDeathComponent::HandleDeadTagChanged(const int32 NewCount,
 
 	AGameModeBase* GameMode = Character->GetWorld() ? Character->GetWorld()->GetAuthGameMode() : nullptr;
 	UPlayerSpawnComponent* Spawn = GameMode ? GameMode->FindComponentByClass<UPlayerSpawnComponent>() : nullptr;
-	if (Spawn) { Spawn->RequestPlayerRespawn(DeathController, Character); }
+	if (Spawn)
+	{
+		Spawn->RequestPlayerRespawn(DeathController, Character);
+	}
 }
 
 void UCharacterDeathComponent::HandleRemoteDeath()

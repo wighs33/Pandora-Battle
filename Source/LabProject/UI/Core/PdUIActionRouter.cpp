@@ -19,7 +19,10 @@ void UPdUIActionRouter::PlayerControllerChanged(APlayerController* NewPlayerCont
     ChatInputWidget.Reset();
     AppliedGameplayPolicy = EPdGameplayInputPolicy::Allow;
     ActiveInputConfig.Reset();
-    if (NewPlayerController) ApplyDefaultInput();
+    if (NewPlayerController)
+    {
+        ApplyDefaultInput();
+    }
 }
 
 void UPdUIActionRouter::Deinitialize()
@@ -32,14 +35,23 @@ void UPdUIActionRouter::Deinitialize()
 void UPdUIActionRouter::BeginChatInput(UWidget* InputWidget)
 {
     ChatInputWidget = InputWidget;
-    if (!GetActiveRoot().IsValid()) ApplyDefaultInput();
+    if (!GetActiveRoot().IsValid())
+    {
+        ApplyDefaultInput();
+    }
 }
 
 void UPdUIActionRouter::EndChatInput(const UWidget* InputWidget)
 {
-    if (ChatInputWidget.Get() != InputWidget) return;
+    if (ChatInputWidget.Get() != InputWidget)
+    {
+        return;
+    }
     ChatInputWidget.Reset();
-    if (!GetActiveRoot().IsValid()) ApplyDefaultInput();
+    if (!GetActiveRoot().IsValid())
+    {
+        ApplyDefaultInput();
+    }
 }
 
 void UPdUIActionRouter::SetActiveRoot(FActivatableTreeRootPtr NewActiveRoot)
@@ -51,7 +63,10 @@ void UPdUIActionRouter::SetActiveRoot(FActivatableTreeRootPtr NewActiveRoot)
         // 그 정리가 끝난 다음 기본 정책을 복원한다. Core ticker는 일시정지 중에도 실행된다.
         FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this, [this](float)
         {
-            if (!GetActiveRoot().IsValid()) ApplyDefaultInput();
+            if (!GetActiveRoot().IsValid())
+            {
+                ApplyDefaultInput();
+            }
             return false;
         }));
     }
@@ -64,7 +79,10 @@ void UPdUIActionRouter::ApplyDefaultInput()
         EMouseCaptureMode::CapturePermanently_IncludingInitialMouseDown);
     Config.bIgnoreMoveInput = Config.bIgnoreLookInput = ChatInput != nullptr;
     ApplyUIInputConfig(Config, true);
-    if (ChatInput) GetLocalPlayerChecked()->GetSlateOperations().SetUserFocus(ChatInput->TakeWidget());
+    if (ChatInput)
+    {
+        GetLocalPlayerChecked()->GetSlateOperations().SetUserFocus(ChatInput->TakeWidget());
+    }
 }
 
 bool UPdUIActionRouter::IsGameplayInputBlocked() const
@@ -78,7 +96,10 @@ void UPdUIActionRouter::ApplyUIInputConfig(const FUIInputConfig& NewConfig, bool
     PendingInputConfigTickerHandle.Reset();
 
     APlayerController* Controller = GetLocalPlayerChecked()->GetPlayerController(GetWorld());
-    if (!IsValid(Controller) || Controller->IsActorBeingDestroyed()) return;
+    if (!IsValid(Controller) || Controller->IsActorBeingDestroyed())
+    {
+        return;
+    }
 
     UEnhancedInputLocalPlayerSubsystem* InputSubsystem = GetLocalPlayerChecked()->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>();
     if (InputSubsystem && !InputSubsystem->GetPlayerInput())
@@ -92,7 +113,10 @@ void UPdUIActionRouter::ApplyUIInputConfig(const FUIInputConfig& NewConfig, bool
             if (PendingController.IsValid() && PendingController.Get() == CurrentController && !CurrentController->IsActorBeingDestroyed())
             {
                 const UEnhancedInputLocalPlayerSubsystem* Input = GetLocalPlayerChecked()->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>();
-                if (Input && !Input->GetPlayerInput()) return true;
+                if (Input && !Input->GetPlayerInput())
+                {
+                    return true;
+                }
 
                 PendingInputConfigTickerHandle.Reset();
                 ApplyUIInputConfig(NewConfig, true);
@@ -120,7 +144,10 @@ void UPdUIActionRouter::ApplyUIInputConfig(const FUIInputConfig& NewConfig, bool
         AppliedGameplayPolicy = EPdGameplayInputPolicy::Allow;
     }
     const bool bWillBlock = IsGameplayInputBlocked();
-    if (bWasBlocked != bWillBlock) KeysAwaitingRelease.Append(PressedKeys);
+    if (bWasBlocked != bWillBlock)
+    {
+        KeysAwaitingRelease.Append(PressedKeys);
+    }
     if (bWasBlocked && !bWillBlock && Controller)
     {
         // 차단 해제 때만 정리한다. Allow 정책 재적용은 누른 입력을 유지한다.
@@ -136,13 +163,18 @@ void UPdUIActionRouter::ApplyUIInputConfig(const FUIInputConfig& NewConfig, bool
     if (NewConfig.GetInputMode() == ECommonInputMode::Menu && GetActiveInputMode() != ECommonInputMode::Menu && Controller)
     {
         if (UControllerInputComponent* Input = Controller->FindComponentByClass<UControllerInputComponent>())
+        {
             Input->ReleaseHeldUiInput();
+        }
     }
     Super::ApplyUIInputConfig(NewConfig, bForceRefresh);
     if (Controller)
     {
         // CommonUI가 입력을 분배하므로 이전 UIOnly의 전역 Viewport 차단은 사용하지 않는다.
-        if (UGameViewportClient* Viewport = GetLocalPlayerChecked()->ViewportClient) Viewport->SetIgnoreInput(false);
+        if (UGameViewportClient* Viewport = GetLocalPlayerChecked()->ViewportClient)
+        {
+            Viewport->SetIgnoreInput(false);
+        }
         const bool bShowCursor = NewConfig.GetMouseCaptureMode() == EMouseCaptureMode::NoCapture;
         Controller->SetShowMouseCursor(bShowCursor);
         Controller->bEnableClickEvents = bShowCursor;
@@ -152,7 +184,10 @@ void UPdUIActionRouter::ApplyUIInputConfig(const FUIInputConfig& NewConfig, bool
 
 ERouteUIInputResult UPdUIActionRouter::ProcessInput(FKey Key, EInputEvent InputEvent) const
 {
-    if (InputEvent == IE_Pressed) PressedKeys.Add(Key);
+    if (InputEvent == IE_Pressed)
+    {
+        PressedKeys.Add(Key);
+    }
     if (InputEvent == IE_Released)
     {
         PressedKeys.Remove(Key);

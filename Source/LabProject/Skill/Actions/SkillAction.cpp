@@ -32,7 +32,10 @@ void USkillAction::Cancel()
 
 void USkillAction::Finish(bool bSucceeded)
 {
-	if (!bRunning) return;
+	if (!bRunning)
+	{
+		return;
+	}
 	bRunning = false;
 	OnStop();
 	OnFinished.Broadcast(this, bSucceeded);
@@ -79,7 +82,10 @@ void USkillSequenceAction::OnStart()
 
 void USkillSequenceAction::StartNext()
 {
-	if (!IsRunning()) return;
+	if (!IsRunning())
+	{
+		return;
+	}
 	if (NextIndex == Actions.Num())
 	{
 		Finish();
@@ -97,20 +103,29 @@ void USkillSequenceAction::StartNext()
 
 void USkillSequenceAction::ChildFinished(USkillAction* Child, bool bSucceeded)
 {
-	if (!IsRunning()) return;
+	if (!IsRunning())
+	{
+		return;
+	}
 	if (bSucceeded)
 	{
 		SetContext(Child->GetResultContext());
 		StartNext();
 	}
-	else Finish(false);
+	else
+	{
+		Finish(false);
+	}
 }
 
 void USkillSequenceAction::OnStop()
 {
 	for (USkillAction* Child : Actions)
 	{
-		if (!Child) continue;
+		if (!Child)
+		{
+			continue;
+		}
 		Child->OnFinished.RemoveAll(this);
 		Child->Cancel();
 	}
@@ -126,7 +141,10 @@ void USkillParallelAction::OnStart()
 	}
 	for (USkillAction* Child : Actions)
 	{
-		if (!IsRunning()) break;
+		if (!IsRunning())
+		{
+			break;
+		}
 		if (!Child)
 		{
 			Finish(false);
@@ -139,16 +157,28 @@ void USkillParallelAction::OnStart()
 
 void USkillParallelAction::ChildFinished(USkillAction* Child, bool bSucceeded)
 {
-	if (!IsRunning()) return;
-	if (!bSucceeded) Finish(false);
-	else if (--Remaining == 0) Finish();
+	if (!IsRunning())
+	{
+		return;
+	}
+	if (!bSucceeded)
+	{
+		Finish(false);
+	}
+	else if (--Remaining == 0)
+	{
+		Finish();
+	}
 }
 
 void USkillParallelAction::OnStop()
 {
 	for (USkillAction* Child : Actions)
 	{
-		if (!Child) continue;
+		if (!Child)
+		{
+			continue;
+		}
 		Child->OnFinished.RemoveAll(this);
 		Child->Cancel();
 	}

@@ -198,7 +198,10 @@ UClass* ALobbyGameMode::GetDefaultPawnClassForController_Implementation(AControl
 	if (GetConfiguredExperienceId().IsValid())
 	{
 		const UExperienceDefinition* Experience = GetExperienceManager()->GetCurrentExperienceChecked();
-		if (Experience->DefaultPawnClass) { return Experience->DefaultPawnClass; }
+		if (Experience->DefaultPawnClass)
+		{
+			return Experience->DefaultPawnClass;
+		}
 	}
 	return Super::GetDefaultPawnClassForController_Implementation(InController);
 }
@@ -214,10 +217,19 @@ void ALobbyGameMode::Logout(AController* Exiting)
 // 호스트가 확정한 로비 설정을 적용한다.
 void ALobbyGameMode::SelectLobbyMap(FName MapKey)
 {
-	if (!LobbyConfigurationComponent->IsRuntimeReady()) { return; }
+	if (!LobbyConfigurationComponent->IsRuntimeReady())
+	{
+		return;
+	}
 	FLobbyMatchMapOption Option;
-	if (!LobbyConfigurationComponent->FindConfiguredMapOption(MapKey, Option)) { return; }
-	if (bGameStartRequested) { CancelPendingGameStart(); }
+	if (!LobbyConfigurationComponent->FindConfiguredMapOption(MapKey, Option))
+	{
+		return;
+	}
+	if (bGameStartRequested)
+	{
+		CancelPendingGameStart();
+	}
 	LobbyConfigurationComponent->SelectLobbyMap(MapKey);
 	UpdateAdvertisedSessionSettings();
 }
@@ -225,7 +237,10 @@ void ALobbyGameMode::SelectLobbyMap(FName MapKey)
 // 시작 조건을 확인하고 Pawn을 잠근다. 혼자이면 즉시 이동하고 여러 명이면 카운트다운한다.
 void ALobbyGameMode::TryStartGame()
 {
-	if (!CanHostStartGame()) { return; }
+	if (!CanHostStartGame())
+	{
+		return;
+	}
 	bGameStartRequested = true;
 	GetWorldTimerManager().ClearTimer(StartCountdownTimerHandle);
 	const float CountdownSeconds = GetStartCountdownSeconds();
@@ -253,23 +268,39 @@ bool ALobbyGameMode::CanHostStartGame() const
 // 팀 변경 시 진행 중인 시작 카운트다운을 취소하게 한다.
 void ALobbyGameMode::NotifyLobbyTeamChanged()
 {
-	if (bGameStartRequested) { CancelPendingGameStart(); }
+	if (bGameStartRequested)
+	{
+		CancelPendingGameStart();
+	}
 }
 
 // 호스트가 지정한 플레이어의 강퇴를 처리한다.
 void ALobbyGameMode::KickPlayer(APdPlayerState* TargetPlayerState)
 {
-	if (!HasAuthority() || !TargetPlayerState || !GameSession) { return; }
+	if (!HasAuthority() || !TargetPlayerState || !GameSession)
+	{
+		return;
+	}
 	APlayerController* Controller = TargetPlayerState->GetPlayerController();
 	if (!Controller)
 	{
 		for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
 		{
-			if (It->Get() && It->Get()->PlayerState == TargetPlayerState) { Controller = It->Get(); break; }
+			if (It->Get() && It->Get()->PlayerState == TargetPlayerState)
+			{
+				Controller = It->Get();
+				break;
+			}
 		}
 	}
-	if (!Controller) { return; }
-	if (bGameStartRequested) { CancelPendingGameStart(); }
+	if (!Controller)
+	{
+		return;
+	}
+	if (bGameStartRequested)
+	{
+		CancelPendingGameStart();
+	}
 	TargetPlayerState->GetLobbyPlayerStateComponent()->SetLeavingLobby(true);
 	GameSession->KickPlayer(Controller, NSLOCTEXT("Lobby", "KickedByHost", "Kicked by host"));
 }
@@ -310,7 +341,10 @@ void ALobbyGameMode::ResumeWaitingPlayers()
 
 AActor* ALobbyGameMode::ChoosePlayerStart_Implementation(AController* Player)
 {
-	if (AActor* Start = SpawnComponent->ChooseConfiguredPlayerStart(Player, TEXT("Spawn_"))) { return Start; }
+	if (AActor* Start = SpawnComponent->ChooseConfiguredPlayerStart(Player, TEXT("Spawn_")))
+	{
+		return Start;
+	}
 	AActor* Start = Super::ChoosePlayerStart_Implementation(Player);
 	SpawnComponent->MarkPlayerStartUsed(Player, Start);
 	return Start;
@@ -319,14 +353,20 @@ AActor* ALobbyGameMode::ChoosePlayerStart_Implementation(AController* Player)
 APawn* ALobbyGameMode::SpawnDefaultPawnAtTransform_Implementation(AController* Player, const FTransform& Transform)
 {
 	APawn* Pawn = Super::SpawnDefaultPawnAtTransform_Implementation(Player, Transform);
-	if (Pawn) { SpawnComponent->RecordInitialSpawn(Player, Pawn->GetActorTransform()); }
+	if (Pawn)
+	{
+		SpawnComponent->RecordInitialSpawn(Player, Pawn->GetActorTransform());
+	}
 	return Pawn;
 }
 
 void ALobbyGameMode::HandlePlayerRespawned(APlayerController* Player, bool bCreatedPawn)
 {
 	// 재사용한 Pawn의 지급 상태는 보존하며 새 Pawn에만 기존 로비 지급을 실행한다.
-	if (bCreatedPawn) { ProvisionLobbyPlayer(Player); }
+	if (bCreatedPawn)
+	{
+		ProvisionLobbyPlayer(Player);
+	}
 }
 
 FPrimaryAssetId ALobbyGameMode::GetConfiguredExperienceId() const
@@ -343,7 +383,10 @@ UExperienceManagerComponent* ALobbyGameMode::GetExperienceManager() const
 void ALobbyGameMode::StartExperienceLoad()
 {
 	const FPrimaryAssetId Id = GetConfiguredExperienceId();
-	if (!Id.IsValid()) { return; }
+	if (!Id.IsValid())
+	{
+		return;
+	}
 	UExperienceManagerComponent* Manager = GetExperienceManager();
 	if (!Manager)
 	{
@@ -352,7 +395,10 @@ void ALobbyGameMode::StartExperienceLoad()
 	}
 	Manager->CallOrRegister_OnExperienceLoaded(FOnPdExperienceLoaded::FDelegate::CreateUObject(this, &ThisClass::HandleExperienceLoaded));
 	Manager->CallOrRegister_OnExperienceLoadFailed(FOnPdExperienceLoadFailed::FDelegate::CreateUObject(this, &ThisClass::HandleExperienceLoadFailed));
-	if (Manager->GetLoadState() == EExperienceLoadState::Unloaded) { Manager->SetCurrentExperienceAuth(Id); }
+	if (Manager->GetLoadState() == EExperienceLoadState::Unloaded)
+	{
+		Manager->SetCurrentExperienceAuth(Id);
+	}
 }
 
 void ALobbyGameMode::HandleExperienceLoaded(const UExperienceDefinition* Experience)
@@ -364,19 +410,28 @@ void ALobbyGameMode::HandleExperienceLoaded(const UExperienceDefinition* Experie
 void ALobbyGameMode::HandleExperienceLoadFailed(FPrimaryAssetId Id, const FString& Message)
 {
 	UE_LOG(LogLobbyGameMode, Error, TEXT("Lobby experience load failed: %s %s"), *Id.ToString(), *Message);
-	if (ALobbyGameState* State = GetGameState<ALobbyGameState>()) { State->SetExperienceLoadFailed(true); }
+	if (ALobbyGameState* State = GetGameState<ALobbyGameState>())
+	{
+		State->SetExperienceLoadFailed(true);
+	}
 }
 
 void ALobbyGameMode::SelectLobbyMapByOffset(int32 Offset)
 {
-	if (!HasAuthority() || !LobbyConfigurationComponent->IsRuntimeReady() || Offset == 0) { return; }
+	if (!HasAuthority() || !LobbyConfigurationComponent->IsRuntimeReady() || Offset == 0)
+	{
+		return;
+	}
 	const int32 Count = LobbyConfigurationComponent->GetLobbyMapOptionCount();
 	const FName Key = LobbyConfigurationComponent->GetSelectedLobbyMapKey();
 	for (int32 Index = 0; Index < Count; ++Index)
 	{
 		FLobbyMatchMapOption Option;
 		LobbyConfigurationComponent->GetLobbyMapOptionAtIndex(Index, Option);
-		if (Option.MapKey != Key) { continue; }
+		if (Option.MapKey != Key)
+		{
+			continue;
+		}
 		LobbyConfigurationComponent->GetLobbyMapOptionAtIndex(((Index + Offset) % Count + Count) % Count, Option);
 		SelectLobbyMap(Option.MapKey);
 		return;
@@ -554,7 +609,10 @@ void ALobbyGameMode::UpdateDedicatedServerAutoStart()
 
 void ALobbyGameMode::HandleStartCountdownElapsed()
 {
-	if (!bGameStartRequested) { return; }
+	if (!bGameStartRequested)
+	{
+		return;
+	}
 	if (!AreMatchStartConditionsMet())
 	{
 		CancelPendingGameStart();
@@ -577,10 +635,19 @@ float ALobbyGameMode::GetStartCountdownSeconds() const
 // 시작 상태는 GameMode에서 끝내고, 비동기 이동과 화면·잠금 정리는 이동 객체에 맡긴다.
 void ALobbyGameMode::CancelPendingGameStart()
 {
-	if (!HasAuthority()) { return; }
-	if (UWorld* World = GetWorld()) { World->GetTimerManager().ClearTimer(StartCountdownTimerHandle); }
+	if (!HasAuthority())
+	{
+		return;
+	}
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(StartCountdownTimerHandle);
+	}
 	bGameStartRequested = false;
-	if (ALobbyGameState* State = GetGameState<ALobbyGameState>()) { State->SetGameStartPending(false, 0.0); }
+	if (ALobbyGameState* State = GetGameState<ALobbyGameState>())
+	{
+		State->SetGameStartPending(false, 0.0);
+	}
 	TravelCoordinator->CancelPendingTravel();
 	if (UGameLiftServerSubsystem* GameLift = UGameLiftServerSubsystem::Get(this))
 	{
@@ -590,10 +657,19 @@ void ALobbyGameMode::CancelPendingGameStart()
 
 void ALobbyGameMode::UpdateAdvertisedSessionSettings() const
 {
-	if (!HasAuthority()) { return; }
+	if (!HasAuthority())
+	{
+		return;
+	}
 	UOnlineSessionsSubsystem* Sessions = GetGameInstance()->GetSubsystem<UOnlineSessionsSubsystem>();
-	if (!Sessions || !Sessions->HasNamedSession()) { return; }
+	if (!Sessions || !Sessions->HasNamedSession())
+	{
+		return;
+	}
 	FLobbyMatchMapOption Option;
-	if (!LobbyConfigurationComponent->GetSelectedLobbyMapOption(Option)) { return; }
+	if (!LobbyConfigurationComponent->GetSelectedLobbyMapOption(Option))
+	{
+		return;
+	}
 	Sessions->UpdateSessionSettings(Option.MapKey.ToString(), Option.MaxPlayerCount, true);
 }

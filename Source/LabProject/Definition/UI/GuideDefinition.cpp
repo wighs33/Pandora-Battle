@@ -5,9 +5,13 @@
 FText FGuidePageEntry::GetContent(const EGuideLanguage Language) const
 {
 	if (const FText* Translation = LocalizedContent.Find(Language); Translation && !Translation->IsEmptyOrWhitespace())
+	{
 		return *Translation;
+	}
 	if (const FText* English = LocalizedContent.Find(EGuideLanguage::English); English && !English->IsEmptyOrWhitespace())
+	{
 		return *English;
+	}
 	return Content;
 }
 

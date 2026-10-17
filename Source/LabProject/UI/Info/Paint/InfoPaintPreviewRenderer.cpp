@@ -20,19 +20,32 @@ bool UInfoPaintPreviewRenderer::Show(APdPlayer* Player, UPaintCanvasWidget* Widg
     Shutdown();
     if (!Player || !Widget || !Widget->GetFacePreviewImage() || !Canvas
         || !Player->GetMesh() || !Settings.PaintCanvasDisplayMaterial
-        || !Settings.PaintCanvasFaceDecalMaterial) return false;
+        || !Settings.PaintCanvasFaceDecalMaterial)
+    {
+        return false;
+    }
 
     USceneComponent* Root = SpawnPreviewActor(*Player->GetWorld());
-    if (!Root) return false;
+    if (!Root)
+    {
+        return false;
+    }
     const UPoseableMeshComponent* Mesh = AddPoseableCopy(*Root, *Player);
 
     FName Socket = Settings.PaintCanvasFaceDecalSocketName;
-    if (!Mesh->DoesSocketExist(Socket)) Socket = NAME_None;
+    if (!Mesh->DoesSocketExist(Socket))
+    {
+        Socket = NAME_None;
+    }
     const FVector Head = Socket.IsNone() ? Mesh->Bounds.Origin + FVector(0,0,35)
         : Mesh->GetSocketLocation(Socket);
     // 투영 깊이까지 포함해, 실제 적용과 같은 액터 기준 소켓 변환을 맞춘다.
     const FVector DecalBaseLocation = Socket.IsNone() ? Root->GetComponentLocation() : Head;
-    if (!AddFaceDecal(*Root, DecalBaseLocation, *Player, *Canvas, Settings)) { Shutdown(); return false; }
+    if (!AddFaceDecal(*Root, DecalBaseLocation, *Player, *Canvas, Settings))
+    {
+        Shutdown();
+        return false;
+    }
 
     AddLightAndCapture(*Root, Head);
     ShowCaptureOnWidget(*Widget, Settings);
@@ -54,7 +67,10 @@ USceneComponent* UInfoPaintPreviewRenderer::SpawnPreviewActor(UWorld& World)
     Spawn.ObjectFlags |= RF_Transient;
     Spawn.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
     PreviewActor = World.SpawnActor<AActor>(AActor::StaticClass(), FVector(0, 0, -100000), FRotator::ZeroRotator, Spawn);
-    if (!PreviewActor) return nullptr;
+    if (!PreviewActor)
+    {
+        return nullptr;
+    }
     PreviewActor->Tags.Add(TEXT("InfoPaintPreview"));
     PreviewActor->SetReplicates(false);
     PreviewActor->SetActorEnableCollision(false);
@@ -78,7 +94,9 @@ UPoseableMeshComponent* UInfoPaintPreviewRenderer::AddPoseableCopy(USceneCompone
     Mesh->SetCastShadow(false);
     Mesh->RegisterComponent();
     for (int32 Index = 0; Index < Source->GetNumMaterials(); ++Index)
+    {
         Mesh->SetMaterial(Index, Source->GetMaterial(Index));
+    }
     return Mesh;
 }
 
@@ -91,7 +109,10 @@ bool UInfoPaintPreviewRenderer::AddFaceDecal(USceneComponent& Root, const FVecto
     SourceCanvas = &Canvas;
     PreviewCanvas = UKismetRenderingLibrary::CreateRenderTarget2D(&Player,
         Canvas.SizeX, Canvas.SizeY, RTF_RGBA16f, FLinearColor::Transparent);
-    if (!PreviewCanvas) return false;
+    if (!PreviewCanvas)
+    {
+        return false;
+    }
     DecalMaterial->SetTextureParameterValue(Parameter, PreviewCanvas);
     UDecalComponent* Decal = NewObject<UDecalComponent>(PreviewActor);
     Decal->SetupAttachment(&Root);
@@ -165,20 +186,32 @@ void UInfoPaintPreviewRenderer::Refresh()
         FVector2D Size;
         FDrawToRenderTargetContext Context;
         UKismetRenderingLibrary::BeginDrawCanvasToRenderTarget(PreviewActor, PreviewCanvas, DrawCanvas, Size, Context);
-        if (DrawCanvas) DrawCanvas->K2_DrawTexture(SourceCanvas, FVector2D::ZeroVector, Size,
-            FVector2D::ZeroVector, FVector2D(1,1), FLinearColor::White, BLEND_Opaque);
+        if (DrawCanvas)
+        {
+            DrawCanvas->K2_DrawTexture(SourceCanvas, FVector2D::ZeroVector, Size,
+                FVector2D::ZeroVector, FVector2D(1,1), FLinearColor::White, BLEND_Opaque);
+        }
         UKismetRenderingLibrary::EndDrawCanvasToRenderTarget(PreviewActor, Context);
     }
-    if (IsValid(Capture)) Capture->CaptureScene();
+    if (IsValid(Capture))
+    {
+        Capture->CaptureScene();
+    }
 }
 
 void UInfoPaintPreviewRenderer::Shutdown()
 {
     FTSTicker::RemoveTicker(InitialCaptureHandle);
     InitialCaptureHandle.Reset();
-    if (PreviewImage.IsValid()) PreviewImage->SetBrush(FSlateBrush());
+    if (PreviewImage.IsValid())
+    {
+        PreviewImage->SetBrush(FSlateBrush());
+    }
     PreviewImage.Reset();
-    if (IsValid(PreviewActor)) PreviewActor->Destroy();
+    if (IsValid(PreviewActor))
+    {
+        PreviewActor->Destroy();
+    }
     PreviewActor = nullptr;
     Capture = nullptr;
     Target = nullptr;

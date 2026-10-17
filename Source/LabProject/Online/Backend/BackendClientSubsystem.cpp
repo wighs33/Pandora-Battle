@@ -73,7 +73,10 @@ namespace
 		TEXT("Log in to the backend with Steam (or -BackendDevLogin=<id>)."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>&, UWorld* World)
 		{
-			if (UBackendClientSubsystem* Backend = FindBackendClient(World)) { Backend->Login(); }
+			if (UBackendClientSubsystem* Backend = FindBackendClient(World))
+			{
+				Backend->Login();
+			}
 		}));
 
 	FAutoConsoleCommandWithWorldAndArgs DevLoginCommand(TEXT("pd.Backend.DevLogin"),
@@ -81,7 +84,10 @@ namespace
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
 		{
 			UBackendClientSubsystem* Backend = FindBackendClient(World);
-			if (Backend && Args.Num() > 0) { Backend->LoginAsDeveloper(Args[0]); }
+			if (Backend && Args.Num() > 0)
+			{
+				Backend->LoginAsDeveloper(Args[0]);
+			}
 		}));
 
 	FAutoConsoleCommandWithWorldAndArgs JoinMatchCommand(
@@ -100,7 +106,10 @@ namespace
 		TEXT("Print the logged-in player's stats and recent matches."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>&, UWorld* World)
 		{
-			if (UBackendClientSubsystem* Backend = FindBackendClient(World)) { Backend->RequestMyProfile(); }
+			if (UBackendClientSubsystem* Backend = FindBackendClient(World))
+			{
+				Backend->RequestMyProfile();
+			}
 		}));
 
 	FAutoConsoleCommandWithWorldAndArgs ConnectLocalCommand(
@@ -109,7 +118,10 @@ namespace
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
 		{
 			UBackendClientSubsystem* Backend = FindBackendClient(World);
-			if (Backend && Args.Num() > 0) { Backend->ConnectToLocalServer(Args[0]); }
+			if (Backend && Args.Num() > 0)
+			{
+				Backend->ConnectToLocalServer(Args[0]);
+			}
 		}));
 }
 

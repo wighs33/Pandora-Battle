@@ -100,7 +100,10 @@ void UPdGameplayAbility::ApplyCooldownOnEnd(const FGameplayAbilitySpecHandle Han
 bool UPdGameplayAbility::CheckCost(const FGameplayAbilitySpecHandle Handle,
 	const FGameplayAbilityActorInfo* ActorInfo, FGameplayTagContainer* OptionalRelevantTags) const
 {
-	if (!Super::CheckCost(Handle, ActorInfo, OptionalRelevantTags)) return false;
+	if (!Super::CheckCost(Handle, ActorInfo, OptionalRelevantTags))
+	{
+		return false;
+	}
 
 	UAbilitySystemComponent* AbilitySystemComponent = ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr;
 	float ManaCost = 0.0f;
@@ -174,7 +177,10 @@ void UPdGameplayAbility::GetResourceCosts(const FGameplayAbilitySpecHandle Handl
 	ManaCost = 0.0f;
 	StaminaCost = 0.0f;
 	const APawn* AvatarPawn = ActorInfo ? Cast<APawn>(ActorInfo->AvatarActor.Get()) : nullptr;
-	if (!AvatarPawn || !AvatarPawn->IsPlayerControlled()) return;
+	if (!AvatarPawn || !AvatarPawn->IsPlayerControlled())
+	{
+		return;
+	}
 
 	const UAbilitySystemComponent* ASC = ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr;
 	const FGameplayAbilitySpec* Spec = ASC && Handle.IsValid() ? ASC->FindAbilitySpecFromHandle(Handle) : GetCurrentAbilitySpec();

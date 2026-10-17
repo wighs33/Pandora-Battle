@@ -59,7 +59,10 @@ void UPandoraSlotWidget::NativeConstruct()
 		Component->OnPandoraLoadoutChanged.AddUniqueDynamic(this, &ThisClass::RefreshOwnership);
 		Component->OnPandoraInventoryChanged.AddUniqueDynamic(this, &ThisClass::RefreshOwnership);
 	}
-	if (HoverBorder) HoverBorder->SetVisibility(ESlateVisibility::Collapsed);
+	if (HoverBorder)
+	{
+		HoverBorder->SetVisibility(ESlateVisibility::Collapsed);
+	}
 	ApplyViewData(FPandoraSlotViewDataBuilder::Build(CachedData, PlayerState ? PlayerState->GetPandoraComponent() : nullptr));
 }
 
@@ -101,7 +104,10 @@ void UPandoraSlotWidget::NativeOnMouseEnter(const FGeometry& InGeometry, const F
 	}
 
 	bIsHoverActive = true;
-	if (HoverBorder) HoverBorder->SetVisibility(ESlateVisibility::HitTestInvisible);
+	if (HoverBorder)
+	{
+		HoverBorder->SetVisibility(ESlateVisibility::HitTestInvisible);
+	}
 	UInfoWidget* InfoWidget = ResolveInfoWidgetFromPandoraSlot(this);
 	if (InfoWidget)
 	{
@@ -126,7 +132,10 @@ void UPandoraSlotWidget::NativeOnMouseLeave(const FPointerEvent& InMouseEvent)
 
 	bIsHoverActive = false;
 	UInfoWidget* InfoWidget = ResolveInfoWidgetFromPandoraSlot(this);
-	if (HoverBorder) HoverBorder->SetVisibility(ESlateVisibility::Collapsed);
+	if (HoverBorder)
+	{
+		HoverBorder->SetVisibility(ESlateVisibility::Collapsed);
+	}
 	if (InfoWidget)
 	{
 		InfoWidget->HidePandoraDescriptionDetailAtWidget(this);
@@ -171,7 +180,10 @@ void UPandoraSlotWidget::ApplyViewData(const FPandoraSlotViewData& ViewData)
 			? FLinearColor(0.76f, 0.56f, 1.0f) : ViewData.bOwned
 			? FLinearColor(0.77f, 0.66f, 0.43f) : FLinearColor(0.48f, 0.50f, 0.58f)));
 	}
-	if (EquippedMark) EquippedMark->SetVisibility(ViewData.bEquipped ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	if (EquippedMark)
+	{
+		EquippedMark->SetVisibility(ViewData.bEquipped ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	}
 }
 
 void UPandoraSlotWidget::RefreshOwnership()

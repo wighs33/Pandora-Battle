@@ -28,7 +28,10 @@ DEFINE_LOG_CATEGORY_STATIC(LogLobbyTravelCoordinator, Log, All);
 void ULobbyTravelCoordinator::StartSessionAndTravel(bool bSuppressMatchTimer)
 {
 	ALobbyGameMode* GameMode = GetLobbyGameMode();
-	if (!GameMode || !GameMode->HasAuthority()) { return; }
+	if (!GameMode || !GameMode->HasAuthority())
+	{
+		return;
+	}
 	SetGameStartConnectingPopupVisible(true);
 	UOnlineSessionsSubsystem* Sessions = GameMode->GetGameInstance()->GetSubsystem<UOnlineSessionsSubsystem>();
 	// 전용 서버는 Steam 방 세션을 광고하지 않는다(접속은 IP·매치메이킹). 세션 시작 없이 바로 전장 이동을 준비한다.
@@ -48,7 +51,10 @@ void ULobbyTravelCoordinator::HandleStartSessionComplete(bool bWasSuccessful, bo
 	ClearStartSessionDelegate();
 	if (!bWasSuccessful)
 	{
-		if (ALobbyGameMode* GameMode = GetLobbyGameMode()) { GameMode->CancelPendingGameStart(); }
+		if (ALobbyGameMode* GameMode = GetLobbyGameMode())
+		{
+			GameMode->CancelPendingGameStart();
+		}
 		return;
 	}
 	PrepareMatchTravel(bSuppressMatchTimer);
@@ -58,7 +64,10 @@ void ULobbyTravelCoordinator::HandleStartSessionComplete(bool bWasSuccessful, bo
 void ULobbyTravelCoordinator::PrepareMatchTravel(bool bSuppressMatchTimer)
 {
 	ALobbyGameMode* GameMode = GetLobbyGameMode();
-	if (!GameMode || !GameMode->HasAuthority()) { return; }
+	if (!GameMode || !GameMode->HasAuthority())
+	{
+		return;
+	}
 	FLobbyMatchMapOption SelectedMapOption;
 	FString TravelUrl;
 	if (!GameMode->bGameStartRequested || !GameMode->AreMatchStartConditionsMet()
@@ -69,7 +78,10 @@ void ULobbyTravelCoordinator::PrepareMatchTravel(bool bSuppressMatchTimer)
 	}
 	CacheSelectedMapForTravel(SelectedMapOption);
 	PrepareLobbyTravelHandoffs();
-	if (bSuppressMatchTimer) { TravelUrl += FString::Printf(TEXT("?%s=1"), LabGameSession::NoMatchTimerOption); }
+	if (bSuppressMatchTimer)
+	{
+		TravelUrl += FString::Printf(TEXT("?%s=1"), LabGameSession::NoMatchTimerOption);
+	}
 	PreloadContentAndScheduleTravel(TravelUrl);
 }
 
@@ -138,7 +150,11 @@ FLobbyTravelHandoff ULobbyTravelCoordinator::BuildLobbyTravelHandoff(const APdPl
 	{
 		for (FConstPlayerControllerIterator It = GameMode->GetWorld()->GetPlayerControllerIterator(); It; ++It)
 		{
-			if (It->Get() && It->Get()->PlayerState == &LobbyPlayerState) { LobbyPlayerController = It->Get(); break; }
+			if (It->Get() && It->Get()->PlayerState == &LobbyPlayerState)
+			{
+				LobbyPlayerController = It->Get();
+				break;
+			}
 		}
 	}
 	Handoff.EquippedSkinNamesBySlot = BuildEquippedSkinNamesBySlot(LobbyPlayerController);
@@ -184,7 +200,10 @@ TMap<FGameplayTag, FName> ULobbyTravelCoordinator::BuildEquippedSkinNamesBySlot(
 void ULobbyTravelCoordinator::PreloadContentAndScheduleTravel(const FString& TravelUrl)
 {
 	ALobbyGameMode* GameMode = GetLobbyGameMode();
-	if (!GameMode) { return; }
+	if (!GameMode)
+	{
+		return;
+	}
 	if (!GameMode->GetWorld() || TravelUrl.IsEmpty())
 	{
 		GameMode->CancelPendingGameStart();
@@ -207,8 +226,14 @@ void ULobbyTravelCoordinator::CheckContentPreloadAndScheduleTravel()
 	UWorld* World = GameMode ? GameMode->GetWorld() : nullptr;
 	if (!World || PendingTravelUrl.IsEmpty())
 	{
-		if (GameMode) { GameMode->CancelPendingGameStart(); }
-		else { CancelPendingTravel(); }
+		if (GameMode)
+		{
+			GameMode->CancelPendingGameStart();
+		}
+		else
+		{
+			CancelPendingTravel();
+		}
 		return;
 	}
 
@@ -249,8 +274,14 @@ void ULobbyTravelCoordinator::HandleGameEntryContentPreloadFailure(const ELobbyC
 {
 	UE_LOG(LogLobbyTravelCoordinator, Error, TEXT("Game travel was canceled because required content preload ended with result '%s'."),
 		*UEnum::GetValueAsString(Result));
-	if (ALobbyGameMode* GameMode = GetLobbyGameMode()) { GameMode->CancelPendingGameStart(); }
-	else { CancelPendingTravel(); }
+	if (ALobbyGameMode* GameMode = GetLobbyGameMode())
+	{
+		GameMode->CancelPendingGameStart();
+	}
+	else
+	{
+		CancelPendingTravel();
+	}
 }
 
 // 접속 팝업 RPC를 보낼 짧은 여유를 둔 뒤 서버와 접속 중인 플레이어들을 전장으로 이동시킨다. 로비 객체가 사라지면 실행하지 않는다.
@@ -260,7 +291,10 @@ void ULobbyTravelCoordinator::ScheduleServerTravel(const FString& TravelUrl)
 	UWorld* World = GameMode ? GameMode->GetWorld() : nullptr;
 	if (!World || TravelUrl.IsEmpty())
 	{
-		if (GameMode) { GameMode->CancelPendingGameStart(); }
+		if (GameMode)
+		{
+			GameMode->CancelPendingGameStart();
+		}
 		return;
 	}
 
@@ -268,7 +302,10 @@ void ULobbyTravelCoordinator::ScheduleServerTravel(const FString& TravelUrl)
 	World->GetTimerManager().SetTimer(TravelDelayTimerHandle,
 		FTimerDelegate::CreateWeakLambda(this, [this, TravelUrl]() {
 				ALobbyGameMode* LobbyGameMode = GetLobbyGameMode();
-				if (!LobbyGameMode) { return; }
+				if (!LobbyGameMode)
+				{
+					return;
+				}
 				UWorld* TravelWorld = LobbyGameMode->GetWorld();
 				if (!TravelWorld || !LobbyGameMode->bGameStartRequested || !LobbyGameMode->AreMatchStartConditionsMet()
 					|| !TravelWorld->ServerTravel(TravelUrl))

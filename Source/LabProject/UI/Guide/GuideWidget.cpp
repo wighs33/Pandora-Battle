@@ -182,7 +182,9 @@ void UGuideWidget::CloseGuide()
 
 	bIsClosing = true;
 	if (UCommonActivatableWidget* Screen = UCommonUIActionRouterBase::FindOwningActivatable(GetCachedWidget(), GetOwningLocalPlayer()))
+	{
 		Screen->DeactivateWidget();
+	}
 	RemoveFromParent();
 	OnGuideClosed.Broadcast(this);
 }
@@ -201,7 +203,9 @@ void UGuideWidget::SetOpenedFromGameSettings(const bool bInOpenedFromGameSetting
 FReply UGuideWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
 {
 	if (UCommonUIActionRouterBase::FindOwningActivatable(GetCachedWidget(), GetOwningLocalPlayer()))
+	{
 		return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
+	}
 	if (InKeyEvent.GetKey() == EKeys::Escape)
 	{
 		if (APlayerController* PlayerController = GetOwningPlayer())
@@ -417,7 +421,9 @@ void UGuideWidget::ApplyPage(const FGuidePageEntry& Page)
 		Txt_PageTitle->SetText(Key ? MenuText(*Key) : FText::GetEmpty());
 	}
 	if (Txt_PageNumber)
+	{
 		Txt_PageNumber->SetText(FText::AsNumber(CurrentPageIndex + 1));
+	}
 	if (Txt_Content)
 	{
 		ApplyContentFont();
@@ -429,7 +435,10 @@ void UGuideWidget::ApplyPage(const FGuidePageEntry& Page)
 
 void UGuideWidget::ApplyContentFont()
 {
-	if (!Txt_Content || !bCapturedDefaultContentFont) return;
+	if (!Txt_Content || !bCapturedDefaultContentFont)
+	{
+		return;
+	}
 	FSlateFontInfo Font = DefaultContentFont;
 	if (const UMenuLocalizationSubsystem* Localization = GetLocalization())
 	{
@@ -475,9 +484,13 @@ void UGuideWidget::ApplyImage(UTexture2D* Texture)
 void UGuideWidget::ResolveSelectedLanguage()
 {
 	if (const UMenuLocalizationSubsystem* Localization = GetLocalization())
+	{
 		CurrentLanguage = Localization->GetLanguage();
+	}
 	else if (const UGuideDefinition* Definition = ResolveGuideDefinition())
+	{
 		CurrentLanguage = Definition->DefaultLanguage;
+	}
 }
 
 void UGuideWidget::SelectBoundGuideButton(const int32 PageIndex)

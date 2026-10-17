@@ -68,7 +68,10 @@ void UItemDetailWidget::ApplyLocalizedFont() const
 {
 	const UMenuLocalizationSubsystem* Localization = GetLocalization();
 	UFont* Font = Localization ? Localization->GetFontForLanguage(Localization->GetLanguage()) : nullptr;
-	if (!Font || !WidgetTree) return;
+	if (!Font || !WidgetTree)
+	{
+		return;
+	}
 	WidgetTree->ForEachWidget([Font](UWidget* Widget)
 	{
 		if (UTextBlock* Text = Cast<UTextBlock>(Widget))
