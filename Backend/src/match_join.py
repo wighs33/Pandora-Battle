@@ -9,7 +9,8 @@ session_timeout을 돌려주고 클라이언트가 같은 요청을 다시 보�
 요청 본문의 mode로 세션 종류를 나누고, 같은 값을 게임 속성 mode에 넣어 검색과 서버 분기에 쓴다.
 - match(기본): 로비에서 인원을 모아 한 경기를 하는 PvP 세션. 경기가 시작되면 서버가 새 참가를 막는다.
 - bossraid: 경기 끝 없이 들어오고 나가는 보스 레이드. 서버는 레이드 맵을 연 뒤에 세션을 활성화한다.
-  운영자가 연 동안에만 받고(boss_raid.py), 닫으면 새 참가만 막는다. 이미 들어간 플레이어는 나갈 때까지 계속한다.
+  운영자가 연 회차가 격파되기 전에만 받고(boss_raid.py), 닫으면 새 참가만 막는다. 이미 들어간 플레이어는 도전 시간이 끝날 때까지 계속한다.
+  들어갈 때마다 그날의 도전 횟수를 하나 쓰고, 자리를 잡지 못하면 돌려준다.
 
 동시에 여러 명이 빈 서버에 요청하면 각자 새 세션을 만들 수 있다. 인원을 모아 한 세션에 넣는 일은
 FlexMatch로 옮길 때 해결한다(Docs/GameLift_Backend.md 참고).
@@ -19,7 +20,7 @@ import json
 import os
 import time
 
-from boss_raid import is_boss_raid_open
+from boss_raid import attempt_day, consume_attempt, current_raid, refund_attempt
 from common import ApiError, api_handler, aws_client, json_response, parse_json_body, require_player
 
 # Lambda 제한(29초) 안에서 기다린다. 보스 레이드 세션은 서버가 맵을 연 뒤 활성화하므로 경기 세션보다 오래 걸린다.
@@ -167,18 +168,11 @@ def join_or_create(
     return connection_info(player_session)
 
 
-@api_handler
-def handler(event, context):
-    claims = require_player(event)
-    mode = read_mode(parse_json_body(event))
-    if mode == BOSS_RAID_MODE and not is_boss_raid_open(aws_client("dynamodb"), os.environ["TABLE_NAME"]):
-        raise ApiError(403, "bossraid_closed", "Boss raid is not open right now.")
-    fleet_id = os.environ.get("GAMELIFT_FLEET_ID", "")
+def join_session(claims, mode, fleet_id):
     if not fleet_id:
         raise ApiError(503, "fleet_not_configured", "GameLift fleet is not configured for this stage.")
-
     max_players_variable = "MAX_PLAYERS_PER_BOSS_RAID_SESSION" if mode == BOSS_RAID_MODE else "MAX_PLAYERS_PER_SESSION"
-    result = join_or_create(
+    return join_or_create(
         aws_client("gamelift"),
         fleet_id=fleet_id,
         location=os.environ.get("GAMELIFT_LOCATION", ""),
@@ -187,4 +181,31 @@ def handler(event, context):
         max_players=int(os.environ.get(max_players_variable, "4")),
         mode=mode,
     )
+
+
+def join_boss_raid(claims, fleet_id, dynamodb, table_name, join=join_session):
+    """도전 횟수를 먼저 쓰고 자리를 잡는다. 자리를 잡지 못하면(시간 초과로 다시 요청하는 경우 포함) 쓴 횟수를 돌려준다."""
+    raid, accepting = current_raid(dynamodb, table_name)
+    if not accepting:
+        raise ApiError(403, "bossraid_closed", "Boss raid is not open right now.")
+
+    today = attempt_day()
+    attempts_left = consume_attempt(dynamodb, table_name, raid, claims["sub"], claims.get("name", ""), today)
+    try:
+        result = join(claims, BOSS_RAID_MODE, fleet_id)
+    except Exception:
+        refund_attempt(dynamodb, table_name, raid["raidId"], claims["sub"], today)
+        raise
+    return dict(result, attemptsLeft=attempts_left)
+
+
+@api_handler
+def handler(event, context):
+    claims = require_player(event)
+    mode = read_mode(parse_json_body(event))
+    fleet_id = os.environ.get("GAMELIFT_FLEET_ID", "")
+    if mode == BOSS_RAID_MODE:
+        result = join_boss_raid(claims, fleet_id, aws_client("dynamodb"), os.environ["TABLE_NAME"])
+    else:
+        result = join_session(claims, mode, fleet_id)
     return json_response(200, result)

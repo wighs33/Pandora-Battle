@@ -13,9 +13,10 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 import common  # noqa: E402
 from auth import verify_steam_ticket  # noqa: E402
-from boss_raid import is_boss_raid_open  # noqa: E402
+import boss_raid  # noqa: E402
+import raid_damage  # noqa: E402
 from common import ApiError  # noqa: E402
-from match_join import join_or_create, read_mode  # noqa: E402
+from match_join import join_boss_raid, join_or_create, read_mode  # noqa: E402
 from match_result import build_transaction, is_duplicate_report, validate_report  # noqa: E402
 from player import build_profile  # noqa: E402
 
@@ -278,22 +279,264 @@ class MatchJoinTests(unittest.TestCase):
         self.assertEqual(context.exception.code, "session_failed")
 
 
-class FakeConfigTable:
-    def __init__(self, items):
-        self.items = items
+class ConditionalCheckFailed(Exception):
+    pass
 
-    def get_item(self, TableName, Key):
+
+class FakeDynamoDb:
+    """테스트에 쓰는 식만 해석하는 메모리 테이블. 항목은 (PK, SK)로 찾는다."""
+
+    class exceptions:  # noqa: N801 - boto3 클라이언트의 exceptions 속성과 같은 모양
+        ConditionalCheckFailedException = ConditionalCheckFailed
+
+    def __init__(self, items=()):
+        self.items = {(item["PK"]["S"], item["SK"]["S"]): dict(item) for item in items}
+
+    def get_item(self, TableName, Key, ConsistentRead=False):
         item = self.items.get((Key["PK"]["S"], Key["SK"]["S"]))
-        return {"Item": item} if item else {}
+        return {"Item": dict(item)} if item else {}
+
+    @staticmethod
+    def _value(attribute):
+        return int(attribute["N"]) if "N" in attribute else attribute["S"]
+
+    def _check(self, item, condition, values, names):
+        def clause(text):
+            text = text.strip()
+            for function, expected in (("attribute_not_exists(", False), ("attribute_exists(", True)):
+                if text.startswith(function):
+                    name = text[len(function):-1]
+                    return (names.get(name, name) in item) == expected
+            for operator in ("<>", "<", ">", "="):
+                if " %s " % operator in text:
+                    left, right = (part.strip() for part in text.split(" %s " % operator))
+                    left = names.get(left, left)
+                    if left not in item:
+                        return False
+                    a, b = self._value(item[left]), self._value(values[right])
+                    return {"<>": a != b, "<": a < b, ">": a > b, "=": a == b}[operator]
+            raise AssertionError("unsupported condition " + text)
+
+        return any(all(clause(part) for part in group.split(" AND ")) for group in condition.split(" OR "))
+
+    def update_item(self, TableName, Key, UpdateExpression, ExpressionAttributeValues,
+                    ConditionExpression=None, ExpressionAttributeNames=None, ReturnValues=None):
+        names = ExpressionAttributeNames or {}
+        key = (Key["PK"]["S"], Key["SK"]["S"])
+        item = dict(self.items.get(key, {"PK": Key["PK"], "SK": Key["SK"]}))
+        if ConditionExpression and not self._check(item, ConditionExpression, ExpressionAttributeValues, names):
+            raise ConditionalCheckFailed()
+        expression = " " + UpdateExpression
+        set_part, _, add_part = expression.partition(" ADD ")
+        for assignment in filter(None, set_part.replace(" SET ", "", 1).split(", ")):
+            name, value = (part.strip() for part in assignment.split(" = "))
+            item[names.get(name, name)] = ExpressionAttributeValues[value]
+        for addition in filter(None, add_part.split(", ")):
+            name, value = addition.split()
+            current = int(item.get(name, {"N": "0"})["N"])
+            item[name] = {"N": str(current + int(ExpressionAttributeValues[value]["N"]))}
+        self.items[key] = item
+        return {"Attributes": dict(item)} if ReturnValues else {}
+
+    def query(self, TableName, KeyConditionExpression, ExpressionAttributeValues, IndexName=None,
+              ScanIndexForward=True, Limit=None, Select=None):
+        values = ExpressionAttributeValues
+        if IndexName == "RaidRanking":
+            rows = [item for item in self.items.values() if item.get("RankKey") == values[":rank"] and "Damage" in item]
+            if ":damage" in values:
+                rows = [item for item in rows if int(item["Damage"]["N"]) > int(values[":damage"]["N"])]
+            rows.sort(key=lambda item: int(item["Damage"]["N"]), reverse=not ScanIndexForward)
+        else:
+            rows = [item for (pk, sk), item in sorted(self.items.items())
+                    if pk == values[":pk"]["S"] and sk.startswith(values[":raid"]["S"])]
+        rows = rows[:Limit] if Limit else rows
+        return {"Count": len(rows)} if Select == "COUNT" else {"Items": [dict(row) for row in rows]}
+
+
+def config_item(raid_id="r1", is_open=True):
+    return {"PK": {"S": "CONFIG"}, "SK": {"S": "BOSSRAID"}, "Open": {"BOOL": is_open}, "RaidId": {"S": raid_id}}
+
+
+def raid_item(raid_id="r1", hp=1000, status="open", daily_attempts=3, reward_gold=500):
+    return {
+        "PK": {"S": "RAID#" + raid_id}, "SK": {"S": "STATE"}, "RaidId": {"S": raid_id},
+        "Hp": {"N": str(hp)}, "MaxHp": {"N": "1000"}, "Status": {"S": status},
+        "DailyAttempts": {"N": str(daily_attempts)}, "AttemptSeconds": {"N": "300"},
+        "RewardGold": {"N": str(reward_gold)},
+    }
+
+
+def player_raid_item(player_id, raid_id="r1", damage=None, name="P", **extra):
+    item = {"PK": {"S": "PLAYER#" + player_id}, "SK": {"S": "RAID#" + raid_id}, "RaidId": {"S": raid_id},
+            "DisplayName": {"S": name}}
+    if damage is not None:
+        item.update(RankKey={"S": "RAID#" + raid_id}, Damage={"N": str(damage)})
+    item.update(extra)
+    return item
 
 
 class BossRaidStatusTests(unittest.TestCase):
-    def test_closed_until_the_config_item_opens_it(self):
-        self.assertFalse(is_boss_raid_open(FakeConfigTable({}), "labproject-test"))
-        closed = {("CONFIG", "BOSSRAID"): {"Open": {"BOOL": False}}}
-        self.assertFalse(is_boss_raid_open(FakeConfigTable(closed), "labproject-test"))
-        opened = {("CONFIG", "BOSSRAID"): {"Open": {"BOOL": True}}}
-        self.assertTrue(is_boss_raid_open(FakeConfigTable(opened), "labproject-test"))
+    def test_accepts_players_only_while_open_and_not_defeated(self):
+        cases = (
+            ((), False),
+            ((config_item(is_open=False), raid_item()), False),
+            ((config_item(), raid_item(status="defeated", hp=0)), False),
+            ((config_item(), raid_item()), True),
+        )
+        for items, expected in cases:
+            self.assertEqual(boss_raid.current_raid(FakeDynamoDb(items), "t")[1], expected)
+        self.assertIsNone(boss_raid.current_raid(FakeDynamoDb(), "t")[0])
+
+    def test_health_below_zero_is_shown_as_zero(self):
+        raid = boss_raid.raid_from_item(raid_item(hp=-25, status="defeated"))
+        self.assertEqual((raid["hp"], raid["maxHp"], raid["defeated"]), (0, 1000, True))
+
+    def test_attempt_day_changes_at_korean_midnight(self):
+        # 2026-10-12T14:59:59Z는 한국 시간 10월 12일 23:59:59다.
+        self.assertEqual(boss_raid.attempt_day(now=1791817199), "2026-10-12")
+        self.assertEqual(boss_raid.attempt_day(now=1791817200), "2026-10-13")
+
+
+class BossRaidAttemptTests(unittest.TestCase):
+    def setUp(self):
+        self.db = FakeDynamoDb([config_item(), raid_item(daily_attempts=2)])
+        self.raid = boss_raid.load_raid(self.db, "t", "r1")
+
+    def consume(self, today="2026-10-13"):
+        return boss_raid.consume_attempt(self.db, "t", self.raid, "steam:1", "Alice", today)
+
+    def test_daily_limit_resets_on_the_next_day(self):
+        self.assertEqual(self.consume(), 1)
+        self.assertEqual(self.consume(), 0)
+        with self.assertRaises(ApiError) as context:
+            self.consume()
+        self.assertEqual(context.exception.code, "no_attempts_left")
+        self.assertEqual(self.consume(today="2026-10-14"), 1)
+
+    def test_failed_join_returns_the_attempt(self):
+        def failing_join(claims, mode, fleet_id):
+            raise ApiError(504, "session_timeout", "Game session did not become active in time.")
+
+        claims = {"sub": "steam:1", "name": "Alice"}
+        with self.assertRaises(ApiError):
+            join_boss_raid(claims, "fleet-1", self.db, "t", join=failing_join)
+        row = self.db.get_item("t", boss_raid.player_raid_key("steam:1", "r1"))["Item"]
+        self.assertEqual(boss_raid.attempts_left(row, 2, boss_raid.attempt_day()), 2)
+
+        result = join_boss_raid(claims, "fleet-1", self.db, "t", join=lambda c, m, f: {"port": 7777})
+        self.assertEqual(result, {"port": 7777, "attemptsLeft": 1})
+
+    def test_closed_raid_is_rejected_without_using_an_attempt(self):
+        db = FakeDynamoDb([config_item(is_open=False), raid_item()])
+        with self.assertRaises(ApiError) as context:
+            join_boss_raid({"sub": "steam:1"}, "fleet-1", db, "t", join=lambda c, m, f: {})
+        self.assertEqual(context.exception.code, "bossraid_closed")
+        self.assertNotIn(("PLAYER#steam:1", "RAID#r1"), db.items)
+
+
+class BossRaidRankingTests(unittest.TestCase):
+    def test_ties_share_a_rank_and_players_without_damage_are_unranked(self):
+        db = FakeDynamoDb([
+            raid_item(),
+            player_raid_item("steam:1", damage=300, name="A"),
+            player_raid_item("steam:2", damage=500, name="B"),
+            player_raid_item("steam:3", damage=300, name="C"),
+            player_raid_item("steam:4", name="D", AttemptDay={"S": "2026-10-13"}, AttemptsToday={"N": "1"}),
+            player_raid_item("steam:5", raid_id="old", damage=999, name="E"),
+        ])
+        raid = boss_raid.load_raid(db, "t", "r1")
+        standing = boss_raid.player_standing(db, "t", raid, "steam:3", "2026-10-13")
+        self.assertEqual([(entry["rank"], entry["name"]) for entry in standing["top"]], [(1, "B"), (2, "A"), (2, "C")])
+        self.assertEqual((standing["damage"], standing["rank"], standing["attemptsLeft"]), (300, 2, 3))
+
+        unranked = boss_raid.player_standing(db, "t", raid, "steam:4", "2026-10-13")
+        self.assertEqual((unranked["rank"], unranked["attemptsLeft"]), (0, 2))
+
+
+class BossRaidRewardTests(unittest.TestCase):
+    def test_reward_is_given_once_for_each_defeated_raid_with_damage(self):
+        db = FakeDynamoDb([
+            raid_item("won", hp=0, status="defeated", reward_gold=500),
+            raid_item("running", hp=10),
+            raid_item("watched", hp=0, status="defeated", reward_gold=700),
+            player_raid_item("steam:1", raid_id="won", damage=40),
+            player_raid_item("steam:1", raid_id="running", damage=40),
+            player_raid_item("steam:1", raid_id="watched", AttemptDay={"S": "2026-10-13"}),
+        ])
+        self.assertEqual(boss_raid.claim_rewards(db, "t", "steam:1", "2026-10-13T00:00:00Z"), {"gold": 500, "raids": ["won"]})
+        self.assertEqual(boss_raid.claim_rewards(db, "t", "steam:1", "2026-10-13T00:01:00Z"), {"gold": 0, "raids": []})
+
+
+def damage_report(**overrides):
+    report = {
+        "raidId": "r1",
+        "serverId": "arn:aws:gamelift:ap-northeast-2::gamesession/fleet-1/gsess-1",
+        "seq": 3,
+        "players": [
+            {"playerId": "steam:1", "displayName": "A", "damage": 120},
+            {"playerId": "", "displayName": "Guest", "damage": 30},
+            {"playerId": "dev:bob", "displayName": "B", "damage": 0},
+        ],
+    }
+    report.update(overrides)
+    return report
+
+
+class RaidDamageTests(unittest.TestCase):
+    def test_rejects_invalid_reports(self):
+        player = damage_report()["players"][0]
+        cases = (
+            damage_report(serverId=""),
+            damage_report(seq=0),
+            damage_report(raidId="bad id"),
+            damage_report(players=[dict(player, damage=-1)]),
+            damage_report(players=[dict(player, damage=1.5)]),
+            damage_report(players=[player, dict(player)]),
+        )
+        for body in cases:
+            with self.assertRaises(ApiError):
+                raid_damage.validate_report(body)
+        self.assertEqual(raid_damage.validate_report(damage_report(raidId="", players=[]))["players"], [])
+
+    def test_transaction_lowers_shared_health_and_credits_known_players(self):
+        report = raid_damage.validate_report(damage_report())
+        items = raid_damage.build_transaction(report, "t", "2026-10-13T00:00:00Z")
+        # 보고 순번 + 전역 체력 + 백엔드 ID가 있고 딜을 넣은 플레이어 1명
+        self.assertEqual(len(items), 3)
+        self.assertEqual(items[0]["Update"]["ConditionExpression"], "attribute_not_exists(LastSeq) OR LastSeq < :seq")
+        self.assertEqual(items[1]["Update"]["ExpressionAttributeValues"][":damage"], {"N": "-150"})
+        self.assertEqual(items[2]["Update"]["Key"]["PK"], {"S": "PLAYER#steam:1"})
+        self.assertEqual(items[2]["Update"]["ExpressionAttributeValues"][":rank"], {"S": "RAID#r1"})
+
+    def test_repeated_sequence_is_not_applied_twice(self):
+        class Cancelled(Exception):
+            def __init__(self, reasons):
+                super().__init__("cancelled")
+                self.response = {"Error": {"Code": "TransactionCanceledException"},
+                                 "CancellationReasons": [{"Code": code} for code in reasons]}
+
+        class Table:
+            def __init__(self, reasons):
+                self.reasons = reasons
+
+            def transact_write_items(self, TransactItems):
+                raise Cancelled(self.reasons)
+
+        report = raid_damage.validate_report(damage_report())
+        self.assertFalse(raid_damage.record_damage(Table(["ConditionalCheckFailed", "None", "None"]), "t", report, "now"))
+        with self.assertRaises(ApiError) as context:
+            raid_damage.record_damage(Table(["None", "ConditionalCheckFailed", "None"]), "t", report, "now")
+        self.assertEqual(context.exception.code, "raid_not_found")
+        # 딜이 없는 보고는 체력만 묻고 쓰지 않는다.
+        self.assertFalse(raid_damage.record_damage(Table([]), "t", dict(report, players=[]), "now"))
+
+    def test_zero_health_marks_the_raid_defeated_once(self):
+        db = FakeDynamoDb([raid_item(hp=-20)])
+        raid = boss_raid.load_raid(db, "t", "r1")
+        self.assertTrue(raid_damage.settle_defeat(db, "t", raid, "now")["defeated"])
+        self.assertTrue(raid_damage.settle_defeat(db, "t", raid, "later")["defeated"])
+        self.assertEqual(db.items[("RAID#r1", "STATE")]["Status"], {"S": "defeated"})
+        self.assertEqual(db.items[("RAID#r1", "STATE")]["DefeatedAt"], {"S": "now"})
 
 
 class PlayerProfileTests(unittest.TestCase):

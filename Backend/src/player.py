@@ -44,10 +44,11 @@ def handler(event, context):
     claims = require_player(event)
     player_id = claims["sub"]
 
+    # 같은 파티션의 레이드 행(RAID#)은 PROFILE 뒤에 정렬되므로, PROFILE부터 거꾸로 읽어 프로필과 경기 기록만 받는다.
     response = aws_client("dynamodb").query(
         TableName=os.environ["TABLE_NAME"],
-        KeyConditionExpression="PK = :pk",
-        ExpressionAttributeValues={":pk": {"S": player_pk(player_id)}},
+        KeyConditionExpression="PK = :pk AND SK <= :profile",
+        ExpressionAttributeValues={":pk": {"S": player_pk(player_id)}, ":profile": {"S": PROFILE_SK}},
         ScanIndexForward=False,
         Limit=RECENT_MATCH_LIMIT + 1,
     )

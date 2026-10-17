@@ -1,7 +1,7 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  LabProject backend - Steam login, GameLift game session placement, and match results in DynamoDB.
+  LabProject backend - Steam login, GameLift game session placement, match results and boss raids in DynamoDB.
 
 Parameters:
   Stage:
@@ -53,7 +53,7 @@ Globals:
         TOKEN_SECRET_PARAM: !Sub /labproject/${Stage}/token-signing-key
 
 Resources:
-  # Single table: player profile, per-player match history and match results, separated by PK/SK.
+  # Single table: player profile, per-player match history, match results and boss raids, separated by PK/SK.
   # On-demand billing keeps the idle cost near zero.
   GameTable:
     Type: AWS::DynamoDB::Table
@@ -65,11 +65,27 @@ Resources:
           AttributeType: S
         - AttributeName: SK
           AttributeType: S
+        - AttributeName: RankKey
+          AttributeType: S
+        - AttributeName: Damage
+          AttributeType: N
       KeySchema:
         - AttributeName: PK
           KeyType: HASH
         - AttributeName: SK
           KeyType: RANGE
+      # Boss raid ranking: one partition per raid, sorted by cumulative damage.
+      # Only player rows that have dealt damage carry both keys, so the index holds nothing else.
+      GlobalSecondaryIndexes:
+        - IndexName: RaidRanking
+          KeySchema:
+            - AttributeName: RankKey
+              KeyType: HASH
+            - AttributeName: Damage
+              KeyType: RANGE
+          Projection:
+            ProjectionType: INCLUDE
+            NonKeyAttributes: [DisplayName]
 
   HttpApi:
     Type: AWS::Serverless::HttpApi
@@ -138,7 +154,9 @@ Resources:
                 - gamelift:CreatePlayerSession
               Resource: '*'
             - Effect: Allow
-              Action: dynamodb:GetItem
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:UpdateItem
               Resource: !GetAtt GameTable.Arn
             - Effect: Allow
               Action: ssm:GetParameter
@@ -172,8 +190,9 @@ Resources:
             Method: GET
             Path: /player/me
 
-  # No login needed: the title screen asks before the player logs in. Backend/bossraid.ps1 opens and closes the raid.
-  BossRaidStatusFunction:
+  # Status needs no login: the title screen asks before the player logs in. Ranking and rewards need the session token.
+  # Backend/bossraid.ps1 opens and closes raids.
+  BossRaidFunction:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: src/
@@ -181,8 +200,16 @@ Resources:
       Policies:
         - Statement:
             - Effect: Allow
-              Action: dynamodb:GetItem
-              Resource: !GetAtt GameTable.Arn
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:Query
+                - dynamodb:UpdateItem
+              Resource:
+                - !GetAtt GameTable.Arn
+                - !Sub ${GameTable.Arn}/index/*
+            - Effect: Allow
+              Action: ssm:GetParameter
+              Resource: !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/labproject/${Stage}/token-signing-key
       Events:
         Status:
           Type: HttpApi
@@ -190,6 +217,18 @@ Resources:
             ApiId: !Ref HttpApi
             Method: GET
             Path: /bossraid/status
+        Me:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Method: GET
+            Path: /bossraid/me
+        Claim:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Method: POST
+            Path: /bossraid/claim
 
   # Game servers only. API Gateway verifies the SigV4 signature, so a client session token cannot call it.
   MatchResultFunction:
@@ -214,8 +253,31 @@ Resources:
             Auth:
               Authorizer: AWS_IAM
 
+  # Game servers only, like match-result. Boss raid damage lowers the shared world boss health.
+  RaidDamageFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: raid_damage.handler
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:UpdateItem
+              Resource: !GetAtt GameTable.Arn
+      Events:
+        Report:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Method: POST
+            Path: /server/raid-damage
+            Auth:
+              Authorizer: AWS_IAM
+
   # Instance role for a managed EC2 fleet. The game server gets temporary credentials for it
-  # through GetFleetRoleCredentials and signs the match-result request with them.
+  # through GetFleetRoleCredentials and signs the match-result and raid-damage requests with them.
   GameServerFleetRole:
     Type: AWS::IAM::Role
     Properties:
@@ -233,7 +295,9 @@ Resources:
             Statement:
               - Effect: Allow
                 Action: execute-api:Invoke
-                Resource: !Sub arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/POST/server/match-result
+                Resource:
+                  - !Sub arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/POST/server/match-result
+                  - !Sub arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/POST/server/raid-damage
 
 Outputs:
   ApiUrl:

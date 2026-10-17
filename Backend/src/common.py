@@ -196,17 +196,36 @@ def require_player(event, secret=None):
 
 
 # DynamoDB 키 ---------------------------------------------------------------------------------------------------------
-# 한 테이블에 플레이어 프로필, 플레이어별 경기 기록, 경기 결과와 운영 설정을 함께 둔다.
+# 한 테이블에 플레이어 프로필, 플레이어별 경기 기록, 경기 결과, 보스 레이드와 운영 설정을 함께 둔다.
 #   PK=PLAYER#<id>  SK=PROFILE                     프로필과 누적 전적
 #   PK=PLAYER#<id>  SK=MATCH#<기록 시각>#<경기 ID>   플레이어별 경기 기록(최신순 조회)
+#   PK=PLAYER#<id>  SK=RAID#<레이드 ID>             레이드 회차별 누적 딜, 오늘 도전 횟수, 보상 수령 기록
 #   PK=MATCH#<id>   SK=RESULT                      경기 전체 결과(중복 보고 방지)
-#   PK=CONFIG       SK=BOSSRAID                    보스 레이드 개최 여부(Open). Backend/bossraid.ps1로 바꾼다.
+#   PK=RAID#<id>    SK=STATE                       레이드 회차의 전역 체력, 하루 도전 횟수, 도전 시간, 보상 골드
+#   PK=RAID#<id>    SK=SERVER#<서버 ID>              서버별 마지막 딜 보고 순번(재전송 중복 방지)
+#   PK=CONFIG       SK=BOSSRAID                    지금 레이드 회차와 개최 여부(Open). Backend/bossraid.ps1로 바꾼다.
+# 순위는 보조 인덱스 RaidRanking(RankKey=RAID#<id>, Damage)으로 딜 순서대로 읽는다. 딜을 넣은 플레이어 행만 들어간다.
 
 CONFIG_PK = "CONFIG"
 BOSS_RAID_SK = "BOSSRAID"
+RAID_STATE_SK = "STATE"
+RAID_RANKING_INDEX = "RaidRanking"
+
 
 def player_pk(player_id):
     return "PLAYER#" + player_id
+
+
+RAID_KEY_PREFIX = "RAID#"
+
+
+def raid_pk(raid_id):
+    """레이드 회차 파티션 키. 플레이어 행의 SK와 순위 인덱스 키도 같은 값을 쓴다."""
+    return RAID_KEY_PREFIX + raid_id
+
+
+def raid_server_sk(server_id):
+    return "SERVER#" + server_id
 
 
 def player_match_sk(recorded_at, match_id):
