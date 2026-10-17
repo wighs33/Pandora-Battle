@@ -8,11 +8,8 @@ namespace PdPortalSpace
 {
 	FVector TransformLocation(const FTransform& SourcePortal, const FTransform& TargetPortal, const FVector& WorldLocation);
 
-	// 방향은 단위 벡터로 돌려준다.
-	FVector TransformDirection(const FTransform& SourcePortal, const FTransform& TargetPortal, const FVector& WorldDirection);
+	// 방향이나 속도처럼 위치 없이 방향과 길이만 있는 값을 옮긴다. 길이는 바뀌지 않는다.
+	FVector TransformVector(const FTransform& SourcePortal, const FTransform& TargetPortal, const FVector& WorldVector);
 
 	FRotator TransformRotation(const FTransform& SourcePortal, const FTransform& TargetPortal, const FRotator& WorldRotation);
-
-	// 속력은 그대로 두고 방향만 옮긴다.
-	FVector TransformVelocity(const FTransform& SourcePortal, const FTransform& TargetPortal, const FVector& WorldVelocity);
 }

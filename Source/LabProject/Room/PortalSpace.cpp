@@ -2,39 +2,35 @@
 
 #include "Kismet/KismetMathLibrary.h"
 
-FVector PdPortalSpace::TransformLocation(const FTransform& SourcePortal, const FTransform& TargetPortal, const FVector& WorldLocation)
+namespace
 {
-	FVector LocalLocation = SourcePortal.InverseTransformPositionNoScale(WorldLocation);
-	LocalLocation.X *= -1.0f;
-	LocalLocation.Y *= -1.0f;
-	return TargetPortal.TransformPositionNoScale(LocalLocation);
+	// 포털로 들어간 것은 대상 포털에서 돌아서 나온다. 포털의 위 축(Z)으로 반 바퀴 돌리면 앞뒤(X)와 좌우(Y)가 함께 뒤집힌다.
+	FVector TurnAroundPortalUp(FVector PortalLocal)
+	{
+		PortalLocal.X = -PortalLocal.X;
+		PortalLocal.Y = -PortalLocal.Y;
+		return PortalLocal;
+	}
 }
 
-FVector PdPortalSpace::TransformDirection(const FTransform& SourcePortal, const FTransform& TargetPortal, const FVector& WorldDirection)
+FVector PdPortalSpace::TransformLocation(const FTransform& SourcePortal, const FTransform& TargetPortal, const FVector& WorldLocation)
 {
-	FVector LocalDirection = SourcePortal.InverseTransformVectorNoScale(WorldDirection);
-	LocalDirection.X *= -1.0f;
-	LocalDirection.Y *= -1.0f;
-	return TargetPortal.TransformVectorNoScale(LocalDirection).GetSafeNormal();
+	const FVector PortalLocal = SourcePortal.InverseTransformPositionNoScale(WorldLocation);
+	return TargetPortal.TransformPositionNoScale(TurnAroundPortalUp(PortalLocal));
+}
+
+FVector PdPortalSpace::TransformVector(const FTransform& SourcePortal, const FTransform& TargetPortal, const FVector& WorldVector)
+{
+	const FVector PortalLocal = SourcePortal.InverseTransformVectorNoScale(WorldVector);
+	return TargetPortal.TransformVectorNoScale(TurnAroundPortalUp(PortalLocal));
 }
 
 FRotator PdPortalSpace::TransformRotation(const FTransform& SourcePortal, const FTransform& TargetPortal, const FRotator& WorldRotation)
 {
 	const FRotationMatrix RotationMatrix(WorldRotation);
-	const FVector Forward = TransformDirection(SourcePortal, TargetPortal, RotationMatrix.GetScaledAxis(EAxis::X));
-	const FVector Right = TransformDirection(SourcePortal, TargetPortal, RotationMatrix.GetScaledAxis(EAxis::Y));
-	const FVector Up = TransformDirection(SourcePortal, TargetPortal, RotationMatrix.GetScaledAxis(EAxis::Z));
+	const FVector Forward = TransformVector(SourcePortal, TargetPortal, RotationMatrix.GetUnitAxis(EAxis::X));
+	const FVector Right = TransformVector(SourcePortal, TargetPortal, RotationMatrix.GetUnitAxis(EAxis::Y));
+	const FVector Up = TransformVector(SourcePortal, TargetPortal, RotationMatrix.GetUnitAxis(EAxis::Z));
 
 	return UKismetMathLibrary::MakeRotationFromAxes(Forward, Right, Up);
-}
-
-FVector PdPortalSpace::TransformVelocity(const FTransform& SourcePortal, const FTransform& TargetPortal, const FVector& WorldVelocity)
-{
-	const double Speed = WorldVelocity.Size();
-	if (Speed <= UE_KINDA_SMALL_NUMBER)
-	{
-		return FVector::ZeroVector;
-	}
-
-	return TransformDirection(SourcePortal, TargetPortal, WorldVelocity / Speed) * Speed;
 }

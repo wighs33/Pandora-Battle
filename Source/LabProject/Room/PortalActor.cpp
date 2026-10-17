@@ -683,7 +683,7 @@ void APortalActor::TeleportActorThroughPortal(AActor* Actor)
 	}
 	if (MovementComponent)
 	{
-		TargetVelocity = PdPortalSpace::TransformVelocity(SourcePortal, TargetPortal, MovementComponent->Velocity);
+		TargetVelocity = PdPortalSpace::TransformVector(SourcePortal, TargetPortal, MovementComponent->Velocity);
 	}
 
 	if (ACharacter* Character = Cast<ACharacter>(Actor))
