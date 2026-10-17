@@ -33,6 +33,10 @@ DEFINE_LOG_CATEGORY_STATIC(LogPortalActor, Log, All);
 
 namespace
 {
+/** 플레이어 카메라 시야각을 캡처에 옮길 때 투영이 무너지지 않도록 지키는 범위. */
+constexpr float MinCaptureFov = 5.0f;
+constexpr float MaxCaptureFov = 170.0f;
+
 void ConfigurePortalBoxBase(UBoxComponent* BoxComponent, const FVector& Extent)
 {
 	if (!BoxComponent)
@@ -321,7 +325,7 @@ void APortalActor::NativeUpdateSceneCapture()
 
 	if (bCopyPlayerCameraFov)
 	{
-		LinkedCapture->FOVAngle = FMath::Clamp(CameraManager->GetFOVAngle(), 5.0f, 170.0f);
+		LinkedCapture->FOVAngle = FMath::Clamp(CameraManager->GetFOVAngle(), MinCaptureFov, MaxCaptureFov);
 	}
 
 	if (bCopyPlayerCameraPostProcess)

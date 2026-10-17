@@ -19,6 +19,8 @@ namespace
 {
     const FLinearColor OpaqueBlackBrushColor(0.0f, 0.0f, 0.0f, 1.0f);
     constexpr double PaintBrushSpacingRatio = 0.25;
+    /** 획 목록을 RPC 하나로 보낼 때 담을 수 있는 획 수의 상한. */
+    constexpr int32 MaxStrokeHistoryCap = 8192;
 
     double ClampBrushSize(const double BrushSize, const double MaxBrushSize)
     {
@@ -214,7 +216,7 @@ bool UPaintCanvasComponent::DrawPaintStroke(const FPaintCanvasStroke& Stroke, co
 bool UPaintCanvasComponent::PaintAtNormalizedLocation(const FVector2D& DrawLocation)
 {
     if (!bPaintCanvasUiSessionActive
-        || LocalPaintStrokes.Num() >= FMath::Clamp(MaxReplicatedPaintStrokeHistory, 1, 8192)
+        || LocalPaintStrokes.Num() >= GetStrokeHistoryLimit()
         || !IsValidDrawLocation(DrawLocation))
     {
         return false;
@@ -372,9 +374,14 @@ UTextureRenderTarget2D* UPaintCanvasComponent::GetActivePaintCanvasRenderTarget(
     return PaintCanvasRenderTarget.Get();
 }
 
+int32 UPaintCanvasComponent::GetStrokeHistoryLimit() const
+{
+    return FMath::Clamp(MaxReplicatedPaintStrokeHistory, 1, MaxStrokeHistoryCap);
+}
+
 bool UPaintCanvasComponent::IsValidPaintCanvasStrokes(const TArray<FPaintCanvasStroke>& Strokes) const
 {
-    if (Strokes.Num() > FMath::Clamp(MaxReplicatedPaintStrokeHistory, 1, 8192))
+    if (Strokes.Num() > GetStrokeHistoryLimit())
     {
         return false;
     }
@@ -557,8 +564,7 @@ void UPaintCanvasComponent::RestoreCachedLobbyPaintCanvasFaceDecal()
 
     CancelPaintCanvasExport();
     LocalPaintStrokes.Reset();
-    const int32 StrokeCount = FMath::Min(FaceDecalCache.Strokes.Num(),
-        FMath::Clamp(MaxReplicatedPaintStrokeHistory, 1, 8192));
+    const int32 StrokeCount = FMath::Min(FaceDecalCache.Strokes.Num(), GetStrokeHistoryLimit());
     for (int32 StrokeIndex = 0; StrokeIndex < StrokeCount; ++StrokeIndex)
     {
         const FLobbyPaintCanvasStrokeCache& CachedStroke = FaceDecalCache.Strokes[StrokeIndex];

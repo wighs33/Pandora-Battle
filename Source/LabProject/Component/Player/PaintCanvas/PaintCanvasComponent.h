@@ -89,6 +89,8 @@ private:
     bool ApplyLocalPaintCanvasToFaceDecal(UMaterialInterface* FaceDecalMaterial, FName AttachSocketName, const FTransform& FaceDecalTransformOffset, FVector FaceDecalSize, FName TextureParameterName);
 
     bool IsValidPaintCanvasStrokes(const TArray<FPaintCanvasStroke>& Strokes) const;
+    /** 한 그림에 담을 수 있는 획 수. 설정 값을 1 이상, 복제할 수 있는 상한 이하로 맞춘다. */
+    int32 GetStrokeHistoryLimit() const;
 
     bool TryConsumePaintNetworkEvent(double& LastAcceptedTime, double MinInterval);
 
@@ -120,6 +122,7 @@ private:
     UPROPERTY(EditDefaultsOnly, Category = "!Paint|Material")
     FName BrushColorParameterName = TEXT("BrushColor");
 
+    // ClampMax는 PaintCanvasComponent.cpp의 MaxStrokeHistoryCap과 같게 둔다.
     UPROPERTY(EditDefaultsOnly, Category = "!Paint|Network", meta = (ClampMin = "1", ClampMax = "8192"))
     int32 MaxReplicatedPaintStrokeHistory = 4096;
 
