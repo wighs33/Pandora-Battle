@@ -87,7 +87,8 @@ private:
 
 	bool bProfileDirty = false;
 	bool bSaveInFlight = false;
-	double SaveDeadline = 0.0;
+	/** 다음 저장 시각. 비어 있으면 잡힌 저장이 없다. 재시도를 다 쓴 뒤에도 비운다. */
+	TOptional<double> SaveDeadline;
 	int32 SaveRetryCount = 0;
 	FTSTicker::FDelegateHandle SaveTickerHandle;
 	bool bIsDeinitializing = false;

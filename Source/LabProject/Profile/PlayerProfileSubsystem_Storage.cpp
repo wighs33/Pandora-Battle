@@ -153,11 +153,11 @@ void UPlayerProfileSubsystem::EnsureSaveTicker()
 
 bool UPlayerProfileSubsystem::TickPendingSaves(float)
 {
-	if (!bIsDeinitializing && bProfileDirty && !bSaveInFlight && SaveDeadline <= FPlatformTime::Seconds())
+	if (!bIsDeinitializing && bProfileDirty && !bSaveInFlight && SaveDeadline && *SaveDeadline <= FPlatformTime::Seconds())
 	{
 		BeginAsyncSave();
 	}
-	if (bIsDeinitializing || !bProfileDirty || SaveDeadline == TNumericLimits<double>::Max())
+	if (bIsDeinitializing || !bProfileDirty || !SaveDeadline)
 	{
 		SaveTickerHandle.Reset();
 		return false;
@@ -229,11 +229,14 @@ void UPlayerProfileSubsystem::ScheduleSaveRetry()
 {
 	bProfileDirty = true;
 	++SaveRetryCount;
-	SaveDeadline = SaveRetryCount <= MaxSaveRetryAttempts ? FPlatformTime::Seconds() + SaveRetryDelaySeconds : TNumericLimits<double>::Max();
 	if (SaveRetryCount > MaxSaveRetryAttempts)
 	{
+		// 더 시도하지 않는다. 남은 변경은 종료할 때 종료 슬롯에 남긴다.
+		SaveDeadline.Reset();
 		UE_LOG(LogPlayerProfile, Error, TEXT("Profile save retries exhausted; keeping live data for shutdown recovery."));
+		return;
 	}
+	SaveDeadline = FPlatformTime::Seconds() + SaveRetryDelaySeconds;
 	EnsureSaveTicker();
 }
 
