@@ -295,8 +295,7 @@ void UInventoryComponent::ClearAllItems()
 	AllItemList.Items.Reset();
 	Map_Type_ItemList.Reset();
 	ReplicatedEntries.Entries.Reset();
-	ReplicatedEntries.MarkArrayDirty();
-	MARK_PROPERTY_DIRTY_FROM_NAME(UInventoryComponent, ReplicatedEntries, this);
+	MarkReplicatedListDirty();
 
 	EnsureConsumableQuickSlotArray();
 	bool bHadQuickSlotReferences = false;
@@ -746,7 +745,7 @@ bool UInventoryComponent::MergeUpgradeableItems(const FGuid SourceItemId, const 
 		static_cast<int64>(MAX_int32)));
 	UpgradedItem->SetUpgradeLevel(NewUpgradeLevel);
 	TargetEntry->UpgradeLevel = NewUpgradeLevel;
-	ReplicatedEntries.MarkEntryDirty(*TargetEntry);
+	MarkReplicatedEntryDirty(*TargetEntry);
 
 	return RemoveReplicatedItemById(ConsumedItemId);
 }

@@ -267,6 +267,10 @@ private:
 
 	void AddReplicatedItem(UItemInstance* ItemInstance);
 
+	/** 복제 목록에서 바뀐 항목(또는 목록 전체)을 표시한다. Fast Array 표시와 푸시 모델 표시를 늘 함께 한다. */
+	void MarkReplicatedEntryDirty(FReplicatedInventoryEntry& Entry);
+	void MarkReplicatedListDirty();
+
 	bool RemoveReplicatedItemById(FGuid ItemId);
 
 	bool SetReplicatedItemQuantityById(FGuid ItemId, int32 NewQuantity);

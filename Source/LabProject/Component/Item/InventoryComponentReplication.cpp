@@ -45,6 +45,18 @@ UInventoryComponent::FInventoryChangeBatch::~FInventoryChangeBatch()
 	Inventory.FlushInventoryChanges();
 }
 
+void UInventoryComponent::MarkReplicatedEntryDirty(FReplicatedInventoryEntry& Entry)
+{
+	ReplicatedEntries.MarkEntryDirty(Entry);
+	MARK_PROPERTY_DIRTY_FROM_NAME(UInventoryComponent, ReplicatedEntries, this);
+}
+
+void UInventoryComponent::MarkReplicatedListDirty()
+{
+	ReplicatedEntries.MarkArrayDirty();
+	MARK_PROPERTY_DIRTY_FROM_NAME(UInventoryComponent, ReplicatedEntries, this);
+}
+
 void UInventoryComponent::RebuildRuntimeItemsFromReplicatedEntries()
 {
 	// =================================================================================================================
@@ -176,8 +188,7 @@ void UInventoryComponent::AddReplicatedItem(UItemInstance* ItemInstance)
 		ExistingEntry->ItemDefinition = ItemInstance->ItemDefinition;
 		ExistingEntry->Quantity = ItemInstance->Quantity;
 		ExistingEntry->UpgradeLevel = ItemInstance->GetUpgradeLevel();
-		ReplicatedEntries.MarkEntryDirty(*ExistingEntry);
-		MARK_PROPERTY_DIRTY_FROM_NAME(UInventoryComponent, ReplicatedEntries, this);
+		MarkReplicatedEntryDirty(*ExistingEntry);
 	}
 	else
 	{
@@ -186,8 +197,7 @@ void UInventoryComponent::AddReplicatedItem(UItemInstance* ItemInstance)
 		NewEntry.ItemDefinition = ItemInstance->ItemDefinition;
 		NewEntry.Quantity = ItemInstance->Quantity;
 		NewEntry.UpgradeLevel = ItemInstance->GetUpgradeLevel();
-		ReplicatedEntries.MarkEntryDirty(NewEntry);
-		MARK_PROPERTY_DIRTY_FROM_NAME(UInventoryComponent, ReplicatedEntries, this);
+		MarkReplicatedEntryDirty(NewEntry);
 	}
 
 	if (bDefinitionChanged)
@@ -235,8 +245,7 @@ bool UInventoryComponent::RemoveReplicatedItemById(FGuid ItemId)
 	// =================================================================================================================
 
 	ReplicatedEntries.Entries.RemoveAt(EntryIndex);
-	ReplicatedEntries.MarkArrayDirty();
-	MARK_PROPERTY_DIRTY_FROM_NAME(UInventoryComponent, ReplicatedEntries, this);
+	MarkReplicatedListDirty();
 	ClearConsumableQuickSlotReferencesToItem(ItemId);
 	ClearEquipmentSlotReferencesToItem(ItemId);
 	ClearLoadoutSlotsReferencingWeapon(ItemId);
@@ -274,8 +283,7 @@ bool UInventoryComponent::SetReplicatedItemQuantityById(FGuid ItemId, int32 NewQ
 
 	ItemInstance->Quantity = NewQuantity;
 	Entry->Quantity = NewQuantity;
-	ReplicatedEntries.MarkEntryDirty(*Entry);
-	MARK_PROPERTY_DIRTY_FROM_NAME(UInventoryComponent, ReplicatedEntries, this);
+	MarkReplicatedEntryDirty(*Entry);
 	NotifyInventoryChanged();
 	return true;
 }
