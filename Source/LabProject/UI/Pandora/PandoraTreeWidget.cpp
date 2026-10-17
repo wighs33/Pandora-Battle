@@ -9,7 +9,7 @@
 #include "Camera/CameraComponent.h"
 #include "Components/Button.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "Containers/Ticker.h"
+#include "Common/PdTicker.h"
 #include "EnhancedInputSubsystems.h"
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/Actor.h"
@@ -404,16 +404,7 @@ void UPandoraTreeWidget::HandleLoadoutClicked()
 	{
 		if (APdHUD* Hud = PlayerController->GetHUD<APdHUD>())
 		{
-			const TWeakObjectPtr<APdHUD> WeakHud = Hud;
-			FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([WeakHud](float)
-					{
-						if (APdHUD* ValidHud = WeakHud.Get())
-						{
-							ValidHud->ClosePandoraTreeUi();
-						}
-
-						return false;
-					}));
+			PdTicker::RunNextTick(Hud, [Hud]() { Hud->ClosePandoraTreeUi(); });
 		}
 	}
 }

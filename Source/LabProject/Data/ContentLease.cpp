@@ -1,6 +1,6 @@
 #include "Data/ContentLease.h"
 
-#include "Containers/Ticker.h"
+#include "Common/PdTicker.h"
 #include "Data/ContentDataSubsystem.h"
 #include "Engine/StreamableManager.h"
 
@@ -112,15 +112,7 @@ void FContentLease::QueueCompletion()
 	}
 	// 시작하는 도중에 끝났거나 실패로 표시된 lease도 호출자가 저장한 다음에 완료 콜백을 받도록 지연한다.
 	bCompletionQueued = true;
-	const TWeakPtr<FContentLease> WeakLease = AsShared();
-	FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([WeakLease](float)
-			{
-				if (const TSharedPtr<FContentLease> This = WeakLease.Pin())
-				{
-					This->DispatchCompletion();
-				}
-				return false;
-			}));
+	PdTicker::RunNextTick(AsShared(), [this]() { DispatchCompletion(); });
 }
 
 void FContentLease::DispatchCompletion()

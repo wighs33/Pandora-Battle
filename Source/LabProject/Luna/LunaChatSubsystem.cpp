@@ -9,6 +9,7 @@
 #include "HttpModule.h"
 #include "Interfaces/IHttpResponse.h"
 #include "Localization/MenuLocalizationSubsystem.h"
+#include "Common/PdTicker.h"
 #include "Common/UiLanguage.h"
 #include "Data/ContentDataSubsystem.h"
 #include "Definition/Mode/PdGameInstanceDefinition.h"
@@ -139,15 +140,14 @@ bool ULunaChatSubsystem::Ask(const FString& Question)
 	bWaitingForServer = true;
 	if (!LocalServer->Start())
 	{
-		FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this, [this, RequestSerial](float)
+		PdTicker::RunNextTick(this, [this, RequestSerial]()
 		{
 			if (RequestSerial == ActiveRequestSerial && bWaitingForServer)
 			{
 				bWaitingForServer = false;
 				FinishReply(false, TEXT("The bundled model server could not start."));
 			}
-			return false;
-		}));
+		});
 	}
 	return true;
 }

@@ -1,11 +1,14 @@
 #include "Online/OnlineSessionsSubsystem.h"
 #include "Engine/LocalPlayer.h"
-#include "Containers/Ticker.h"
+#include "Common/PdTicker.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "Online/OnlineSessionNames.h"
 #include "OnlineSessionSettings.h"
 #include "TimerManager.h"
+
+// 온라인 서비스는 요청 함수 안에서 바로 완료를 알리기도 한다. 그러면 호출한 쪽이 요청 ID를 받기 전에 결과가 나가므로,
+// 생성·검색·참가·정리의 완료 처리는 모두 다음 틱으로 미룬다.
 
 // 다른 요청과 경기 시작·종료가 진행 중인지 검사하고, UI 요청 ID와 요청자의 로그인 식별 정보를 저장한다.
 uint64 UOnlineSessionsSubsystem::BeginSessionRequest(ULocalPlayer* RequestingLocalPlayer, const ESessionRequestKind RequestKind)
@@ -32,15 +35,6 @@ uint64 UOnlineSessionsSubsystem::BeginSessionRequest(ULocalPlayer* RequestingLoc
 	return ActiveRequest.Id;
 }
 
-void UOnlineSessionsSubsystem::RunNextTick(TFunction<void()> Callback)
-{
-	FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this, [Callback = MoveTemp(Callback)](float)
-	{
-		Callback();
-		return false;
-	}));
-}
-
 // 정원·공개 이름·맵·LAN·Steam 로비 설정을 온라인 서비스에 전달하고 생성 콜백과 제한시간을 등록한다.
 bool UOnlineSessionsSubsystem::StartCreateRoomPhase(const uint64 RequestId)
 {
@@ -54,7 +48,7 @@ bool UOnlineSessionsSubsystem::StartCreateRoomPhase(const uint64 RequestId)
 	const FOnCreateSessionCompleteDelegate CreateSessionCompleteDelegate =
 		FOnCreateSessionCompleteDelegate::CreateWeakLambda(this, [this, RequestId](FName SessionName, bool bSuccess)
 			{
-				RunNextTick([this, RequestId, SessionName, bSuccess]() { OnCreateSessionCompleted(SessionName, bSuccess, RequestId); });
+				PdTicker::RunNextTick(this, [this, RequestId, SessionName, bSuccess]() { OnCreateSessionCompleted(SessionName, bSuccess, RequestId); });
 			});
 	CreateSessionCompleteDelegateHandle = SessionInterface->AddOnCreateSessionCompleteDelegate_Handle(CreateSessionCompleteDelegate);
 
@@ -129,7 +123,7 @@ bool UOnlineSessionsSubsystem::StartFindRoomsPhase(const uint64 RequestId)
 	const FOnFindSessionsCompleteDelegate FindSessionsCompleteDelegate =
 		FOnFindSessionsCompleteDelegate::CreateWeakLambda(this, [this, RequestId](bool bSuccess)
 			{
-				RunNextTick([this, RequestId, bSuccess]() { OnFindSessionsCompleted(bSuccess, RequestId); });
+				PdTicker::RunNextTick(this, [this, RequestId, bSuccess]() { OnFindSessionsCompleted(bSuccess, RequestId); });
 			});
 	FindSessionsCompleteDelegateHandle = SessionInterface->AddOnFindSessionsCompleteDelegate_Handle(FindSessionsCompleteDelegate);
 
@@ -243,7 +237,7 @@ bool UOnlineSessionsSubsystem::StartJoinRoomPhase(const uint64 RequestId)
 		FOnJoinSessionCompleteDelegate::CreateWeakLambda(this,
 		[this, RequestId](FName SessionName, EOnJoinSessionCompleteResult::Type Result)
 			{
-				RunNextTick([this, RequestId, SessionName, Result]() { OnJoinSessionCompleted(SessionName, Result, RequestId); });
+				PdTicker::RunNextTick(this, [this, RequestId, SessionName, Result]() { OnJoinSessionCompleted(SessionName, Result, RequestId); });
 			});
 	JoinSessionCompleteDelegateHandle = SessionInterface->AddOnJoinSessionCompleteDelegate_Handle(JoinSessionCompleteDelegate);
 
@@ -325,7 +319,7 @@ bool UOnlineSessionsSubsystem::StartDestroySessionPhase(const uint64 RequestId, 
 	const FOnDestroySessionCompleteDelegate DestroySessionCompleteDelegate =
 		FOnDestroySessionCompleteDelegate::CreateWeakLambda(this, [this, RequestId](FName SessionName, bool bSuccess)
 			{
-				RunNextTick([this, RequestId, SessionName, bSuccess]() { OnDestroySessionCompleted(SessionName, bSuccess, RequestId); });
+				PdTicker::RunNextTick(this, [this, RequestId, SessionName, bSuccess]() { OnDestroySessionCompleted(SessionName, bSuccess, RequestId); });
 			});
 	DestroySessionCompleteDelegateHandle = SessionInterface->AddOnDestroySessionCompleteDelegate_Handle(DestroySessionCompleteDelegate);
 	if (!SessionInterface->DestroySession(NAME_GameSession))

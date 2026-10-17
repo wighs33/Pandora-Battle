@@ -2,7 +2,7 @@
 
 #include "Animation/WidgetAnimation.h"
 #include "Blueprint/WidgetTree.h"
-#include "Containers/Ticker.h"
+#include "Common/PdTicker.h"
 #include "Definition/Common/ProjectTagDefinition.h"
 #include "Components/Button.h"
 #include "Components/CanvasPanel.h"
@@ -506,16 +506,7 @@ void UInfoWidget::OnPandoraUpgradeButtonClicked()
 	{
 		if (APdHUD* Hud = PlayerController->GetHUD<APdHUD>())
 		{
-			const TWeakObjectPtr<APdHUD> WeakHud = Hud;
-			FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([WeakHud](float)
-					{
-						if (APdHUD* ValidHud = WeakHud.Get())
-						{
-							ValidHud->TogglePandoraTreeUi();
-						}
-
-						return false;
-					}));
+			PdTicker::RunNextTick(Hud, [Hud]() { Hud->TogglePandoraTreeUi(); });
 		}
 	}
 }

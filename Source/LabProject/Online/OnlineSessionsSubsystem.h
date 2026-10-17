@@ -129,11 +129,6 @@ private:
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	uint64 BeginSessionRequest(ULocalPlayer* RequestingLocalPlayer, ESessionRequestKind RequestKind);
-	/**
-	 * 온라인 서비스는 요청 함수 안에서 바로 완료를 알리기도 한다. 그러면 호출한 쪽이 요청 ID를 받기 전에 결과가 나가므로,
-	 * 완료 처리는 항상 다음 틱으로 미룬다.
-	 */
-	void RunNextTick(TFunction<void()> Callback);
 	bool StartCreateRoomPhase(uint64 RequestId);
 	bool StartFindRoomsPhase(uint64 RequestId);
 	bool StartJoinRoomPhase(uint64 RequestId);

@@ -1,5 +1,6 @@
 #include "UI/Core/PdUIActionRouter.h"
 
+#include "Common/PdTicker.h"
 #include "Component/Player/ControllerInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "UI/Core/UiScreen.h"
@@ -60,15 +61,14 @@ void UPdUIActionRouter::SetActiveRoot(FActivatableTreeRootPtr NewActiveRoot)
     if (!GetActiveRoot().IsValid())
     {
         // UE 5.8은 Slate root 제거를 마친 뒤 ActiveInputConfig를 비운다.
-        // 그 정리가 끝난 다음 기본 정책을 복원한다. Core ticker는 일시정지 중에도 실행된다.
-        FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this, [this](float)
+        // 그 정리가 끝난 다음 틱에 기본 정책을 복원한다.
+        PdTicker::RunNextTick(this, [this]()
         {
             if (!GetActiveRoot().IsValid())
             {
                 ApplyDefaultInput();
             }
-            return false;
-        }));
+        });
     }
 }
 
