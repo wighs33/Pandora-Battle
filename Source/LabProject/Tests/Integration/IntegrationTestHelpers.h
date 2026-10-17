@@ -73,12 +73,16 @@ namespace PdIntegrationTest
 		}));
 	}
 
-	/** 맵을 새로 열고 플레이어 Pawn과 HUD가 생긴 뒤, 콘텐츠 로딩이 끝나도록 SettleSeconds만큼 더 기다린다. */
-	inline void OpenMap(FAutomationTestBase* Test, const FString& MapPath, const float SettleSeconds = 3.f)
+	/**
+	 * 맵을 새로 열고 플레이어 Pawn과 HUD가 생긴 뒤, 콘텐츠 로딩이 끝나도록 SettleSeconds만큼 더 기다린다.
+	 * Options는 travel 옵션이다(예: 보스 레이드 월드로 여는 BossRaid=1).
+	 */
+	inline void OpenMap(FAutomationTestBase* Test, const FString& MapPath, const float SettleSeconds = 3.f,
+		const FString& Options = FString())
 	{
-		ADD_LATENT_AUTOMATION_COMMAND(FFunctionLatentCommand([MapPath]()
+		ADD_LATENT_AUTOMATION_COMMAND(FFunctionLatentCommand([MapPath, Options]()
 		{
-			UGameplayStatics::OpenLevel(GetGameWorld(), FName(*MapPath));
+			UGameplayStatics::OpenLevel(GetGameWorld(), FName(*MapPath), true, Options);
 			return true;
 		}));
 		ADD_LATENT_AUTOMATION_COMMAND(FWaitLatentCommand(1.f));

@@ -103,6 +103,8 @@ public:
 	/** 공격 패턴 중 가장 먼 사거리. 사거리 상한이 없는 패턴이 있으면 0이다. */
 	float GetMaxAttackPatternDistance() const;
 
+	bool IsWorldBoss() const { return bWorldBoss; }
+
 	/** 아직 쓰지 않은 페이즈 소환이 있는지. */
 	bool HasPendingPhaseSummon() const { return PhaseSummon.HealthRatio > 0.0f && !bPhaseSummonDone && !bDying; }
 
@@ -190,6 +192,7 @@ private:
 	void StartPhaseSummon();
 	void SpawnPendingMinions();
 	void SpawnMinion(int32 Index);
+	void RecordWorldBossDamage(float DamageAmount) const;
 	APdPlayerState* ResolvePlayerStateFromActor(AActor* Actor) const;
 
 protected:
@@ -253,6 +256,13 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, Category = "!AI|Monster|Summon")
 	FMonsterPhaseSummon PhaseSummon;
+
+	/**
+	 * 보스 레이드 월드의 월드 보스. 모든 서버가 체력을 함께 깎고(AWorldBossRaid), 플레이어가 실제로 깎은 체력이 딜 순위에 들어간다.
+	 * 보스 레이드로 연 월드가 아니면 일반 몬스터와 같다.
+	 */
+	UPROPERTY(EditDefaultsOnly, Category = "!AI|Monster|Raid")
+	bool bWorldBoss = false;
 
 	/**
 	 * 전용 서버에서 애니메이션을 몇 프레임마다 갱신할지. 서버는 그림을 그리지 않고 피격 판정용 자세와 노티파이만 쓰므로 졸개는 늘려도 된다.

@@ -96,6 +96,7 @@ private:
 	UExperienceManagerComponent* GetExperienceManager() const;
 	void ResumeStartingPlayers();
 	void NotifyBossRaidWorldReadyIfNeeded();
+	void StartWorldBossRaidIfNeeded();
 	void BeginRuntimeContentPreload();
 	void HandleRuntimeContentPreloadComplete();
 	void ReleaseRuntimeContentPreload();

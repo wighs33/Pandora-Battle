@@ -6,12 +6,14 @@
 #include "TimerManager.h"
 #include "PlayerHudWidget.generated.h"
 
+class AWorldBossRaid;
 class UHorizontalBox;
 class UImage;
 class UKillBoxWidget;
 class UUserWidget;
 class UWidget;
 class UWidgetClassDefinition;
+class UWorldBossBarWidget;
 
 UCLASS(Blueprintable, BlueprintType)
 class LABPROJECT_API UPlayerHudWidget : public ULocalizedMenuWidget
@@ -33,6 +35,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|PlayerHUD|Achievement")
 	bool RefreshAchievementAvatar();
+
+	/** 보스 레이드 월드에서 처치 수 자리에 긴 월드 보스 체력바를 놓는다. HUD와 레이드 액터 중 나중에 준비된 쪽이 부른다. */
+	void ShowWorldBossBar(AWorldBossRaid& WorldBossRaid);
 
 	// Event Handlers --------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "!UI|PlayerHUD|KillBox")
@@ -76,6 +81,9 @@ private:
 
 	UPROPERTY(Transient)
 	TMap<int32, TObjectPtr<UKillBoxWidget>> KillBoxWidgets;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UWorldBossBarWidget> WorldBossBar;
 
 	FTimerHandle KillBoxRefreshTimerHandle;
 	FAchievementNotificationSubscription AchievementSubscription;

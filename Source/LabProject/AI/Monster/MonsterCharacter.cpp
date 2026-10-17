@@ -32,6 +32,7 @@
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
 #include "Mode/PdPlayerState.h"
+#include "Mode/WorldBossRaid.h"
 #include "TimerManager.h"
 
 #if WITH_EDITOR
@@ -160,6 +161,12 @@ void AMonsterCharacter::HandleCharacterRuntimeInitialized()
 		{
 			HealthChangedHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetHealthAttribute())
 				.AddUObject(this, &ThisClass::HandleHealthChanged);
+		}
+		// 페이즈 소환 연결 뒤에 전역 체력을 받아야, 이미 절반 아래로 깎인 회차에서도 소환한다.
+		AWorldBossRaid* WorldBossRaid = bWorldBoss ? AWorldBossRaid::Find(this) : nullptr;
+		if (WorldBossRaid)
+		{
+			WorldBossRaid->RegisterBoss(*this);
 		}
 	}
 	if (AMonsterAIController* MonsterController = Cast<AMonsterAIController>(GetController()))
@@ -381,9 +388,26 @@ void AMonsterCharacter::HandleDamageTaken(
 	{
 		APdPlayerState* RewardPlayerState = ResolvePlayerStateFromActor(DamageInstigator);
 		LastDamagingPlayerState = RewardPlayerState ? RewardPlayerState : ResolvePlayerStateFromActor(DamageCauser);
+		if (bWorldBoss)
+		{
+			RecordWorldBossDamage(DamageAmount);
+		}
 	}
 	Super::HandleDamageTaken(DamageAmount, bCriticalHit, bAllowHitReact, DamageInstigator, DamageCauser);
 	TryPlayMonsterHitReactMontage(DamageAmount, bAllowHitReact);
+}
+
+// 피해 표시값에는 남은 체력을 넘는 양(오버킬)이 들어 있다. 순위에는 이번 공격으로 실제로 깎인 체력만 넣는다.
+// 이 함수는 체력을 깎기 직전에 불리므로 지금 체력이 깎일 수 있는 최대치다.
+void AMonsterCharacter::RecordWorldBossDamage(const float DamageAmount) const
+{
+	AWorldBossRaid* WorldBossRaid = AWorldBossRaid::Find(this);
+	if (!WorldBossRaid || !AbilitySystemComponent)
+	{
+		return;
+	}
+	const float Health = AbilitySystemComponent->GetNumericAttribute(UBasicAttributeSet::GetHealthAttribute());
+	WorldBossRaid->RecordBossDamage(LastDamagingPlayerState.Get(), FMath::Min(DamageAmount, Health));
 }
 
 // 작은 몬스터 몸체에 맞춰 피해 숫자의 표시 높이를 낮춘다.

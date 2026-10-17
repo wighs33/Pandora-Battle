@@ -21,9 +21,11 @@
 #include "UI/Lobby/LobbyHUD.h"
 #include "Profile/PlayerProfileSubsystem.h"
 #include "Mode/PdPlayerState.h"
+#include "Mode/WorldBossRaid.h"
 #include "Online/AchievementSubsystem.h"
 #include "UI/Common/TeamColorUtils.h"
 #include "UI/HUD/Match/KillBoxWidget.h"
+#include "UI/HUD/Player/WorldBossBarWidget.h"
 #include "UI/Core/WidgetClassDefinition.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PlayerHudWidget)
@@ -55,12 +57,44 @@ void UPlayerHudWidget::NativeConstruct()
 	RefreshLobbyTipVisibility();
 	RefreshKillBoxVisibility();
 	RefreshAchievementAvatar();
+	if (AWorldBossRaid* WorldBossRaid = AWorldBossRaid::Find(this))
+	{
+		ShowWorldBossBar(*WorldBossRaid);
+	}
 
 	if (CanRebuildKillBox())
 	{
 		CenterKillBoxContainer();
 		RebuildKillBox();
 	}
+}
+
+// 보스 레이드에서는 팀 처치 수 대신 같은 자리(화면 가운데 위)에 월드 보스 체력바를 놓는다.
+void UPlayerHudWidget::ShowWorldBossBar(AWorldBossRaid& WorldBossRaid)
+{
+	UPanelWidget* KillBoxParent = HorizontalBox_KillBox ? HorizontalBox_KillBox->GetParent() : nullptr;
+	if (WorldBossBar || !KillBoxParent)
+	{
+		return;
+	}
+
+	WorldBossBar = CreateWidget<UWorldBossBarWidget>(this, UWorldBossBarWidget::StaticClass());
+	WorldBossBar->SetWorldBossRaid(&WorldBossRaid);
+	UPanelSlot* BarSlot = KillBoxParent->AddChild(WorldBossBar);
+	if (UCanvasPanelSlot* CanvasSlot = Cast<UCanvasPanelSlot>(BarSlot))
+	{
+		const UCanvasPanelSlot* KillBoxSlot = Cast<UCanvasPanelSlot>(HorizontalBox_KillBox->Slot);
+		CanvasSlot->SetAnchors(FAnchors(0.5f, 0.0f));
+		CanvasSlot->SetAlignment(FVector2D(0.5f, 0.0f));
+		CanvasSlot->SetPosition(FVector2D(0.0f, KillBoxSlot ? KillBoxSlot->GetPosition().Y : 0.0f));
+		CanvasSlot->SetAutoSize(true);
+	}
+	else if (UOverlaySlot* OverlaySlot = Cast<UOverlaySlot>(BarSlot))
+	{
+		OverlaySlot->SetHorizontalAlignment(HAlign_Center);
+		OverlaySlot->SetVerticalAlignment(VAlign_Top);
+	}
+	RefreshKillBoxVisibility();
 }
 
 void UPlayerHudWidget::NativeDestruct()
@@ -246,12 +280,12 @@ void UPlayerHudWidget::RefreshKillBoxVisibility()
 		return;
 	}
 
-	const bool bTrainingRoom = IsTrainingRoomMap();
+	const bool bHideKillBox = IsTrainingRoomMap() || WorldBossBar != nullptr;
 	HorizontalBox_KillBox->SetVisibility(
-		bTrainingRoom
+		bHideKillBox
 			? ESlateVisibility::Collapsed
 			: ESlateVisibility::HitTestInvisible);
-	if (bTrainingRoom)
+	if (bHideKillBox)
 	{
 		ClearKillBoxWidgets();
 	}
@@ -479,7 +513,7 @@ FText UPlayerHudWidget::ResolveTeamName(const int32 TeamColorIndex) const
 bool UPlayerHudWidget::CanRebuildKillBox() const
 {
 	const UWorld* World = GetWorld();
-	return !IsDesignTime() && World && World->IsGameWorld() && HorizontalBox_KillBox && !IsTrainingRoomMap();
+	return !IsDesignTime() && World && World->IsGameWorld() && HorizontalBox_KillBox && !IsTrainingRoomMap() && !WorldBossBar;
 }
 
 void UPlayerHudWidget::CenterKillBoxContainer() const

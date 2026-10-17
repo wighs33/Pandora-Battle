@@ -27,6 +27,7 @@
 #include "Mode/ExperienceGameState.h"
 #include "Mode/PdPlayerController.h"
 #include "Mode/PdPlayerState.h"
+#include "Mode/WorldBossRaid.h"
 #include "Online/GameLift/GameLiftServerSubsystem.h"
 #include "TimerManager.h"
 
@@ -80,6 +81,7 @@ void AExperienceGameMode::StartPlay()
 	Super::StartPlay();
 	TryStartServerMatch();
 	NotifyBossRaidWorldReadyIfNeeded();
+	StartWorldBossRaidIfNeeded();
 }
 
 // 맵을 떠난 뒤 준비 완료 콜백이 경기를 시작하지 않도록 연결을 정리한다.
@@ -467,6 +469,15 @@ void AExperienceGameMode::NotifyBossRaidWorldReadyIfNeeded()
 	if (UGameLiftServerSubsystem* GameLift = UGameLiftServerSubsystem::Get(this))
 	{
 		GameLift->ActivatePendingGameSession();
+	}
+}
+
+// 보스 레이드 월드의 보스는 모든 서버가 체력을 함께 깎는 월드 보스다. 게임 세션을 활성화한 뒤에 만들어 첫 보고가 세션 ID를 쓰게 한다.
+void AExperienceGameMode::StartWorldBossRaidIfNeeded()
+{
+	if (MatchFlowComponent->IsBossRaid() && !AWorldBossRaid::Find(this))
+	{
+		GetWorld()->SpawnActor<AWorldBossRaid>();
 	}
 }
 
