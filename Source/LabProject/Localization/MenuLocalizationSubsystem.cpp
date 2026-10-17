@@ -7,6 +7,8 @@
 #include "Engine/Font.h"
 #include "Kismet/GameplayStatics.h"
 
+DEFINE_LOG_CATEGORY_STATIC(LogMenuLocalization, Log, All);
+
 namespace { const FString SettingsSlot(TEXT("MenuLanguageSettings")); }
 
 void UMenuLocalizationSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -20,7 +22,7 @@ void UMenuLocalizationSubsystem::Initialize(FSubsystemCollectionBase& Collection
 	LatinFont = Settings->LatinFont.LoadSynchronous();
 	if (!TextTable || TextTable->GetRowStruct() != FMenuTextRow::StaticStruct())
 	{
-		UE_LOG(LogTemp, Error, TEXT("Menu Localization: configure a MenuTextRow table in Project Settings."));
+		UE_LOG(LogMenuLocalization, Error, TEXT("Configure a MenuTextRow table in Project Settings."));
 		TextTable = nullptr;
 	}
 	if (const UUiSettingsSaveGame* Saved = Cast<UUiSettingsSaveGame>(UGameplayStatics::LoadGameFromSlot(SettingsSlot, 0));
@@ -38,7 +40,7 @@ bool UMenuLocalizationSubsystem::SetLanguage(EGuideLanguage NewLanguage)
 	UUiSettingsSaveGame* Saved = Cast<UUiSettingsSaveGame>(UGameplayStatics::CreateSaveGameObject(UUiSettingsSaveGame::StaticClass()));
 	Saved->Language = Language;
 	const bool bSaved = UGameplayStatics::SaveGameToSlot(Saved, SettingsSlot, 0);
-	if (!bSaved) UE_LOG(LogTemp, Warning, TEXT("Menu Localization: could not save language selection."));
+	if (!bSaved) UE_LOG(LogMenuLocalization, Warning, TEXT("Could not save the language selection."));
 	if (bChanged) OnLanguageChanged.Broadcast();
 	return bSaved;
 }

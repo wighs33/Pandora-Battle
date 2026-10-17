@@ -15,6 +15,8 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PlayerSpawnComponent)
 
+DEFINE_LOG_CATEGORY_STATIC(LogPlayerSpawn, Log, All);
+
 UPlayerSpawnComponent::UPlayerSpawnComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
@@ -311,7 +313,7 @@ void UPlayerSpawnComponent::FinishPlayerRespawn(TWeakObjectPtr<AController> Weak
 	FTransform Transform;
 	if (!TryGetPlayerRespawnTransform(Controller, Transform))
 	{
-		UE_LOG(LogTemp, Error, TEXT("No respawn PlayerStart for %s."), *GetNameSafe(Controller));
+		UE_LOG(LogPlayerSpawn, Error, TEXT("No respawn PlayerStart for %s."), *GetNameSafe(Controller));
 		if (PdController) { PdController->Client_HideRespawnDelayCountdown(); }
 		return;
 	}

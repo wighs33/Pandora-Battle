@@ -106,9 +106,19 @@ void UPdUIActionRouter::ApplyUIInputConfig(const FUIInputConfig& NewConfig, bool
     const bool bWasBlocked = IsGameplayInputBlocked();
     const UCommonActivatableWidget* ActiveScreen = GetLeafmostActivatableWidget();
     const UUiScreen* Adapter = Cast<UUiScreen>(ActiveScreen);
-    // 직접 전환한 메뉴는 Block, 기존 위젯 어댑터는 선언된 게임플레이 정책을 사용한다.
-    AppliedGameplayPolicy = Adapter ? Adapter->GameplayInputPolicy
-        : ActiveScreen || ChatInputWidget.IsValid() ? EPdGameplayInputPolicy::Block : EPdGameplayInputPolicy::Allow;
+    // 기존 위젯 어댑터는 선언한 게임플레이 정책을 쓰고, 직접 전환한 메뉴나 채팅 입력은 게임 입력을 막는다.
+    if (Adapter)
+    {
+        AppliedGameplayPolicy = Adapter->GameplayInputPolicy;
+    }
+    else if (ActiveScreen || ChatInputWidget.IsValid())
+    {
+        AppliedGameplayPolicy = EPdGameplayInputPolicy::Block;
+    }
+    else
+    {
+        AppliedGameplayPolicy = EPdGameplayInputPolicy::Allow;
+    }
     const bool bWillBlock = IsGameplayInputBlocked();
     if (bWasBlocked != bWillBlock) KeysAwaitingRelease.Append(PressedKeys);
     if (bWasBlocked && !bWillBlock && Controller)

@@ -25,6 +25,8 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MatchPlayerSetupComponent)
 
+DEFINE_LOG_CATEGORY_STATIC(LogMatchPlayerSetup, Log, All);
+
 UMatchPlayerSetupComponent::UMatchPlayerSetupComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
@@ -195,7 +197,7 @@ void UMatchPlayerSetupComponent::BeginSkinContentPreload()
 		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
 	if (!ContentSubsystem)
 	{
-		UE_LOG(LogTemp, Error, TEXT("ContentDataSubsystem is required for match player setup."));
+		UE_LOG(LogMatchPlayerSetup, Error, TEXT("ContentDataSubsystem is required for match player setup."));
 		return;
 	}
 
