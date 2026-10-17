@@ -66,9 +66,10 @@ bool UOnlineSessionsSubsystem::StartCreateRoomPhase(const uint64 RequestId)
 	Settings.Set(GetRoomNameSettingKey(), PendingRoomName, EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);
 	Settings.Set(GetMapNameSettingKey(), PendingMapName, EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);
 
-	const bool bStarted = ActiveRequest.LocalPlayerNetId.IsValid()
-		? SessionInterface->CreateSession(*ActiveRequest.LocalPlayerNetId, NAME_GameSession, Settings)
-		: SessionInterface->CreateSession(ActiveRequest.ControllerId, NAME_GameSession, Settings);
+	const bool bStarted = CallAsRequestingPlayer([&](const auto& Player)
+	{
+		return SessionInterface->CreateSession(Player, NAME_GameSession, Settings);
+	});
 	if (!bStarted)
 	{
 		ClearSessionOperationDelegate(SessionOperationState);
@@ -100,7 +101,9 @@ void UOnlineSessionsSubsystem::OnCreateSessionCompleted(FName, const bool bWasSu
 	ActiveRequest.bResultSent = true;
 	if (CompletedRequestKind == ESessionRequestKind::QuickMatch)
 	{
-		OnQuickMatchRequestComplete.Broadcast(CallbackRequestId, bWasSuccessful, bWasSuccessful);
+		// 빠른 매칭이 방 만들기까지 왔으면, 방은 만들기에 성공했을 때만 생긴다.
+		const bool bCreatedRoom = bWasSuccessful;
+		OnQuickMatchRequestComplete.Broadcast(CallbackRequestId, bWasSuccessful, bCreatedRoom);
 	}
 	else if (CompletedRequestKind == ESessionRequestKind::CreateRoom)
 	{
@@ -135,9 +138,10 @@ bool UOnlineSessionsSubsystem::StartFindRoomsPhase(const uint64 RequestId)
 		ActiveSessionSearch->QuerySettings.Set(SEARCH_LOBBIES, true, EOnlineComparisonOp::Equals);
 	}
 
-	const bool bStarted = ActiveRequest.LocalPlayerNetId.IsValid()
-		? SessionInterface->FindSessions(*ActiveRequest.LocalPlayerNetId, ActiveSessionSearch.ToSharedRef())
-		: SessionInterface->FindSessions(ActiveRequest.ControllerId, ActiveSessionSearch.ToSharedRef());
+	const bool bStarted = CallAsRequestingPlayer([&](const auto& Player)
+	{
+		return SessionInterface->FindSessions(Player, ActiveSessionSearch.ToSharedRef());
+	});
 	if (!bStarted)
 	{
 		ClearSessionOperationDelegate(SessionOperationState);
@@ -241,9 +245,10 @@ bool UOnlineSessionsSubsystem::StartJoinRoomPhase(const uint64 RequestId)
 			});
 	JoinSessionCompleteDelegateHandle = SessionInterface->AddOnJoinSessionCompleteDelegate_Handle(JoinSessionCompleteDelegate);
 
-	const bool bStarted = ActiveRequest.LocalPlayerNetId.IsValid()
-		? SessionInterface->JoinSession(*ActiveRequest.LocalPlayerNetId, NAME_GameSession, PendingJoinSessionResult.OnlineResult)
-		: SessionInterface->JoinSession(ActiveRequest.ControllerId, NAME_GameSession, PendingJoinSessionResult.OnlineResult);
+	const bool bStarted = CallAsRequestingPlayer([&](const auto& Player)
+	{
+		return SessionInterface->JoinSession(Player, NAME_GameSession, PendingJoinSessionResult.OnlineResult);
+	});
 	if (!bStarted)
 	{
 		ClearSessionOperationDelegate(SessionOperationState);

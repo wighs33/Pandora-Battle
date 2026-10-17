@@ -140,6 +140,12 @@ private:
 	bool EndSessionOperationWait();
 	bool MatchesActiveRequestId(uint64 CallbackRequestId) const;
 	bool IsActiveLocalPlayerIdentityValid() const;
+	/** 요청한 플레이어의 로그인 ID가 있으면 그것으로, 없으면 컨트롤러 번호로 온라인 서비스를 부른다. */
+	template <typename CallType>
+	bool CallAsRequestingPlayer(CallType&& Call) const
+	{
+		return ActiveRequest.LocalPlayerNetId.IsValid() ? Call(*ActiveRequest.LocalPlayerNetId) : Call(ActiveRequest.ControllerId);
+	}
 	APlayerController* ResolveActiveLocalPlayerController() const;
 	// 경기 시작·종료의 독립된 작업 수명
 	uint64 BeginSessionLifecycleOperation(ESessionLifecycleOperation Operation);
