@@ -20,6 +20,8 @@ namespace
 {
 	/** 준비 확인 간격. 모델을 올리는 동안 /health는 503을 돌려준다. */
 	constexpr double HealthCheckInterval = 0.5;
+	/** 준비 확인 요청 하나를 기다리는 시간. 답이 없으면 다음 간격에 다시 묻는다. */
+	constexpr float HealthRequestTimeoutSeconds = 2.f;
 
 	/** 같은 PC에서만 접속할 수 있는 빈 포트를 운영체제에 받아 온다. */
 	int32 FindFreeLoopbackPort()
@@ -85,8 +87,7 @@ bool FLunaLocalServer::Start()
 	Port = FindFreeLoopbackPort();
 	if (Port == 0)
 	{
-		UE_LOG(LogLunaServer, Warning, TEXT("No free local port for the Luna model server."));
-		SetState(EState::Failed);
+		Fail(TEXT("No free local port for the Luna model server."));
 		return false;
 	}
 
@@ -98,8 +99,7 @@ bool FLunaLocalServer::Start()
 		*FPaths::GetPath(ExecutablePath), nullptr);
 	if (!Process.IsValid())
 	{
-		UE_LOG(LogLunaServer, Warning, TEXT("Could not start %s"), *ExecutablePath);
-		SetState(EState::Failed);
+		Fail(FString::Printf(TEXT("Could not start %s"), *ExecutablePath));
 		return false;
 	}
 
@@ -180,10 +180,7 @@ bool FLunaLocalServer::Poll(float)
 	{
 		int32 ReturnCode = 0;
 		FPlatformProcess::GetProcReturnCode(Process, &ReturnCode);
-		UE_LOG(LogLunaServer, Warning, TEXT("The Luna model server exited (code %d). See Saved/Logs/LunaServer.log."), ReturnCode);
-		TickerHandle.Reset();
-		Stop();
-		SetState(EState::Failed);
+		Fail(FString::Printf(TEXT("The Luna model server exited (code %d). See Saved/Logs/LunaServer.log."), ReturnCode));
 		return false;
 	}
 	if (State != EState::Starting)
@@ -194,10 +191,7 @@ bool FLunaLocalServer::Poll(float)
 	const double Now = FPlatformTime::Seconds();
 	if (Now - StartTime > GetDefault<ULunaChatSettings>()->GetLocalServerStartTimeoutSeconds())
 	{
-		UE_LOG(LogLunaServer, Warning, TEXT("The Luna model server did not become ready in time."));
-		TickerHandle.Reset();
-		Stop();
-		SetState(EState::Failed);
+		Fail(TEXT("The Luna model server did not become ready in time."));
 		return false;
 	}
 	if (HealthRequest.IsValid() || Now < NextHealthCheckTime)
@@ -208,7 +202,7 @@ bool FLunaLocalServer::Poll(float)
 	HealthRequest = FHttpModule::Get().CreateRequest();
 	HealthRequest->SetVerb(TEXT("GET"));
 	HealthRequest->SetURL(GetBaseUrl() + TEXT("/health"));
-	HealthRequest->SetTimeout(2.f);
+	HealthRequest->SetTimeout(HealthRequestTimeoutSeconds);
 	HealthRequest->OnProcessRequestComplete().BindLambda(
 		[this](FHttpRequestPtr, const FHttpResponsePtr Response, const bool bConnectedSuccessfully)
 		{
@@ -222,6 +216,15 @@ bool FLunaLocalServer::Poll(float)
 		});
 	HealthRequest->ProcessRequest();
 	return true;
+}
+
+// Poll에서 부르면 Poll이 false를 돌려 ticker에서 빠지므로, Stop이 실행 중인 ticker를 지우지 않게 핸들을 먼저 비운다.
+void FLunaLocalServer::Fail(const FString& Reason)
+{
+	UE_LOG(LogLunaServer, Warning, TEXT("%s"), *Reason);
+	TickerHandle.Reset();
+	Stop();
+	SetState(EState::Failed);
 }
 
 void FLunaLocalServer::SetState(const EState NewState)

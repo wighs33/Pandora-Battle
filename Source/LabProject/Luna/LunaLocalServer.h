@@ -45,6 +45,8 @@ public:
 private:
 	void FindBundle();
 	bool Poll(float DeltaTime);
+	/** 띄우지 못했거나 준비 중에 멈춘 서버를 정리하고 실패를 알린다. */
+	void Fail(const FString& Reason);
 	void SetState(EState NewState);
 
 	FString ExecutablePath;
