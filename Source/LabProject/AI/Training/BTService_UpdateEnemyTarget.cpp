@@ -39,11 +39,7 @@ void UBTService_UpdateEnemyTarget::TickNode(UBehaviorTreeComponent& OwnerComp, u
 	AActor* Target = Cast<AActor>(Blackboard->GetValueAsObject(TargetActorKey.SelectedKeyName));
 	if (!Enemy->IsActorValidAttackTarget(Target))
 	{
-		Blackboard->ClearValue(TargetActorKey.SelectedKeyName);
-		Blackboard->SetValueAsFloat(DistanceToTargetKey.SelectedKeyName, 0.0f);
-		Blackboard->SetValueAsFloat(AttackRangeKey.SelectedKeyName, Enemy->GetAttackStartDistance());
-		Blackboard->SetValueAsBool(HasRangedWeaponKey.SelectedKeyName, Enemy->IsUsingRangedWeapon());
-		Blackboard->SetValueAsBool(HasLineOfSightKey.SelectedKeyName, false);
+		WriteTargetKeys(*Blackboard, nullptr, 0.0f, Enemy->GetAttackStartDistance(), Enemy->IsUsingRangedWeapon(), false);
 		AIController->ClearFocus(EAIFocusPriority::Gameplay);
 		return;
 	}
@@ -73,20 +69,33 @@ void UBTService_UpdateEnemyTarget::TickNode(UBehaviorTreeComponent& OwnerComp, u
 		}
 	}
 
-	Blackboard->SetValueAsObject(TargetActorKey.SelectedKeyName, Target);
-	Blackboard->SetValueAsVector(LastKnownTargetLocationKey.SelectedKeyName, Target->GetActorLocation());
-	Blackboard->SetValueAsFloat(DistanceToTargetKey.SelectedKeyName, DistanceToTarget);
-	Blackboard->SetValueAsFloat(AttackRangeKey.SelectedKeyName, AttackStartDistance);
-	Blackboard->SetValueAsBool(HasRangedWeaponKey.SelectedKeyName, bHasRangedWeapon);
-	Blackboard->SetValueAsBool(HasLineOfSightKey.SelectedKeyName, bTreatAsLineOfSight);
+	WriteTargetKeys(*Blackboard, Target, DistanceToTarget, AttackStartDistance, bHasRangedWeapon, bTreatAsLineOfSight);
 
 	if (bAutoAttackWhenInRange && Enemy->IsAttackEnabled() && DistanceToTarget <= AttackStartDistance)
 	{
 		const double CurrentTime = Enemy->GetWorld() ? Enemy->GetWorld()->GetTimeSeconds() : 0.0;
-		if (CurrentTime - LastAutoAttackTime >= AutoAttackInterval)
+		if (!LastAutoAttackTime || CurrentTime - *LastAutoAttackTime >= AutoAttackInterval)
 		{
 			LastAutoAttackTime = CurrentTime;
 			Enemy->Attack();
 		}
 	}
+}
+
+void UBTService_UpdateEnemyTarget::WriteTargetKeys(UBlackboardComponent& Blackboard, AActor* Target, const float DistanceToTarget,
+	const float AttackRange, const bool bHasRangedWeapon, const bool bHasLineOfSight) const
+{
+	if (Target)
+	{
+		Blackboard.SetValueAsObject(TargetActorKey.SelectedKeyName, Target);
+		Blackboard.SetValueAsVector(LastKnownTargetLocationKey.SelectedKeyName, Target->GetActorLocation());
+	}
+	else
+	{
+		Blackboard.ClearValue(TargetActorKey.SelectedKeyName);
+	}
+	Blackboard.SetValueAsFloat(DistanceToTargetKey.SelectedKeyName, DistanceToTarget);
+	Blackboard.SetValueAsFloat(AttackRangeKey.SelectedKeyName, AttackRange);
+	Blackboard.SetValueAsBool(HasRangedWeaponKey.SelectedKeyName, bHasRangedWeapon);
+	Blackboard.SetValueAsBool(HasLineOfSightKey.SelectedKeyName, bHasLineOfSight);
 }

@@ -4,6 +4,8 @@
 #include "BehaviorTree/BehaviorTreeTypes.h"
 #include "BTService_UpdateEnemyTarget.generated.h"
 
+class UBlackboardComponent;
+
 UCLASS()
 class LABPROJECT_API UBTService_UpdateEnemyTarget : public UBTService
 {
@@ -42,5 +44,10 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Auto Attack", meta = (ClampMin = "0.0", ForceUnits = "s"))
 	float AutoAttackInterval = 1.0f;
 private:
-	double LastAutoAttackTime = -1000000.0;
+	/** 표적 정보를 Blackboard에 적는다. 표적이 없으면 표적 키를 비운다. */
+	void WriteTargetKeys(UBlackboardComponent& Blackboard, AActor* Target, float DistanceToTarget, float AttackRange,
+		bool bHasRangedWeapon, bool bHasLineOfSight) const;
+
+	/** 마지막으로 자동 공격한 시각. 비어 있으면 아직 공격하지 않았다. */
+	TOptional<double> LastAutoAttackTime;
 };
