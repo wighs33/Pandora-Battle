@@ -126,6 +126,7 @@ private:
 	FVector3f PreviousVelocity = FVector3f::ZeroVector;
 	uint32 GameThreadSourceRevision = 0;
 	uint32 LastProcessedSourceRevision = 0;
-	double LastLegBlendWorldTime = -1.0;
+	/** 직전에 다리 블렌드를 진행한 월드 시간. 비어 있으면 아직 진행하지 않았다. */
+	TOptional<double> LastLegBlendWorldTime;
 	bool bHasPreviousVelocity = false;
 };

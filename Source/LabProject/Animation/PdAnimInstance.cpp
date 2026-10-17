@@ -17,6 +17,8 @@ namespace
 	constexpr float LegLocomotionSpeedThreshold = 50.f;
 	/** 다리 블렌드가 0↔1을 오가는 초당 변화량. 약 0.15초에 다 바뀐다. */
 	constexpr float LegLocomotionBlendRate = 6.5f;
+	/** 갱신이 오래 끊겼다가 다시 와도 블렌드가 한 번에 다 바뀌지 않도록, 한 번에 진행하는 시간을 이만큼으로 막는다. */
+	constexpr double MaxLegBlendStepSeconds = 0.1;
 }
 
 void UPdAnimInstance::NativeInitializeAnimation()
@@ -188,7 +190,7 @@ void UPdAnimInstance::ResetThreadSafeAnimationData()
 	AimYaw = 0.f;
 	AimPitch = 0.f;
 	FullBodyLegLocomotionAlpha = 0.f;
-	LastLegBlendWorldTime = -1.0;
+	LastLegBlendWorldTime.Reset();
 
 	PreviousVelocity = FVector3f::ZeroVector;
 	bHasPreviousVelocity = false;
@@ -237,11 +239,15 @@ void UPdAnimInstance::UpdateAimingData(const FGameThreadSnapshot& Snapshot)
 // 애니메이션 DeltaSeconds의 합이 실제 시간보다 훨씬 작게 들어오기 때문이다.
 void UPdAnimInstance::UpdateFullBodyLegBlend(const FGameThreadSnapshot& Snapshot)
 {
-	const float Elapsed = LastLegBlendWorldTime < 0.0 ? 0.f : FMath::Clamp(static_cast<float>(Snapshot.WorldTimeSeconds - LastLegBlendWorldTime), 0.f, 0.1f);
+	const double Elapsed = LastLegBlendWorldTime.IsSet()
+		? FMath::Clamp(Snapshot.WorldTimeSeconds - LastLegBlendWorldTime.GetValue(), 0.0, MaxLegBlendStepSeconds)
+		: 0.0;
 	LastLegBlendWorldTime = Snapshot.WorldTimeSeconds;
+
 	const bool bWalkingDuringFullBodyMontage = Snapshot.bFullBodyMontageActive && bIsOnGround && GroundSpeed > LegLocomotionSpeedThreshold;
-	FullBodyLegLocomotionAlpha = FMath::FInterpConstantTo(FullBodyLegLocomotionAlpha, bWalkingDuringFullBodyMontage ? 1.f : 0.f,
-		Elapsed, LegLocomotionBlendRate);
+	const float TargetAlpha = bWalkingDuringFullBodyMontage ? 1.f : 0.f;
+	FullBodyLegLocomotionAlpha =
+		FMath::FInterpConstantTo(FullBodyLegLocomotionAlpha, TargetAlpha, static_cast<float>(Elapsed), LegLocomotionBlendRate);
 }
 
 void UPdAnimInstance::UpdateGrappleState()
