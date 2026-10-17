@@ -111,7 +111,7 @@ void USkillAbility::PreActivate(const FGameplayAbilitySpecHandle Handle, const F
 	}
 
 	bSkillCommitted = false;
-	DurationEndTime = -1.0;
+	DurationEndTime.Reset();
 
 	Super::PreActivate(Handle, ActorInfo, ActivationInfo, EndedDelegate, TriggerEventData);
 	DestroyActiveSkillPresentationActor();
@@ -126,7 +126,7 @@ bool USkillAbility::ShouldConfirmTargetingOnInputRelease() const
 float USkillAbility::GetRemainingDuration() const
 {
 	return HasDurationDeadline() && GetWorld()
-		? static_cast<float>(FMath::Max(DurationEndTime - GetWorld()->GetTimeSeconds(), 0.0))
+		? static_cast<float>(FMath::Max(DurationEndTime.GetValue() - GetWorld()->GetTimeSeconds(), 0.0))
 		: 0.0f;
 }
 
@@ -194,11 +194,12 @@ void USkillAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, con
 	ActivationTime = GetWorld()->GetTimeSeconds();
 
 	const USkillDefinition* Definition = ResolveSkill(Handle, ActorInfo);
-	DurationEndTime = Definition && Definition->SkillType == ESkillType::Duration
-		? ActivationTime + (FMath::IsFinite(Definition->Time.Duration)
-			? FMath::Max(Definition->Time.Duration, 0.0)
-			: 0.0)
-		: -1.0;
+	if (Definition && Definition->SkillType == ESkillType::Duration)
+	{
+		// 유한하지 않은 지속시간은 끝나지 않는 스킬이 되므로 0으로 본다.
+		const double Duration = FMath::IsFinite(Definition->Time.Duration) ? FMath::Max(Definition->Time.Duration, 0.0) : 0.0;
+		DurationEndTime = ActivationTime + Duration;
+	}
 
 	if (!Definition || !Definition->Action || !CanExecuteSkillPayload() || !CommitSkill())
 	{

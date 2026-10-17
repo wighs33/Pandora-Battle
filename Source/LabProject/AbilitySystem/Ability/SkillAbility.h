@@ -107,7 +107,7 @@ public:
 	// Duration 스킬은 활성화 시 확정한 하나의 종료 시점을 공유한다.
 	bool HasDurationDeadline() const
 	{
-		return DurationEndTime >= 0.0;
+		return DurationEndTime.IsSet();
 	}
 
 	// 준비·조준·몽타주 시간을 포함한 전체 지속시간 중 남은 시간을 반환한다.
@@ -227,7 +227,8 @@ private:
 	FTimerHandle DurationTimer;
 
 	double ActivationTime = 0.0;
-	double DurationEndTime = -1.0;
+	/** Duration 스킬의 종료 시각. Duration 스킬이 아니면 비어 있다. */
+	TOptional<double> DurationEndTime;
 
 	// UsesPerCooldown이 2 이상일 때 여러 시전에 걸쳐 사용 횟수를 유지한다.
 	int32 UsesSinceCooldown = 0;
