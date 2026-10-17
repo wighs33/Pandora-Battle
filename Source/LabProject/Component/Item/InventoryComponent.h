@@ -250,6 +250,17 @@ private:
 	void NotifyInventoryChanged();
 	void FlushInventoryChanges();
 
+	/** 범위 안에서 생긴 변경 알림을 모았다가 가장 바깥 범위가 끝날 때 한 번 보낸다. */
+	struct FInventoryChangeBatch
+	{
+		UE_NONCOPYABLE(FInventoryChangeBatch);
+		explicit FInventoryChangeBatch(UInventoryComponent& InInventory);
+		~FInventoryChangeBatch();
+
+	private:
+		UInventoryComponent& Inventory;
+	};
+
 	void RebuildRuntimeItemsFromReplicatedEntries();
 
 	void RebuildFilteredItemMap();

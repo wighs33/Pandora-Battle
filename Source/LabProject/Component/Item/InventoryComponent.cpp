@@ -10,7 +10,6 @@
 #include "GameplayEffectTypes.h"
 #include "Definition/Item/ItemDefinition.h"
 #include "Item/ItemInstance.h"
-#include "Misc/ScopeExit.h"
 #include "Pandora/PandoraLoadoutTypes.h"
 #include "AbilitySystemGlobals.h"
 #include "GameFramework/PlayerState.h"
@@ -132,8 +131,7 @@ void UInventoryComponent::AddItemsByPrimaryAssetIdsWithCompletion(const TArray<F
 			TArray<FPrimaryAssetId> AddedItems;
 			if (HasInventoryAuthority())
 			{
-				++InventoryUpdateDepth;
-				ON_SCOPE_EXIT { --InventoryUpdateDepth; FlushInventoryChanges(); };
+				const FInventoryChangeBatch ChangeBatch(*this);
 				UAssetManager& AssetManager = UAssetManager::Get();
 				const FGameplayTag ConsumableTypeTag = UProjectTagDefinition::Get(this)->GetItemConsumableTypeTag();
 				for (const FPrimaryAssetId& DefinitionId : ItemDefinitions)
@@ -237,8 +235,7 @@ void UInventoryComponent::SetItemQuantityByPrimaryAssetIdInternal(const FPrimary
 				return;
 			}
 
-			++InventoryUpdateDepth;
-			ON_SCOPE_EXIT { --InventoryUpdateDepth; FlushInventoryChanges(); };
+			const FInventoryChangeBatch ChangeBatch(*this);
 			UItemInstance* ExistingItem = FindFirstItemInstanceByDefinition(ItemDefinition);
 			if (Quantity <= 0)
 			{
@@ -626,8 +623,7 @@ bool UInventoryComponent::SplitConsumableStack(const FGuid ItemId)
 		return false;
 	}
 
-	++InventoryUpdateDepth;
-	ON_SCOPE_EXIT { --InventoryUpdateDepth; FlushInventoryChanges(); };
+	const FInventoryChangeBatch ChangeBatch(*this);
 	const int32 NewStackQuantity = SourceItem->Quantity / 2;
 	const int32 RemainingQuantity = SourceItem->Quantity - NewStackQuantity;
 	const UItemDefinition* ItemDefinition = SourceItem->ItemDefinition.Get();
@@ -681,8 +677,7 @@ bool UInventoryComponent::MergeConsumableStacks(const FGuid SourceItemId, const 
 		return false;
 	}
 
-	++InventoryUpdateDepth;
-	ON_SCOPE_EXIT { --InventoryUpdateDepth; FlushInventoryChanges(); };
+	const FInventoryChangeBatch ChangeBatch(*this);
 	if (!SetReplicatedItemQuantityById(TargetItemId, static_cast<int32>(CombinedQuantity)))
 	{
 		return false;

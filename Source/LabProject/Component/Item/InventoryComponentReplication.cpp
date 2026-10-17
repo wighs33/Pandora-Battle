@@ -4,7 +4,6 @@
 #include "GameFramework/Actor.h"
 #include "Definition/Item/ItemDefinition.h"
 #include "Item/ItemInstance.h"
-#include "Misc/ScopeExit.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Pandora/PandoraLoadoutTypes.h"
 
@@ -32,6 +31,18 @@ void UInventoryComponent::FlushInventoryChanges()
 	}
 	bInventoryChangePending = false;
 	OnInventoryChanged.Broadcast();
+}
+
+UInventoryComponent::FInventoryChangeBatch::FInventoryChangeBatch(UInventoryComponent& InInventory)
+	: Inventory(InInventory)
+{
+	++Inventory.InventoryUpdateDepth;
+}
+
+UInventoryComponent::FInventoryChangeBatch::~FInventoryChangeBatch()
+{
+	--Inventory.InventoryUpdateDepth;
+	Inventory.FlushInventoryChanges();
 }
 
 void UInventoryComponent::RebuildRuntimeItemsFromReplicatedEntries()
@@ -73,9 +84,9 @@ void UInventoryComponent::RebuildFilteredItemMap()
 	}
 }
 
+// 복제 콜백은 항목마다 불리므로 변경만 표시한다. 알림은 받은 묶음이 끝날 때 PostReplicatedReceive가 한 번 보낸다.
 void UInventoryComponent::HandleReplicatedEntryAddedOrChanged(const FReplicatedInventoryEntry& Entry)
 {
-	TGuardValue<int32> UpdateGuard(InventoryUpdateDepth, InventoryUpdateDepth + 1);
 	// =================================================================================================================
 	if (!Entry.ItemId.IsValid() || !IsValid(Entry.ItemDefinition))
 	{
@@ -108,12 +119,11 @@ void UInventoryComponent::HandleReplicatedEntryAddedOrChanged(const FReplicatedI
 		RebuildFilteredItemMap();
 	}
 
-	NotifyInventoryChanged();
+	bInventoryChangePending = true;
 }
 
 void UInventoryComponent::HandleReplicatedEntryRemoved(FGuid ItemId)
 {
-	TGuardValue<int32> UpdateGuard(InventoryUpdateDepth, InventoryUpdateDepth + 1);
 	if (!ItemId.IsValid())
 	{
 		return;
@@ -136,7 +146,7 @@ void UInventoryComponent::HandleReplicatedEntryRemoved(FGuid ItemId)
 	}
 
 	ClearConsumableQuickSlotReferencesToItem(ItemId);
-	NotifyInventoryChanged();
+	bInventoryChangePending = true;
 }
 
 void UInventoryComponent::AddReplicatedItem(UItemInstance* ItemInstance)
@@ -206,8 +216,7 @@ bool UInventoryComponent::RemoveReplicatedItemById(FGuid ItemId)
 		return false;
 	}
 
-	++InventoryUpdateDepth;
-	ON_SCOPE_EXIT { --InventoryUpdateDepth; FlushInventoryChanges(); };
+	const FInventoryChangeBatch ChangeBatch(*this);
 
 	for (int32 Index = AllItemList.Items.Num() - 1; Index >= 0; --Index)
 	{
