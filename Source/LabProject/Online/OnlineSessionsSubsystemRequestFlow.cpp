@@ -16,24 +16,29 @@ uint64 UOnlineSessionsSubsystem::BeginSessionRequest(ULocalPlayer* RequestingLoc
 		return 0;
 	}
 
-	const uint64 RequestId = NextSessionRequestId++;
-	if (NextSessionRequestId == 0)
-	{
-		NextSessionRequestId = 1;
-	}
+	// 방을 만들거나 찾거나 들어가는 새 요청은 앞선 자발적 퇴장과 상관없다. 세션 정리 요청만 그 표시를 이어 간다.
 	if (RequestKind != ESessionRequestKind::DestroySession)
 	{
 		bVoluntaryMatchExitInProgress = false;
 	}
 
-	ActiveSessionRequestId = RequestId;
-	ActiveSessionRequestKind = RequestKind;
-	ActiveRequestLocalPlayer = RequestingLocalPlayer;
-	ActiveRequestLocalPlayerNetId = RequestingLocalPlayer ? RequestingLocalPlayer->GetPreferredUniqueNetId() : FUniqueNetIdRepl();
-	ActiveRequestControllerId = RequestingLocalPlayer ? RequestingLocalPlayer->GetControllerId() : 0;
-	bActiveRequestCancelRequested = false;
-	bActiveRequestResultSent = false;
-	return RequestId;
+	ActiveRequest = {
+		.Id = NextSessionRequestId++,
+		.Kind = RequestKind,
+		.LocalPlayer = RequestingLocalPlayer,
+		.LocalPlayerNetId = RequestingLocalPlayer ? RequestingLocalPlayer->GetPreferredUniqueNetId() : FUniqueNetIdRepl(),
+		.ControllerId = RequestingLocalPlayer ? RequestingLocalPlayer->GetControllerId() : 0,
+	};
+	return ActiveRequest.Id;
+}
+
+void UOnlineSessionsSubsystem::RunNextTick(TFunction<void()> Callback)
+{
+	FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this, [Callback = MoveTemp(Callback)](float)
+	{
+		Callback();
+		return false;
+	}));
 }
 
 // 정원·공개 이름·맵·LAN·Steam 로비 설정을 온라인 서비스에 전달하고 생성 콜백과 제한시간을 등록한다.
@@ -49,13 +54,7 @@ bool UOnlineSessionsSubsystem::StartCreateRoomPhase(const uint64 RequestId)
 	const FOnCreateSessionCompleteDelegate CreateSessionCompleteDelegate =
 		FOnCreateSessionCompleteDelegate::CreateWeakLambda(this, [this, RequestId](FName SessionName, bool bSuccess)
 			{
-				// 백엔드가 바로 완료할 수 있으므로 호출한 쪽이 요청 ID를 먼저 받아야 한다.
-				FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this,
-					[this, RequestId, SessionName, bSuccess](float)
-					{
-						OnCreateSessionCompleted(SessionName, bSuccess, RequestId);
-						return false;
-					}));
+				RunNextTick([this, RequestId, SessionName, bSuccess]() { OnCreateSessionCompleted(SessionName, bSuccess, RequestId); });
 			});
 	CreateSessionCompleteDelegateHandle = SessionInterface->AddOnCreateSessionCompleteDelegate_Handle(CreateSessionCompleteDelegate);
 
@@ -73,9 +72,9 @@ bool UOnlineSessionsSubsystem::StartCreateRoomPhase(const uint64 RequestId)
 	Settings.Set(GetRoomNameSettingKey(), PendingRoomName, EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);
 	Settings.Set(GetMapNameSettingKey(), PendingMapName, EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);
 
-	const bool bStarted = ActiveRequestLocalPlayerNetId.IsValid()
-		? SessionInterface->CreateSession(*ActiveRequestLocalPlayerNetId, NAME_GameSession, Settings)
-		: SessionInterface->CreateSession(ActiveRequestControllerId, NAME_GameSession, Settings);
+	const bool bStarted = ActiveRequest.LocalPlayerNetId.IsValid()
+		? SessionInterface->CreateSession(*ActiveRequest.LocalPlayerNetId, NAME_GameSession, Settings)
+		: SessionInterface->CreateSession(ActiveRequest.ControllerId, NAME_GameSession, Settings);
 	if (!bStarted)
 	{
 		ClearSessionOperationDelegate(SessionOperationState);
@@ -94,7 +93,7 @@ void UOnlineSessionsSubsystem::OnCreateSessionCompleted(FName, const bool bWasSu
 		return;
 	}
 
-	const ESessionRequestKind CompletedRequestKind = ActiveSessionRequestKind;
+	const ESessionRequestKind CompletedRequestKind = ActiveRequest.Kind;
 	const bool bCanceled = EndSessionOperationWait();
 
 	if (bCanceled)
@@ -104,7 +103,7 @@ void UOnlineSessionsSubsystem::OnCreateSessionCompleted(FName, const bool bWasSu
 		return;
 	}
 
-	bActiveRequestResultSent = true;
+	ActiveRequest.bResultSent = true;
 	if (CompletedRequestKind == ESessionRequestKind::QuickMatch)
 	{
 		OnQuickMatchRequestComplete.Broadcast(CallbackRequestId, bWasSuccessful, bWasSuccessful);
@@ -130,13 +129,7 @@ bool UOnlineSessionsSubsystem::StartFindRoomsPhase(const uint64 RequestId)
 	const FOnFindSessionsCompleteDelegate FindSessionsCompleteDelegate =
 		FOnFindSessionsCompleteDelegate::CreateWeakLambda(this, [this, RequestId](bool bSuccess)
 			{
-				// 백엔드가 바로 완료할 수 있으므로 호출한 쪽이 요청 ID를 먼저 받아야 한다.
-				FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this,
-					[this, RequestId, bSuccess](float)
-					{
-						OnFindSessionsCompleted(bSuccess, RequestId);
-						return false;
-					}));
+				RunNextTick([this, RequestId, bSuccess]() { OnFindSessionsCompleted(bSuccess, RequestId); });
 			});
 	FindSessionsCompleteDelegateHandle = SessionInterface->AddOnFindSessionsCompleteDelegate_Handle(FindSessionsCompleteDelegate);
 
@@ -148,9 +141,9 @@ bool UOnlineSessionsSubsystem::StartFindRoomsPhase(const uint64 RequestId)
 		ActiveSessionSearch->QuerySettings.Set(SEARCH_LOBBIES, true, EOnlineComparisonOp::Equals);
 	}
 
-	const bool bStarted = ActiveRequestLocalPlayerNetId.IsValid()
-		? SessionInterface->FindSessions(*ActiveRequestLocalPlayerNetId, ActiveSessionSearch.ToSharedRef())
-		: SessionInterface->FindSessions(ActiveRequestControllerId, ActiveSessionSearch.ToSharedRef());
+	const bool bStarted = ActiveRequest.LocalPlayerNetId.IsValid()
+		? SessionInterface->FindSessions(*ActiveRequest.LocalPlayerNetId, ActiveSessionSearch.ToSharedRef())
+		: SessionInterface->FindSessions(ActiveRequest.ControllerId, ActiveSessionSearch.ToSharedRef());
 	if (!bStarted)
 	{
 		ClearSessionOperationDelegate(SessionOperationState);
@@ -181,7 +174,7 @@ void UOnlineSessionsSubsystem::OnFindSessionsCompleted(const bool bWasSuccessful
 		}
 	}
 
-	const ESessionRequestKind CompletedRequestKind = ActiveSessionRequestKind;
+	const ESessionRequestKind CompletedRequestKind = ActiveRequest.Kind;
 	const bool bCanceled = EndSessionOperationWait();
 
 	if (bCanceled)
@@ -231,7 +224,7 @@ void UOnlineSessionsSubsystem::OnFindSessionsCompleted(const bool bWasSuccessful
 		return;
 	}
 
-	bActiveRequestResultSent = true;
+	ActiveRequest.bResultSent = true;
 	OnFindRoomsRequestComplete.Broadcast(CallbackRequestId, Results, bWasSuccessful);
 	ResetActiveSessionRequest();
 }
@@ -250,19 +243,13 @@ bool UOnlineSessionsSubsystem::StartJoinRoomPhase(const uint64 RequestId)
 		FOnJoinSessionCompleteDelegate::CreateWeakLambda(this,
 		[this, RequestId](FName SessionName, EOnJoinSessionCompleteResult::Type Result)
 			{
-				// 백엔드가 바로 완료할 수 있으므로 호출한 쪽이 요청 ID를 먼저 받아야 한다.
-				FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this,
-					[this, RequestId, SessionName, Result](float)
-					{
-						OnJoinSessionCompleted(SessionName, Result, RequestId);
-						return false;
-					}));
+				RunNextTick([this, RequestId, SessionName, Result]() { OnJoinSessionCompleted(SessionName, Result, RequestId); });
 			});
 	JoinSessionCompleteDelegateHandle = SessionInterface->AddOnJoinSessionCompleteDelegate_Handle(JoinSessionCompleteDelegate);
 
-	const bool bStarted = ActiveRequestLocalPlayerNetId.IsValid()
-		? SessionInterface->JoinSession(*ActiveRequestLocalPlayerNetId, NAME_GameSession, PendingJoinSessionResult.OnlineResult)
-		: SessionInterface->JoinSession(ActiveRequestControllerId, NAME_GameSession, PendingJoinSessionResult.OnlineResult);
+	const bool bStarted = ActiveRequest.LocalPlayerNetId.IsValid()
+		? SessionInterface->JoinSession(*ActiveRequest.LocalPlayerNetId, NAME_GameSession, PendingJoinSessionResult.OnlineResult)
+		: SessionInterface->JoinSession(ActiveRequest.ControllerId, NAME_GameSession, PendingJoinSessionResult.OnlineResult);
 	if (!bStarted)
 	{
 		ClearSessionOperationDelegate(SessionOperationState);
@@ -289,7 +276,7 @@ void UOnlineSessionsSubsystem::OnJoinSessionCompleted(
 		bWasSuccessful = SessionInterface->GetResolvedConnectString(SessionName, ConnectString);
 	}
 
-	const ESessionRequestKind CompletedRequestKind = ActiveSessionRequestKind;
+	const ESessionRequestKind CompletedRequestKind = ActiveRequest.Kind;
 	const bool bCanceled = EndSessionOperationWait();
 
 	if (bCanceled)
@@ -299,7 +286,7 @@ void UOnlineSessionsSubsystem::OnJoinSessionCompleted(
 		return;
 	}
 
-	bActiveRequestResultSent = true;
+	ActiveRequest.bResultSent = true;
 	if (bWasSuccessful)
 	{
 		if (APlayerController* PlayerController = ResolveActiveLocalPlayerController())
@@ -338,13 +325,7 @@ bool UOnlineSessionsSubsystem::StartDestroySessionPhase(const uint64 RequestId, 
 	const FOnDestroySessionCompleteDelegate DestroySessionCompleteDelegate =
 		FOnDestroySessionCompleteDelegate::CreateWeakLambda(this, [this, RequestId](FName SessionName, bool bSuccess)
 			{
-				// 백엔드가 바로 완료할 수 있으므로 호출한 쪽이 요청 ID를 먼저 받아야 한다.
-				FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this,
-					[this, RequestId, SessionName, bSuccess](float)
-					{
-						OnDestroySessionCompleted(SessionName, bSuccess, RequestId);
-						return false;
-					}));
+				RunNextTick([this, RequestId, SessionName, bSuccess]() { OnDestroySessionCompleted(SessionName, bSuccess, RequestId); });
 			});
 	DestroySessionCompleteDelegateHandle = SessionInterface->AddOnDestroySessionCompleteDelegate_Handle(DestroySessionCompleteDelegate);
 	if (!SessionInterface->DestroySession(NAME_GameSession))
@@ -366,7 +347,7 @@ void UOnlineSessionsSubsystem::OnDestroySessionCompleted(FName, const bool bWasS
 	}
 
 	const ESessionOperationState CompletedOperationState = SessionOperationState;
-	const ESessionRequestKind CompletedRequestKind = ActiveSessionRequestKind;
+	const ESessionRequestKind CompletedRequestKind = ActiveRequest.Kind;
 	const bool bCanceled = EndSessionOperationWait();
 
 	if (CompletedOperationState == ESessionOperationState::CleaningCanceledSession)
@@ -394,7 +375,7 @@ void UOnlineSessionsSubsystem::OnDestroySessionCompleted(FName, const bool bWasS
 		return;
 	}
 
-	bActiveRequestResultSent = true;
+	ActiveRequest.bResultSent = true;
 	OnDestroySessionRequestComplete.Broadcast(CallbackRequestId, bWasSuccessful);
 	OnDestroySessionComplete.Broadcast(bWasSuccessful);
 	ResetActiveSessionRequest();
@@ -446,29 +427,29 @@ void UOnlineSessionsSubsystem::HandleSessionOperationTimeout(const uint64 Reques
 // 현재 요청 종류에 맞는 UI 완료 이벤트를 실패로 한 번만 보낸다. 취소 이후의 서버 정리는 별도로 계속될 수 있다.
 void UOnlineSessionsSubsystem::BroadcastActiveRequestFailure()
 {
-	if (bActiveRequestResultSent || ActiveSessionRequestId == 0)
+	if (ActiveRequest.bResultSent || ActiveRequest.Id == 0)
 	{
 		return;
 	}
 
-	bActiveRequestResultSent = true;
-	switch (ActiveSessionRequestKind)
+	ActiveRequest.bResultSent = true;
+	switch (ActiveRequest.Kind)
 	{
 	case ESessionRequestKind::CreateRoom:
-		OnCreateRoomRequestComplete.Broadcast(ActiveSessionRequestId, false);
+		OnCreateRoomRequestComplete.Broadcast(ActiveRequest.Id, false);
 		break;
 	case ESessionRequestKind::FindRooms:
-		OnFindRoomsRequestComplete.Broadcast(ActiveSessionRequestId, TArray<FBlueprintSessionResult>(), false);
+		OnFindRoomsRequestComplete.Broadcast(ActiveRequest.Id, TArray<FBlueprintSessionResult>(), false);
 		break;
 	case ESessionRequestKind::JoinRoom:
-		OnJoinRoomRequestComplete.Broadcast(ActiveSessionRequestId, false);
+		OnJoinRoomRequestComplete.Broadcast(ActiveRequest.Id, false);
 		break;
 	case ESessionRequestKind::DestroySession:
-		OnDestroySessionRequestComplete.Broadcast(ActiveSessionRequestId, false);
+		OnDestroySessionRequestComplete.Broadcast(ActiveRequest.Id, false);
 		OnDestroySessionComplete.Broadcast(false);
 		break;
 	case ESessionRequestKind::QuickMatch:
-		OnQuickMatchRequestComplete.Broadcast(ActiveSessionRequestId, false, false);
+		OnQuickMatchRequestComplete.Broadcast(ActiveRequest.Id, false, false);
 		break;
 	default:
 		break;
@@ -485,13 +466,7 @@ void UOnlineSessionsSubsystem::ResetActiveSessionRequest()
 
 	ClearSessionOperationDelegate(SessionOperationState);
 	SessionOperationState = ESessionOperationState::Idle;
-	ActiveSessionRequestKind = ESessionRequestKind::None;
-	ActiveSessionRequestId = 0;
-	ActiveRequestLocalPlayer.Reset();
-	ActiveRequestLocalPlayerNetId = FUniqueNetIdRepl();
-	ActiveRequestControllerId = 0;
-	bActiveRequestCancelRequested = false;
-	bActiveRequestResultSent = false;
+	ActiveRequest = FActiveSessionRequest();
 	ActiveSessionSearch.Reset();
 	PendingJoinSessionResult = FBlueprintSessionResult();
 }
@@ -500,7 +475,7 @@ void UOnlineSessionsSubsystem::ResetActiveSessionRequest()
 // 세션 작업의 완료 델리게이트와 제한 시간을 정리한다. 취소됐거나 요청한 로컬 플레이어가 바뀌었으면 true를 돌려준다.
 bool UOnlineSessionsSubsystem::EndSessionOperationWait()
 {
-	const bool bCanceled = bActiveRequestCancelRequested || !IsActiveLocalPlayerIdentityValid();
+	const bool bCanceled = ActiveRequest.bCancelRequested || !IsActiveLocalPlayerIdentityValid();
 	ClearSessionOperationDelegate(SessionOperationState);
 	if (UWorld* World = GetWorld())
 	{
@@ -559,7 +534,7 @@ void UOnlineSessionsSubsystem::ClearSessionOperationDelegate(const ESessionOpera
 // 콜백이나 다음 단계가 현재 요청 ID에 속하는지 확인한다. 단계가 아직 Idle인 요청 시작 직후에도 사용할 수 있다.
 bool UOnlineSessionsSubsystem::MatchesActiveRequestId(const uint64 CallbackRequestId) const
 {
-	return CallbackRequestId != 0 && CallbackRequestId == ActiveSessionRequestId;
+	return CallbackRequestId != 0 && CallbackRequestId == ActiveRequest.Id;
 }
 
 // 요청을 보낸 로컬 플레이어와 로그인 계정이 그대로인지 확인한다. 대기 중 계정이 바뀌면 해당 결과로 참가하지 않는다.
@@ -570,24 +545,24 @@ bool UOnlineSessionsSubsystem::IsActiveLocalPlayerIdentityValid() const
 		return true;
 	}
 
-	const ULocalPlayer* LocalPlayer = ActiveRequestLocalPlayer.Get();
-	if (!LocalPlayer || LocalPlayer->GetControllerId() != ActiveRequestControllerId)
+	const ULocalPlayer* LocalPlayer = ActiveRequest.LocalPlayer.Get();
+	if (!LocalPlayer || LocalPlayer->GetControllerId() != ActiveRequest.ControllerId)
 	{
 		return false;
 	}
 
-	if (!ActiveRequestLocalPlayerNetId.IsValid())
+	if (!ActiveRequest.LocalPlayerNetId.IsValid())
 	{
 		return true;
 	}
 
 	const FUniqueNetIdRepl CurrentNetId = LocalPlayer->GetPreferredUniqueNetId();
-	return CurrentNetId.IsValid() && *CurrentNetId == *ActiveRequestLocalPlayerNetId;
+	return CurrentNetId.IsValid() && *CurrentNetId == *ActiveRequest.LocalPlayerNetId;
 }
 
 // 참가를 요청했던 로컬 플레이어의 현재 컨트롤러를 찾아 올바른 화면을 서버 주소로 이동시킨다.
 APlayerController* UOnlineSessionsSubsystem::ResolveActiveLocalPlayerController() const
 {
-	const ULocalPlayer* LocalPlayer = ActiveRequestLocalPlayer.Get();
+	const ULocalPlayer* LocalPlayer = ActiveRequest.LocalPlayer.Get();
 	return LocalPlayer && GetWorld() ? LocalPlayer->GetPlayerController(GetWorld()) : nullptr;
 }

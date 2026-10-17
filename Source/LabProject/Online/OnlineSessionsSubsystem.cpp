@@ -192,12 +192,12 @@ uint64 UOnlineSessionsSubsystem::BeginQuickMatch(ULocalPlayer* RequestingLocalPl
 // UI가 닫히거나 대기가 취소되면 실패를 한 번 알린다. 생성·참가는 완료 콜백까지 기다렸다가 생긴 세션을 정리한다.
 bool UOnlineSessionsSubsystem::CancelSessionRequest(const uint64 RequestId)
 {
-	if (!IsSessionRequestActive(RequestId) || bActiveRequestCancelRequested || bActiveRequestResultSent)
+	if (!IsSessionRequestActive(RequestId) || ActiveRequest.bCancelRequested || ActiveRequest.bResultSent)
 	{
 		return false;
 	}
 
-	bActiveRequestCancelRequested = true;
+	ActiveRequest.bCancelRequested = true;
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(SessionOperationTimeoutHandle);
@@ -234,7 +234,7 @@ bool UOnlineSessionsSubsystem::CancelSessionRequest(const uint64 RequestId)
 // 요청 ID가 현재 진행 중인 작업인지 확인해 이전 화면의 취소·타임아웃이 새 요청을 건드리지 않게 한다.
 bool UOnlineSessionsSubsystem::IsSessionRequestActive(const uint64 RequestId) const
 {
-	return RequestId != 0 && RequestId == ActiveSessionRequestId && SessionOperationState != ESessionOperationState::Idle;
+	return RequestId != 0 && RequestId == ActiveRequest.Id && SessionOperationState != ESessionOperationState::Idle;
 }
 
 // 로비 나가기·타이틀 복귀 시 현재 방의 삭제를 요청한다. 이미 방이 없으면 성공 알림을 즉시 보내 UI 대기를 끝낸다.
@@ -491,13 +491,13 @@ bool UOnlineSessionsSubsystem::IsHostConnectionLost(const ENetworkFailure::Type 
 
 uint64 UOnlineSessionsSubsystem::GetPendingUserRequestId(const ULocalPlayer* LocalPlayer) const
 {
-	return ActiveRequestLocalPlayer.Get() == LocalPlayer
-		&& !bActiveRequestCancelRequested && !bActiveRequestResultSent
-		? ActiveSessionRequestId : 0;
+	return ActiveRequest.LocalPlayer.Get() == LocalPlayer
+		&& !ActiveRequest.bCancelRequested && !ActiveRequest.bResultSent
+		? ActiveRequest.Id : 0;
 }
 
 bool UOnlineSessionsSubsystem::IsUserRequestCancelable(const uint64 RequestId) const
 {
-	return IsSessionRequestActive(RequestId) && !bActiveRequestCancelRequested
-		&& !bActiveRequestResultSent && ActiveSessionRequestKind != ESessionRequestKind::DestroySession;
+	return IsSessionRequestActive(RequestId) && !ActiveRequest.bCancelRequested
+		&& !ActiveRequest.bResultSent && ActiveRequest.Kind != ESessionRequestKind::DestroySession;
 }

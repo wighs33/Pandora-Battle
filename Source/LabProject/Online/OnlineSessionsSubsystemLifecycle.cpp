@@ -146,10 +146,6 @@ uint64 UOnlineSessionsSubsystem::BeginSessionLifecycleOperation(const ESessionLi
 	}
 
 	const uint64 RequestId = NextSessionLifecycleRequestId++;
-	if (NextSessionLifecycleRequestId == 0)
-	{
-		NextSessionLifecycleRequestId = 1;
-	}
 
 	ActiveSessionLifecycleRequestId = RequestId;
 	ActiveSessionLifecycleOperation = Operation;

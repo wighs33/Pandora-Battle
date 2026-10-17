@@ -129,6 +129,11 @@ private:
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	uint64 BeginSessionRequest(ULocalPlayer* RequestingLocalPlayer, ESessionRequestKind RequestKind);
+	/**
+	 * 온라인 서비스는 요청 함수 안에서 바로 완료를 알리기도 한다. 그러면 호출한 쪽이 요청 ID를 받기 전에 결과가 나가므로,
+	 * 완료 처리는 항상 다음 틱으로 미룬다.
+	 */
+	void RunNextTick(TFunction<void()> Callback);
 	bool StartCreateRoomPhase(uint64 RequestId);
 	bool StartFindRoomsPhase(uint64 RequestId);
 	bool StartJoinRoomPhase(uint64 RequestId);
@@ -180,16 +185,24 @@ private:
 
 	FBlueprintSessionResult PendingJoinSessionResult;
 
-	// 사용자 요청과 취소 상태. 결과 통지는 한 번만 보내고 취소 후 정리는 계속할 수 있다.
+	/** 지금 처리 중인 사용자 요청. 요청을 시작할 때 한 번에 채우고, 끝나면 통째로 비운다. */
+	struct FActiveSessionRequest
+	{
+		/** 0이면 처리 중인 요청이 없다. */
+		uint64 Id = 0;
+		ESessionRequestKind Kind = ESessionRequestKind::None;
+		/** 요청한 로컬 플레이어와 그때의 로그인 정보. 결과가 왔을 때 계정이 바뀌었는지 확인하고, 세션 API에 넘긴다. */
+		TWeakObjectPtr<ULocalPlayer> LocalPlayer;
+		FUniqueNetIdRepl LocalPlayerNetId;
+		int32 ControllerId = 0;
+		bool bCancelRequested = false;
+		/** 결과 통지는 한 번만 보낸다. 취소한 뒤의 세션 정리는 통지를 보낸 뒤에도 이어질 수 있다. */
+		bool bResultSent = false;
+	};
+
 	uint64 NextSessionRequestId = 1;
-	uint64 ActiveSessionRequestId = 0;
-	ESessionRequestKind ActiveSessionRequestKind = ESessionRequestKind::None;
+	FActiveSessionRequest ActiveRequest;
 	ESessionOperationState SessionOperationState = ESessionOperationState::Idle;
-	TWeakObjectPtr<ULocalPlayer> ActiveRequestLocalPlayer;
-	FUniqueNetIdRepl ActiveRequestLocalPlayerNetId;
-	int32 ActiveRequestControllerId = 0;
-	bool bActiveRequestCancelRequested = false;
-	bool bActiveRequestResultSent = false;
 	bool bVoluntaryMatchExitInProgress = false;
 
 	// 시작·종료 콜백은 처음 등록한 인터페이스에서 해제한다.
