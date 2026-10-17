@@ -12,32 +12,23 @@ bool FPortalTraversalTracker::UpdateCrossing(const AActor* Actor, const FVector&
 	}
 
 	FState& State = States.FindOrAdd(TObjectKey<AActor>(Actor));
-	const float CurrentDistance = FVector::DotProduct(Point - PlaneLocation, PlaneNormal);
-	const bool bIsInFront = CurrentDistance >= 0.0f;
-
-	if (!State.bInitialized)
+	const TOptional<FVector> LastPosition = State.LastPosition;
+	State.LastPosition = Point;
+	if (!LastPosition)
 	{
-		State.LastPosition = Point;
-		State.bLastInFront = bIsInFront;
-		State.bInitialized = true;
 		return false;
 	}
 
-	const bool bCoolingDown = Now - State.LastTeleportTime < Cooldown;
-	const float LastDistance = FVector::DotProduct(State.LastPosition - PlaneLocation, PlaneNormal);
-
-	FVector PlaneIntersection = FVector::ZeroVector;
-	const bool bSegmentHitsPlane = FMath::SegmentPlaneIntersection(State.LastPosition, Point, FPlane(PlaneLocation, PlaneNormal), PlaneIntersection);
-	const bool bCrossedPlane = State.bLastInFront && !bIsInFront && bSegmentHitsPlane && LastDistance > CrossingTolerance && CurrentDistance <= CrossingTolerance;
-
-	State.LastPosition = Point;
-	State.bLastInFront = bIsInFront;
-
+	// 직전에는 평면 앞쪽 허용 거리 밖에, 지금은 평면 뒤에 있어야 넘은 것이다.
+	// 평면 바로 앞에서 서성이거나 뒤에서 다가오는 움직임은 넘은 것으로 보지 않는다.
+	const double LastDistance = FVector::DotProduct(*LastPosition - PlaneLocation, PlaneNormal);
+	const double CurrentDistance = FVector::DotProduct(Point - PlaneLocation, PlaneNormal);
+	const bool bCrossedPlane = LastDistance > CrossingTolerance && CurrentDistance < 0.0;
+	const bool bCoolingDown = State.LastTeleportTime && Now - *State.LastTeleportTime < Cooldown;
 	return bCrossedPlane && !bCoolingDown;
 }
 
-void FPortalTraversalTracker::Prime(const AActor* Actor, const FVector& Location, const FVector& PlaneLocation,
-	const FVector& PlaneForward, const double Now)
+void FPortalTraversalTracker::Prime(const AActor* Actor, const FVector& Location, const double Now)
 {
 	if (!Actor)
 	{
@@ -46,8 +37,6 @@ void FPortalTraversalTracker::Prime(const AActor* Actor, const FVector& Location
 
 	FState& State = States.FindOrAdd(TObjectKey<AActor>(Actor));
 	State.LastPosition = Location;
-	State.bLastInFront = FVector::DotProduct(Location - PlaneLocation, PlaneForward) >= 0.0f;
-	State.bInitialized = true;
 	State.LastTeleportTime = Now;
 }
 

@@ -8,7 +8,7 @@ class UPrimitiveComponent;
 
 /**
  * 포털 평면을 앞에서 뒤로 넘은 순간을 액터마다 판정한다.
- * 지난 위치와 이번 위치를 잇는 선분이 평면을 지나야 넘은 것으로 보고, 순간 이동 직후에는 대기 시간 동안 다시 넘지 않는다.
+ * 지난 위치는 평면 앞, 이번 위치는 평면 뒤여야 넘은 것으로 보고, 순간 이동 직후에는 대기 시간 동안 다시 넘지 않는다.
  */
 class FPortalTraversalTracker
 {
@@ -24,7 +24,7 @@ public:
 		float CrossingTolerance);
 
 	// 순간 이동 직후 위치와 시각을 기록해, 같은 액터가 곧바로 다시 넘지 않게 한다.
-	void Prime(const AActor* Actor, const FVector& Location, const FVector& PlaneLocation, const FVector& PlaneForward, double Now);
+	void Prime(const AActor* Actor, const FVector& Location, double Now);
 
 	void Remove(const AActor* Actor);
 	void Reset();
@@ -32,10 +32,10 @@ public:
 private:
 	struct FState
 	{
-		FVector LastPosition = FVector::ZeroVector;
-		bool bLastInFront = false;
-		bool bInitialized = false;
-		double LastTeleportTime = -BIG_NUMBER;
+		/** 직전에 확인한 위치. 비어 있으면 아직 확인한 적이 없다. */
+		TOptional<FVector> LastPosition;
+		/** 마지막으로 순간 이동한 시각. 비어 있으면 이동한 적이 없다. */
+		TOptional<double> LastTeleportTime;
 	};
 
 	TMap<TObjectKey<AActor>, FState> States;

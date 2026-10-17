@@ -730,8 +730,7 @@ void APortalActor::PrimeTraversalState(AActor* Actor)
 {
 	if (Actor)
 	{
-		TraversalTracker.Prime(Actor, Actor->GetActorLocation(), GetPortalPlaneLocation(), GetPortalForward(),
-			GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0);
+		TraversalTracker.Prime(Actor, Actor->GetActorLocation(), GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0);
 	}
 }
 
