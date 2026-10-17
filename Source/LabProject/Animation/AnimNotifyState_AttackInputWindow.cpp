@@ -11,7 +11,6 @@ namespace
 {
 	void SendAttackGameplayEvent(USkeletalMeshComponent* MeshComp, const FGameplayTag& EventTag)
 	{
-		// =================================================================================================================
 		if (!IsValid(MeshComp) || !EventTag.IsValid())
 		{
 			return;
@@ -23,16 +22,12 @@ namespace
 			return;
 		}
 
-		// =================================================================================================================
-
 		UAbilitySystemComponent* AbilitySystemComponent =
 			UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(OwnerActor);
 		if (!AbilitySystemComponent)
 		{
 			return;
 		}
-
-		// =================================================================================================================
 
 		FGameplayEventData Payload;
 		Payload.EventTag = EventTag;
@@ -78,8 +73,6 @@ void UAnimNotifyState_AttackInputWindow::NotifyBegin(USkeletalMeshComponent* Mes
 	static_cast<void>(TotalDuration);
 	static_cast<void>(EventReference);
 
-	// =================================================================================================================
-
 	const FGameplayTag EventTag = StartEventTag.IsValid() ? StartEventTag : LabGameplayTags::Notifier_Attack_ComboInputOpen;
 	SendAttackGameplayEvent(MeshComp, EventTag);
 }
@@ -90,15 +83,11 @@ void UAnimNotifyState_AttackInputWindow::NotifyEnd(USkeletalMeshComponent* MeshC
 	static_cast<void>(Animation);
 	static_cast<void>(EventReference);
 
-	// =================================================================================================================
-
 	const FGameplayTag EventTag = EndEventTag.IsValid() ? EndEventTag : LabGameplayTags::Notifier_Attack_ComboInputClose;
 	SendAttackGameplayEvent(MeshComp, EventTag);
 }
 
 FString UAnimNotifyState_AttackInputWindow::GetNotifyName_Implementation() const
 {
-	// =================================================================================================================
-
 	return TEXT("Attack Combo Input Window");
 }

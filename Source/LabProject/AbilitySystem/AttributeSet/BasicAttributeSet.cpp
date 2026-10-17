@@ -285,8 +285,6 @@ void UBasicAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallb
 {
 	Super::PostGameplayEffectExecute(Data);
 
-	// =================================================================================================================
-
 	const FGameplayAttribute& Attribute = Data.EvaluatedData.Attribute;
 
 	// 공격 피해는 CalculateOutgoingDamage로 타격 시점에 계산하므로 이 메타 속성으로 들어온 값은 쓰지 않는다.
@@ -409,8 +407,6 @@ void UBasicAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribute,
 {
 	Super::PreAttributeChange(Attribute, NewValue);
 
-	// =================================================================================================================
-
 	if (Attribute == GetHealthAttribute())
 	{
 		NewValue = ClampResourceAttribute(NewValue, GetMaxHealth());
@@ -442,8 +438,6 @@ void UBasicAttributeSet::PostAttributeChange(const FGameplayAttribute& Attribute
 {
 	Super::PostAttributeChange(Attribute, OldValue, NewValue);
 
-	// =================================================================================================================
-
 	if (OldValue != NewValue)
 	{
 		if (FProperty* Property = Attribute.GetUProperty())
@@ -451,8 +445,6 @@ void UBasicAttributeSet::PostAttributeChange(const FGameplayAttribute& Attribute
 			MARK_PROPERTY_DIRTY(this, Property);
 		}
 	}
-
-	// =================================================================================================================
 
 	if (Attribute == GetMaxHealthAttribute())
 	{

@@ -11,7 +11,6 @@ void UAnimNotify_TriggerEvent::Notify(USkeletalMeshComponent* MeshComp, UAnimSeq
 	static_cast<void>(Animation);
 	static_cast<void>(EventReference);
 
-	// =================================================================================================================
 	if (!IsValid(MeshComp))
 	{
 		return;
@@ -23,16 +22,12 @@ void UAnimNotify_TriggerEvent::Notify(USkeletalMeshComponent* MeshComp, UAnimSeq
 		return;
 	}
 
-	// =================================================================================================================
-
 	UAbilitySystemComponent* AbilitySystemComponent =
 		UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(OwnerActor);
 	if (!AbilitySystemComponent)
 	{
 		return;
 	}
-
-	// =================================================================================================================
 
 	ACharacterBase* Character = Cast<ACharacterBase>(OwnerActor);
 	const bool bIsAuthoritativeNotify = OwnerActor->HasAuthority();
@@ -68,8 +63,6 @@ void UAnimNotify_TriggerEvent::Notify(USkeletalMeshComponent* MeshComp, UAnimSeq
 
 FString UAnimNotify_TriggerEvent::GetNotifyName_Implementation() const
 {
-	// =================================================================================================================
-
 	return EventTag.IsValid()
 		? FString::Printf(TEXT("TriggerEvent: %s"), *EventTag.ToString())
 		: Super::GetNotifyName_Implementation();

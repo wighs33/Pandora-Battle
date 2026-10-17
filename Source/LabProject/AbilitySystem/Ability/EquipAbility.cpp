@@ -43,8 +43,6 @@ void UEquipAbility::ApplyCooldown(const FGameplayAbilitySpecHandle Handle, const
 // State helpers
 void UEquipAbility::ClearActiveEquipEffect()
 {
-	// =================================================================================================================
-
 	if (EquipEffectClass && HasAuthority(&CurrentActivationInfo))
 	{
 		RemoveGameplayEffect(EquipEffectClass);

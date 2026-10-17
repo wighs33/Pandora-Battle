@@ -145,15 +145,11 @@ UStatusViewModel::UStatusViewModel()
 
 void UStatusViewModel::InitializeViewModel(UObject* SourceObject)
 {
-	// =================================================================================================================
-
 	UAbilitySystemComponent* InASC = Cast<UAbilitySystemComponent>(SourceObject);
 	if (!InASC)
 	{
 		return;
 	}
-
-// =================================================================================================================
 
 	if (ASC.Get() == InASC && IsViewModelInitialized())
 	{
@@ -162,8 +158,6 @@ void UStatusViewModel::InitializeViewModel(UObject* SourceObject)
 		return;
 	}
 
-	// =================================================================================================================
-
 	if (IsViewModelInitialized())
 	{
 		UninitializeViewModel();
@@ -171,8 +165,6 @@ void UStatusViewModel::InitializeViewModel(UObject* SourceObject)
 
 	ASC = InASC;
 	RefreshEquipmentComponentBinding();
-
-	// =================================================================================================================
 
 	InASC->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetLevelAttribute()).AddUObject(this, &ThisClass::OnLevelingChanged);
 	InASC->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetExperienceAttribute()).AddUObject(this, &ThisClass::OnLevelingChanged);
@@ -244,8 +236,6 @@ void UStatusViewModel::InitializeViewModel(UObject* SourceObject)
 
 void UStatusViewModel::UninitializeViewModel()
 {
-	// =================================================================================================================
-
 	if (UAbilitySystemComponent* ASCPtr = ASC.Get())
 	{
 		ASCPtr->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetLevelAttribute()).RemoveAll(this);

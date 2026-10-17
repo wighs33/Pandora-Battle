@@ -8,21 +8,16 @@
 
 EGameplayModOp::Type UStatUpExecution::ResolveOperation(const FGameplayEffectSpec& Spec, const FGameplayTag& OperationSetByCallerTag) const
 {
-	// =================================================================================================================
 	if (!OperationSetByCallerTag.IsValid())
 	{
 		return EGameplayModOp::Additive;
 	}
-
-	// =================================================================================================================
 
 	const float* OperationValue = Spec.SetByCallerTagMagnitudes.Find(OperationSetByCallerTag);
 	if (!OperationValue)
 	{
 		return EGameplayModOp::Additive;
 	}
-
-	// =================================================================================================================
 
 	return FMath::RoundToInt(*OperationValue) == static_cast<int32>(EEnum_Operation::Multiply)
 		? EGameplayModOp::Multiplicitive
@@ -31,15 +26,11 @@ EGameplayModOp::Type UStatUpExecution::ResolveOperation(const FGameplayEffectSpe
 
 void UStatUpExecution::Execute_Implementation(const FGameplayEffectCustomExecutionParameters& ExecutionParams, FGameplayEffectCustomExecutionOutput& OutExecutionOutput) const
 {
-	// =================================================================================================================
-
 	const UPdAbilitySystemComponent* TargetASC = Cast<UPdAbilitySystemComponent>(ExecutionParams.GetTargetAbilitySystemComponent());
 	if (!TargetASC)
 	{
 		return;
 	}
-
-// =================================================================================================================
 
 	const FGameplayTag OperationSetByCallerTag = UProjectTagDefinition::GetDefaultDefinition()->GetSetByCallerStatUpOperationTag();
 	if (!OperationSetByCallerTag.IsValid())
@@ -47,12 +38,8 @@ void UStatUpExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 		return;
 	}
 
-	// =================================================================================================================
-
 	const FGameplayEffectSpec& Spec = ExecutionParams.GetOwningSpec();
 	const EGameplayModOp::Type ModifierOp = ResolveOperation(Spec, OperationSetByCallerTag);
-
-// =================================================================================================================
 
 	for (const TPair<FGameplayTag, float>& SetByCallerPair : Spec.SetByCallerTagMagnitudes)
 	{
@@ -66,15 +53,11 @@ void UStatUpExecution::Execute_Implementation(const FGameplayEffectCustomExecuti
 			continue;
 		}
 
-		// =============================================================================================================
-
 		FGameplayAttribute Attribute;
 		if (!UBasicAttributeSet::ResolveAttributeFromStatTag(SetByCallerPair.Key, Attribute))
 		{
 			continue;
 		}
-
-		// =============================================================================================================
 
 		OutExecutionOutput.AddOutputModifier(FGameplayModifierEvaluatedData(Attribute, ModifierOp, SetByCallerPair.Value));
 	}

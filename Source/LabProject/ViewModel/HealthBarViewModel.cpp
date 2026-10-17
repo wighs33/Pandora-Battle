@@ -47,8 +47,6 @@ UHealthBarViewModel::UHealthBarViewModel()
 
 void UHealthBarViewModel::InitializeViewModel(UObject* SourceObject)
 {
-	// =================================================================================================================
-
 	UAbilitySystemComponent* InASC = ResolveAbilitySystemComponent(SourceObject);
 	if (!InASC)
 	{
@@ -61,14 +59,11 @@ void UHealthBarViewModel::InitializeViewModel(UObject* SourceObject)
 		return;
 	}
 
-	// =================================================================================================================
 	if (ASC.Get() == InASC && IsViewModelInitialized())
 	{
 		UpdateAllData();
 		return;
 	}
-
-	// =================================================================================================================
 
 	if (IsViewModelInitialized())
 	{
@@ -77,14 +72,11 @@ void UHealthBarViewModel::InitializeViewModel(UObject* SourceObject)
 
 	ASC = InASC;
 
-	// =================================================================================================================
 	InASC->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetLevelAttribute()).AddUObject(this, &ThisClass::OnLevelChanged);
 	InASC->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetExperienceAttribute()).AddUObject(this, &ThisClass::OnExperienceChanged);
 	InASC->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetMaxExperienceAttribute()).AddUObject(this, &ThisClass::OnMaxExperienceChanged);
 	InASC->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetHealthAttribute()).AddUObject(this, &ThisClass::OnHealthChanged);
 	InASC->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetMaxHealthAttribute()).AddUObject(this, &ThisClass::OnMaxHealthChanged);
-
-	// =================================================================================================================
 
 	UpdateAllData();
 
@@ -93,8 +85,6 @@ void UHealthBarViewModel::InitializeViewModel(UObject* SourceObject)
 
 void UHealthBarViewModel::UninitializeViewModel()
 {
-	// =================================================================================================================
-
 	if (UAbilitySystemComponent* ASCPtr = ASC.Get())
 	{
 		ASCPtr->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetLevelAttribute()).RemoveAll(this);
@@ -104,7 +94,6 @@ void UHealthBarViewModel::UninitializeViewModel()
 		ASCPtr->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetMaxHealthAttribute()).RemoveAll(this);
 	}
 
-	// =================================================================================================================
 	ASC.Reset();
 	ResetViewData();
 
@@ -113,20 +102,15 @@ void UHealthBarViewModel::UninitializeViewModel()
 
 UAbilitySystemComponent* UHealthBarViewModel::ResolveAbilitySystemComponent(UObject* SourceObject) const
 {
-	// =================================================================================================================
 	if (UAbilitySystemComponent* InASC = Cast<UAbilitySystemComponent>(SourceObject))
 	{
 		return InASC;
 	}
 
-	// =================================================================================================================
-
 	if (const IAbilitySystemInterface* AbilitySystemInterface = Cast<IAbilitySystemInterface>(SourceObject))
 	{
 		return AbilitySystemInterface->GetAbilitySystemComponent();
 	}
-
-	// =================================================================================================================
 
 	if (const UActorComponent* ActorComponent = Cast<UActorComponent>(SourceObject))
 	{
@@ -157,8 +141,6 @@ void UHealthBarViewModel::ResetViewData()
 
 void UHealthBarViewModel::UpdateHealthData()
 {
-	// =================================================================================================================
-
 	UAbilitySystemComponent* ASCPtr = ASC.Get();
 	if (!ASCPtr)
 	{
@@ -166,13 +148,9 @@ void UHealthBarViewModel::UpdateHealthData()
 		return;
 	}
 
-	// =================================================================================================================
-
 	const float CurrentHealth = HealthBarViewModel::GetAttributeValue(ASCPtr, UBasicAttributeSet::GetHealthAttribute());
 	const float CurrentMaxHealth = HealthBarViewModel::GetAttributeValue(ASCPtr, UBasicAttributeSet::GetMaxHealthAttribute());
 	const float CurrentHealthPercent = CurrentMaxHealth > 0.f ? FMath::Clamp(CurrentHealth / CurrentMaxHealth, 0.f, 1.f) : 0.f;
-
-	// =================================================================================================================
 
 	UE_MVVM_SET_PROPERTY_VALUE(Health, CurrentHealth);
 	UE_MVVM_SET_PROPERTY_VALUE(MaxHealth, CurrentMaxHealth);

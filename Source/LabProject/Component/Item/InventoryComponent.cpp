@@ -46,8 +46,6 @@ void FReplicatedInventoryEntry::PreReplicatedRemove(const FReplicatedInventoryLi
 UInventoryComponent::UInventoryComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	// =================================================================================================================
-
 	PrimaryComponentTick.bCanEverTick = false;
 	SetIsReplicatedByDefault(true);
 	ReplicatedEntries.Owner = this;
@@ -59,14 +57,11 @@ void UInventoryComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// =================================================================================================================
-
 	ReplicatedEntries.Owner = this;
 	EnsureConsumableQuickSlotArray();
 	EnsureWeaponLoadoutSlotCount();
 
 	UProjectTagDefinition::Get(this)->GetItemFilterTypeTags(FilterTypeTags);
-	// =================================================================================================================
 	if (HasInventoryAuthority())
 	{
 		RebuildFilteredItemMap();
@@ -349,7 +344,6 @@ void UInventoryComponent::ClearAllItems()
 
 void UInventoryComponent::FilterItem(UItemInstance* ItemInstance)
 {
-	// =================================================================================================================
 	const UItemDefinition* ItemDefinition = IsValid(ItemInstance) ? ItemInstance->ItemDefinition.Get() : nullptr;
 	if (!ItemDefinition)
 	{
@@ -365,8 +359,6 @@ void UInventoryComponent::FilterItem(UItemInstance* ItemInstance)
 	{
 		return;
 	}
-
-	// =================================================================================================================
 
 	for (const FGameplayTag& TypeTag : FilterTypeTags)
 	{

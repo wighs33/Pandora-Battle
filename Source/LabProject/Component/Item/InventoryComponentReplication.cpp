@@ -59,10 +59,8 @@ void UInventoryComponent::MarkReplicatedListDirty()
 
 void UInventoryComponent::RebuildRuntimeItemsFromReplicatedEntries()
 {
-	// =================================================================================================================
 	AllItemList.Items.Reset();
 
-	// =================================================================================================================
 	for (const FReplicatedInventoryEntry& Entry : ReplicatedEntries.Entries)
 	{
 		if (!Entry.ItemId.IsValid() || !IsValid(Entry.ItemDefinition))
@@ -99,13 +97,10 @@ void UInventoryComponent::RebuildFilteredItemMap()
 // 복제 콜백은 항목마다 불리므로 변경만 표시한다. 알림은 받은 묶음이 끝날 때 PostReplicatedReceive가 한 번 보낸다.
 void UInventoryComponent::HandleReplicatedEntryAddedOrChanged(const FReplicatedInventoryEntry& Entry)
 {
-	// =================================================================================================================
 	if (!Entry.ItemId.IsValid() || !IsValid(Entry.ItemDefinition))
 	{
 		return;
 	}
-
-	// =================================================================================================================
 
 	UItemInstance* ItemInstance = FindItemInstanceById(Entry.ItemId);
 	const bool bWasNewItemInstance = !IsValid(ItemInstance);
@@ -116,7 +111,6 @@ void UInventoryComponent::HandleReplicatedEntryAddedOrChanged(const FReplicatedI
 		AllItemList.Items.Add(ItemInstance);
 	}
 
-	// =================================================================================================================
 	ItemInstance->ItemId = Entry.ItemId;
 	ItemInstance->ItemDefinition = Entry.ItemDefinition;
 	ItemInstance->Quantity = Entry.Quantity;
@@ -141,8 +135,6 @@ void UInventoryComponent::HandleReplicatedEntryRemoved(FGuid ItemId)
 		return;
 	}
 
-	// =================================================================================================================
-
 	for (int32 Index = AllItemList.Items.Num() - 1; Index >= 0; --Index)
 	{
 		UItemInstance* ItemInstance = AllItemList.Items[Index];
@@ -163,7 +155,6 @@ void UInventoryComponent::HandleReplicatedEntryRemoved(FGuid ItemId)
 
 void UInventoryComponent::AddReplicatedItem(UItemInstance* ItemInstance)
 {
-	// =================================================================================================================
 	if (!HasInventoryAuthority())
 	{
 		return;
@@ -174,12 +165,8 @@ void UInventoryComponent::AddReplicatedItem(UItemInstance* ItemInstance)
 		return;
 	}
 
-	// =================================================================================================================
-
 	ItemInstance->EnsureItemId();
 	AllItemList.Items.AddUnique(ItemInstance);
-
-	// =================================================================================================================
 
 	bool bDefinitionChanged = false;
 	if (FReplicatedInventoryEntry* ExistingEntry = FindReplicatedEntryById(ItemInstance->GetItemId()))
@@ -218,8 +205,6 @@ bool UInventoryComponent::RemoveReplicatedItemById(FGuid ItemId)
 		return false;
 	}
 
-	// =================================================================================================================
-
 	const int32 EntryIndex = FindReplicatedEntryIndexById(ItemId);
 	if (EntryIndex == INDEX_NONE)
 	{
@@ -242,8 +227,6 @@ bool UInventoryComponent::RemoveReplicatedItemById(FGuid ItemId)
 		}
 	}
 
-	// =================================================================================================================
-
 	ReplicatedEntries.Entries.RemoveAt(EntryIndex);
 	MarkReplicatedListDirty();
 	ClearConsumableQuickSlotReferencesToItem(ItemId);
@@ -260,14 +243,10 @@ bool UInventoryComponent::SetReplicatedItemQuantityById(FGuid ItemId, int32 NewQ
 		return false;
 	}
 
-	// =================================================================================================================
-
 	if (NewQuantity <= 0)
 	{
 		return RemoveReplicatedItemById(ItemId);
 	}
-
-	// =================================================================================================================
 
 	FReplicatedInventoryEntry* Entry = FindReplicatedEntryById(ItemId);
 	UItemInstance* ItemInstance = FindItemInstanceById(ItemId);

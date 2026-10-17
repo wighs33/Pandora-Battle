@@ -7,12 +7,8 @@ void UBasicAttributeSet::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-	// =================================================================================================================
-
 	FDoRepLifetimeParams Params;
 	Params.bIsPushBased = true;
-
-	// =================================================================================================================
 
 	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, Strength, Params);
 	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, Level, Params);
@@ -45,31 +41,21 @@ void UBasicAttributeSet::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, Intelligence, Params);
 	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, Arcane, Params);
 
-	// =================================================================================================================
-
 	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, Armor, Params);
 	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, Recovery, Params);
-
-	// =================================================================================================================
 
 	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, Frostbite, Params);
 	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, Burn, Params);
 	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, ElectricShock, Params);
 
-	// =================================================================================================================
-
 	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, FirstPandora, Params);
 	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, SecondPandora, Params);
 	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, ThirdPandora, Params);
-
-	// =================================================================================================================
 
 	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, AttackSpeed, Params);
 	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, MovementSpeed, Params);
 	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, Critical, Params);
 	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, CriticalDamageMultiplier, Params);
-
-	// =================================================================================================================
 
 	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, Health, Params);
 	DOREPLIFETIME_WITH_PARAMS_FAST(UBasicAttributeSet, MaxHealth, Params);

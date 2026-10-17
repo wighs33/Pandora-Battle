@@ -18,8 +18,6 @@ UUnequipAbility::UUnequipAbility(const FObjectInitializer& ObjectInitializer)
 // State helpers
 void UUnequipAbility::ClearActiveUnequipEffect()
 {
-	// =================================================================================================================
-
 	if (UnequipEffectClass && HasAuthority(&CurrentActivationInfo))
 	{
 		RemoveGameplayEffect(UnequipEffectClass);
@@ -128,7 +126,6 @@ void UUnequipAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 {
 	bUnequipTransitionResolved = false;
 
-	// =================================================================================================================
 	ACharacterBase* Character = GetPdCharacterFromActorInfo();
 	if (!ensure(Character))
 	{
@@ -177,8 +174,6 @@ void UUnequipAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 		return;
 	}
 
-	// =================================================================================================================
-
 	if (ensure(CommitUnequipEventTag.IsValid()))
 	{
 		UAbilityTask_WaitGameplayEvent* CommitEventTask = CreateWaitGameplayEventTask(CommitUnequipEventTag, true);
@@ -188,8 +183,6 @@ void UUnequipAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 			CommitEventTask->ReadyForActivation();
 		}
 	}
-
-	// =================================================================================================================
 
 	UAbilityTask_PlayMontageAndWait* MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(this,
 		NAME_None, UnequipVisualData.UnequipMontage, 1.f, NAME_None, false, 1.f, 0.f, false);
@@ -203,8 +196,6 @@ void UUnequipAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 	MontageTask->OnInterrupted.AddDynamic(this, &UUnequipAbility::OnUnequipMontageInterrupted);
 	MontageTask->OnCancelled.AddDynamic(this, &UUnequipAbility::OnUnequipMontageCancelled);
 	MontageTask->ReadyForActivation();
-
-	// =================================================================================================================
 
 	if (UnequipEffectClass)
 	{
