@@ -13,149 +13,149 @@ DEFINE_LOG_CATEGORY_STATIC(LogPaintCanvasPresentation, Log, All);
 
 void UPaintCanvasDisplay::Initialize(APdPlayer* InPlayerOwner)
 {
-    PlayerOwner = InPlayerOwner;
+	PlayerOwner = InPlayerOwner;
 }
 
 void UPaintCanvasDisplay::SetSpeechBubbleComponent(UPrimitiveComponent* InSpeechBubbleComponent)
 {
-    SpeechBubbleComponent = InSpeechBubbleComponent;
+	SpeechBubbleComponent = InSpeechBubbleComponent;
 }
 
 bool UPaintCanvasDisplay::ShowSpeechBubble(UTextureRenderTarget2D* RenderTarget, const int32 MaterialIndex,
-    const FName TextureParameterName)
+	const FName TextureParameterName)
 {
-    if (!RenderTarget)
-    {
-        return false;
-    }
+	if (!RenderTarget)
+	{
+		return false;
+	}
 
-    if (!IsValid(SpeechBubbleComponent))
-    {
-        UE_LOG(LogPaintCanvasPresentation, Warning,
-            TEXT("Failed to show paint speech bubble. Speech bubble component is not valid."));
-        return false;
-    }
+	if (!IsValid(SpeechBubbleComponent))
+	{
+		UE_LOG(LogPaintCanvasPresentation, Warning,
+			TEXT("Failed to show paint speech bubble. Speech bubble component is not valid."));
+		return false;
+	}
 
-    UMaterialInterface* ExistingMaterial = SpeechBubbleComponent->GetMaterial(MaterialIndex);
-    if (!ExistingMaterial)
-    {
-        UE_LOG(LogPaintCanvasPresentation, Warning,
-            TEXT("Failed to show paint speech bubble. %s has no material at index %d."),
-            *SpeechBubbleComponent->GetName(),
-            MaterialIndex);
-        return false;
-    }
+	UMaterialInterface* ExistingMaterial = SpeechBubbleComponent->GetMaterial(MaterialIndex);
+	if (!ExistingMaterial)
+	{
+		UE_LOG(LogPaintCanvasPresentation, Warning,
+			TEXT("Failed to show paint speech bubble. %s has no material at index %d."),
+			*SpeechBubbleComponent->GetName(),
+			MaterialIndex);
+		return false;
+	}
 
-    ActiveSpeechBubbleMaterial = Cast<UMaterialInstanceDynamic>(ExistingMaterial);
-    if (!ActiveSpeechBubbleMaterial)
-    {
-        ActiveSpeechBubbleMaterial =
-            SpeechBubbleComponent->CreateDynamicMaterialInstance(MaterialIndex, ExistingMaterial);
-    }
+	ActiveSpeechBubbleMaterial = Cast<UMaterialInstanceDynamic>(ExistingMaterial);
+	if (!ActiveSpeechBubbleMaterial)
+	{
+		ActiveSpeechBubbleMaterial =
+			SpeechBubbleComponent->CreateDynamicMaterialInstance(MaterialIndex, ExistingMaterial);
+	}
 
-    if (!ActiveSpeechBubbleMaterial)
-    {
-        return false;
-    }
+	if (!ActiveSpeechBubbleMaterial)
+	{
+		return false;
+	}
 
-    ActiveSpeechBubbleRenderTarget = RenderTarget;
-    ActiveSpeechBubbleMaterial->SetTextureParameterValue(TextureParameterName, ActiveSpeechBubbleRenderTarget.Get());
+	ActiveSpeechBubbleRenderTarget = RenderTarget;
+	ActiveSpeechBubbleMaterial->SetTextureParameterValue(TextureParameterName, ActiveSpeechBubbleRenderTarget.Get());
 
-    SpeechBubbleComponent->SetVisibility(true, true);
-    SpeechBubbleComponent->SetHiddenInGame(false, true);
-    SpeechBubbleComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-    SpeechBubbleComponent->SetGenerateOverlapEvents(false);
-    return true;
+	SpeechBubbleComponent->SetVisibility(true, true);
+	SpeechBubbleComponent->SetHiddenInGame(false, true);
+	SpeechBubbleComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	SpeechBubbleComponent->SetGenerateOverlapEvents(false);
+	return true;
 }
 
 void UPaintCanvasDisplay::HideSpeechBubble()
 {
-    if (IsValid(SpeechBubbleComponent))
-    {
-        SpeechBubbleComponent->SetHiddenInGame(true, true);
-        SpeechBubbleComponent->SetVisibility(false, true);
-        SpeechBubbleComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-    }
+	if (IsValid(SpeechBubbleComponent))
+	{
+		SpeechBubbleComponent->SetHiddenInGame(true, true);
+		SpeechBubbleComponent->SetVisibility(false, true);
+		SpeechBubbleComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	}
 
-    ActiveSpeechBubbleMaterial = nullptr;
-    ActiveSpeechBubbleRenderTarget = nullptr;
+	ActiveSpeechBubbleMaterial = nullptr;
+	ActiveSpeechBubbleRenderTarget = nullptr;
 }
 
 bool UPaintCanvasDisplay::ApplyFaceDecal(UTextureRenderTarget2D* PaintSnapshot, UMaterialInterface* FaceDecalMaterial,
-    FName AttachSocketName, const FTransform& FaceDecalTransformOffset, FVector FaceDecalSize,
-    FName TextureParameterName)
+	FName AttachSocketName, const FTransform& FaceDecalTransformOffset, FVector FaceDecalSize,
+	FName TextureParameterName)
 {
-    APdPlayer* Player = PlayerOwner.Get();
-    USkeletalMeshComponent* CharacterMesh = Player ? Player->GetMesh() : nullptr;
-    if (!Player || !PaintSnapshot || !FaceDecalMaterial || !CharacterMesh)
-    {
-        return false;
-    }
+	APdPlayer* Player = PlayerOwner.Get();
+	USkeletalMeshComponent* CharacterMesh = Player ? Player->GetMesh() : nullptr;
+	if (!Player || !PaintSnapshot || !FaceDecalMaterial || !CharacterMesh)
+	{
+		return false;
+	}
 
-    if (!AttachSocketName.IsNone() && !CharacterMesh->DoesSocketExist(AttachSocketName)
-        && CharacterMesh->GetBoneIndex(AttachSocketName) == INDEX_NONE)
-    {
-        AttachSocketName = NAME_None;
-    }
+	if (!AttachSocketName.IsNone() && !CharacterMesh->DoesSocketExist(AttachSocketName)
+		&& CharacterMesh->GetBoneIndex(AttachSocketName) == INDEX_NONE)
+	{
+		AttachSocketName = NAME_None;
+	}
 
-    ClearFaceDecal();
+	ClearFaceDecal();
 
-    ActiveFaceDecalSnapshot = PaintSnapshot;
-    TextureParameterName = TextureParameterName.IsNone() ? FName(TEXT("RenderTarget")) : TextureParameterName;
+	ActiveFaceDecalSnapshot = PaintSnapshot;
+	TextureParameterName = TextureParameterName.IsNone() ? FName(TEXT("RenderTarget")) : TextureParameterName;
 
-    ActiveFaceDecalMaterial = UMaterialInstanceDynamic::Create(FaceDecalMaterial, this);
-    if (!ActiveFaceDecalMaterial)
-    {
-        ActiveFaceDecalSnapshot = nullptr;
-        return false;
-    }
+	ActiveFaceDecalMaterial = UMaterialInstanceDynamic::Create(FaceDecalMaterial, this);
+	if (!ActiveFaceDecalMaterial)
+	{
+		ActiveFaceDecalSnapshot = nullptr;
+		return false;
+	}
 
-    ActiveFaceDecalMaterial->SetTextureParameterValue(TextureParameterName, ActiveFaceDecalSnapshot.Get());
+	ActiveFaceDecalMaterial->SetTextureParameterValue(TextureParameterName, ActiveFaceDecalSnapshot.Get());
 
-    FaceDecalSize.X = FMath::Max(FaceDecalSize.X, 1.0);
-    FaceDecalSize.Y = FMath::Max(FaceDecalSize.Y, 1.0);
-    FaceDecalSize.Z = FMath::Max(FaceDecalSize.Z, 1.0);
+	FaceDecalSize.X = FMath::Max(FaceDecalSize.X, 1.0);
+	FaceDecalSize.Y = FMath::Max(FaceDecalSize.Y, 1.0);
+	FaceDecalSize.Z = FMath::Max(FaceDecalSize.Z, 1.0);
 
-    const bool bHasAttachSocket = !AttachSocketName.IsNone();
-    const FTransform FaceDecalBaseTransform(Player->GetActorRotation(),
-        bHasAttachSocket ? CharacterMesh->GetSocketLocation(AttachSocketName) : Player->GetActorLocation(),
-        FVector::OneVector);
+	const bool bHasAttachSocket = !AttachSocketName.IsNone();
+	const FTransform FaceDecalBaseTransform(Player->GetActorRotation(),
+		bHasAttachSocket ? CharacterMesh->GetSocketLocation(AttachSocketName) : Player->GetActorLocation(),
+		FVector::OneVector);
 
-    FTransform FaceDecalWorldTransform = FaceDecalTransformOffset * FaceDecalBaseTransform;
-    FaceDecalWorldTransform.NormalizeRotation();
-    FaceDecalWorldTransform.AddToTranslation(FaceDecalWorldTransform.GetUnitAxis(EAxis::X) * (FaceDecalSize.X * 0.5));
+	FTransform FaceDecalWorldTransform = FaceDecalTransformOffset * FaceDecalBaseTransform;
+	FaceDecalWorldTransform.NormalizeRotation();
+	FaceDecalWorldTransform.AddToTranslation(FaceDecalWorldTransform.GetUnitAxis(EAxis::X) * (FaceDecalSize.X * 0.5));
 
-    ActiveFaceDecalComponent = UGameplayStatics::SpawnDecalAttached(ActiveFaceDecalMaterial.Get(), FaceDecalSize,
-        CharacterMesh, AttachSocketName, FaceDecalWorldTransform.GetLocation(),
-        FaceDecalWorldTransform.GetRotation().Rotator(), EAttachLocation::KeepWorldPosition, 0.0f);
+	ActiveFaceDecalComponent = UGameplayStatics::SpawnDecalAttached(ActiveFaceDecalMaterial.Get(), FaceDecalSize,
+		CharacterMesh, AttachSocketName, FaceDecalWorldTransform.GetLocation(),
+		FaceDecalWorldTransform.GetRotation().Rotator(), EAttachLocation::KeepWorldPosition, 0.0f);
 
-    if (!IsValid(ActiveFaceDecalComponent))
-    {
-        ActiveFaceDecalMaterial = nullptr;
-        ActiveFaceDecalSnapshot = nullptr;
-        return false;
-    }
+	if (!IsValid(ActiveFaceDecalComponent))
+	{
+		ActiveFaceDecalMaterial = nullptr;
+		ActiveFaceDecalSnapshot = nullptr;
+		return false;
+	}
 
-    ActiveFaceDecalComponent->SetWorldScale3D(FaceDecalWorldTransform.GetScale3D());
-    ActiveFaceDecalComponent->SetFadeScreenSize(0.0f);
-    return true;
+	ActiveFaceDecalComponent->SetWorldScale3D(FaceDecalWorldTransform.GetScale3D());
+	ActiveFaceDecalComponent->SetFadeScreenSize(0.0f);
+	return true;
 }
 
 void UPaintCanvasDisplay::ClearFaceDecal()
 {
-    if (IsValid(ActiveFaceDecalComponent))
-    {
-        ActiveFaceDecalComponent->DestroyComponent();
-    }
+	if (IsValid(ActiveFaceDecalComponent))
+	{
+		ActiveFaceDecalComponent->DestroyComponent();
+	}
 
-    ActiveFaceDecalComponent = nullptr;
-    ActiveFaceDecalMaterial = nullptr;
-    ActiveFaceDecalSnapshot = nullptr;
+	ActiveFaceDecalComponent = nullptr;
+	ActiveFaceDecalMaterial = nullptr;
+	ActiveFaceDecalSnapshot = nullptr;
 }
 
 void UPaintCanvasDisplay::Reset()
 {
-    HideSpeechBubble();
-    ClearFaceDecal();
-    PlayerOwner = nullptr;
+	HideSpeechBubble();
+	ClearFaceDecal();
+	PlayerOwner = nullptr;
 }

@@ -16,156 +16,156 @@ class UTextureRenderTarget2D;
 USTRUCT()
 struct LABPROJECT_API FPaintCanvasStroke
 {
-    GENERATED_BODY()
+	GENERATED_BODY()
 
-    UPROPERTY()
-    float BrushSize = 0.0f;
+	UPROPERTY()
+	float BrushSize = 0.0f;
 
-    UPROPERTY()
-    FVector2f DrawLocation = FVector2f::ZeroVector;
+	UPROPERTY()
+	FVector2f DrawLocation = FVector2f::ZeroVector;
 
-    UPROPERTY()
-    bool bStartsNewStroke = true;
+	UPROPERTY()
+	bool bStartsNewStroke = true;
 };
 
 UCLASS(BlueprintType, Blueprintable, ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class LABPROJECT_API UPaintCanvasComponent : public UActorComponent
 {
-    GENERATED_BODY()
+	GENERATED_BODY()
 
 public:
-    // Engine Overrides ------------------------------------------------------------------------------------------------
-    virtual void BeginPlay() override;
-    virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	// Engine Overrides ------------------------------------------------------------------------------------------------
+	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-    // Public API ------------------------------------------------------------------------------------------------------
-    UPaintCanvasComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	// Public API ------------------------------------------------------------------------------------------------------
+	UPaintCanvasComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-    void SetSpeechBubbleComponent(UPrimitiveComponent* InSpeechBubbleComponent);
+	void SetSpeechBubbleComponent(UPrimitiveComponent* InSpeechBubbleComponent);
 
-    bool BeginPaintCanvasUiSession();
-    bool PaintAtNormalizedLocation(const FVector2D& DrawLocation);
-    void ResetPaintStroke();
-    void HidePaintCanvas();
-    bool HasActivePaintCanvas() const;
+	bool BeginPaintCanvasUiSession();
+	bool PaintAtNormalizedLocation(const FVector2D& DrawLocation);
+	void ResetPaintStroke();
+	void HidePaintCanvas();
+	bool HasActivePaintCanvas() const;
 
-    UTextureRenderTarget2D* GetActivePaintCanvasRenderTarget() const;
+	UTextureRenderTarget2D* GetActivePaintCanvasRenderTarget() const;
 
-    bool ExportActivePaintCanvasToSpeechBubble();
+	bool ExportActivePaintCanvasToSpeechBubble();
 
-    bool ApplyActivePaintCanvasToFaceDecal(UMaterialInterface* FaceDecalMaterial, FName AttachSocketName, const FTransform& FaceDecalTransformOffset, FVector FaceDecalSize, FName TextureParameterName);
+	bool ApplyActivePaintCanvasToFaceDecal(UMaterialInterface* FaceDecalMaterial, FName AttachSocketName, const FTransform& FaceDecalTransformOffset, FVector FaceDecalSize, FName TextureParameterName);
 
-    void RestoreCachedLobbyPaintCanvasFaceDecal();
-
-private:
-    // Network RPCs ----------------------------------------------------------------------------------------------------
-    UFUNCTION(Server, Reliable)
-    void ServerExportPaintCanvas(const TArray<FPaintCanvasStroke>& Strokes);
-
-    UFUNCTION(NetMulticast, Reliable)
-    void MulticastExportPaintCanvas(const TArray<FPaintCanvasStroke>& Strokes);
-
-    UFUNCTION(Server, Reliable)
-    void ServerApplyPaintCanvasFaceDecal(const TArray<FPaintCanvasStroke>& Strokes, UMaterialInterface* FaceDecalMaterial, FName AttachSocketName, FTransform FaceDecalTransformOffset, FVector FaceDecalSize, FName TextureParameterName);
-
-    UFUNCTION(NetMulticast, Reliable)
-    void MulticastApplyPaintCanvasFaceDecal(const TArray<FPaintCanvasStroke>& Strokes, UMaterialInterface* FaceDecalMaterial, FName AttachSocketName, FTransform FaceDecalTransformOffset, FVector FaceDecalSize, FName TextureParameterName);
-
-    // Internal Helpers ------------------------------------------------------------------------------------------------
-    APdPlayer* GetPlayerOwner() const;
-    UPaintCanvasDisplay* GetOrCreatePresentation();
-
-    bool EnsurePaintCanvasRenderResources(bool bResetCanvas = false);
-    void ResetPaintCanvasRenderTarget();
-    bool DrawBrushToRenderTarget(UTexture2D* InBrushTexture, double InBrushSize, const FVector2D& DrawLocation);
-    bool DrawPaintStroke(const FPaintCanvasStroke& Stroke, const FPaintCanvasStroke* PreviousStroke);
-    UTextureRenderTarget2D* CreatePaintCanvasCopy(UTextureRenderTarget2D* SourceRenderTarget, double Scale, const FLinearColor& ClearTargetColor);
-    bool ReplayPaintCanvasStrokes(const TArray<FPaintCanvasStroke>& Strokes);
-
-    void CancelPaintCanvasExport();
-    void HidePaintSpeechBubble();
-    bool ApplyPaintCanvasToSpeechBubble();
-    bool StartLocalPaintCanvasExport();
-    bool ApplyLocalPaintCanvasToFaceDecal(UMaterialInterface* FaceDecalMaterial, FName AttachSocketName, const FTransform& FaceDecalTransformOffset, FVector FaceDecalSize, FName TextureParameterName);
-
-    bool IsValidPaintCanvasStrokes(const TArray<FPaintCanvasStroke>& Strokes) const;
-    /** 한 그림에 담을 수 있는 획 수. 설정 값을 1 이상, 복제할 수 있는 상한 이하로 맞춘다. */
-    int32 GetStrokeHistoryLimit() const;
-
-    bool TryConsumePaintNetworkEvent(double& LastAcceptedTime, double MinInterval);
-
-    void CacheLocalPaintCanvasFaceDecalForTravel(UMaterialInterface* FaceDecalMaterial, FName AttachSocketName, const FTransform& FaceDecalTransformOffset, FVector FaceDecalSize, FName TextureParameterName) const;
+	void RestoreCachedLobbyPaintCanvasFaceDecal();
 
 private:
-    UPROPERTY(EditAnywhere, Category = "!Paint", meta = (DisplayName = "Brush Texture"))
-    TObjectPtr<UTexture2D> BrushTexture;
+	// Network RPCs ----------------------------------------------------------------------------------------------------
+	UFUNCTION(Server, Reliable)
+	void ServerExportPaintCanvas(const TArray<FPaintCanvasStroke>& Strokes);
 
-    UPROPERTY(EditAnywhere, Category = "!Paint", meta = (DisplayName = "Brush Size", ClampMin = "0.0"))
-    double BrushSize = 64.0;
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastExportPaintCanvas(const TArray<FPaintCanvasStroke>& Strokes);
 
-    UPROPERTY(EditDefaultsOnly, Category = "!Paint|Render Target", meta = (ClampMin = "1"))
-    int32 RenderTargetWidth = 1024;
+	UFUNCTION(Server, Reliable)
+	void ServerApplyPaintCanvasFaceDecal(const TArray<FPaintCanvasStroke>& Strokes, UMaterialInterface* FaceDecalMaterial, FName AttachSocketName, FTransform FaceDecalTransformOffset, FVector FaceDecalSize, FName TextureParameterName);
 
-    UPROPERTY(EditDefaultsOnly, Category = "!Paint|Render Target", meta = (ClampMin = "1"))
-    int32 RenderTargetHeight = 1024;
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastApplyPaintCanvasFaceDecal(const TArray<FPaintCanvasStroke>& Strokes, UMaterialInterface* FaceDecalMaterial, FName AttachSocketName, FTransform FaceDecalTransformOffset, FVector FaceDecalSize, FName TextureParameterName);
 
-    UPROPERTY(EditDefaultsOnly, Category = "!Paint|Render Target")
-    FLinearColor ClearColor = FLinearColor::White;
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	APdPlayer* GetPlayerOwner() const;
+	UPaintCanvasDisplay* GetOrCreatePresentation();
 
-    /** 붓 자국을 렌더 타깃에 찍는 재질. 다른 플레이어의 그림을 재생할 때도 쓰므로 UI 설정이 아닌 컴포넌트가 가진다. */
-    UPROPERTY(EditDefaultsOnly, Category = "!Paint|Material", meta = (DisplayName = "Brush Material"))
-    TSoftObjectPtr<UMaterialInterface> BrushMaterial;
+	bool EnsurePaintCanvasRenderResources(bool bResetCanvas = false);
+	void ResetPaintCanvasRenderTarget();
+	bool DrawBrushToRenderTarget(UTexture2D* InBrushTexture, double InBrushSize, const FVector2D& DrawLocation);
+	bool DrawPaintStroke(const FPaintCanvasStroke& Stroke, const FPaintCanvasStroke* PreviousStroke);
+	UTextureRenderTarget2D* CreatePaintCanvasCopy(UTextureRenderTarget2D* SourceRenderTarget, double Scale, const FLinearColor& ClearTargetColor);
+	bool ReplayPaintCanvasStrokes(const TArray<FPaintCanvasStroke>& Strokes);
 
-    UPROPERTY(EditDefaultsOnly, Category = "!Paint|Material")
-    FName BrushTextureParameterName = TEXT("BrushTexture");
+	void CancelPaintCanvasExport();
+	void HidePaintSpeechBubble();
+	bool ApplyPaintCanvasToSpeechBubble();
+	bool StartLocalPaintCanvasExport();
+	bool ApplyLocalPaintCanvasToFaceDecal(UMaterialInterface* FaceDecalMaterial, FName AttachSocketName, const FTransform& FaceDecalTransformOffset, FVector FaceDecalSize, FName TextureParameterName);
 
-    UPROPERTY(EditDefaultsOnly, Category = "!Paint|Material")
-    FName BrushColorParameterName = TEXT("BrushColor");
+	bool IsValidPaintCanvasStrokes(const TArray<FPaintCanvasStroke>& Strokes) const;
+	/** 한 그림에 담을 수 있는 획 수. 설정 값을 1 이상, 복제할 수 있는 상한 이하로 맞춘다. */
+	int32 GetStrokeHistoryLimit() const;
 
-    // ClampMax는 PaintCanvasComponent.cpp의 MaxStrokeHistoryCap과 같게 둔다.
-    UPROPERTY(EditDefaultsOnly, Category = "!Paint|Network", meta = (ClampMin = "1", ClampMax = "8192"))
-    int32 MaxReplicatedPaintStrokeHistory = 4096;
+	bool TryConsumePaintNetworkEvent(double& LastAcceptedTime, double MinInterval);
 
-    UPROPERTY(EditDefaultsOnly, Category = "!Paint|Network", meta = (ClampMin = "0.0", ForceUnits = "s"))
-    double PaintControlNetworkMinInterval = 0.15;
+	void CacheLocalPaintCanvasFaceDecalForTravel(UMaterialInterface* FaceDecalMaterial, FName AttachSocketName, const FTransform& FaceDecalTransformOffset, FVector FaceDecalSize, FName TextureParameterName) const;
 
-    UPROPERTY(EditDefaultsOnly, Category = "!Paint|Network", meta = (ClampMin = "1.0"))
-    double MaxReplicatedPaintBrushSize = 256.0;
+private:
+	UPROPERTY(EditAnywhere, Category = "!Paint", meta = (DisplayName = "Brush Texture"))
+	TObjectPtr<UTexture2D> BrushTexture;
 
-    UPROPERTY(Transient)
-    TObjectPtr<UTextureRenderTarget2D> PaintCanvasRenderTarget;
+	UPROPERTY(EditAnywhere, Category = "!Paint", meta = (DisplayName = "Brush Size", ClampMin = "0.0"))
+	double BrushSize = 64.0;
 
-    UPROPERTY(Transient)
-    TObjectPtr<UMaterialInstanceDynamic> PaintBrushMaterial;
+	UPROPERTY(EditDefaultsOnly, Category = "!Paint|Render Target", meta = (ClampMin = "1"))
+	int32 RenderTargetWidth = 1024;
 
-    UPROPERTY(Transient)
-    TObjectPtr<UPaintCanvasDisplay> Presentation;
+	UPROPERTY(EditDefaultsOnly, Category = "!Paint|Render Target", meta = (ClampMin = "1"))
+	int32 RenderTargetHeight = 1024;
 
-    UPROPERTY(Transient)
-    bool bPaintCanvasUiSessionActive = false;
+	UPROPERTY(EditDefaultsOnly, Category = "!Paint|Render Target")
+	FLinearColor ClearColor = FLinearColor::White;
 
-    UPROPERTY(EditAnywhere, Category = "!Paint|Export", meta = (ClampMin = "0.1", ForceUnits = "s"))
-    double PaintCanvasExportDuration = 10.0;
+	/** 붓 자국을 렌더 타깃에 찍는 재질. 다른 플레이어의 그림을 재생할 때도 쓰므로 UI 설정이 아닌 컴포넌트가 가진다. */
+	UPROPERTY(EditDefaultsOnly, Category = "!Paint|Material", meta = (DisplayName = "Brush Material"))
+	TSoftObjectPtr<UMaterialInterface> BrushMaterial;
 
-    UPROPERTY(EditAnywhere, Category = "!Paint|Export")
-    FName PaintSpeechBubbleRenderTargetParameterName = TEXT("RenderTarget");
+	UPROPERTY(EditDefaultsOnly, Category = "!Paint|Material")
+	FName BrushTextureParameterName = TEXT("BrushTexture");
 
-    UPROPERTY(EditAnywhere, Category = "!Paint|Export", meta = (ClampMin = "0"))
-    int32 PaintSpeechBubbleMaterialIndex = 0;
+	UPROPERTY(EditDefaultsOnly, Category = "!Paint|Material")
+	FName BrushColorParameterName = TEXT("BrushColor");
 
-    UPROPERTY(EditAnywhere, Category = "!Paint|Export", meta = (ClampMin = "0.01", ClampMax = "1.0"))
-    double PaintSpeechBubbleRenderTargetScale = 0.75;
+	// ClampMax는 PaintCanvasComponent.cpp의 MaxStrokeHistoryCap과 같게 둔다.
+	UPROPERTY(EditDefaultsOnly, Category = "!Paint|Network", meta = (ClampMin = "1", ClampMax = "8192"))
+	int32 MaxReplicatedPaintStrokeHistory = 4096;
 
-    UPROPERTY(Transient)
-    bool bPaintCanvasExportActive = false;
+	UPROPERTY(EditDefaultsOnly, Category = "!Paint|Network", meta = (ClampMin = "0.0", ForceUnits = "s"))
+	double PaintControlNetworkMinInterval = 0.15;
 
-    FTimerHandle PaintCanvasExportTimerHandle;
+	UPROPERTY(EditDefaultsOnly, Category = "!Paint|Network", meta = (ClampMin = "1.0"))
+	double MaxReplicatedPaintBrushSize = 256.0;
 
-    UPROPERTY(Transient)
-    TArray<FPaintCanvasStroke> LocalPaintStrokes;
+	UPROPERTY(Transient)
+	TObjectPtr<UTextureRenderTarget2D> PaintCanvasRenderTarget;
 
-    bool bHasPreviousPaintLocation = false;
+	UPROPERTY(Transient)
+	TObjectPtr<UMaterialInstanceDynamic> PaintBrushMaterial;
 
-    double LastPaintExportServerTime = -1.0e30;
-    double LastPaintFaceDecalServerTime = -1.0e30;
+	UPROPERTY(Transient)
+	TObjectPtr<UPaintCanvasDisplay> Presentation;
+
+	UPROPERTY(Transient)
+	bool bPaintCanvasUiSessionActive = false;
+
+	UPROPERTY(EditAnywhere, Category = "!Paint|Export", meta = (ClampMin = "0.1", ForceUnits = "s"))
+	double PaintCanvasExportDuration = 10.0;
+
+	UPROPERTY(EditAnywhere, Category = "!Paint|Export")
+	FName PaintSpeechBubbleRenderTargetParameterName = TEXT("RenderTarget");
+
+	UPROPERTY(EditAnywhere, Category = "!Paint|Export", meta = (ClampMin = "0"))
+	int32 PaintSpeechBubbleMaterialIndex = 0;
+
+	UPROPERTY(EditAnywhere, Category = "!Paint|Export", meta = (ClampMin = "0.01", ClampMax = "1.0"))
+	double PaintSpeechBubbleRenderTargetScale = 0.75;
+
+	UPROPERTY(Transient)
+	bool bPaintCanvasExportActive = false;
+
+	FTimerHandle PaintCanvasExportTimerHandle;
+
+	UPROPERTY(Transient)
+	TArray<FPaintCanvasStroke> LocalPaintStrokes;
+
+	bool bHasPreviousPaintLocation = false;
+
+	double LastPaintExportServerTime = -1.0e30;
+	double LastPaintFaceDecalServerTime = -1.0e30;
 };

@@ -11,29 +11,29 @@ enum class EPdGameplayInputPolicy : uint8 { Allow, Block };
 UCLASS()
 class LABPROJECT_API UPdUIActionRouter : public UCommonUIActionRouterBase
 {
-    GENERATED_BODY()
+	GENERATED_BODY()
 
 public:
-    // Engine Overrides ------------------------------------------------------------------------------------------------
-    virtual void PlayerControllerChanged(APlayerController* NewPlayerController) override;
-    virtual void Deinitialize() override;
-    virtual ERouteUIInputResult ProcessInput(FKey Key, EInputEvent InputEvent) const override;
+	// Engine Overrides ------------------------------------------------------------------------------------------------
+	virtual void PlayerControllerChanged(APlayerController* NewPlayerController) override;
+	virtual void Deinitialize() override;
+	virtual ERouteUIInputResult ProcessInput(FKey Key, EInputEvent InputEvent) const override;
 
-    // Public API ------------------------------------------------------------------------------------------------------
-    void BeginChatInput(UWidget* InputWidget);
-    void EndChatInput(const UWidget* InputWidget);
-    bool IsGameplayInputBlocked() const;
+	// Public API ------------------------------------------------------------------------------------------------------
+	void BeginChatInput(UWidget* InputWidget);
+	void EndChatInput(const UWidget* InputWidget);
+	bool IsGameplayInputBlocked() const;
 
 protected:
-    // Internal Helpers ------------------------------------------------------------------------------------------------
-    virtual void SetActiveRoot(FActivatableTreeRootPtr NewActiveRoot) override;
-    virtual void ApplyUIInputConfig(const FUIInputConfig& NewConfig, bool bForceRefresh) override;
-    void ApplyDefaultInput();
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	virtual void SetActiveRoot(FActivatableTreeRootPtr NewActiveRoot) override;
+	virtual void ApplyUIInputConfig(const FUIInputConfig& NewConfig, bool bForceRefresh) override;
+	void ApplyDefaultInput();
 
 private:
-    FTSTicker::FDelegateHandle PendingInputConfigTickerHandle;
-    TWeakObjectPtr<UWidget> ChatInputWidget;
-    EPdGameplayInputPolicy AppliedGameplayPolicy = EPdGameplayInputPolicy::Allow;
-    mutable TSet<FKey> PressedKeys;
-    mutable TSet<FKey> KeysAwaitingRelease;
+	FTSTicker::FDelegateHandle PendingInputConfigTickerHandle;
+	TWeakObjectPtr<UWidget> ChatInputWidget;
+	EPdGameplayInputPolicy AppliedGameplayPolicy = EPdGameplayInputPolicy::Allow;
+	mutable TSet<FKey> PressedKeys;
+	mutable TSet<FKey> KeysAwaitingRelease;
 };

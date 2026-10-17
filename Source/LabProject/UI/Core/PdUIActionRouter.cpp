@@ -12,189 +12,189 @@
 
 void UPdUIActionRouter::PlayerControllerChanged(APlayerController* NewPlayerController)
 {
-    FTSTicker::RemoveTicker(PendingInputConfigTickerHandle);
-    PendingInputConfigTickerHandle.Reset();
-    Super::PlayerControllerChanged(NewPlayerController);
-    PressedKeys.Reset();
-    KeysAwaitingRelease.Reset();
-    ChatInputWidget.Reset();
-    AppliedGameplayPolicy = EPdGameplayInputPolicy::Allow;
-    ActiveInputConfig.Reset();
-    if (NewPlayerController)
-    {
-        ApplyDefaultInput();
-    }
+	FTSTicker::RemoveTicker(PendingInputConfigTickerHandle);
+	PendingInputConfigTickerHandle.Reset();
+	Super::PlayerControllerChanged(NewPlayerController);
+	PressedKeys.Reset();
+	KeysAwaitingRelease.Reset();
+	ChatInputWidget.Reset();
+	AppliedGameplayPolicy = EPdGameplayInputPolicy::Allow;
+	ActiveInputConfig.Reset();
+	if (NewPlayerController)
+	{
+		ApplyDefaultInput();
+	}
 }
 
 void UPdUIActionRouter::Deinitialize()
 {
-    FTSTicker::RemoveTicker(PendingInputConfigTickerHandle);
-    PendingInputConfigTickerHandle.Reset();
-    Super::Deinitialize();
+	FTSTicker::RemoveTicker(PendingInputConfigTickerHandle);
+	PendingInputConfigTickerHandle.Reset();
+	Super::Deinitialize();
 }
 
 void UPdUIActionRouter::BeginChatInput(UWidget* InputWidget)
 {
-    ChatInputWidget = InputWidget;
-    if (!GetActiveRoot().IsValid())
-    {
-        ApplyDefaultInput();
-    }
+	ChatInputWidget = InputWidget;
+	if (!GetActiveRoot().IsValid())
+	{
+		ApplyDefaultInput();
+	}
 }
 
 void UPdUIActionRouter::EndChatInput(const UWidget* InputWidget)
 {
-    if (ChatInputWidget.Get() != InputWidget)
-    {
-        return;
-    }
-    ChatInputWidget.Reset();
-    if (!GetActiveRoot().IsValid())
-    {
-        ApplyDefaultInput();
-    }
+	if (ChatInputWidget.Get() != InputWidget)
+	{
+		return;
+	}
+	ChatInputWidget.Reset();
+	if (!GetActiveRoot().IsValid())
+	{
+		ApplyDefaultInput();
+	}
 }
 
 void UPdUIActionRouter::SetActiveRoot(FActivatableTreeRootPtr NewActiveRoot)
 {
-    Super::SetActiveRoot(NewActiveRoot);
-    if (!GetActiveRoot().IsValid())
-    {
-        // UE 5.8은 Slate root 제거를 마친 뒤 ActiveInputConfig를 비운다.
-        // 그 정리가 끝난 다음 틱에 기본 정책을 복원한다.
-        PdTicker::RunNextTick(this, [this]()
-        {
-            if (!GetActiveRoot().IsValid())
-            {
-                ApplyDefaultInput();
-            }
-        });
-    }
+	Super::SetActiveRoot(NewActiveRoot);
+	if (!GetActiveRoot().IsValid())
+	{
+		// UE 5.8은 Slate root 제거를 마친 뒤 ActiveInputConfig를 비운다.
+		// 그 정리가 끝난 다음 틱에 기본 정책을 복원한다.
+		PdTicker::RunNextTick(this, [this]()
+		{
+			if (!GetActiveRoot().IsValid())
+			{
+				ApplyDefaultInput();
+			}
+		});
+	}
 }
 
 void UPdUIActionRouter::ApplyDefaultInput()
 {
-    UWidget* ChatInput = ChatInputWidget.Get();
-    FUIInputConfig Config(ChatInput ? ECommonInputMode::All : ECommonInputMode::Game,
-        EMouseCaptureMode::CapturePermanently_IncludingInitialMouseDown);
-    Config.bIgnoreMoveInput = Config.bIgnoreLookInput = ChatInput != nullptr;
-    ApplyUIInputConfig(Config, true);
-    if (ChatInput)
-    {
-        GetLocalPlayerChecked()->GetSlateOperations().SetUserFocus(ChatInput->TakeWidget());
-    }
+	UWidget* ChatInput = ChatInputWidget.Get();
+	FUIInputConfig Config(ChatInput ? ECommonInputMode::All : ECommonInputMode::Game,
+		EMouseCaptureMode::CapturePermanently_IncludingInitialMouseDown);
+	Config.bIgnoreMoveInput = Config.bIgnoreLookInput = ChatInput != nullptr;
+	ApplyUIInputConfig(Config, true);
+	if (ChatInput)
+	{
+		GetLocalPlayerChecked()->GetSlateOperations().SetUserFocus(ChatInput->TakeWidget());
+	}
 }
 
 bool UPdUIActionRouter::IsGameplayInputBlocked() const
 {
-    return AppliedGameplayPolicy == EPdGameplayInputPolicy::Block;
+	return AppliedGameplayPolicy == EPdGameplayInputPolicy::Block;
 }
 
 void UPdUIActionRouter::ApplyUIInputConfig(const FUIInputConfig& NewConfig, bool bForceRefresh)
 {
-    FTSTicker::RemoveTicker(PendingInputConfigTickerHandle);
-    PendingInputConfigTickerHandle.Reset();
+	FTSTicker::RemoveTicker(PendingInputConfigTickerHandle);
+	PendingInputConfigTickerHandle.Reset();
 
-    APlayerController* Controller = GetLocalPlayerChecked()->GetPlayerController(GetWorld());
-    if (!IsValid(Controller) || Controller->IsActorBeingDestroyed())
-    {
-        return;
-    }
+	APlayerController* Controller = GetLocalPlayerChecked()->GetPlayerController(GetWorld());
+	if (!IsValid(Controller) || Controller->IsActorBeingDestroyed())
+	{
+		return;
+	}
 
-    UEnhancedInputLocalPlayerSubsystem* InputSubsystem = GetLocalPlayerChecked()->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>();
-    if (InputSubsystem && !InputSubsystem->GetPlayerInput())
-    {
-        // 접속/Travel 중에는 Controller가 먼저 연결된다. 입력 객체가 준비되면 최신 요청만 적용한다.
-        const TWeakObjectPtr<APlayerController> PendingController = Controller;
-        PendingInputConfigTickerHandle = FTSTicker::GetCoreTicker().AddTicker(
-            FTickerDelegate::CreateWeakLambda(this, [this, PendingController, NewConfig](float)
-        {
-            APlayerController* CurrentController = GetLocalPlayerChecked()->GetPlayerController(GetWorld());
-            if (PendingController.IsValid() && PendingController.Get() == CurrentController && !CurrentController->IsActorBeingDestroyed())
-            {
-                const UEnhancedInputLocalPlayerSubsystem* Input = GetLocalPlayerChecked()->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>();
-                if (Input && !Input->GetPlayerInput())
-                {
-                    return true;
-                }
+	UEnhancedInputLocalPlayerSubsystem* InputSubsystem = GetLocalPlayerChecked()->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>();
+	if (InputSubsystem && !InputSubsystem->GetPlayerInput())
+	{
+		// 접속/Travel 중에는 Controller가 먼저 연결된다. 입력 객체가 준비되면 최신 요청만 적용한다.
+		const TWeakObjectPtr<APlayerController> PendingController = Controller;
+		PendingInputConfigTickerHandle = FTSTicker::GetCoreTicker().AddTicker(
+			FTickerDelegate::CreateWeakLambda(this, [this, PendingController, NewConfig](float)
+		{
+			APlayerController* CurrentController = GetLocalPlayerChecked()->GetPlayerController(GetWorld());
+			if (PendingController.IsValid() && PendingController.Get() == CurrentController && !CurrentController->IsActorBeingDestroyed())
+			{
+				const UEnhancedInputLocalPlayerSubsystem* Input = GetLocalPlayerChecked()->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>();
+				if (Input && !Input->GetPlayerInput())
+				{
+					return true;
+				}
 
-                PendingInputConfigTickerHandle.Reset();
-                ApplyUIInputConfig(NewConfig, true);
-            }
-            PendingInputConfigTickerHandle.Reset();
-            return false;
-        }));
-        return;
-    }
+				PendingInputConfigTickerHandle.Reset();
+				ApplyUIInputConfig(NewConfig, true);
+			}
+			PendingInputConfigTickerHandle.Reset();
+			return false;
+		}));
+		return;
+	}
 
-    const bool bWasBlocked = IsGameplayInputBlocked();
-    const UCommonActivatableWidget* ActiveScreen = GetLeafmostActivatableWidget();
-    const UUiScreen* Adapter = Cast<UUiScreen>(ActiveScreen);
-    // 기존 위젯 어댑터는 선언한 게임플레이 정책을 쓰고, 직접 전환한 메뉴나 채팅 입력은 게임 입력을 막는다.
-    if (Adapter)
-    {
-        AppliedGameplayPolicy = Adapter->GameplayInputPolicy;
-    }
-    else if (ActiveScreen || ChatInputWidget.IsValid())
-    {
-        AppliedGameplayPolicy = EPdGameplayInputPolicy::Block;
-    }
-    else
-    {
-        AppliedGameplayPolicy = EPdGameplayInputPolicy::Allow;
-    }
-    const bool bWillBlock = IsGameplayInputBlocked();
-    if (bWasBlocked != bWillBlock)
-    {
-        KeysAwaitingRelease.Append(PressedKeys);
-    }
-    if (bWasBlocked && !bWillBlock && Controller)
-    {
-        // 차단 해제 때만 정리한다. Allow 정책 재적용은 누른 입력을 유지한다.
-        Controller->FlushPressedKeys();
-    }
-    if (!bWasBlocked && bWillBlock && Controller)
-    {
-        if (UControllerInputComponent* Input = Controller->FindComponentByClass<UControllerInputComponent>())
-        {
-            Input->ReleaseGameplayInput();
-        }
-    }
-    if (NewConfig.GetInputMode() == ECommonInputMode::Menu && GetActiveInputMode() != ECommonInputMode::Menu && Controller)
-    {
-        if (UControllerInputComponent* Input = Controller->FindComponentByClass<UControllerInputComponent>())
-        {
-            Input->ReleaseHeldUiInput();
-        }
-    }
-    Super::ApplyUIInputConfig(NewConfig, bForceRefresh);
-    if (Controller)
-    {
-        // CommonUI가 입력을 분배하므로 이전 UIOnly의 전역 Viewport 차단은 사용하지 않는다.
-        if (UGameViewportClient* Viewport = GetLocalPlayerChecked()->ViewportClient)
-        {
-            Viewport->SetIgnoreInput(false);
-        }
-        const bool bShowCursor = NewConfig.GetMouseCaptureMode() == EMouseCaptureMode::NoCapture;
-        Controller->SetShowMouseCursor(bShowCursor);
-        Controller->bEnableClickEvents = bShowCursor;
-        Controller->bEnableMouseOverEvents = bShowCursor;
-    }
+	const bool bWasBlocked = IsGameplayInputBlocked();
+	const UCommonActivatableWidget* ActiveScreen = GetLeafmostActivatableWidget();
+	const UUiScreen* Adapter = Cast<UUiScreen>(ActiveScreen);
+	// 기존 위젯 어댑터는 선언한 게임플레이 정책을 쓰고, 직접 전환한 메뉴나 채팅 입력은 게임 입력을 막는다.
+	if (Adapter)
+	{
+		AppliedGameplayPolicy = Adapter->GameplayInputPolicy;
+	}
+	else if (ActiveScreen || ChatInputWidget.IsValid())
+	{
+		AppliedGameplayPolicy = EPdGameplayInputPolicy::Block;
+	}
+	else
+	{
+		AppliedGameplayPolicy = EPdGameplayInputPolicy::Allow;
+	}
+	const bool bWillBlock = IsGameplayInputBlocked();
+	if (bWasBlocked != bWillBlock)
+	{
+		KeysAwaitingRelease.Append(PressedKeys);
+	}
+	if (bWasBlocked && !bWillBlock && Controller)
+	{
+		// 차단 해제 때만 정리한다. Allow 정책 재적용은 누른 입력을 유지한다.
+		Controller->FlushPressedKeys();
+	}
+	if (!bWasBlocked && bWillBlock && Controller)
+	{
+		if (UControllerInputComponent* Input = Controller->FindComponentByClass<UControllerInputComponent>())
+		{
+			Input->ReleaseGameplayInput();
+		}
+	}
+	if (NewConfig.GetInputMode() == ECommonInputMode::Menu && GetActiveInputMode() != ECommonInputMode::Menu && Controller)
+	{
+		if (UControllerInputComponent* Input = Controller->FindComponentByClass<UControllerInputComponent>())
+		{
+			Input->ReleaseHeldUiInput();
+		}
+	}
+	Super::ApplyUIInputConfig(NewConfig, bForceRefresh);
+	if (Controller)
+	{
+		// CommonUI가 입력을 분배하므로 이전 UIOnly의 전역 Viewport 차단은 사용하지 않는다.
+		if (UGameViewportClient* Viewport = GetLocalPlayerChecked()->ViewportClient)
+		{
+			Viewport->SetIgnoreInput(false);
+		}
+		const bool bShowCursor = NewConfig.GetMouseCaptureMode() == EMouseCaptureMode::NoCapture;
+		Controller->SetShowMouseCursor(bShowCursor);
+		Controller->bEnableClickEvents = bShowCursor;
+		Controller->bEnableMouseOverEvents = bShowCursor;
+	}
 }
 
 ERouteUIInputResult UPdUIActionRouter::ProcessInput(FKey Key, EInputEvent InputEvent) const
 {
-    if (InputEvent == IE_Pressed)
-    {
-        PressedKeys.Add(Key);
-    }
-    if (InputEvent == IE_Released)
-    {
-        PressedKeys.Remove(Key);
-        KeysAwaitingRelease.Remove(Key);
-    }
-    const ERouteUIInputResult Result = Super::ProcessInput(Key, InputEvent);
-    // UI를 여닫기 전에 누른 키는 실제 Release 전까지 게임으로 다시 전달하지 않는다.
-    return Result == ERouteUIInputResult::Unhandled && KeysAwaitingRelease.Contains(Key)
-        ? ERouteUIInputResult::BlockGameInput : Result;
+	if (InputEvent == IE_Pressed)
+	{
+		PressedKeys.Add(Key);
+	}
+	if (InputEvent == IE_Released)
+	{
+		PressedKeys.Remove(Key);
+		KeysAwaitingRelease.Remove(Key);
+	}
+	const ERouteUIInputResult Result = Super::ProcessInput(Key, InputEvent);
+	// UI를 여닫기 전에 누른 키는 실제 Release 전까지 게임으로 다시 전달하지 않는다.
+	return Result == ERouteUIInputResult::Unhandled && KeysAwaitingRelease.Contains(Key)
+		? ERouteUIInputResult::BlockGameInput : Result;
 }

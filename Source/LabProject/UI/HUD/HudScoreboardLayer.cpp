@@ -51,12 +51,12 @@ void UHudScoreboardLayer::Show()
 
 	Refresh();
 	if (!ScoreboardScreen)
-    {
-        ScoreboardScreen = UUiScreen::CreateBlocking(Controller, ScoreboardWidget, ScoreboardWidget,
-            FSimpleDelegate::CreateUObject(this, &ThisClass::Hide), ECommonInputMode::All,
-            EMouseCaptureMode::CapturePermanently_IncludingInitialMouseDown);
-        Controller->GetLocalPlayer()->GetSubsystem<UUiSubsystem>()->PushScreen(ScoreboardScreen, EUiScreenLayer::Overlay);
-    }
+	{
+		ScoreboardScreen = UUiScreen::CreateBlocking(Controller, ScoreboardWidget, ScoreboardWidget,
+			FSimpleDelegate::CreateUObject(this, &ThisClass::Hide), ECommonInputMode::All,
+			EMouseCaptureMode::CapturePermanently_IncludingInitialMouseDown);
+		Controller->GetLocalPlayer()->GetSubsystem<UUiSubsystem>()->PushScreen(ScoreboardScreen, EUiScreenLayer::Overlay);
+	}
 
 	if (UWorld* World = Hud->GetWorld())
 	{
@@ -70,11 +70,11 @@ void UHudScoreboardLayer::Show()
 
 void UHudScoreboardLayer::Hide()
 {
-    if (ScoreboardScreen)
-    {
-        ScoreboardScreen->DeactivateWidget();
-        ScoreboardScreen = nullptr;
-    }
+	if (ScoreboardScreen)
+	{
+		ScoreboardScreen->DeactivateWidget();
+		ScoreboardScreen = nullptr;
+	}
 
 	if (APdHUD* Hud = OwnerHud.Get())
 	{

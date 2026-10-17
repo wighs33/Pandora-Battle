@@ -11,24 +11,24 @@ class UOverlay;
 UCLASS()
 class LABPROJECT_API UUiLayerRoot : public UUserWidget
 {
-    GENERATED_BODY()
+	GENERATED_BODY()
 
 public:
-    static constexpr int32 ViewportZOrder = 1000;
-    static constexpr int32 TooltipZOrder = 1100;
+	static constexpr int32 ViewportZOrder = 1000;
+	static constexpr int32 TooltipZOrder = 1100;
 
-    // Engine Overrides ------------------------------------------------------------------------------------------------
-    virtual TSharedRef<SWidget> RebuildWidget() override;
+	// Engine Overrides ------------------------------------------------------------------------------------------------
+	virtual TSharedRef<SWidget> RebuildWidget() override;
 
-    UPROPERTY(Transient)
-    TObjectPtr<UCommonActivatableWidgetStack> ScreenStack;
+	UPROPERTY(Transient)
+	TObjectPtr<UCommonActivatableWidgetStack> ScreenStack;
 
-    UPROPERTY(Transient)
-    TObjectPtr<UOverlay> OverlayLayer;
+	UPROPERTY(Transient)
+	TObjectPtr<UOverlay> OverlayLayer;
 
-    UPROPERTY(Transient)
-    TObjectPtr<UCommonActivatableWidgetStack> MenuStack;
+	UPROPERTY(Transient)
+	TObjectPtr<UCommonActivatableWidgetStack> MenuStack;
 
-    UPROPERTY(Transient)
-    TObjectPtr<UCommonActivatableWidgetStack> ModalStack;
+	UPROPERTY(Transient)
+	TObjectPtr<UCommonActivatableWidgetStack> ModalStack;
 };

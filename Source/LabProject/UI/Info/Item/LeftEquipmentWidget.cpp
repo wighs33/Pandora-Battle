@@ -570,6 +570,6 @@ FGameplayTag ULeftEquipmentWidget::ResolveEquipTypeTagForSlot(const UEquipSlotWi
 
 void ULeftEquipmentWidget::OnMenuLanguageChanged()
 {
- RebuildEquipSlotNameList();
- ApplyEquipSlotNames();
+	RebuildEquipSlotNameList();
+	ApplyEquipSlotNames();
 }

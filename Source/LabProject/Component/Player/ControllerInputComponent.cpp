@@ -737,31 +737,31 @@ UCombatComponent* UControllerInputComponent::GetPlayerCombatComponent() const
 
 bool UControllerInputComponent::IsGameplayInputBlockedByUi() const
 {
-    const IHudInputInterface* HUD = GetHudInput();
-    return HUD && HUD->IsGameplayInputBlockedByUi();
+	const IHudInputInterface* HUD = GetHudInput();
+	return HUD && HUD->IsGameplayInputBlockedByUi();
 }
 
 void UControllerInputComponent::ReleaseGameplayInput()
 {
-    if (UCombatComponent* Combat = GetPlayerCombatComponent())
-    {
-        Combat->StopPrimaryAttack();
-        Combat->StopAim();
-    }
-    if (APdPlayer* Character = GetPlayerCharacter())
-    {
-        Character->StopJumping();
-        Character->UnCrouch();
-        Character->ConsumeMovementInputVector();
-        if (UPdAbilitySystemComponent* AbilitySystem = Character->GetPdAbilitySystemComponent())
-        {
-            const FGameplayTag InputTags[] = {LabGameplayTags::Input_Ability_Movement_Grapple,
-                LabGameplayTags::Input_Ability_Skill1, LabGameplayTags::Input_Ability_Skill2,
-                LabGameplayTags::Input_Ability_Skill3, LabGameplayTags::Input_Ability_Skill4};
-            for (const FGameplayTag Tag : InputTags)
-            {
-                AbilitySystem->HandleAbilityInputReleased(Tag);
-            }
-        }
-    }
+	if (UCombatComponent* Combat = GetPlayerCombatComponent())
+	{
+		Combat->StopPrimaryAttack();
+		Combat->StopAim();
+	}
+	if (APdPlayer* Character = GetPlayerCharacter())
+	{
+		Character->StopJumping();
+		Character->UnCrouch();
+		Character->ConsumeMovementInputVector();
+		if (UPdAbilitySystemComponent* AbilitySystem = Character->GetPdAbilitySystemComponent())
+		{
+			const FGameplayTag InputTags[] = {LabGameplayTags::Input_Ability_Movement_Grapple,
+				LabGameplayTags::Input_Ability_Skill1, LabGameplayTags::Input_Ability_Skill2,
+				LabGameplayTags::Input_Ability_Skill3, LabGameplayTags::Input_Ability_Skill4};
+			for (const FGameplayTag Tag : InputTags)
+			{
+				AbilitySystem->HandleAbilityInputReleased(Tag);
+			}
+		}
+	}
 }

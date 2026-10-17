@@ -158,11 +158,11 @@ void UGameResultWidget::HandleExitClicked()
 {
 	if (bCloseOnlyOnExit)
 	{
-        if (UCommonActivatableWidget* Screen = UCommonUIActionRouterBase::FindOwningActivatable(GetCachedWidget(), GetOwningLocalPlayer()))
-        {
-            Screen->DeactivateWidget();
-        }
-        RemoveFromParent();
+		if (UCommonActivatableWidget* Screen = UCommonUIActionRouterBase::FindOwningActivatable(GetCachedWidget(), GetOwningLocalPlayer()))
+		{
+			Screen->DeactivateWidget();
+		}
+		RemoveFromParent();
 		return;
 	}
 
@@ -196,11 +196,11 @@ void UGameResultWidget::HandleExitClicked()
 		return;
 	}
 
-    if (UCommonActivatableWidget* Screen = UCommonUIActionRouterBase::FindOwningActivatable(GetCachedWidget(), GetOwningLocalPlayer()))
-    {
-        Screen->DeactivateWidget();
-    }
-    RemoveFromParent();
+	if (UCommonActivatableWidget* Screen = UCommonUIActionRouterBase::FindOwningActivatable(GetCachedWidget(), GetOwningLocalPlayer()))
+	{
+		Screen->DeactivateWidget();
+	}
+	RemoveFromParent();
 }
 
 // 서버가 보낸 제목은 서버 쪽 언어라, 끝난 사유와 이긴 팀으로 이 화면의 언어에서 다시 만든다.
@@ -357,12 +357,12 @@ void UGameResultWidget::SetWidgetVisibleForDisplayMode(UWidget* Widget, const bo
 
 void UGameResultWidget::ShowResultScreen()
 {
-    APlayerController* Controller = GetOwningPlayer();
-    if (!Controller || !Controller->GetLocalPlayer())
-    {
-    	return;
-    }
-    // 퇴장과 서버 Travel은 기존 종료 버튼에서만 실행한다.
-    UUiScreen* Screen = UUiScreen::CreateBlocking(Controller, this, Btn_Exit, FSimpleDelegate::CreateLambda([]() {}));
-    Controller->GetLocalPlayer()->GetSubsystem<UUiSubsystem>()->PushScreen(Screen, EUiScreenLayer::Modal);
+	APlayerController* Controller = GetOwningPlayer();
+	if (!Controller || !Controller->GetLocalPlayer())
+	{
+		return;
+	}
+	// 퇴장과 서버 Travel은 기존 종료 버튼에서만 실행한다.
+	UUiScreen* Screen = UUiScreen::CreateBlocking(Controller, this, Btn_Exit, FSimpleDelegate::CreateLambda([]() {}));
+	Controller->GetLocalPlayer()->GetSubsystem<UUiSubsystem>()->PushScreen(Screen, EUiScreenLayer::Modal);
 }

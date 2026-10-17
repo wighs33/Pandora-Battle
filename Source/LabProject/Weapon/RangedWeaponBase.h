@@ -8,68 +8,68 @@
 UCLASS(Abstract, BlueprintType, Blueprintable)
 class LABPROJECT_API ARangedWeaponBase : public AWeaponBase
 {
-    GENERATED_BODY()
+	GENERATED_BODY()
 
 public:
-    // Public API ------------------------------------------------------------------------------------------------------
-    bool SupportsAimInput() const;
-    bool CanUseRangedWeapon(const ACharacterBase* AttackingCharacter, bool bRequirePlayerAim) const;
-    FGameplayTag GetAimCrosshairWidgetTag() const;
-    const FWeaponAimCameraSettings& GetAimCameraSettings() const;
+	// Public API ------------------------------------------------------------------------------------------------------
+	bool SupportsAimInput() const;
+	bool CanUseRangedWeapon(const ACharacterBase* AttackingCharacter, bool bRequirePlayerAim) const;
+	FGameplayTag GetAimCrosshairWidgetTag() const;
+	const FWeaponAimCameraSettings& GetAimCameraSettings() const;
 
-    // AI가 원거리 무기로 노리는 지점. 대상 충돌 캡슐의 가운데보다 반 높이의 절반만큼 위다.
-    static FVector GetAITargetAimLocation(const AActor* TargetActor);
+	// AI가 원거리 무기로 노리는 지점. 대상 충돌 캡슐의 가운데보다 반 높이의 절반만큼 위다.
+	static FVector GetAITargetAimLocation(const AActor* TargetActor);
 
-    // Event Handlers --------------------------------------------------------------------------------------------------
-    virtual bool HandleAimStart(APdPlayer* PlayerCharacter);
-    virtual void HandleAimEnd(APdPlayer* PlayerCharacter);
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	virtual bool HandleAimStart(APdPlayer* PlayerCharacter);
+	virtual void HandleAimEnd(APdPlayer* PlayerCharacter);
 
 protected:
-    // Internal Helpers ------------------------------------------------------------------------------------------------
-    static TArray<TEnumAsByte<EObjectTypeQuery>> MakeRangedTraceObjectTypes(TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes);
-    bool ApplyDamageFromAuthoritativeRangedTrace(const FHitResult& HitResult);
+	// Internal Helpers ------------------------------------------------------------------------------------------------
+	static TArray<TEnumAsByte<EObjectTypeQuery>> MakeRangedTraceObjectTypes(TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes);
+	bool ApplyDamageFromAuthoritativeRangedTrace(const FHitResult& HitResult);
 
-    bool CanServerUseRangedWeapon(const ACharacterBase* AttackingCharacter, bool bRequirePlayerAim) const;
+	bool CanServerUseRangedWeapon(const ACharacterBase* AttackingCharacter, bool bRequirePlayerAim) const;
 
-    // 엔진 trace API는 비const 액터 목록만 받으므로, 사수와 무기를 무시 목록에 넣는 캐스트를 이 함수 한 곳에 둔다.
-    TArray<AActor*> MakeShotIgnoredActors(AActor* ShooterCharacter) const;
+	// 엔진 trace API는 비const 액터 목록만 받으므로, 사수와 무기를 무시 목록에 넣는 캐스트를 이 함수 한 곳에 둔다.
+	TArray<AActor*> MakeShotIgnoredActors(AActor* ShooterCharacter) const;
 
-    bool ResolveServerAimViewPoint(
-        const APdPlayer* PlayerCharacter,
-        const FVector& RequestedViewLocation,
-        const FVector& RequestedViewDirection,
-        FVector& OutViewLocation,
-        FVector& OutViewDirection) const;
+	bool ResolveServerAimViewPoint(
+		const APdPlayer* PlayerCharacter,
+		const FVector& RequestedViewLocation,
+		const FVector& RequestedViewDirection,
+		FVector& OutViewLocation,
+		FVector& OutViewDirection) const;
 
-    bool ResolveAimTargetBeyondLaunchPoint(
-        const FVector& ViewLocation,
-        const FVector& ViewDirection,
-        const FVector& LaunchStartLocation,
-        float TraceRange,
-        const TArray<TEnumAsByte<EObjectTypeQuery>>& ObjectTypes,
-        const TArray<AActor*>& ActorsToIgnore,
-        EDrawDebugTrace::Type DebugDrawType,
-        FVector& OutTargetLocation,
-        FHitResult* OutAimHitResult = nullptr,
-        const TOptional<double>& RewindTime = {}) const;
+	bool ResolveAimTargetBeyondLaunchPoint(
+		const FVector& ViewLocation,
+		const FVector& ViewDirection,
+		const FVector& LaunchStartLocation,
+		float TraceRange,
+		const TArray<TEnumAsByte<EObjectTypeQuery>>& ObjectTypes,
+		const TArray<AActor*>& ActorsToIgnore,
+		EDrawDebugTrace::Type DebugDrawType,
+		FVector& OutTargetLocation,
+		FHitResult* OutAimHitResult = nullptr,
+		const TOptional<double>& RewindTime = {}) const;
 
-    // 되감을 시각이 있으면 기록된 캐릭터를 그 시각 위치로 판정하고(ULagCompensationSubsystem), 없으면 지금 월드로 판정한다.
-    bool LineTraceSingleForRangedAim(
-        const TOptional<double>& RewindTime,
-        const FVector& Start,
-        const FVector& End,
-        const TArray<TEnumAsByte<EObjectTypeQuery>>& ObjectTypes,
-        const TArray<AActor*>& ActorsToIgnore,
-        EDrawDebugTrace::Type DebugDrawType,
-        FHitResult& OutHitResult) const;
+	// 되감을 시각이 있으면 기록된 캐릭터를 그 시각 위치로 판정하고(ULagCompensationSubsystem), 없으면 지금 월드로 판정한다.
+	bool LineTraceSingleForRangedAim(
+		const TOptional<double>& RewindTime,
+		const FVector& Start,
+		const FVector& End,
+		const TArray<TEnumAsByte<EObjectTypeQuery>>& ObjectTypes,
+		const TArray<AActor*>& ActorsToIgnore,
+		EDrawDebugTrace::Type DebugDrawType,
+		FHitResult& OutHitResult) const;
 
-    bool SphereTraceMultiForRangedShot(
-        const TOptional<double>& RewindTime,
-        const FVector& Start,
-        const FVector& End,
-        float Radius,
-        const TArray<TEnumAsByte<EObjectTypeQuery>>& ObjectTypes,
-        const TArray<AActor*>& ActorsToIgnore,
-        EDrawDebugTrace::Type DebugDrawType,
-        TArray<FHitResult>& OutHitResults) const;
+	bool SphereTraceMultiForRangedShot(
+		const TOptional<double>& RewindTime,
+		const FVector& Start,
+		const FVector& End,
+		float Radius,
+		const TArray<TEnumAsByte<EObjectTypeQuery>>& ObjectTypes,
+		const TArray<AActor*>& ActorsToIgnore,
+		EDrawDebugTrace::Type DebugDrawType,
+		TArray<FHitResult>& OutHitResults) const;
 };

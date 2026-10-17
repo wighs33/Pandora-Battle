@@ -404,45 +404,45 @@ APlayerController* UUiSubsystem::GetLocalPlayerController() const
 
 void UUiSubsystem::PushScreen(UCommonActivatableWidget* Screen, EUiScreenLayer Layer)
 {
-    APlayerController* Controller = GetLocalPlayerController();
-    if (!Controller || !Screen || bIsDeinitializing)
-    {
-    	return;
-    }
-    if (!ScreenRoot || ScreenRoot->GetWorld() != Controller->GetWorld())
-    {
-        if (ScreenRoot)
-        {
-        	ScreenRoot->RemoveFromParent();
-        }
-        ScreenRoot = CreateWidget<UUiLayerRoot>(Controller);
-        ScreenRoot->AddToPlayerScreen(UUiLayerRoot::ViewportZOrder);
-    }
-    switch (Layer)
-    {
-    case EUiScreenLayer::Screen: ScreenRoot->ScreenStack->AddWidgetInstance(*Screen); break;
-    case EUiScreenLayer::Menu: ScreenRoot->MenuStack->AddWidgetInstance(*Screen); break;
-    case EUiScreenLayer::Modal: ScreenRoot->ModalStack->AddWidgetInstance(*Screen); break;
-    case EUiScreenLayer::Overlay:
-        // 선택창과 점수판을 겹쳐 표시한다. 입력 우선순위는 CommonUI가 결정한다.
-        UOverlaySlot* Slot = ScreenRoot->OverlayLayer->AddChildToOverlay(Screen);
-        Slot->SetHorizontalAlignment(HAlign_Fill);
-        Slot->SetVerticalAlignment(VAlign_Fill);
-        Screen->OnDeactivated().AddWeakLambda(Screen, [Screen]() { Screen->RemoveFromParent(); });
-        Screen->ActivateWidget();
-        break;
-    }
+	APlayerController* Controller = GetLocalPlayerController();
+	if (!Controller || !Screen || bIsDeinitializing)
+	{
+		return;
+	}
+	if (!ScreenRoot || ScreenRoot->GetWorld() != Controller->GetWorld())
+	{
+		if (ScreenRoot)
+		{
+			ScreenRoot->RemoveFromParent();
+		}
+		ScreenRoot = CreateWidget<UUiLayerRoot>(Controller);
+		ScreenRoot->AddToPlayerScreen(UUiLayerRoot::ViewportZOrder);
+	}
+	switch (Layer)
+	{
+	case EUiScreenLayer::Screen: ScreenRoot->ScreenStack->AddWidgetInstance(*Screen); break;
+	case EUiScreenLayer::Menu: ScreenRoot->MenuStack->AddWidgetInstance(*Screen); break;
+	case EUiScreenLayer::Modal: ScreenRoot->ModalStack->AddWidgetInstance(*Screen); break;
+	case EUiScreenLayer::Overlay:
+		// 선택창과 점수판을 겹쳐 표시한다. 입력 우선순위는 CommonUI가 결정한다.
+		UOverlaySlot* Slot = ScreenRoot->OverlayLayer->AddChildToOverlay(Screen);
+		Slot->SetHorizontalAlignment(HAlign_Fill);
+		Slot->SetVerticalAlignment(VAlign_Fill);
+		Screen->OnDeactivated().AddWeakLambda(Screen, [Screen]() { Screen->RemoveFromParent(); });
+		Screen->ActivateWidget();
+		break;
+	}
 }
 
 void UUiSubsystem::PlayerControllerChanged(APlayerController* NewPlayerController)
 {
-    CloseGameSettings();
-    Super::PlayerControllerChanged(NewPlayerController);
-    if (ScreenRoot)
-    {
-    	ScreenRoot->RemoveFromParent();
-    }
-    ScreenRoot = nullptr;
+	CloseGameSettings();
+	Super::PlayerControllerChanged(NewPlayerController);
+	if (ScreenRoot)
+	{
+		ScreenRoot->RemoveFromParent();
+	}
+	ScreenRoot = nullptr;
 }
 
 void UUiSubsystem::OpenGameSettings(UUserWidget* OwnerMenu)

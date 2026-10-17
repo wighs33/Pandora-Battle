@@ -26,748 +26,748 @@ DEFINE_LOG_CATEGORY_STATIC(LogProjectileAbility, Log, All);
 
 USkillProjectileCastAction::USkillProjectileCastAction()
 {
-    Settings.FireEventTag = LabGameplayTags::Event_ShootProjectile;
-    Settings.ProjectileActorClass = ASkillProjectile::StaticClass();
-    Settings.ProjectileSpeed = 2000.0;
-    Settings.ProjectileRadius = 50.0;
-    Settings.SpawnLocationOffset = FVector(0.0, 0.0, 80.0);
-    Settings.MinimumForwardSpawnOffset = 140.0;
-    Settings.TargetTraceMaxRange = 999999.0;
-    Settings.TargetDecalSize = 512.0;
-    Settings.GroundTargetActorClass = AGroundTargetActor::StaticClass();
+	Settings.FireEventTag = LabGameplayTags::Event_ShootProjectile;
+	Settings.ProjectileActorClass = ASkillProjectile::StaticClass();
+	Settings.ProjectileSpeed = 2000.0;
+	Settings.ProjectileRadius = 50.0;
+	Settings.SpawnLocationOffset = FVector(0.0, 0.0, 80.0);
+	Settings.MinimumForwardSpawnOffset = 140.0;
+	Settings.TargetTraceMaxRange = 999999.0;
+	Settings.TargetDecalSize = 512.0;
+	Settings.GroundTargetActorClass = AGroundTargetActor::StaticClass();
 }
 
 void USkillProjectileCastAction::OnStart()
 {
-    bEndAfterProjectileFired = false;
-    bPausedForPlayerAim = false;
-    bPlayerProjectileConfirmed = false;
-    bProjectileExecutionRequested = false;
-    bProjectileSpawnSucceeded = false;
-    bWaitingForPlayerConfirm = false;
-    bCleaningUpTargetDataTask = false;
-    ReadiedProjectile = nullptr;
+	bEndAfterProjectileFired = false;
+	bPausedForPlayerAim = false;
+	bPlayerProjectileConfirmed = false;
+	bProjectileExecutionRequested = false;
+	bProjectileSpawnSucceeded = false;
+	bWaitingForPlayerConfirm = false;
+	bCleaningUpTargetDataTask = false;
+	ReadiedProjectile = nullptr;
 
-    const USkillDefinition* Skill = GetAbility()->GetSourceSkillDataAsset();
-    if (!Skill || !Settings.ProjectileActorClass || GetConfiguredProjectileSpeed() <= 0.0f)
-    {
-        Finish(false);
-        return;
-    }
+	const USkillDefinition* Skill = GetAbility()->GetSourceSkillDataAsset();
+	if (!Skill || !Settings.ProjectileActorClass || GetConfiguredProjectileSpeed() <= 0.0f)
+	{
+		Finish(false);
+		return;
+	}
 
-    StartProjectileCast();
+	StartProjectileCast();
 }
 
 void USkillProjectileCastAction::OnStop()
 {
-    CleanupAimingState();
-    ClearSocketBarrageState(true);
+	CleanupAimingState();
+	ClearSocketBarrageState(true);
 }
 
 void USkillProjectileCastAction::HandleMontageFinished()
 {
-    if (!bProjectileExecutionRequested)
-    {
-       if (GetAbility()->HasPlayerController() && !bPlayerProjectileConfirmed)
-       {
-          if (!bWaitingForPlayerConfirm)
-          {
-             StartPlayerAiming();
-          }
-          return;
-       }
-       FireAtDefaultTarget();
-       return;
-    }
+	if (!bProjectileExecutionRequested)
+	{
+		if (GetAbility()->HasPlayerController() && !bPlayerProjectileConfirmed)
+		{
+			if (!bWaitingForPlayerConfirm)
+			{
+				StartPlayerAiming();
+			}
+			return;
+		}
+		FireAtDefaultTarget();
+		return;
+	}
 
-    if (IsSocketBarrageActive() || ShouldWaitForServerSocketBarrageEnd())
-    {
-       bSocketBarrageEndAbilityAfterFire = true;
-       return;
-    }
-    Finish();
+	if (IsSocketBarrageActive() || ShouldWaitForServerSocketBarrageEnd())
+	{
+		bSocketBarrageEndAbilityAfterFire = true;
+		return;
+	}
+	Finish();
 }
 
 void USkillProjectileCastAction::HandleShootProjectileEvent(FGameplayEventData Payload)
 {
-    static_cast<void>(Payload);
+	static_cast<void>(Payload);
 
-    if (!GetAbility()->HasPlayerController())
-    {
-        FireAtCurrentTargetOrFallback();
-        return;
-    }
+	if (!GetAbility()->HasPlayerController())
+	{
+		FireAtCurrentTargetOrFallback();
+		return;
+	}
 
-    if (bPlayerProjectileConfirmed || bPausedForPlayerAim)
-    {
-        return;
-    }
+	if (bPlayerProjectileConfirmed || bPausedForPlayerAim)
+	{
+		return;
+	}
 
-    bPausedForPlayerAim = true;
-    PauseProjectileMontageForAiming();
-    StartPlayerAiming();
+	bPausedForPlayerAim = true;
+	PauseProjectileMontageForAiming();
+	StartPlayerAiming();
 }
 
 void USkillProjectileCastAction::FireAtCurrentTargetOrFallback()
 {
-    if (!(IsRunning() && GetAbility()->CanRunActions()))
-    {
-        return;
-    }
+	if (!(IsRunning() && GetAbility()->CanRunActions()))
+	{
+		return;
+	}
 
-    AActor* AttackTarget = GetAbility()->GetAttackTargetFromAvatar();
-    if (!IsValid(AttackTarget))
-    {
-        FireAtDefaultTarget();
-        return;
-    }
+	AActor* AttackTarget = GetAbility()->GetAttackTargetFromAvatar();
+	if (!IsValid(AttackTarget))
+	{
+		FireAtDefaultTarget();
+		return;
+	}
 
-    if (ExecuteProjectileShot(AttackTarget->GetActorLocation()))
-    {
-        TryFinishAfterProjectileFired();
-    }
+	if (ExecuteProjectileShot(AttackTarget->GetActorLocation()))
+	{
+		TryFinishAfterProjectileFired();
+	}
 }
 
 void USkillProjectileCastAction::HandleConfirmPressed()
 {
-    if (!bWaitingForPlayerConfirm)
-    {
-       return;
-    }
-    ConfirmPlayerShot();
+	if (!bWaitingForPlayerConfirm)
+	{
+		return;
+	}
+	ConfirmPlayerShot();
 }
 
 void USkillProjectileCastAction::HandleCancelPressed()
 {
-    if (!GetAbility()->CanBeCanceled())
-    {
-       GetAbility()->SetCanBeCanceled(true);
-    }
-    Finish(false);
+	if (!GetAbility()->CanBeCanceled())
+	{
+		GetAbility()->SetCanBeCanceled(true);
+	}
+	Finish(false);
 }
 
 void USkillProjectileCastAction::StartPlayerAiming()
 {
-    bWaitingForPlayerConfirm = true;
-    if (const USkillDefinition* SkillDataAsset = GetAbility()->GetSourceSkillDataAsset();
-       SkillDataAsset && SkillDataAsset->Movement.bLockMovementDuringDuration)
-    {
-       GetAbility()->LockAvatarMovementForAbility();
-    }
-    SpawnReadiedProjectile();
+	bWaitingForPlayerConfirm = true;
+	if (const USkillDefinition* SkillDataAsset = GetAbility()->GetSourceSkillDataAsset();
+		SkillDataAsset && SkillDataAsset->Movement.bLockMovementDuringDuration)
+	{
+		GetAbility()->LockAvatarMovementForAbility();
+	}
+	SpawnReadiedProjectile();
 
-    if (ConfirmCancelTask)
-    {
-       ConfirmCancelTask->EndTask();
-       ConfirmCancelTask = nullptr;
-    }
+	if (ConfirmCancelTask)
+	{
+		ConfirmCancelTask->EndTask();
+		ConfirmCancelTask = nullptr;
+	}
 
-    if (Settings.bUseGroundTargeting)
-    {
-       WaitForPlayerTargetData();
-       return;
-    }
+	if (Settings.bUseGroundTargeting)
+	{
+		WaitForPlayerTargetData();
+		return;
+	}
 
-    ConfirmCancelTask = UAbilityTask_WaitConfirmCancel::WaitConfirmCancel(GetAbility());
-    if (!ConfirmCancelTask)
-    {
-       Finish(false);
-       return;
-    }
+	ConfirmCancelTask = UAbilityTask_WaitConfirmCancel::WaitConfirmCancel(GetAbility());
+	if (!ConfirmCancelTask)
+	{
+		Finish(false);
+		return;
+	}
 
-    ConfirmCancelTask->OnConfirm.AddDynamic(this, &ThisClass::HandleConfirmPressed);
-    ConfirmCancelTask->OnCancel.AddDynamic(this, &ThisClass::HandleCancelPressed);
-    ConfirmCancelTask->ReadyForActivation();
+	ConfirmCancelTask->OnConfirm.AddDynamic(this, &ThisClass::HandleConfirmPressed);
+	ConfirmCancelTask->OnCancel.AddDynamic(this, &ThisClass::HandleCancelPressed);
+	ConfirmCancelTask->ReadyForActivation();
 }
 
 void USkillProjectileCastAction::StartProjectileCast()
 {
-    if (!GetAbility()->CommitSkill())
-    {
-        Finish(false);
-        return;
-    }
+	if (!GetAbility()->CommitSkill())
+	{
+		Finish(false);
+		return;
+	}
 
-    GetAbility()->LockAvatarMovementForAbility();
-    GetAbility()->SpawnConfiguredCharacterDecal();
+	GetAbility()->LockAvatarMovementForAbility();
+	GetAbility()->SpawnConfiguredCharacterDecal();
 
-    if (Settings.FireMode == EProjectileFireMode::Immediate)
-    {
-        bEndAfterProjectileFired = true;
-        if (ExecuteProjectileShot(ResolveDefaultTargetLocation()))
-        {
-            TryFinishAfterProjectileFired();
-        }
-        return;
-    }
+	if (Settings.FireMode == EProjectileFireMode::Immediate)
+	{
+		bEndAfterProjectileFired = true;
+		if (ExecuteProjectileShot(ResolveDefaultTargetLocation()))
+		{
+			TryFinishAfterProjectileFired();
+		}
+		return;
+	}
 
-    UAnimMontage* ShootMontage = GetConfiguredShootMontage();
-    if (!ShootMontage)
-    {
-        StartShotWithoutMontage();
-        return;
-    }
+	UAnimMontage* ShootMontage = GetConfiguredShootMontage();
+	if (!ShootMontage)
+	{
+		StartShotWithoutMontage();
+		return;
+	}
 
-    StartShootProjectileEventTask();
+	StartShootProjectileEventTask();
 
-    ShootMontageTask = GetAbility()->CreateDefaultMontageAndWaitTask(ShootMontage);
-    if (!ShootMontageTask)
-    {
-        StartShotWithoutMontage();
-        return;
-    }
+	ShootMontageTask = GetAbility()->CreateDefaultMontageAndWaitTask(ShootMontage);
+	if (!ShootMontageTask)
+	{
+		StartShotWithoutMontage();
+		return;
+	}
 
-    ShootMontageTask->OnCompleted.AddDynamic(this, &ThisClass::HandleMontageFinished);
-    ShootMontageTask->OnInterrupted.AddDynamic(this, &ThisClass::HandleMontageFinished);
-    ShootMontageTask->OnCancelled.AddDynamic(this, &ThisClass::HandleMontageFinished);
-    ShootMontageTask->ReadyForActivation();
+	ShootMontageTask->OnCompleted.AddDynamic(this, &ThisClass::HandleMontageFinished);
+	ShootMontageTask->OnInterrupted.AddDynamic(this, &ThisClass::HandleMontageFinished);
+	ShootMontageTask->OnCancelled.AddDynamic(this, &ThisClass::HandleMontageFinished);
+	ShootMontageTask->ReadyForActivation();
 }
 
 void USkillProjectileCastAction::StartShotWithoutMontage()
 {
-    bEndAfterProjectileFired = true;
+	bEndAfterProjectileFired = true;
 
-    if (GetAbility()->HasPlayerController())
-    {
-        StartPlayerAiming();
-        return;
-    }
+	if (GetAbility()->HasPlayerController())
+	{
+		StartPlayerAiming();
+		return;
+	}
 
-    FireAtCurrentTargetOrFallback();
+	FireAtCurrentTargetOrFallback();
 }
 
 void USkillProjectileCastAction::ConfirmPlayerShot()
 {
-    bWaitingForPlayerConfirm = false;
-    bPlayerProjectileConfirmed = true;
-    GetAbility()->RestoreAvatarMovementForAbility();
+	bWaitingForPlayerConfirm = false;
+	bPlayerProjectileConfirmed = true;
+	GetAbility()->RestoreAvatarMovementForAbility();
 
-    if (ConfirmCancelTask)
-    {
-        ConfirmCancelTask->EndTask();
-        ConfirmCancelTask = nullptr;
-    }
+	if (ConfirmCancelTask)
+	{
+		ConfirmCancelTask->EndTask();
+		ConfirmCancelTask = nullptr;
+	}
 
-    if (!bPausedForPlayerAim)
-    {
-        bEndAfterProjectileFired = true;
-    }
+	if (!bPausedForPlayerAim)
+	{
+		bEndAfterProjectileFired = true;
+	}
 
-    const bool bNeedsTargetData = Settings.bUseGroundTargeting
-        || Settings.TargetTraceProfile.Name != TEXT("NoCollision");
+	const bool bNeedsTargetData = Settings.bUseGroundTargeting
+		|| Settings.TargetTraceProfile.Name != TEXT("NoCollision");
 
-    if (bNeedsTargetData)
-    {
-        WaitForPlayerTargetData();
-    }
-    else if (ExecuteProjectileShot(ResolveDefaultTargetLocation()))
-    {
-        TryFinishAfterProjectileFired();
-    }
+	if (bNeedsTargetData)
+	{
+		WaitForPlayerTargetData();
+	}
+	else if (ExecuteProjectileShot(ResolveDefaultTargetLocation()))
+	{
+		TryFinishAfterProjectileFired();
+	}
 
-    if (bPausedForPlayerAim)
-    {
-        ResumeProjectileMontageAfterAiming();
-        bPausedForPlayerAim = false;
-    }
+	if (bPausedForPlayerAim)
+	{
+		ResumeProjectileMontageAfterAiming();
+		bPausedForPlayerAim = false;
+	}
 }
 
 bool USkillProjectileCastAction::ExecuteProjectileShot(FVector TargetLocation)
 {
-    if (bProjectileExecutionRequested)
-    {
-       return true;
-    }
+	if (bProjectileExecutionRequested)
+	{
+		return true;
+	}
 
-    bProjectileExecutionRequested = true;
-    ShootProjectile(TargetLocation);
+	bProjectileExecutionRequested = true;
+	ShootProjectile(TargetLocation);
 
-    const AActor* AvatarActor = GetAbility()->GetAvatarActorFromActorInfo();
-    if (!AvatarActor || !AvatarActor->HasAuthority() || bProjectileSpawnSucceeded)
-    {
-       return true;
-    }
+	const AActor* AvatarActor = GetAbility()->GetAvatarActorFromActorInfo();
+	if (!AvatarActor || !AvatarActor->HasAuthority() || bProjectileSpawnSucceeded)
+	{
+		return true;
+	}
 
-    UE_LOG(LogProjectileAbility, Error,
-        TEXT("Projectile skill %s committed but failed to spawn its authoritative projectile."),
-       *GetNameSafe(GetAbility()->GetSourceSkillDataAsset()));
-    Finish(false);
-    return false;
+	UE_LOG(LogProjectileAbility, Error,
+		TEXT("Projectile skill %s committed but failed to spawn its authoritative projectile."),
+		*GetNameSafe(GetAbility()->GetSourceSkillDataAsset()));
+	Finish(false);
+	return false;
 }
 
 void USkillProjectileCastAction::FireAtDefaultTarget()
 {
-    if (!(IsRunning() && GetAbility()->CanRunActions()))
-    {
-        return;
-    }
+	if (!(IsRunning() && GetAbility()->CanRunActions()))
+	{
+		return;
+	}
 
-    if (GetAbility()->HasPlayerController() && !bPlayerProjectileConfirmed)
-    {
-        return;
-    }
+	if (GetAbility()->HasPlayerController() && !bPlayerProjectileConfirmed)
+	{
+		return;
+	}
 
-    bWaitingForPlayerConfirm = false;
-    bPlayerProjectileConfirmed = true;
-    bEndAfterProjectileFired = true;
-    GetAbility()->RestoreAvatarMovementForAbility();
+	bWaitingForPlayerConfirm = false;
+	bPlayerProjectileConfirmed = true;
+	bEndAfterProjectileFired = true;
+	GetAbility()->RestoreAvatarMovementForAbility();
 
-    if (ExecuteProjectileShot(ResolveDefaultTargetLocation()))
-    {
-        TryFinishAfterProjectileFired();
-    }
+	if (ExecuteProjectileShot(ResolveDefaultTargetLocation()))
+	{
+		TryFinishAfterProjectileFired();
+	}
 }
 
 void USkillProjectileCastAction::TryFinishAfterProjectileFired()
 {
-    if (!bEndAfterProjectileFired)
-    {
-        return;
-    }
+	if (!bEndAfterProjectileFired)
+	{
+		return;
+	}
 
-    if (IsSocketBarrageActive() || ShouldWaitForServerSocketBarrageEnd())
-    {
-        return;
-    }
+	if (IsSocketBarrageActive() || ShouldWaitForServerSocketBarrageEnd())
+	{
+		return;
+	}
 
-    Finish();
+	Finish();
 }
 
 void USkillProjectileCastAction::HandleTargetDataValid(const FGameplayAbilityTargetDataHandle& Data)
 {
-    const FGameplayAbilityActorInfo* ActorInfo = GetAbility()->GetCurrentActorInfo();
-    if (!ActorInfo)
-    {
-        FireAtDefaultTarget();
-        return;
-    }
+	const FGameplayAbilityActorInfo* ActorInfo = GetAbility()->GetCurrentActorInfo();
+	if (!ActorInfo)
+	{
+		FireAtDefaultTarget();
+		return;
+	}
 
-    const bool bUsingGroundTargeting = Settings.bUseGroundTargeting;
-    const bool bAuthority = ActorInfo->IsNetAuthority();
+	const bool bUsingGroundTargeting = Settings.bUseGroundTargeting;
+	const bool bAuthority = ActorInfo->IsNetAuthority();
 
-    if (bUsingGroundTargeting && bWaitingForPlayerConfirm)
-    {
-        bWaitingForPlayerConfirm = false;
-        bPlayerProjectileConfirmed = true;
-        GetAbility()->RestoreAvatarMovementForAbility();
+	if (bUsingGroundTargeting && bWaitingForPlayerConfirm)
+	{
+		bWaitingForPlayerConfirm = false;
+		bPlayerProjectileConfirmed = true;
+		GetAbility()->RestoreAvatarMovementForAbility();
 
-        if (!bPausedForPlayerAim)
-        {
-            bEndAfterProjectileFired = true;
-        }
-    }
+		if (!bPausedForPlayerAim)
+		{
+			bEndAfterProjectileFired = true;
+		}
+	}
 
-    const FGameplayAbilityTargetData* TargetData = Data.Get(0);
-    const FHitResult* ClientHitResult = TargetData ? TargetData->GetHitResult() : nullptr;
-    if (!ClientHitResult)
-    {
-        FireAtDefaultTarget();
-        return;
-    }
+	const FGameplayAbilityTargetData* TargetData = Data.Get(0);
+	const FHitResult* ClientHitResult = TargetData ? TargetData->GetHitResult() : nullptr;
+	if (!ClientHitResult)
+	{
+		FireAtDefaultTarget();
+		return;
+	}
 
-    const FVector TargetDataEndPoint = UAbilitySystemBlueprintLibrary::GetTargetDataEndPoint(Data, 0);
-    FVector TargetLocation = FVector::ZeroVector;
+	const FVector TargetDataEndPoint = UAbilitySystemBlueprintLibrary::GetTargetDataEndPoint(Data, 0);
+	FVector TargetLocation = FVector::ZeroVector;
 
-    if (bAuthority)
-    {
-        if (!TryValidateServerProjectileTargetLocation(
-            *ClientHitResult,
-            TargetDataEndPoint,
-            bUsingGroundTargeting,
-            TargetLocation))
-        {
-            FireAtDefaultTarget();
-            return;
-        }
-    }
-    else if (!PdTargetValidator::TryResolveTargetDataLocation(
-        *ClientHitResult,
-        TargetDataEndPoint,
-        TargetLocation))
-    {
-        FireAtDefaultTarget();
-        return;
-    }
-    else if (bUsingGroundTargeting)
-    {
-        TargetLocation.Z += GetConfiguredProjectileRadius();
-    }
+	if (bAuthority)
+	{
+		if (!TryValidateServerProjectileTargetLocation(
+			*ClientHitResult,
+			TargetDataEndPoint,
+			bUsingGroundTargeting,
+			TargetLocation))
+		{
+			FireAtDefaultTarget();
+			return;
+		}
+	}
+	else if (!PdTargetValidator::TryResolveTargetDataLocation(
+		*ClientHitResult,
+		TargetDataEndPoint,
+		TargetLocation))
+	{
+		FireAtDefaultTarget();
+		return;
+	}
+	else if (bUsingGroundTargeting)
+	{
+		TargetLocation.Z += GetConfiguredProjectileRadius();
+	}
 
-    if (!bAuthority && TargetLocation.IsNearlyZero())
-    {
-        TryResolveProjectileAimTargetLocation(TargetLocation);
-    }
-    else if (!bAuthority && !bUsingGroundTargeting && ShouldRetargetUsingAim(TargetLocation))
-    {
-        FVector AimTargetLocation = FVector::ZeroVector;
-        if (TryResolveProjectileAimTargetLocation(AimTargetLocation))
-        {
-            TargetLocation = AimTargetLocation;
-        }
-    }
+	if (!bAuthority && TargetLocation.IsNearlyZero())
+	{
+		TryResolveProjectileAimTargetLocation(TargetLocation);
+	}
+	else if (!bAuthority && !bUsingGroundTargeting && ShouldRetargetUsingAim(TargetLocation))
+	{
+		FVector AimTargetLocation = FVector::ZeroVector;
+		if (TryResolveProjectileAimTargetLocation(AimTargetLocation))
+		{
+			TargetLocation = AimTargetLocation;
+		}
+	}
 
-    const bool bShotExecuted = ExecuteProjectileShot(TargetLocation);
+	const bool bShotExecuted = ExecuteProjectileShot(TargetLocation);
 
-    if (bUsingGroundTargeting && bPausedForPlayerAim)
-    {
-        ResumeProjectileMontageAfterAiming();
-        bPausedForPlayerAim = false;
-    }
+	if (bUsingGroundTargeting && bPausedForPlayerAim)
+	{
+		ResumeProjectileMontageAfterAiming();
+		bPausedForPlayerAim = false;
+	}
 
-    if (bShotExecuted)
-    {
-        TryFinishAfterProjectileFired();
-    }
+	if (bShotExecuted)
+	{
+		TryFinishAfterProjectileFired();
+	}
 }
 
 bool USkillProjectileCastAction::TryValidateServerProjectileTargetLocation(const FHitResult& ClientHitResult,
-    const FVector& TargetDataEndPoint, const bool bUsingGroundTargeting, FVector& OutValidatedLocation) const
+	const FVector& TargetDataEndPoint, const bool bUsingGroundTargeting, FVector& OutValidatedLocation) const
 {
-    AActor* AvatarActor = GetAbility()->GetAvatarActorFromActorInfo();
-    FVector RequestedLocation = FVector::ZeroVector;
-    if (!PdTargetValidator::TryResolveAuthorityTargetRequest(AvatarActor, ClientHitResult, TargetDataEndPoint, RequestedLocation))
-    {
-       return false;
-    }
+	AActor* AvatarActor = GetAbility()->GetAvatarActorFromActorInfo();
+	FVector RequestedLocation = FVector::ZeroVector;
+	if (!PdTargetValidator::TryResolveAuthorityTargetRequest(AvatarActor, ClientHitResult, TargetDataEndPoint, RequestedLocation))
+	{
+		return false;
+	}
 
-    UWorld* World = AvatarActor->GetWorld();
+	UWorld* World = AvatarActor->GetWorld();
 
-    const FVector CharacterLocation = AvatarActor->GetActorLocation();
-    if (bUsingGroundTargeting)
-    {
-       PdTargetValidator::FGroundTargetValidationParams ValidationParams;
-       ValidationParams.MaxRange = GetConfiguredGroundTargetingMaxRange();
-       ValidationParams.GroundTraceStartHeight = GetConfiguredGroundTargetingTraceStartHeight();
-       ValidationParams.GroundTraceDepth = GetConfiguredGroundTargetingTraceDepth();
-       ValidationParams.LineOfSightProfileName = Settings.GroundTargetingTraceProfile.Name;
+	const FVector CharacterLocation = AvatarActor->GetActorLocation();
+	if (bUsingGroundTargeting)
+	{
+		PdTargetValidator::FGroundTargetValidationParams ValidationParams;
+		ValidationParams.MaxRange = GetConfiguredGroundTargetingMaxRange();
+		ValidationParams.GroundTraceStartHeight = GetConfiguredGroundTargetingTraceStartHeight();
+		ValidationParams.GroundTraceDepth = GetConfiguredGroundTargetingTraceDepth();
+		ValidationParams.LineOfSightProfileName = Settings.GroundTargetingTraceProfile.Name;
 
-       PdTargetValidator::FValidatedGroundTarget ValidatedTarget;
-       if (!PdTargetValidator::ValidateGroundTarget(World, AvatarActor, CharacterLocation, RequestedLocation,
-           ValidationParams, ValidatedTarget))
-       {
-          return false;
-       }
+		PdTargetValidator::FValidatedGroundTarget ValidatedTarget;
+		if (!PdTargetValidator::ValidateGroundTarget(World, AvatarActor, CharacterLocation, RequestedLocation,
+			ValidationParams, ValidatedTarget))
+		{
+			return false;
+		}
 
-       const FVector GroundNormal = ValidatedTarget.Normal.IsNearlyZero()
-          ? FVector::UpVector
-          : ValidatedTarget.Normal.GetSafeNormal();
-       OutValidatedLocation = ValidatedTarget.Location + GroundNormal * GetConfiguredProjectileRadius();
-       return true;
-    }
+		const FVector GroundNormal = ValidatedTarget.Normal.IsNearlyZero()
+			? FVector::UpVector
+			: ValidatedTarget.Normal.GetSafeNormal();
+		OutValidatedLocation = ValidatedTarget.Location + GroundNormal * GetConfiguredProjectileRadius();
+		return true;
+	}
 
-    PdTargetValidator::FPointTargetValidationParams ValidationParams;
-    ValidationParams.MaxRange = GetConfiguredTargetTraceMaxRange();
-    ValidationParams.LineOfSightProfileName = Settings.TargetTraceProfile.Name;
+	PdTargetValidator::FPointTargetValidationParams ValidationParams;
+	ValidationParams.MaxRange = GetConfiguredTargetTraceMaxRange();
+	ValidationParams.LineOfSightProfileName = Settings.TargetTraceProfile.Name;
 
-    PdTargetValidator::FValidatedPointTarget ValidatedTarget;
-    if (!PdTargetValidator::ValidatePointTarget(World, AvatarActor, CharacterLocation, GetSpawnLocation(),
-        RequestedLocation, ValidationParams, ValidatedTarget))
-    {
-       return false;
-    }
+	PdTargetValidator::FValidatedPointTarget ValidatedTarget;
+	if (!PdTargetValidator::ValidatePointTarget(World, AvatarActor, CharacterLocation, GetSpawnLocation(),
+		RequestedLocation, ValidationParams, ValidatedTarget))
+	{
+		return false;
+	}
 
-    OutValidatedLocation = ValidatedTarget.Location;
-    return true;
+	OutValidatedLocation = ValidatedTarget.Location;
+	return true;
 }
 
 void USkillProjectileCastAction::HandleTargetDataCancelled(const FGameplayAbilityTargetDataHandle& Data)
 {
-    static_cast<void>(Data);
+	static_cast<void>(Data);
 
-    if (bCleaningUpTargetDataTask)
-    {
-        return;
-    }
+	if (bCleaningUpTargetDataTask)
+	{
+		return;
+	}
 
-    if (GetAbility()->HasPlayerController())
-    {
-        if (!bPlayerProjectileConfirmed)
-        {
-            Finish(false);
-            return;
-        }
+	if (GetAbility()->HasPlayerController())
+	{
+		if (!bPlayerProjectileConfirmed)
+		{
+			Finish(false);
+			return;
+		}
 
-        if (ShouldWaitForServerSocketBarrageEnd())
-        {
-            return;
-        }
+		if (ShouldWaitForServerSocketBarrageEnd())
+		{
+			return;
+		}
 
-        FireAtDefaultTarget();
-        return;
-    }
+		FireAtDefaultTarget();
+		return;
+	}
 
-    if (!bProjectileExecutionRequested)
-    {
-        FireAtDefaultTarget();
-        return;
-    }
+	if (!bProjectileExecutionRequested)
+	{
+		FireAtDefaultTarget();
+		return;
+	}
 
-    TryFinishAfterProjectileFired();
+	TryFinishAfterProjectileFired();
 }
 
 void USkillProjectileCastAction::StartShootProjectileEventTask()
 {
-    const FGameplayTag ConfiguredShootEventTag = GetConfiguredShootProjectileEventTag();
-    if (!ConfiguredShootEventTag.IsValid())
-    {
-       return;
-    }
+	const FGameplayTag ConfiguredShootEventTag = GetConfiguredShootProjectileEventTag();
+	if (!ConfiguredShootEventTag.IsValid())
+	{
+		return;
+	}
 
-    if (ShootProjectileEventTask)
-    {
-       ShootProjectileEventTask->EndTask();
-       ShootProjectileEventTask = nullptr;
-    }
+	if (ShootProjectileEventTask)
+	{
+		ShootProjectileEventTask->EndTask();
+		ShootProjectileEventTask = nullptr;
+	}
 
-    ShootProjectileEventTask = GetAbility()->CreateWaitGameplayEventTask(ConfiguredShootEventTag);
-    if (!ShootProjectileEventTask)
-    {
-       return;
-    }
+	ShootProjectileEventTask = GetAbility()->CreateWaitGameplayEventTask(ConfiguredShootEventTag);
+	if (!ShootProjectileEventTask)
+	{
+		return;
+	}
 
-    ShootProjectileEventTask->EventReceived.AddDynamic(this, &ThisClass::HandleShootProjectileEvent);
-    ShootProjectileEventTask->ReadyForActivation();
+	ShootProjectileEventTask->EventReceived.AddDynamic(this, &ThisClass::HandleShootProjectileEvent);
+	ShootProjectileEventTask->ReadyForActivation();
 }
 
 void USkillProjectileCastAction::WaitForPlayerTargetData()
 {
-    const bool bUsingGroundTargeting = Settings.bUseGroundTargeting;
-    const TSubclassOf<AGameplayAbilityTargetActor> TargetActorClass = bUsingGroundTargeting
-       ? GetConfiguredGroundTargetActorClass()
-       : TSubclassOf<AGameplayAbilityTargetActor>(AGameplayAbilityTargetActor_SingleLineTrace::StaticClass());
-    if (!TargetActorClass)
-    {
-       HandleTargetDataUnavailable();
-       return;
-    }
+	const bool bUsingGroundTargeting = Settings.bUseGroundTargeting;
+	const TSubclassOf<AGameplayAbilityTargetActor> TargetActorClass = bUsingGroundTargeting
+		? GetConfiguredGroundTargetActorClass()
+		: TSubclassOf<AGameplayAbilityTargetActor>(AGameplayAbilityTargetActor_SingleLineTrace::StaticClass());
+	if (!TargetActorClass)
+	{
+		HandleTargetDataUnavailable();
+		return;
+	}
 
-    if (TargetDataTask)
-    {
-       bCleaningUpTargetDataTask = true;
-       TargetDataTask->EndTask();
-       bCleaningUpTargetDataTask = false;
-       TargetDataTask = nullptr;
-    }
+	if (TargetDataTask)
+	{
+		bCleaningUpTargetDataTask = true;
+		TargetDataTask->EndTask();
+		bCleaningUpTargetDataTask = false;
+		TargetDataTask = nullptr;
+	}
 
-    UAbilityTask_WaitTargetData* const PendingTargetDataTask = UAbilityTask_WaitTargetData::WaitTargetData(GetAbility(),
-        NAME_None,
-        bUsingGroundTargeting ? EGameplayTargetingConfirmation::UserConfirmed : EGameplayTargetingConfirmation::Instant,
-        TargetActorClass);
-    TargetDataTask = PendingTargetDataTask;
-    if (!PendingTargetDataTask)
-    {
-       HandleTargetDataUnavailable();
-       return;
-    }
+	UAbilityTask_WaitTargetData* const PendingTargetDataTask = UAbilityTask_WaitTargetData::WaitTargetData(GetAbility(),
+		NAME_None,
+		bUsingGroundTargeting ? EGameplayTargetingConfirmation::UserConfirmed : EGameplayTargetingConfirmation::Instant,
+		TargetActorClass);
+	TargetDataTask = PendingTargetDataTask;
+	if (!PendingTargetDataTask)
+	{
+		HandleTargetDataUnavailable();
+		return;
+	}
 
-    PendingTargetDataTask->ValidData.AddDynamic(this, &ThisClass::HandleTargetDataValid);
-    PendingTargetDataTask->Cancelled.AddDynamic(this, &ThisClass::HandleTargetDataCancelled);
+	PendingTargetDataTask->ValidData.AddDynamic(this, &ThisClass::HandleTargetDataValid);
+	PendingTargetDataTask->Cancelled.AddDynamic(this, &ThisClass::HandleTargetDataCancelled);
 
-    if (AGameplayAbilityTargetActor* SpawnedActor = GetAbility()->BeginSpawningTargetDataActor(PendingTargetDataTask, TargetActorClass))
-    {
-       ConfigureTargetActor(*SpawnedActor, bUsingGroundTargeting);
-       GetAbility()->FinishSpawningTargetDataActor(PendingTargetDataTask, SpawnedActor);
-    }
+	if (AGameplayAbilityTargetActor* SpawnedActor = GetAbility()->BeginSpawningTargetDataActor(PendingTargetDataTask, TargetActorClass))
+	{
+		ConfigureTargetActor(*SpawnedActor, bUsingGroundTargeting);
+		GetAbility()->FinishSpawningTargetDataActor(PendingTargetDataTask, SpawnedActor);
+	}
 
-    // 즉시 확정하는 대상 액터는 생성을 마치는 순간 대상 데이터를 보낼 수 있고, 그 콜백이 능력을 끝내면
-    // FinishSpawningTargetDataActor가 돌아오기 전에 TargetDataTask가 정리된다. 아직 지금 작업이고 콜백 안에서
-    // 끝나지 않았을 때만 작업을 켠다.
-    if (TargetDataTask == PendingTargetDataTask && IsValid(PendingTargetDataTask)
-        && PendingTargetDataTask->GetState() == EGameplayTaskState::AwaitingActivation)
-    {
-       PendingTargetDataTask->ReadyForActivation();
-    }
+	// 즉시 확정하는 대상 액터는 생성을 마치는 순간 대상 데이터를 보낼 수 있고, 그 콜백이 능력을 끝내면
+	// FinishSpawningTargetDataActor가 돌아오기 전에 TargetDataTask가 정리된다. 아직 지금 작업이고 콜백 안에서
+	// 끝나지 않았을 때만 작업을 켠다.
+	if (TargetDataTask == PendingTargetDataTask && IsValid(PendingTargetDataTask)
+		&& PendingTargetDataTask->GetState() == EGameplayTaskState::AwaitingActivation)
+	{
+		PendingTargetDataTask->ReadyForActivation();
+	}
 }
 
 void USkillProjectileCastAction::HandleTargetDataUnavailable()
 {
-    if (GetAbility()->HasPlayerController() && !bPlayerProjectileConfirmed)
-    {
-       Finish(false);
-    }
-    else
-    {
-       FireAtDefaultTarget();
-    }
+	if (GetAbility()->HasPlayerController() && !bPlayerProjectileConfirmed)
+	{
+		Finish(false);
+	}
+	else
+	{
+		FireAtDefaultTarget();
+	}
 }
 
 void USkillProjectileCastAction::ConfigureTargetActor(AGameplayAbilityTargetActor& TargetActor, const bool bUsingGroundTargeting)
 {
-    if (AGameplayAbilityTargetActor_Trace* TraceActor = Cast<AGameplayAbilityTargetActor_Trace>(&TargetActor))
-    {
-       TraceActor->MaxRange = bUsingGroundTargeting ? GetConfiguredGroundTargetingMaxRange() : GetConfiguredTargetTraceMaxRange();
-       TraceActor->TraceProfile = bUsingGroundTargeting ? Settings.GroundTargetingTraceProfile : Settings.TargetTraceProfile;
-       TraceActor->bTraceAffectsAimPitch = bUsingGroundTargeting
-          ? Settings.bGroundTargetingTraceAffectsAimPitch
-          : Settings.bTraceAffectsAimPitch;
-    }
+	if (AGameplayAbilityTargetActor_Trace* TraceActor = Cast<AGameplayAbilityTargetActor_Trace>(&TargetActor))
+	{
+		TraceActor->MaxRange = bUsingGroundTargeting ? GetConfiguredGroundTargetingMaxRange() : GetConfiguredTargetTraceMaxRange();
+		TraceActor->TraceProfile = bUsingGroundTargeting ? Settings.GroundTargetingTraceProfile : Settings.TargetTraceProfile;
+		TraceActor->bTraceAffectsAimPitch = bUsingGroundTargeting
+			? Settings.bGroundTargetingTraceAffectsAimPitch
+			: Settings.bTraceAffectsAimPitch;
+	}
 
-    if (AGameplayAbilityTargetActor_GroundTrace* GroundTraceActor = Cast<AGameplayAbilityTargetActor_GroundTrace>(&TargetActor))
-    {
-       GroundTraceActor->CollisionRadius = GetConfiguredGroundTargetingCollisionRadius();
-       GroundTraceActor->CollisionHeight = GetConfiguredGroundTargetingCollisionHeight();
-    }
+	if (AGameplayAbilityTargetActor_GroundTrace* GroundTraceActor = Cast<AGameplayAbilityTargetActor_GroundTrace>(&TargetActor))
+	{
+		GroundTraceActor->CollisionRadius = GetConfiguredGroundTargetingCollisionRadius();
+		GroundTraceActor->CollisionHeight = GetConfiguredGroundTargetingCollisionHeight();
+	}
 
-    if (AGroundTargetActor* DecalTargetActor = Cast<AGroundTargetActor>(&TargetActor))
-    {
-       DecalTargetActor->ConfigureGroundProjection(GetConfiguredGroundTargetingTraceStartHeight(), GetConfiguredGroundTargetingTraceDepth());
-       DecalTargetActor->Decal = Settings.TargetDecal.Get();
-       DecalTargetActor->DecalSize = GetConfiguredGroundTargetingDecalSize();
-       DecalTargetActor->DecalColor = Settings.TargetDecalColor;
+	if (AGroundTargetActor* DecalTargetActor = Cast<AGroundTargetActor>(&TargetActor))
+	{
+		DecalTargetActor->ConfigureGroundProjection(GetConfiguredGroundTargetingTraceStartHeight(), GetConfiguredGroundTargetingTraceDepth());
+		DecalTargetActor->Decal = Settings.TargetDecal.Get();
+		DecalTargetActor->DecalSize = GetConfiguredGroundTargetingDecalSize();
+		DecalTargetActor->DecalColor = Settings.TargetDecalColor;
 
-       float DecalStartSize = 0.0f;
-       float DecalTargetSize = 0.0f;
-       float DecalGrowthDuration = 0.0f;
-       if (TryBuildGroundTargetingDecalGrowth(DecalStartSize, DecalTargetSize, DecalGrowthDuration))
-       {
-          DecalTargetActor->ConfigureDecalGrowth(DecalStartSize, DecalTargetSize, DecalGrowthDuration);
-       }
-    }
+		float DecalStartSize = 0.0f;
+		float DecalTargetSize = 0.0f;
+		float DecalGrowthDuration = 0.0f;
+		if (TryBuildGroundTargetingDecalGrowth(DecalStartSize, DecalTargetSize, DecalGrowthDuration))
+		{
+			DecalTargetActor->ConfigureDecalGrowth(DecalStartSize, DecalTargetSize, DecalGrowthDuration);
+		}
+	}
 
-    TargetActor.StartLocation = GetAbility()->MakeTargetLocationInfoFromOwnerActor();
-    TargetActor.bDebug = bUsingGroundTargeting ? GetConfiguredDrawGroundTargetingDebug() : GetConfiguredDrawTargetTraceDebug();
+	TargetActor.StartLocation = GetAbility()->MakeTargetLocationInfoFromOwnerActor();
+	TargetActor.bDebug = bUsingGroundTargeting ? GetConfiguredDrawGroundTargetingDebug() : GetConfiguredDrawTargetTraceDebug();
 }
 
 bool USkillProjectileCastAction::ShouldRetargetUsingAim(const FVector& TargetLocation) const
 {
-    const FVector SpawnLocation = GetSpawnLocation();
-    const float MinimumDistance = FMath::Max(GetConfiguredMinimumTargetDistanceFromSpawn(), 0.0f);
-    const bool bTooClose = MinimumDistance > 0.0f
-        && FVector::DistSquared(SpawnLocation, TargetLocation) < FMath::Square(MinimumDistance);
-    const bool bStronglyDownward = TargetLocation.Z < SpawnLocation.Z - 50.0f
-        && FVector::DistSquared2D(SpawnLocation, TargetLocation) < FMath::Square(MinimumDistance);
+	const FVector SpawnLocation = GetSpawnLocation();
+	const float MinimumDistance = FMath::Max(GetConfiguredMinimumTargetDistanceFromSpawn(), 0.0f);
+	const bool bTooClose = MinimumDistance > 0.0f
+		&& FVector::DistSquared(SpawnLocation, TargetLocation) < FMath::Square(MinimumDistance);
+	const bool bStronglyDownward = TargetLocation.Z < SpawnLocation.Z - 50.0f
+		&& FVector::DistSquared2D(SpawnLocation, TargetLocation) < FMath::Square(MinimumDistance);
 
-    return bTooClose || bStronglyDownward;
+	return bTooClose || bStronglyDownward;
 }
 
 bool USkillProjectileCastAction::TryResolveProjectileAimTargetLocation(FVector& OutTargetLocation) const
 {
-    AActor* AvatarActor = GetAbility()->GetAvatarActorFromActorInfo();
-    const float ConfiguredTargetTraceMaxRange = GetConfiguredTargetTraceMaxRange();
-    if (!AvatarActor || ConfiguredTargetTraceMaxRange <= 0.0f)
-    {
-       return false;
-    }
+	AActor* AvatarActor = GetAbility()->GetAvatarActorFromActorInfo();
+	const float ConfiguredTargetTraceMaxRange = GetConfiguredTargetTraceMaxRange();
+	if (!AvatarActor || ConfiguredTargetTraceMaxRange <= 0.0f)
+	{
+		return false;
+	}
 
-    FVector ViewTraceStart = FVector::ZeroVector;
-    FVector AimDirection = FVector::ZeroVector;
-    if (const APdPlayer* Player = Cast<APdPlayer>(AvatarActor))
-    {
-       Player->GetWeaponAimViewPoint(ViewTraceStart, AimDirection);
-    }
+	FVector ViewTraceStart = FVector::ZeroVector;
+	FVector AimDirection = FVector::ZeroVector;
+	if (const APdPlayer* Player = Cast<APdPlayer>(AvatarActor))
+	{
+		Player->GetWeaponAimViewPoint(ViewTraceStart, AimDirection);
+	}
 
-    if (AimDirection.IsNearlyZero())
-    {
-       ViewTraceStart = GetSpawnLocation();
-       AimDirection = AvatarActor->GetActorForwardVector();
-    }
+	if (AimDirection.IsNearlyZero())
+	{
+		ViewTraceStart = GetSpawnLocation();
+		AimDirection = AvatarActor->GetActorForwardVector();
+	}
 
-    AimDirection = AimDirection.GetSafeNormal();
-    if (AimDirection.IsNearlyZero())
-    {
-       return false;
-    }
+	AimDirection = AimDirection.GetSafeNormal();
+	if (AimDirection.IsNearlyZero())
+	{
+		return false;
+	}
 
-    const FVector ViewTraceEnd = ViewTraceStart + (AimDirection * ConfiguredTargetTraceMaxRange);
-    const FCollisionProfileName ConfiguredTargetTraceProfile = Settings.TargetTraceProfile;
-    if (ConfiguredTargetTraceProfile.Name == TEXT("NoCollision"))
-    {
-       OutTargetLocation = ViewTraceEnd;
+	const FVector ViewTraceEnd = ViewTraceStart + (AimDirection * ConfiguredTargetTraceMaxRange);
+	const FCollisionProfileName ConfiguredTargetTraceProfile = Settings.TargetTraceProfile;
+	if (ConfiguredTargetTraceProfile.Name == TEXT("NoCollision"))
+	{
+		OutTargetLocation = ViewTraceEnd;
 
-       return true;
-    }
+		return true;
+	}
 
-    TArray<AActor*> ActorsToIgnore;
-    ActorsToIgnore.Add(AvatarActor);
+	TArray<AActor*> ActorsToIgnore;
+	ActorsToIgnore.Add(AvatarActor);
 
-    FHitResult ViewHitResult;
-    const bool bHit = UKismetSystemLibrary::LineTraceSingleByProfile(this, ViewTraceStart, ViewTraceEnd,
-        ConfiguredTargetTraceProfile.Name, false, ActorsToIgnore,
-        GetConfiguredDrawTargetTraceDebug() ? EDrawDebugTrace::ForDuration : EDrawDebugTrace::None, ViewHitResult,
-        true);
+	FHitResult ViewHitResult;
+	const bool bHit = UKismetSystemLibrary::LineTraceSingleByProfile(this, ViewTraceStart, ViewTraceEnd,
+		ConfiguredTargetTraceProfile.Name, false, ActorsToIgnore,
+		GetConfiguredDrawTargetTraceDebug() ? EDrawDebugTrace::ForDuration : EDrawDebugTrace::None, ViewHitResult,
+		true);
 
-    OutTargetLocation = bHit ? ViewHitResult.Location : ViewTraceEnd;
+	OutTargetLocation = bHit ? ViewHitResult.Location : ViewTraceEnd;
 
-    return true;
+	return true;
 }
 
 FVector USkillProjectileCastAction::ResolveDefaultTargetLocation() const
 {
-    FVector TargetLocation = FVector::ZeroVector;
-    if (TryResolveProjectileAimTargetLocation(TargetLocation))
-    {
-       return TargetLocation;
-    }
+	FVector TargetLocation = FVector::ZeroVector;
+	if (TryResolveProjectileAimTargetLocation(TargetLocation))
+	{
+		return TargetLocation;
+	}
 
-    const AActor* AvatarActor = GetAbility()->GetAvatarActorFromActorInfo();
-    if (!AvatarActor)
-    {
-       return FVector::ForwardVector * GetConfiguredTargetTraceMaxRange();
-    }
+	const AActor* AvatarActor = GetAbility()->GetAvatarActorFromActorInfo();
+	if (!AvatarActor)
+	{
+		return FVector::ForwardVector * GetConfiguredTargetTraceMaxRange();
+	}
 
-    return GetSpawnLocation() + (AvatarActor->GetActorForwardVector() * FMath::Max(GetConfiguredTargetTraceMaxRange(), 1000.0f));
+	return GetSpawnLocation() + (AvatarActor->GetActorForwardVector() * FMath::Max(GetConfiguredTargetTraceMaxRange(), 1000.0f));
 }
 
 void USkillProjectileCastAction::PauseProjectileMontageForAiming()
 {
-    UPdAbilitySystemComponent* AbilitySystemComponent = GetAbility()->GetPdAbilitySystemComponentFromActorInfo();
-    if (!AbilitySystemComponent)
-    {
-       return;
-    }
+	UPdAbilitySystemComponent* AbilitySystemComponent = GetAbility()->GetPdAbilitySystemComponentFromActorInfo();
+	if (!AbilitySystemComponent)
+	{
+		return;
+	}
 
-    AbilitySystemComponent->CurrentMontageSetPlayRate(0.0f);
+	AbilitySystemComponent->CurrentMontageSetPlayRate(0.0f);
 }
 
 void USkillProjectileCastAction::ResumeProjectileMontageAfterAiming()
 {
-    UPdAbilitySystemComponent* AbilitySystemComponent = GetAbility()->GetPdAbilitySystemComponentFromActorInfo();
-    if (!AbilitySystemComponent)
-    {
-       return;
-    }
+	UPdAbilitySystemComponent* AbilitySystemComponent = GetAbility()->GetPdAbilitySystemComponentFromActorInfo();
+	if (!AbilitySystemComponent)
+	{
+		return;
+	}
 
-    AbilitySystemComponent->CurrentMontageSetPlayRate(1.0f);
+	AbilitySystemComponent->CurrentMontageSetPlayRate(1.0f);
 }
 
 void USkillProjectileCastAction::CleanupAimingState()
 {
-    GetAbility()->RestoreAvatarMovementForAbility();
-    bWaitingForPlayerConfirm = false;
-    bPlayerProjectileConfirmed = false;
+	GetAbility()->RestoreAvatarMovementForAbility();
+	bWaitingForPlayerConfirm = false;
+	bPlayerProjectileConfirmed = false;
 
-    if (bPausedForPlayerAim)
-    {
-       ResumeProjectileMontageAfterAiming();
-       bPausedForPlayerAim = false;
-    }
+	if (bPausedForPlayerAim)
+	{
+		ResumeProjectileMontageAfterAiming();
+		bPausedForPlayerAim = false;
+	}
 
-    if (ConfirmCancelTask)
-    {
-       ConfirmCancelTask->EndTask();
-       ConfirmCancelTask = nullptr;
-    }
+	if (ConfirmCancelTask)
+	{
+		ConfirmCancelTask->EndTask();
+		ConfirmCancelTask = nullptr;
+	}
 
-    if (ShootProjectileEventTask)
-    {
-       ShootProjectileEventTask->EndTask();
-       ShootProjectileEventTask = nullptr;
-    }
+	if (ShootProjectileEventTask)
+	{
+		ShootProjectileEventTask->EndTask();
+		ShootProjectileEventTask = nullptr;
+	}
 
-    if (ShootMontageTask)
-    {
-       ShootMontageTask->EndTask();
-       ShootMontageTask = nullptr;
-    }
+	if (ShootMontageTask)
+	{
+		ShootMontageTask->EndTask();
+		ShootMontageTask = nullptr;
+	}
 
-    if (TargetDataTask)
-    {
-       bCleaningUpTargetDataTask = true;
-       TargetDataTask->EndTask();
-       bCleaningUpTargetDataTask = false;
-       TargetDataTask = nullptr;
-    }
+	if (TargetDataTask)
+	{
+		bCleaningUpTargetDataTask = true;
+		TargetDataTask->EndTask();
+		bCleaningUpTargetDataTask = false;
+		TargetDataTask = nullptr;
+	}
 
-    DestroyReadiedProjectile();
+	DestroyReadiedProjectile();
 }
 

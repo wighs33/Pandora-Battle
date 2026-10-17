@@ -249,9 +249,9 @@ void UGameSettingsWidget::ShowPage(int32 PageIndex)
 
 void UGameSettingsWidget::CloseSettings()
 {
-    if (UCommonActivatableWidget* Screen = UCommonUIActionRouterBase::FindOwningActivatable(GetCachedWidget(), GetOwningLocalPlayer()))
-    {
-        Screen->DeactivateWidget();
-    }
-    RemoveFromParent();
+	if (UCommonActivatableWidget* Screen = UCommonUIActionRouterBase::FindOwningActivatable(GetCachedWidget(), GetOwningLocalPlayer()))
+	{
+		Screen->DeactivateWidget();
+	}
+	RemoveFromParent();
 }

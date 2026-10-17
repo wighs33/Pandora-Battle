@@ -235,5 +235,5 @@ void UPandoraSlotWidget::SetWeaponRequirementImageVisible(UImage* Image, const b
 
 void UPandoraSlotWidget::OnMenuLanguageChanged()
 {
- SetData(CachedData);
+	SetData(CachedData);
 }

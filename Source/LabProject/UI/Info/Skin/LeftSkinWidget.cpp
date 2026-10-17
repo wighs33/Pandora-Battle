@@ -380,6 +380,6 @@ APdPlayer* ULeftSkinWidget::GetOwningPdPlayer() const
 
 void ULeftSkinWidget::OnMenuLanguageChanged()
 {
- RebuildEquipSlotNameList();
- ApplyEquipSlotNames();
+	RebuildEquipSlotNameList();
+	ApplyEquipSlotNames();
 }

@@ -31,12 +31,12 @@ UPdAbilitySystemComponent::UPdAbilitySystemComponent(const FObjectInitializer& O
 // 능력이 회수될 때 입력과 연출을 정리하고, 자원 소유자와 UI에 회수를 알린다.
 void UPdAbilitySystemComponent::OnRemoveAbility(FGameplayAbilitySpec& AbilitySpec)
 {
-    AbilityGrantAndInputManager->ClearAbilityInput(*this, AbilitySpec.Handle);
+	AbilityGrantAndInputManager->ClearAbilityInput(*this, AbilitySpec.Handle);
 
-    Super::OnRemoveAbility(AbilitySpec);
+	Super::OnRemoveAbility(AbilitySpec);
 
-    OnAbilityRemovedNative.Broadcast(AbilitySpec);
-    OnAbilitiesChangedNative.Broadcast();
+	OnAbilityRemovedNative.Broadcast(AbilitySpec);
+	OnAbilitiesChangedNative.Broadcast();
 }
 
 void UPdAbilitySystemComponent::NotifyAbilityEnded(FGameplayAbilitySpecHandle Handle, UGameplayAbility* Ability,

@@ -40,12 +40,12 @@ void ALobbyHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		LobbyWidget = nullptr;
 	}
 
-    if (LobbyScreen)
-    {
-        LobbyScreen->DeactivateWidget();
-        LobbyScreen = nullptr;
-    }
-    Super::EndPlay(EndPlayReason);
+	if (LobbyScreen)
+	{
+		LobbyScreen->DeactivateWidget();
+		LobbyScreen = nullptr;
+	}
+	Super::EndPlay(EndPlayReason);
 }
 
 bool ALobbyHUD::IsPlayerHudSuppressedByUi() const
@@ -95,12 +95,12 @@ ULobbyWidget* ALobbyHUD::CreateLobbyUI()
 		return nullptr;
 	}
 
-    if (!LobbyScreen)
-    {
-        LobbyScreen = UUiScreen::CreateBlocking(PlayerController, LobbyWidget, LobbyWidget,
-            FSimpleDelegate::CreateWeakLambda(this, [this]() { HandleEscapeInput(); }));
-        PlayerController->GetLocalPlayer()->GetSubsystem<UUiSubsystem>()->PushScreen(LobbyScreen, EUiScreenLayer::Screen);
-    }
+	if (!LobbyScreen)
+	{
+		LobbyScreen = UUiScreen::CreateBlocking(PlayerController, LobbyWidget, LobbyWidget,
+			FSimpleDelegate::CreateWeakLambda(this, [this]() { HandleEscapeInput(); }));
+		PlayerController->GetLocalPlayer()->GetSubsystem<UUiSubsystem>()->PushScreen(LobbyScreen, EUiScreenLayer::Screen);
+	}
 
 	LobbyWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 	LobbyWidget->SetIsEnabled(true);
@@ -139,21 +139,21 @@ void ALobbyHUD::RefreshLobbyUI()
 
 void ALobbyHUD::NotifyLobbyWidgetOpened()
 {
-    RefreshPlayerHudVisibility();
-    if (LobbyScreen)
-    {
-    	LobbyScreen->RequestRefreshFocus();
-    }
+	RefreshPlayerHudVisibility();
+	if (LobbyScreen)
+	{
+		LobbyScreen->RequestRefreshFocus();
+	}
 }
 
 void ALobbyHUD::NotifyLobbyWidgetClosed()
 {
-    if (LobbyScreen)
-    {
-        LobbyScreen->DeactivateWidget();
-        LobbyScreen = nullptr;
-    }
-    RefreshPlayerHudVisibility();
+	if (LobbyScreen)
+	{
+		LobbyScreen->DeactivateWidget();
+		LobbyScreen = nullptr;
+	}
+	RefreshPlayerHudVisibility();
 }
 
 // HUD와 GameState가 어느 순서로 생성되든 현재 로비를 구독하고 최초 상태를 표시한다.
