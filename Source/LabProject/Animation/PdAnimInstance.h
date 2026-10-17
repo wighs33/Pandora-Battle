@@ -24,7 +24,6 @@ protected:
 		float Direction = 0.f;
 		float AimYaw = 0.f;
 		float AimPitch = 0.f;
-		uint32 SourceRevision = 0;
 		bool bIsFalling = false;
 		bool bIsOnGround = true;
 		bool bIsCrouching = false;
@@ -50,8 +49,6 @@ protected:
 
 	void UpdateMovementStates(const FGameThreadSnapshot& Snapshot);
 
-	void UpdateAcceleration(float DeltaSeconds);
-
 	void UpdateAimingData(const FGameThreadSnapshot& Snapshot);
 
 	void UpdateFullBodyLegBlend(const FGameThreadSnapshot& Snapshot);
@@ -59,7 +56,7 @@ protected:
 	void UpdateGrappleState();
 
 private:
-	void RefreshGameThreadReferences(bool bForceNewRevision = false);
+	void RefreshGameThreadReferences();
 	void CaptureGameThreadSnapshot();
 	void ResetThreadSafeAnimationData();
 
@@ -83,9 +80,6 @@ protected:
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Animation Data|Location")
 	float VerticalVelocity = 0.f;
-
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Animation Data|Location")
-	FVector3f Acceleration = FVector3f::ZeroVector;
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Animation Data|States")
 	bool bIsMoving = false;
@@ -123,10 +117,6 @@ protected:
 
 private:
 	FGameThreadSnapshot GameThreadSnapshot;
-	FVector3f PreviousVelocity = FVector3f::ZeroVector;
-	uint32 GameThreadSourceRevision = 0;
-	uint32 LastProcessedSourceRevision = 0;
 	/** 직전에 다리 블렌드를 진행한 월드 시간. 비어 있으면 아직 진행하지 않았다. */
 	TOptional<double> LastLegBlendWorldTime;
-	bool bHasPreviousVelocity = false;
 };

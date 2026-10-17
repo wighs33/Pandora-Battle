@@ -25,7 +25,7 @@ void UPdAnimInstance::NativeInitializeAnimation()
 {
 	Super::NativeInitializeAnimation();
 
-	RefreshGameThreadReferences(true);
+	RefreshGameThreadReferences();
 	CaptureGameThreadSnapshot();
 	UpdateGrappleState();
 }
@@ -36,9 +36,7 @@ void UPdAnimInstance::NativeUninitializeAnimation()
 
 	CachedCharacter = nullptr;
 	MovementComponent = nullptr;
-	++GameThreadSourceRevision;
 	GameThreadSnapshot = FGameThreadSnapshot();
-	GameThreadSnapshot.SourceRevision = GameThreadSourceRevision;
 	ResetThreadSafeAnimationData();
 	bIsGrappling = false;
 
@@ -65,20 +63,11 @@ void UPdAnimInstance::NativeThreadSafeUpdateAnimation(float DeltaSeconds)
 	if (!Snapshot.bIsValid)
 	{
 		ResetThreadSafeAnimationData();
-		LastProcessedSourceRevision = Snapshot.SourceRevision;
 		return;
-	}
-
-	if (LastProcessedSourceRevision != Snapshot.SourceRevision)
-	{
-		PreviousVelocity = Snapshot.Velocity;
-		bHasPreviousVelocity = false;
-		LastProcessedSourceRevision = Snapshot.SourceRevision;
 	}
 
 	UpdateLocationData(Snapshot);
 	UpdateMovementStates(Snapshot);
-	UpdateAcceleration(DeltaSeconds);
 	UpdateAimingData(Snapshot);
 	UpdateFullBodyLegBlend(Snapshot);
 }
@@ -108,7 +97,7 @@ void UPdAnimInstance::AnimNotify_RedrawBow()
 	WeaponActor->OnWeaponAnimNotifyTiming(WeaponAnimNotifyNames::RedrawBow(), PlayerCharacter);
 }
 
-void UPdAnimInstance::RefreshGameThreadReferences(const bool bForceNewRevision)
+void UPdAnimInstance::RefreshGameThreadReferences()
 {
 	check(IsInGameThread());
 
@@ -124,11 +113,6 @@ void UPdAnimInstance::RefreshGameThreadReferences(const bool bForceNewRevision)
 		NewMovementComponent = nullptr;
 	}
 
-	if (bForceNewRevision || CachedCharacter.Get() != NewCharacter || MovementComponent.Get() != NewMovementComponent)
-	{
-		++GameThreadSourceRevision;
-	}
-
 	CachedCharacter = NewCharacter;
 	MovementComponent = NewMovementComponent;
 }
@@ -138,7 +122,6 @@ void UPdAnimInstance::CaptureGameThreadSnapshot()
 	check(IsInGameThread());
 
 	FGameThreadSnapshot NewSnapshot;
-	NewSnapshot.SourceRevision = GameThreadSourceRevision;
 
 	ACharacter* Character = CachedCharacter.Get();
 	UCharacterMovementComponent* CharacterMovement = MovementComponent.Get();
@@ -179,7 +162,6 @@ void UPdAnimInstance::ResetThreadSafeAnimationData()
 	GroundSpeed = 0.f;
 	Direction = 0.f;
 	VerticalVelocity = 0.f;
-	Acceleration = FVector3f::ZeroVector;
 
 	bIsMoving = false;
 	bIsFalling = false;
@@ -191,9 +173,6 @@ void UPdAnimInstance::ResetThreadSafeAnimationData()
 	AimPitch = 0.f;
 	FullBodyLegLocomotionAlpha = 0.f;
 	LastLegBlendWorldTime.Reset();
-
-	PreviousVelocity = FVector3f::ZeroVector;
-	bHasPreviousVelocity = false;
 }
 
 void UPdAnimInstance::UpdateLocationData(const FGameThreadSnapshot& Snapshot)
@@ -211,22 +190,6 @@ void UPdAnimInstance::UpdateMovementStates(const FGameThreadSnapshot& Snapshot)
 	bIsJumping = bIsFalling && Velocity.Z > 0.f;
 	bIsOnGround = Snapshot.bIsOnGround;
 	bIsCrouching = Snapshot.bIsCrouching;
-}
-
-void UPdAnimInstance::UpdateAcceleration(float DeltaSeconds)
-{
-	if (bHasPreviousVelocity && DeltaSeconds > UE_SMALL_NUMBER)
-	{
-		const FVector3f VelocityDelta = Velocity - PreviousVelocity;
-		Acceleration = VelocityDelta / DeltaSeconds;
-	}
-	else
-	{
-		Acceleration = FVector3f::ZeroVector;
-	}
-
-	PreviousVelocity = Velocity;
-	bHasPreviousVelocity = true;
 }
 
 void UPdAnimInstance::UpdateAimingData(const FGameThreadSnapshot& Snapshot)
