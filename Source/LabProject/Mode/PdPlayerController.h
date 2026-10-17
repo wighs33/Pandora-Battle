@@ -13,7 +13,6 @@ class ACharacterBase;
 class UChatControllerComponent;
 class UControllerInputComponent;
 class UControllerInputDefinition;
-class UControllerLagCompensationComponent;
 class UControllerPresentationComponent;
 class UControllerProfileSyncComponent;
 class UControllerSessionComponent;
@@ -164,9 +163,6 @@ private:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Components", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UControllerSessionComponent> ControllerSessionComponent;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Components", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UControllerLagCompensationComponent> ControllerLagCompensationComponent;
 
 	UPROPERTY(VisibleAnywhere, Category = "!Components")
 	TObjectPtr<UPlayerNotificationComponent> NotificationComponent;

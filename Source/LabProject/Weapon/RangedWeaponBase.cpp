@@ -128,7 +128,7 @@ bool ARangedWeaponBase::ResolveServerAimViewPoint(const APdPlayer* PlayerCharact
 bool ARangedWeaponBase::ResolveAimTargetBeyondLaunchPoint(const FVector& ViewLocation, const FVector& ViewDirection,
     const FVector& LaunchStartLocation, float TraceRange, const TArray<TEnumAsByte<EObjectTypeQuery>>& ObjectTypes,
     const TArray<AActor*>& ActorsToIgnore, EDrawDebugTrace::Type DebugDrawType, FVector& OutTargetLocation,
-    FHitResult* OutAimHitResult, const double RewindServerTime) const
+    FHitResult* OutAimHitResult, const TOptional<double>& RewindTime) const
 {
     if (OutAimHitResult)
     {
@@ -151,7 +151,7 @@ bool ARangedWeaponBase::ResolveAimTargetBeyondLaunchPoint(const FVector& ViewLoc
     for (int32 AttemptIndex = 0; AttemptIndex < MaxSkippedAimObstructions; ++AttemptIndex)
     {
         FHitResult HitResult;
-        const bool bHit = LineTraceSingleForRangedAim(RewindServerTime, AimTraceStart, AimTraceEnd, ObjectTypes,
+        const bool bHit = LineTraceSingleForRangedAim(RewindTime, AimTraceStart, AimTraceEnd, ObjectTypes,
             AimActorsToIgnore, DebugDrawType, HitResult);
 
         if (!bHit)
@@ -194,39 +194,35 @@ bool ARangedWeaponBase::ResolveAimTargetBeyondLaunchPoint(const FVector& ViewLoc
     return true;
 }
 
-bool ARangedWeaponBase::LineTraceSingleForRangedAim(const double RewindServerTime, const FVector& Start,
+bool ARangedWeaponBase::LineTraceSingleForRangedAim(const TOptional<double>& RewindTime, const FVector& Start,
     const FVector& End, const TArray<TEnumAsByte<EObjectTypeQuery>>& ObjectTypes, const TArray<AActor*>& ActorsToIgnore,
     const EDrawDebugTrace::Type DebugDrawType, FHitResult& OutHitResult) const
 {
-    if (RewindServerTime >= 0.0)
+    if (const ULagCompensationSubsystem* LagCompensation = RewindTime ? ULagCompensationSubsystem::Get(this) : nullptr)
     {
-        if (const ULagCompensationSubsystem* LagCompensationSubsystem = ULagCompensationSubsystem::Get(this))
-        {
-            return LagCompensationSubsystem->LineTraceSingleAtTime(RewindServerTime, Start, End, ObjectTypes,
-                ActorsToIgnore, DebugDrawType, OutHitResult);
-        }
+        TArray<FHitResult> Hits;
+        LagCompensation->TraceAtTime(*RewindTime, Start, End, 0.0f, ObjectTypes, ActorsToIgnore, DebugDrawType, Hits);
+        OutHitResult = Hits.IsEmpty() ? FHitResult() : Hits[0];
+        return !Hits.IsEmpty();
     }
 
     return UKismetSystemLibrary::LineTraceSingleForObjects(this, Start, End, ObjectTypes, false, ActorsToIgnore,
-        DebugDrawType, OutHitResult, true, FLinearColor::Red, FLinearColor::Green, 5.0f);
+        DebugDrawType, OutHitResult, true);
 }
 
-bool ARangedWeaponBase::SphereTraceMultiForRangedShot(const double RewindServerTime, const FVector& Start,
+bool ARangedWeaponBase::SphereTraceMultiForRangedShot(const TOptional<double>& RewindTime, const FVector& Start,
     const FVector& End, const float Radius, const TArray<TEnumAsByte<EObjectTypeQuery>>& ObjectTypes,
     const TArray<AActor*>& ActorsToIgnore, const EDrawDebugTrace::Type DebugDrawType,
     TArray<FHitResult>& OutHitResults) const
 {
-    if (RewindServerTime >= 0.0)
+    if (const ULagCompensationSubsystem* LagCompensation = RewindTime ? ULagCompensationSubsystem::Get(this) : nullptr)
     {
-        if (const ULagCompensationSubsystem* LagCompensationSubsystem = ULagCompensationSubsystem::Get(this))
-        {
-            return LagCompensationSubsystem->SphereTraceMultiAtTime(RewindServerTime, Start, End, Radius, ObjectTypes,
-                ActorsToIgnore, DebugDrawType, OutHitResults);
-        }
+        LagCompensation->TraceAtTime(*RewindTime, Start, End, Radius, ObjectTypes, ActorsToIgnore, DebugDrawType, OutHitResults);
+        return !OutHitResults.IsEmpty();
     }
 
     return UKismetSystemLibrary::SphereTraceMultiForObjects(this, Start, End, Radius, ObjectTypes, false,
-        ActorsToIgnore, DebugDrawType, OutHitResults, true, FLinearColor::Red, FLinearColor::Green, 5.0f);
+        ActorsToIgnore, DebugDrawType, OutHitResults, true);
 }
 
 TArray<AActor*> ARangedWeaponBase::MakeShotIgnoredActors(AActor* ShooterCharacter) const

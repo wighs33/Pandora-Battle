@@ -5,7 +5,6 @@
 #include "Gun.generated.h"
 
 class UPrimitiveComponent;
-struct FPdRewindRequest;
 
 UCLASS(BlueprintType, Blueprintable)
 class LABPROJECT_API AGun : public ARangedWeaponBase
@@ -20,18 +19,21 @@ public:
 
 protected:
 	// Network RPCs ----------------------------------------------------------------------------------------------------
-	// ClientViewServerTime은 사격 순간 클라이언트 화면이 보여 주던 서버 시각이다. 서버가 되감기 판정에 사용한다.
 	UFUNCTION(Server, Reliable)
-	void ServerHandlePrimaryAttack(
-		FVector_NetQuantize RequestedViewLocation,
-		FVector_NetQuantizeNormal RequestedViewDirection,
-		double ClientViewServerTime);
+	void ServerHandlePrimaryAttack(FVector_NetQuantize RequestedViewLocation, FVector_NetQuantizeNormal RequestedViewDirection);
 
 	UFUNCTION(NetMulticast, Unreliable)
 	void MulticastExecuteMuzzleFlashCue();
 
 	UFUNCTION(NetMulticast, Unreliable)
 	void MulticastSpawnImpactDecal(FVector_NetQuantize ImpactLocation, FVector_NetQuantizeNormal ImpactNormal, float DecalSize);
+
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastDrawRewindDebug(
+		FVector_NetQuantize CurrentCenter,
+		FVector_NetQuantize RewoundCenter,
+		float CapsuleHalfHeight,
+		float CapsuleRadius);
 
 public:
 	// Event Handlers --------------------------------------------------------------------------------------------------
@@ -43,8 +45,7 @@ protected:
 	bool HandlePrimaryAttackOnServer(
 		APdPlayer* PlayerCharacter,
 		const FVector& RequestedViewLocation,
-		const FVector& RequestedViewDirection,
-		double ClientViewServerTime = -1.0);
+		const FVector& RequestedViewDirection);
 	bool HandleAIPrimaryAttackAtLocationOnServer(ACharacterBase* AttackingCharacter, const FVector& TargetLocation);
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
@@ -56,17 +57,8 @@ protected:
 		const FVector& RequestedViewLocation,
 		const FVector& RequestedViewDirection,
 		FHitResult& OutHitResult,
-		double RewindServerTime = -1.0) const;
-	void RecordLagCompensatedShot(
-		APdPlayer* PlayerCharacter,
-		const FPdRewindRequest& RewindRequest,
-		const FVector& RequestedViewLocation,
-		const FVector& RequestedViewDirection,
-		const FHitResult* JudgedHitResult) const;
-	void RecordClientPerceivedShot(
-		APdPlayer* PlayerCharacter,
-		const FVector& ViewLocation,
-		const FVector& ViewDirection) const;
+		const TOptional<double>& RewindTime = {}) const;
+	void DrawRewindDebug(const FHitResult& HitResult, double RewindTime);
 	bool TraceAIGunShotAtLocation(
 		ACharacterBase* AttackingCharacter,
 		const FVector& TargetLocation,

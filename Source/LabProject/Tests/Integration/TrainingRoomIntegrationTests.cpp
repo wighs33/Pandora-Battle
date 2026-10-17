@@ -8,6 +8,7 @@
 #include "BrainComponent.h"
 #include "Character/CharacterBase.h"
 #include "Character/EnemyBase.h"
+#include "Character/LagCompensationSubsystem.h"
 #include "Common/InfoUiTypes.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Component/Player/CombatComponent.h"
@@ -626,6 +627,79 @@ bool FPdAttackInterruptedByDeathTest::RunTest(const FString& Parameters)
 	});
 	PdIntegrationTest::WaitUntil(this, TEXT("리스폰한 봇의 공격이 플레이어에게 피해를 준다"), 5.f,
 		[State]() { return GetHealthAndShield(GetPlayerCharacter()) < State->PlayerHealthBefore; });
+	return true;
+}
+
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPdLagCompensationRewindTest, "LabProject.Integration.TrainingRoom.LagCompensationRewind",
+	EAutomationTestFlags::ClientContext | EAutomationTestFlags::EngineFilter)
+
+// 리슨 서버는 캐릭터 판정 메시의 위치를 기록해 두고, 과거 시각으로 판정하면 그때 위치의 캐릭터를 맞힌다.
+// 호스트 자신의 사격은 되감지 않는다.
+bool FPdLagCompensationRewindTest::RunTest(const FString& Parameters)
+{
+	struct FMove
+	{
+		double OldTime = 0.0;
+		FVector OldCenter = FVector::ZeroVector;
+		FVector NewCenter = FVector::ZeroVector;
+	};
+	TSharedRef<FMove> Move = MakeShared<FMove>();
+	// 판정 메시의 폭보다 충분히 멀고, 한 틱 사이의 순간 이동으로 보지 않을 만큼 가깝게 옮긴다.
+	const FVector Offset(150.0, 0.0, 0.0);
+
+	// bIsLanMatch: Steam 없이(-nosteam) 실행해도 리슨 서버가 IP 소켓으로 열린다.
+	PdIntegrationTest::OpenMap(this, TrainingRoomMap, 3.f, TEXT("listen?bIsLanMatch"));
+	PdIntegrationTest::Step(0.f, [Move, Offset]()
+	{
+		StopTrainingBot();
+		AEnemyBase* Bot = GetTrainingBot();
+		if (!Bot)
+		{
+			return;
+		}
+		Move->OldTime = Bot->GetWorld()->GetTimeSeconds();
+		Move->OldCenter = Bot->GetMesh()->Bounds.Origin;
+		Move->NewCenter = Move->OldCenter + Offset;
+		Bot->SetActorLocation(Bot->GetActorLocation() + Offset, false, nullptr, ETeleportType::TeleportPhysics);
+	});
+	// 되감기 기록은 최대 되감기 폭(기본 200ms)만큼만 남으므로 그 안에서 확인한다.
+	PdIntegrationTest::Step(0.1f, [this, Move]()
+	{
+		AEnemyBase* Bot = GetTrainingBot();
+		const ULagCompensationSubsystem* LagCompensation = ULagCompensationSubsystem::Get(Bot);
+		if (!TestNotNull(TEXT("훈련 봇"), Bot) || !TestNotNull(TEXT("지연 보상 서브시스템"), LagCompensation))
+		{
+			return;
+		}
+		TestFalse(TEXT("호스트 자신의 사격은 되감지 않는다"),
+			LagCompensation->GetRewindTime(PdIntegrationTest::GetPlayerController()).IsSet());
+
+		const TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes = {
+			UEngineTypes::ConvertToObjectType(Bot->GetMesh()->GetCollisionObjectType())};
+		const TArray<AActor*> ActorsToIgnore = {GetPlayerCharacter()};
+		const auto HitsBot = [&](const double Time, const FVector& Center, FVector* OutLocation = nullptr)
+		{
+			// 옮긴 방향과 직각으로, 메시 중심을 지나는 선을 긋는다.
+			const FVector Across(0.0, 300.0, 0.0);
+			TArray<FHitResult> Hits;
+			LagCompensation->TraceAtTime(Time, Center - Across, Center + Across, 0.0f, ObjectTypes, ActorsToIgnore,
+				EDrawDebugTrace::None, Hits);
+			const FHitResult* BotHit = Hits.FindByPredicate([Bot](const FHitResult& Hit) { return Hit.GetActor() == Bot; });
+			if (BotHit && OutLocation)
+			{
+				*OutLocation = BotHit->Location;
+			}
+			return BotHit != nullptr;
+		};
+
+		FVector RewoundHitLocation = FVector::ZeroVector;
+		TestTrue(TEXT("옮기기 전 시각으로 판정하면 옛 위치의 봇을 맞힌다"), HitsBot(Move->OldTime, Move->OldCenter, &RewoundHitLocation));
+		TestTrue(TEXT("맞은 지점도 옛 위치 기준이다"),
+			FVector::Dist2D(RewoundHitLocation, Move->OldCenter) < FVector::Dist2D(RewoundHitLocation, Move->NewCenter));
+		TestFalse(TEXT("옮기기 전 시각에는 새 위치에 봇이 없다"), HitsBot(Move->OldTime, Move->NewCenter));
+		TestTrue(TEXT("지금 시각으로 판정하면 새 위치의 봇을 맞힌다"), HitsBot(Bot->GetWorld()->GetTimeSeconds(), Move->NewCenter));
+	});
 	return true;
 }
 

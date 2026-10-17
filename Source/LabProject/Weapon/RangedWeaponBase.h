@@ -51,11 +51,11 @@ protected:
         EDrawDebugTrace::Type DebugDrawType,
         FVector& OutTargetLocation,
         FHitResult* OutAimHitResult = nullptr,
-        double RewindServerTime = -1.0) const;
+        const TOptional<double>& RewindTime = {}) const;
 
-    // 되감기 시각이 0 이상이면 기록된 캐릭터를 그 시각 위치로 판정하고, 아니면 현재 월드로 trace한다.
+    // 되감을 시각이 있으면 기록된 캐릭터를 그 시각 위치로 판정하고(ULagCompensationSubsystem), 없으면 지금 월드로 판정한다.
     bool LineTraceSingleForRangedAim(
-        double RewindServerTime,
+        const TOptional<double>& RewindTime,
         const FVector& Start,
         const FVector& End,
         const TArray<TEnumAsByte<EObjectTypeQuery>>& ObjectTypes,
@@ -64,7 +64,7 @@ protected:
         FHitResult& OutHitResult) const;
 
     bool SphereTraceMultiForRangedShot(
-        double RewindServerTime,
+        const TOptional<double>& RewindTime,
         const FVector& Start,
         const FVector& End,
         float Radius,

@@ -5,17 +5,24 @@
 #include "Character/LagCompensationSubsystem.h"
 #include "Character/PdPlayer.h"
 #include "Component/Player/CombatComponent.h"
-#include "Component/Player/ControllerLagCompensationComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "GameplayCueManager.h"
 #include "GameplayEffectTypes.h"
 #include "Definition/Item/ItemDefinition.h"
+#include "DrawDebugHelpers.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInterface.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(Gun)
+
+namespace
+{
+	/** 되감기 디버그 캡슐을 보여 주는 시간과 선 굵기. */
+	constexpr float RewindDebugSeconds = 3.0f;
+	constexpr float RewindDebugThickness = 1.5f;
+}
 
 bool AGun::HandlePrimaryAttack(APdPlayer* PlayerCharacter)
 {
@@ -48,8 +55,7 @@ bool AGun::HandlePrimaryAttack(APdPlayer* PlayerCharacter)
 	}
 
 	ExecuteMuzzleFlashCue(PlayerCharacter);
-	RecordClientPerceivedShot(PlayerCharacter, ViewLocation, ViewDirection);
-	ServerHandlePrimaryAttack(ViewLocation, ViewDirection, PdLagCompensation::GetClientViewServerTime(PlayerCharacter));
+	ServerHandlePrimaryAttack(ViewLocation, ViewDirection);
 	return true;
 }
 
@@ -74,7 +80,7 @@ bool AGun::HandleAIPrimaryAttackAtLocation(ACharacterBase* AttackingCharacter, A
 }
 
 bool AGun::HandlePrimaryAttackOnServer(APdPlayer* PlayerCharacter, const FVector& RequestedViewLocation,
-	const FVector& RequestedViewDirection, const double ClientViewServerTime)
+	const FVector& RequestedViewDirection)
 {
 	if (!CanServerUseRangedWeapon(PlayerCharacter, true))
 	{
@@ -99,20 +105,20 @@ bool AGun::HandlePrimaryAttackOnServer(APdPlayer* PlayerCharacter, const FVector
 
 	MulticastExecuteMuzzleFlashCue();
 
-	// 원격 클라이언트의 사격은 그 클라이언트가 보던 시각으로 캐릭터를 되감아 판정한다.
-	const ULagCompensationSubsystem* LagCompensationSubsystem = ULagCompensationSubsystem::Get(this);
-	const FPdRewindRequest RewindRequest = LagCompensationSubsystem
-		? LagCompensationSubsystem->ResolveRewindRequest(PlayerCharacter->GetController(), ClientViewServerTime)
-		: FPdRewindRequest();
+	// 원격 플레이어의 사격은 그 플레이어 화면에 보이던 위치로 캐릭터를 되감아 판정한다.
+	const ULagCompensationSubsystem* LagCompensation = ULagCompensationSubsystem::Get(this);
+	const TOptional<double> RewindTime = LagCompensation
+		? LagCompensation->GetRewindTime(PlayerCharacter->GetController())
+		: TOptional<double>();
 
 	FHitResult HitResult;
-	const bool bHasHitResult = TraceGunShot(PlayerCharacter, RequestedViewLocation, RequestedViewDirection, HitResult,
-		RewindRequest.RewindServerTime);
-	RecordLagCompensatedShot(PlayerCharacter, RewindRequest, RequestedViewLocation, RequestedViewDirection,
-		bHasHitResult ? &HitResult : nullptr);
-
-	if (bHasHitResult)
+	if (TraceGunShot(PlayerCharacter, RequestedViewLocation, RequestedViewDirection, HitResult, RewindTime))
 	{
+		if (RewindTime && ULagCompensationSubsystem::IsDebugDrawEnabled())
+		{
+			DrawRewindDebug(HitResult, *RewindTime);
+		}
+
 		const bool bHitFriendlyTarget = IsFriendlyDamageTargetActor(HitResult.GetActor(), HitResult.GetComponent());
 		if (!bHitFriendlyTarget && HasConfiguredImpactDecal() && ShouldSpawnImpactDecalForHit(HitResult))
 		{
@@ -169,10 +175,9 @@ bool AGun::HandleAIPrimaryAttackAtLocationOnServer(ACharacterBase* AttackingChar
 }
 
 void AGun::ServerHandlePrimaryAttack_Implementation(FVector_NetQuantize RequestedViewLocation,
-	FVector_NetQuantizeNormal RequestedViewDirection, double ClientViewServerTime)
+	FVector_NetQuantizeNormal RequestedViewDirection)
 {
-	HandlePrimaryAttackOnServer(Cast<APdPlayer>(GetOwningCharacter()), RequestedViewLocation, RequestedViewDirection,
-		ClientViewServerTime);
+	HandlePrimaryAttackOnServer(Cast<APdPlayer>(GetOwningCharacter()), RequestedViewLocation, RequestedViewDirection);
 }
 
 void AGun::MulticastExecuteMuzzleFlashCue_Implementation()
@@ -189,6 +194,17 @@ void AGun::MulticastSpawnImpactDecal_Implementation(FVector_NetQuantize ImpactLo
 	FVector_NetQuantizeNormal ImpactNormal, float DecalSize)
 {
 	SpawnImpactDecal(ImpactLocation, ImpactNormal, DecalSize);
+}
+
+void AGun::MulticastDrawRewindDebug_Implementation(const FVector_NetQuantize CurrentCenter,
+	const FVector_NetQuantize RewoundCenter, const float CapsuleHalfHeight, const float CapsuleRadius)
+{
+#if ENABLE_DRAW_DEBUG
+	DrawDebugCapsule(GetWorld(), CurrentCenter, CapsuleHalfHeight, CapsuleRadius, FQuat::Identity, FColor::Red, false,
+		RewindDebugSeconds, 0, RewindDebugThickness);
+	DrawDebugCapsule(GetWorld(), RewoundCenter, CapsuleHalfHeight, CapsuleRadius, FQuat::Identity, FColor::Green, false,
+		RewindDebugSeconds, 0, RewindDebugThickness);
+#endif
 }
 
 void AGun::ExecuteMuzzleFlashCue(ACharacterBase* Character) const
@@ -457,7 +473,7 @@ bool AGun::TraceAIGunShotAtLocation(ACharacterBase* AttackingCharacter, const FV
 }
 
 bool AGun::TraceGunShot(APdPlayer* PlayerCharacter, const FVector& RequestedViewLocation,
-	const FVector& RequestedViewDirection, FHitResult& OutHitResult, const double RewindServerTime) const
+	const FVector& RequestedViewDirection, FHitResult& OutHitResult, const TOptional<double>& RewindTime) const
 {
 	const float TraceRange = GetGunTraceRange();
 	if (!PlayerCharacter || TraceRange <= 0.0f)
@@ -489,7 +505,7 @@ bool AGun::TraceGunShot(APdPlayer* PlayerCharacter, const FVector& RequestedView
 	FVector AimTargetLocation = FVector::ZeroVector;
 	FHitResult AimHitResult;
 	if (!ResolveAimTargetBeyondLaunchPoint(ViewLocation, SafeViewDirection, TraceStart, TraceRange, TraceObjectTypes,
-		ActorsToIgnore, AimTraceDebugDrawType, AimTargetLocation, &AimHitResult, RewindServerTime))
+		ActorsToIgnore, AimTraceDebugDrawType, AimTargetLocation, &AimHitResult, RewindTime))
 	{
 		return false;
 	}
@@ -509,7 +525,7 @@ bool AGun::TraceGunShot(APdPlayer* PlayerCharacter, const FVector& RequestedView
 
 	const float TraceRadius = GetGunTraceRadius();
 	TArray<FHitResult> HitResults;
-	SphereTraceMultiForRangedShot(RewindServerTime, TraceStart, TraceEnd, TraceRadius, TraceObjectTypes, ActorsToIgnore,
+	SphereTraceMultiForRangedShot(RewindTime, TraceStart, TraceEnd, TraceRadius, TraceObjectTypes, ActorsToIgnore,
 		ShotTraceDebugDrawType, HitResults);
 	if (SelectFirstValidGunImpact(HitResults, OutHitResult))
 	{
@@ -539,72 +555,22 @@ bool AGun::TraceGunShot(APdPlayer* PlayerCharacter, const FVector& RequestedView
 	return true;
 }
 
-// 되감기 전후 판정을 비교해 통계를 남기고, 명중한 대상의 현재·되감기 위치를 디버그로 표시한다.
-void AGun::RecordLagCompensatedShot(APdPlayer* PlayerCharacter, const FPdRewindRequest& RewindRequest,
-	const FVector& RequestedViewLocation, const FVector& RequestedViewDirection,
-	const FHitResult* JudgedHitResult) const
+// 개발용: 되감아 맞힌 캐릭터의 지금 위치(빨강)와 판정한 과거 위치(초록)를 모든 화면에 그린다.
+void AGun::DrawRewindDebug(const FHitResult& HitResult, const double RewindTime)
 {
-	const bool bCollectStats = PdLagCompensation::IsStatsEnabled();
-	const bool bDrawDebug = PdLagCompensation::IsDebugDrawEnabled() && RewindRequest.IsRewinding();
-	ULagCompensationSubsystem* LagCompensationSubsystem = ULagCompensationSubsystem::Get(this);
-	if ((!bCollectStats && !bDrawDebug) || !PlayerCharacter || !LagCompensationSubsystem)
+	const ACharacterBase* HitCharacter = Cast<ACharacterBase>(ResolveDamageTargetActor(HitResult.GetActor(), HitResult.GetComponent()));
+	const ULagCompensationSubsystem* LagCompensation = ULagCompensationSubsystem::Get(this);
+	const TOptional<FVector> RewoundCenter = HitCharacter && LagCompensation
+		? LagCompensation->GetCapsuleCenterAtTime(*HitCharacter, RewindTime)
+		: TOptional<FVector>();
+	if (!RewoundCenter)
 	{
 		return;
 	}
 
-	const ACharacterBase* JudgedCharacter = JudgedHitResult
-		? Cast<ACharacterBase>(ResolveDamageTargetActor(JudgedHitResult->GetActor(), JudgedHitResult->GetComponent()))
-		: nullptr;
-
-	const ACharacterBase* CurrentCharacter = JudgedCharacter;
-	if (RewindRequest.IsRewinding())
-	{
-		FHitResult CurrentHitResult;
-		CurrentCharacter = TraceGunShot(PlayerCharacter, RequestedViewLocation, RequestedViewDirection, CurrentHitResult)
-			? Cast<ACharacterBase>(ResolveDamageTargetActor(CurrentHitResult.GetActor(), CurrentHitResult.GetComponent()))
-			: nullptr;
-	}
-
-	if (bCollectStats)
-	{
-		LagCompensationSubsystem->RecordServerShot(PlayerCharacter->GetController(), RewindRequest, CurrentCharacter,
-			JudgedCharacter);
-	}
-
-	const ACharacterBase* DebugCharacter = JudgedCharacter ? JudgedCharacter : CurrentCharacter;
-	const UCapsuleComponent* DebugCapsule = DebugCharacter ? DebugCharacter->GetCapsuleComponent() : nullptr;
-	FVector RewoundCenter = FVector::ZeroVector;
-	if (!bDrawDebug
-		|| !DebugCapsule
-		|| !LagCompensationSubsystem->GetCapsuleCenterAtTime(DebugCharacter, RewindRequest.RewindServerTime, RewoundCenter))
-	{
-		return;
-	}
-
-	const AController* ShooterController = PlayerCharacter->GetController();
-	if (UControllerLagCompensationComponent* LagCompensationComponent = ShooterController
-		? ShooterController->FindComponentByClass<UControllerLagCompensationComponent>()
-		: nullptr)
-	{
-		LagCompensationComponent->ShowRewindDebug(DebugCharacter->GetActorLocation(), RewoundCenter,
-			DebugCapsule->GetScaledCapsuleHalfHeight(), DebugCapsule->GetScaledCapsuleRadius(), RewindRequest.RewindMs);
-	}
-}
-
-// 통계 수집 중이면 클라이언트 화면 기준으로도 같은 사격을 판정해 체감 명중 수를 남긴다.
-void AGun::RecordClientPerceivedShot(APdPlayer* PlayerCharacter, const FVector& ViewLocation,
-	const FVector& ViewDirection) const
-{
-	ULagCompensationSubsystem* LagCompensationSubsystem = ULagCompensationSubsystem::Get(this);
-	if (!PdLagCompensation::IsStatsEnabled() || !PlayerCharacter || !LagCompensationSubsystem)
-	{
-		return;
-	}
-
-	FHitResult LocalHitResult;
-	const bool bPerceivedCharacterHit = TraceGunShot(PlayerCharacter, ViewLocation, ViewDirection, LocalHitResult)
-		&& ResolveDamageTargetActor(LocalHitResult.GetActor(), LocalHitResult.GetComponent()) != nullptr;
-	LagCompensationSubsystem->RecordClientShot(bPerceivedCharacterHit);
+	const UCapsuleComponent* Capsule = HitCharacter->GetCapsuleComponent();
+	MulticastDrawRewindDebug(HitCharacter->GetActorLocation(), *RewoundCenter, Capsule->GetScaledCapsuleHalfHeight(),
+		Capsule->GetScaledCapsuleRadius());
 }
 
 bool AGun::SelectFirstValidGunImpact(const TArray<FHitResult>& HitResults, FHitResult& OutHitResult) const
