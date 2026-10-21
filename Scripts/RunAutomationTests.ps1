@@ -1,6 +1,6 @@
 ﻿<#
 .SYNOPSIS
-    LabProject 자동화 테스트를 한 번에 돌리는 CI 진입점이다.
+    LabProject 자동화 테스트를 한 번에 돌린다.
 
 .DESCRIPTION
     단계는 세 가지다.
@@ -13,7 +13,7 @@
     단계마다 ReportDir 아래에 엔진 리포트(index.json)와 로그를 남긴다.
     실패한 테스트가 있거나, 기대한 단계에서 테스트가 하나도 돌지 않았거나, 리포트가 없으면 종료 코드 1을 돌려준다.
 
-    공개 저장소는 로직 애셋만 담으므로, 연결 테스트는 전체 Content가 있는 빌드 머신(self-hosted runner)에서 돌린다.
+    공개 저장소는 로직 애셋만 담으므로, 연결 테스트는 전체 Content가 있는 개발 PC에서 돌린다.
 
 .EXAMPLE
     powershell -ExecutionPolicy Bypass -File Scripts\RunAutomationTests.ps1 -EngineRoot C:\UE\UE_5.8
@@ -29,7 +29,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-# CI 로그에 한국어 메시지가 깨지지 않게 출력 인코딩을 UTF-8로 맞춘다.
+# 로그에 한국어 메시지가 깨지지 않게 출력 인코딩을 UTF-8로 맞춘다.
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 if (-not $EngineRoot -or -not (Test-Path (Join-Path $EngineRoot "Engine"))) {

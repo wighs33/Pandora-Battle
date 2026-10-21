@@ -145,7 +145,7 @@ __pycache__/
 Thumbs.db
 Desktop.ini
 
-# Build number stamp written by CI (Scripts/StampBuildVersion.ps1).
+# Build number stamp written by Scripts/StampBuildVersion.ps1 when packaging.
 Source/LabProject/Common/BuildVersionStamp.h
 
 # Luna 로컬 모델 번들(llama-server + GGUF, 수 GB). Steam에서는 무료 DLC 데포로 배포한다.

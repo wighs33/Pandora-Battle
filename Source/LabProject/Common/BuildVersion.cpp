@@ -2,7 +2,7 @@
 
 #include "GeneralProjectSettings.h"
 
-// CI만 만드는 파일이다. 만들거나 지울 때 스크립트가 이 파일의 시각을 갱신해 다시 컴파일되게 한다.
+// Scripts/StampBuildVersion.ps1만 만드는 파일이다. 만들거나 지울 때 스크립트가 이 파일의 시각을 갱신해 다시 컴파일되게 한다.
 #if __has_include("Common/BuildVersionStamp.h")
 #include "Common/BuildVersionStamp.h"
 #endif

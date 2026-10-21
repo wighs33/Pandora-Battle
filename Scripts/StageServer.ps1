@@ -69,8 +69,6 @@ Invoke-Step "스테이징" {
 
 if ($RestartAnywhere) {
     Write-Host "== GameLift Anywhere 서버 시작"
-    # GitHub Actions 러너는 작업이 끝날 때 RUNNER_TRACKING_ID가 같은 자식 프로세스를 정리한다. 서버가 작업 뒤에도 남도록 지운다.
-    $env:RUNNER_TRACKING_ID = ""
     $RunScript = (Resolve-Path (Join-Path $PSScriptRoot "..\Backend\run-anywhere-server.ps1")).Path
     # -File로 넘기면 -nosteam이 스크립트 매개변수로 읽힌다. 배열 인자를 그대로 넘기려고 -Command를 쓴다.
     Start-Process -FilePath "powershell.exe" -WindowStyle Hidden -ArgumentList @(
