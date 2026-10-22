@@ -54,7 +54,6 @@ private:
 	void HandleInteractInput(const FInputActionValue& InputValue);
 	void HandleOpenInfoInputStarted(const FInputActionValue& InputValue, EInfoUiSection Section);
 	void HandleOpenSettingUiInputStarted(const FInputActionValue& InputValue);
-	void HandleEscapeInputStarted(const FInputActionValue& InputValue);
 	void HandleOpenLobbyInputStarted(const FInputActionValue& InputValue);
 	void HandleSelectPandoraInputStarted(const FInputActionValue& InputValue);
 	void HandleSelectPandoraInputEnded(const FInputActionValue& InputValue);

@@ -3,6 +3,7 @@
 #include "Common/PdTicker.h"
 #include "Component/Player/ControllerInputComponent.h"
 #include "EnhancedInputSubsystems.h"
+#include "UI/Core/GameplayScreen.h"
 #include "UI/Core/UiScreen.h"
 #include "Engine/GameViewportClient.h"
 #include "Engine/LocalPlayer.h"
@@ -36,7 +37,7 @@ void UPdUIActionRouter::Deinitialize()
 void UPdUIActionRouter::BeginChatInput(UWidget* InputWidget)
 {
 	ChatInputWidget = InputWidget;
-	if (!GetActiveRoot().IsValid())
+	if (IsDefaultScreenActive())
 	{
 		ApplyDefaultInput();
 	}
@@ -49,7 +50,7 @@ void UPdUIActionRouter::EndChatInput(const UWidget* InputWidget)
 		return;
 	}
 	ChatInputWidget.Reset();
-	if (!GetActiveRoot().IsValid())
+	if (IsDefaultScreenActive())
 	{
 		ApplyDefaultInput();
 	}
@@ -58,31 +59,39 @@ void UPdUIActionRouter::EndChatInput(const UWidget* InputWidget)
 void UPdUIActionRouter::SetActiveRoot(FActivatableTreeRootPtr NewActiveRoot)
 {
 	Super::SetActiveRoot(NewActiveRoot);
-	if (!GetActiveRoot().IsValid())
+	// UE 5.8은 Slate root 제거를 마친 뒤 ActiveInputConfig를 비운다.
+	// 그 정리가 끝난 다음 틱에 기본 정책을 복원한다. 게임 중 기본 화면으로 돌아온 때도 채팅 포커스를 되돌리려고 같은 길을 쓴다.
+	PdTicker::RunNextTick(this, [this]()
 	{
-		// UE 5.8은 Slate root 제거를 마친 뒤 ActiveInputConfig를 비운다.
-		// 그 정리가 끝난 다음 틱에 기본 정책을 복원한다.
-		PdTicker::RunNextTick(this, [this]()
+		if (IsDefaultScreenActive())
 		{
-			if (!GetActiveRoot().IsValid())
-			{
-				ApplyDefaultInput();
-			}
-		});
-	}
+			ApplyDefaultInput();
+		}
+	});
+}
+
+FUIInputConfig UPdUIActionRouter::MakeDefaultInputConfig() const
+{
+	// 게임 중 기본 화면의 뒤로 가기(ESC)는 Menu 모드 바인딩이라, 게임 입력과 함께 받는 All 모드를 쓴다.
+	const bool bChatInput = ChatInputWidget.IsValid();
+	FUIInputConfig Config(ECommonInputMode::All, EMouseCaptureMode::CapturePermanently_IncludingInitialMouseDown);
+	Config.bIgnoreMoveInput = Config.bIgnoreLookInput = bChatInput;
+	return Config;
 }
 
 void UPdUIActionRouter::ApplyDefaultInput()
 {
-	UWidget* ChatInput = ChatInputWidget.Get();
-	FUIInputConfig Config(ChatInput ? ECommonInputMode::All : ECommonInputMode::Game,
-		EMouseCaptureMode::CapturePermanently_IncludingInitialMouseDown);
-	Config.bIgnoreMoveInput = Config.bIgnoreLookInput = ChatInput != nullptr;
-	ApplyUIInputConfig(Config, true);
-	if (ChatInput)
+	ApplyUIInputConfig(MakeDefaultInputConfig(), true);
+	if (UWidget* ChatInput = ChatInputWidget.Get())
 	{
 		GetLocalPlayerChecked()->GetSlateOperations().SetUserFocus(ChatInput->TakeWidget());
 	}
+}
+
+bool UPdUIActionRouter::IsDefaultScreenActive() const
+{
+	const UCommonActivatableWidget* ActiveScreen = GetLeafmostActivatableWidget();
+	return !ActiveScreen || ActiveScreen->IsA<UGameplayScreen>();
 }
 
 bool UPdUIActionRouter::IsGameplayInputBlocked() const
@@ -128,14 +137,13 @@ void UPdUIActionRouter::ApplyUIInputConfig(const FUIInputConfig& NewConfig, bool
 	}
 
 	const bool bWasBlocked = IsGameplayInputBlocked();
-	const UCommonActivatableWidget* ActiveScreen = GetLeafmostActivatableWidget();
-	const UUiScreen* Adapter = Cast<UUiScreen>(ActiveScreen);
+	const UUiScreen* Adapter = Cast<UUiScreen>(GetLeafmostActivatableWidget());
 	// 기존 위젯 어댑터는 선언한 게임플레이 정책을 쓰고, 직접 전환한 메뉴나 채팅 입력은 게임 입력을 막는다.
 	if (Adapter)
 	{
 		AppliedGameplayPolicy = Adapter->GameplayInputPolicy;
 	}
-	else if (ActiveScreen || ChatInputWidget.IsValid())
+	else if (!IsDefaultScreenActive() || ChatInputWidget.IsValid())
 	{
 		AppliedGameplayPolicy = EPdGameplayInputPolicy::Block;
 	}

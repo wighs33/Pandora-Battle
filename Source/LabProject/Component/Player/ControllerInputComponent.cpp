@@ -352,7 +352,6 @@ void UControllerInputComponent::BindNativeInputActions(UEnhancedInputComponent& 
 	Bind(ActionWhilePaused(Definition.GetOpenInfoPandoraInputAction()), ETriggerEvent::Started, &ThisClass::HandleOpenInfoInputStarted, EInfoUiSection::Pandora);
 	Bind(ActionWhilePaused(Definition.GetOpenInfoMapInputAction()), ETriggerEvent::Started, &ThisClass::HandleOpenInfoInputStarted, EInfoUiSection::Map);
 	Bind(ActionWhilePaused(Definition.GetOpenSettingUiInputAction()), ETriggerEvent::Started, &ThisClass::HandleOpenSettingUiInputStarted);
-	Bind(ActionWhilePaused(Definition.GetEscapeInputAction()), ETriggerEvent::Started, &ThisClass::HandleEscapeInputStarted);
 	Bind(ActionWhilePaused(Definition.GetOpenLobbyInputAction()), ETriggerEvent::Started, &ThisClass::HandleOpenLobbyInputStarted);
 	BindPressAndRelease(Action(Definition.GetSelectPandoraInputAction()),
 		&ThisClass::HandleSelectPandoraInputStarted, &ThisClass::HandleSelectPandoraInputEnded);

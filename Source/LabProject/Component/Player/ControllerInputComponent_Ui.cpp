@@ -3,12 +3,12 @@
 #include "Component/Chat/ChatControllerComponent.h"
 #include "Component/Player/ControllerPresentationComponent.h"
 #include "Definition/Level/LevelDefinition.h"
-#include "Definition/Player/ControllerInputDefinition.h"
 #include "Interface/HudInputInterface.h"
 #include "Kismet/GameplayStatics.h"
 #include "Mode/PdPlayerController.h"
 
-// 화면 입력: 정보창·설정·Esc·로비·판도라 선택과 트리·점수판·채팅. 게임플레이 입력은 ControllerInputComponent.cpp에 있다.
+// 화면 입력: 정보창·설정·로비·판도라 선택과 트리·점수판·채팅. 게임플레이 입력은 ControllerInputComponent.cpp에 있다.
+// ESC는 CommonUI 뒤로 가기로 받는다(UGameplayScreen).
 
 void UControllerInputComponent::HandleOpenInfoInputStarted(const FInputActionValue& InputValue, const EInfoUiSection Section)
 {
@@ -21,39 +21,9 @@ void UControllerInputComponent::HandleOpenInfoInputStarted(const FInputActionVal
 
 void UControllerInputComponent::HandleOpenSettingUiInputStarted(const FInputActionValue& InputValue)
 {
-	const UControllerInputDefinition* Definition = LoadedInputDefinition.Get();
-	if (Definition && Definition->GetOpenSettingUiInputAction().ToSoftObjectPath()
-			== Definition->GetEscapeInputAction().ToSoftObjectPath())
-	{
-		// 예전 데이터 애셋은 두 칸 모두 IA_Escape를 가리킬 수 있다. 같은 키가 두 번 처리되지 않도록 Esc 처리에 맡긴다.
-		return;
-	}
-
 	if (IHudInputInterface* HUD = GetHudInput())
 	{
 		HUD->OnOpenSettingsMenuInputStarted(InputValue);
-	}
-}
-
-void UControllerInputComponent::HandleEscapeInputStarted(const FInputActionValue& InputValue)
-{
-	static_cast<void>(InputValue);
-
-	APdPlayerController* Controller = GetPdController();
-	if (Controller)
-	{
-		if (UChatControllerComponent* ChatController = Controller->FindComponentByClass<UChatControllerComponent>();
-			ChatController && ChatController->IsChatFocused())
-		{
-			ChatController->ExitChat();
-			return;
-		}
-	}
-
-	if (IHudInputInterface* HUD = GetHudInput())
-	{
-		HUD->HandleEscapeInput();
-		bSelectPandoraActionOpened = false;
 	}
 }
 

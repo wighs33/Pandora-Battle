@@ -20,6 +20,10 @@ public:
 	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual TSharedRef<SWidget> RebuildWidget() override;
 
+	// 게임 중 기본 화면. 위 층에 화면이 없을 때만 입력을 받는다.
+	UPROPERTY(Transient)
+	TObjectPtr<UCommonActivatableWidgetStack> GameStack;
+
 	UPROPERTY(Transient)
 	TObjectPtr<UCommonActivatableWidgetStack> ScreenStack;
 

@@ -74,7 +74,6 @@ public:
 	const TSoftObjectPtr<UInputAction>& GetOpenInfoPandoraInputAction() const { return OpenInfoPandoraInputAction; }
 	const TSoftObjectPtr<UInputAction>& GetOpenInfoMapInputAction() const { return OpenInfoMapInputAction; }
 	const TSoftObjectPtr<UInputAction>& GetOpenSettingUiInputAction() const { return OpenSettingUiInputAction; }
-	const TSoftObjectPtr<UInputAction>& GetEscapeInputAction() const { return EscapeInputAction; }
 	const TSoftObjectPtr<UInputAction>& GetOpenLobbyInputAction() const { return OpenLobbyInputAction; }
 	const TSoftObjectPtr<UInputAction>& GetSelectPandoraInputAction() const { return SelectPandoraInputAction; }
 	const TSoftObjectPtr<UInputAction>& GetPandoraTreeInputAction() const { return PandoraTreeInputAction; }
@@ -177,10 +176,6 @@ private:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Input|Native Actions", meta = (AssetBundles = "Client", AllowPrivateAccess = "true"))
 	TSoftObjectPtr<UInputAction> OpenSettingUiInputAction;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Input|Native Actions",
-		meta = (AssetBundles = "Client", AllowPrivateAccess = "true", DisplayName = "Escape Input Action"))
-	TSoftObjectPtr<UInputAction> EscapeInputAction;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Input|Native Actions", meta = (AssetBundles = "Client", AllowPrivateAccess = "true"))
 	TSoftObjectPtr<UInputAction> OpenLobbyInputAction;

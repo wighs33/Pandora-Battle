@@ -7,6 +7,7 @@
 #include "HudUiRouter.generated.h"
 
 class APdHUD;
+class UGameplayScreen;
 class UHudMenuLayer;
 class UHudScoreboardLayer;
 class UHudSelectPandoraLayer;
@@ -77,6 +78,9 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UHudSelectPandoraLayer> SelectPandoraLayer;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UGameplayScreen> GameplayScreen;
 
 	bool bEnsuringCoreLayers = false;
 	bool bEnsuringInfoLayers = false;

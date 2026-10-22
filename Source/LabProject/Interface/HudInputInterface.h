@@ -25,10 +25,6 @@ public:
 	// Public API ------------------------------------------------------------------------------------------------------
 	virtual void OpenInfoUiFocused(EInfoUiSection Section) = 0;
 	virtual void OnOpenSettingsMenuInputStarted(const FInputActionValue& InputValue) = 0;
-
-	/** ESC 입력을 화면이 처리했으면 true. */
-	virtual bool HandleEscapeInput() = 0;
-
 	virtual void OnSelectPandoraInputStarted(const FInputActionValue& InputValue) = 0;
 	virtual bool OnSelectPandoraInputEnded(const FInputActionValue& InputValue) = 0;
 	virtual bool IsSelectPandoraUiOpen() const = 0;

@@ -8,7 +8,7 @@
 
 class UUiLayerRoot;
 class UUiScreen;
-enum class EUiScreenLayer : uint8 { Screen, Overlay, Menu, Modal };
+enum class EUiScreenLayer : uint8 { Game, Screen, Overlay, Menu, Modal };
 
 class UCommonActivatableWidget;
 class UAbilitySystemComponent;

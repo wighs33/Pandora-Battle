@@ -17,6 +17,7 @@
 #include "Mode/PdPlayerState.h"
 #include "TimerManager.h"
 #include "UI/Info/Presenter/InfoUiPresenter.h"
+#include "UI/Core/GameplayScreen.h"
 #include "UI/Core/UiSubsystem.h"
 #include "UI/Info/InfoWidget.h"
 #include "UI/Pandora/PandoraTreeWidget.h"
@@ -143,6 +144,16 @@ void UHudUiRouter::EnsureCoreLayers()
 	{
 		Hud->CachedPlayerHUD->AddToViewport();
 	}
+	// 다른 화면이 없을 때의 ESC는 게임 중 기본 화면의 뒤로 가기로 받는다. CommonUI 액션이라 누른 순간에만 실행된다.
+	if (!GameplayScreen)
+	{
+		GameplayScreen = UGameplayScreen::Create(Controller,
+			FSimpleDelegate::CreateWeakLambda(Hud, [Hud]() { Hud->HandleGameplayBackAction(); }));
+		if (UUiSubsystem* UiSubsystem = ResolveUiSubsystem(); GameplayScreen && UiSubsystem)
+		{
+			UiSubsystem->PushScreen(GameplayScreen, EUiScreenLayer::Game);
+		}
+	}
 	// 파생 HUD가 전체 화면 UI(예: 로비 위젯)를 이미 연 뒤에 Core 층이 들어올 수 있다.
 	// 새로 추가한 HUD가 보인다고 가정하지 말고, 만든 뒤에는 항상 현재 정책을 적용한다.
 	Hud->RefreshPlayerHudVisibility();
@@ -259,6 +270,11 @@ void UHudUiRouter::ResetLayers()
 	if (ScoreboardLayer)
 	{
 		ScoreboardLayer->Shutdown();
+	}
+	if (GameplayScreen)
+	{
+		GameplayScreen->DeactivateWidget();
+		GameplayScreen = nullptr;
 	}
 
 	APdHUD* Hud = OwnerHud.Get();

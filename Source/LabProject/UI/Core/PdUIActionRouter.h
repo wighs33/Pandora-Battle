@@ -24,11 +24,16 @@ public:
 	void EndChatInput(const UWidget* InputWidget);
 	bool IsGameplayInputBlocked() const;
 
+	// 다른 화면이 없을 때의 입력 설정. 게임 중 기본 화면(UGameplayScreen)도 이 설정을 쓴다.
+	FUIInputConfig MakeDefaultInputConfig() const;
+
 protected:
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	virtual void SetActiveRoot(FActivatableTreeRootPtr NewActiveRoot) override;
 	virtual void ApplyUIInputConfig(const FUIInputConfig& NewConfig, bool bForceRefresh) override;
 	void ApplyDefaultInput();
+	// 활성 화면이 없거나 게임 중 기본 화면뿐인지.
+	bool IsDefaultScreenActive() const;
 
 private:
 	FTSTicker::FDelegateHandle PendingInputConfigTickerHandle;

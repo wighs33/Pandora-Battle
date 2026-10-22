@@ -5,6 +5,7 @@
 #include "Blueprint/UserWidget.h"
 #include "Components/GameFrameworkComponentManager.h"
 #include "Components/Widget.h"
+#include "Component/Chat/ChatControllerComponent.h"
 #include "Component/Player/ControllerPresentationComponent.h"
 #include "Definition/Level/LevelDefinition.h"
 #include "Engine/LocalPlayer.h"
@@ -794,6 +795,19 @@ void APdHUD::HandleEscapeMenuClosed()
 	RefreshPlayerHudVisibility();
 }
 
+void APdHUD::HandleGameplayBackAction()
+{
+	// 입력란에 포커스가 있으면 채팅 위젯이 ESC를 먼저 받는다. 여기로 오는 것은 포커스가 빠진 채팅뿐이다.
+	const APlayerController* Controller = GetOwningPlayerController();
+	if (UChatControllerComponent* ChatController = Controller ? Controller->FindComponentByClass<UChatControllerComponent>() : nullptr;
+		ChatController && ChatController->IsChatFocused())
+	{
+		ChatController->ExitChat();
+		return;
+	}
+
+	HandleEscapeInput();
+}
 
 void APdHUD::ApplyInventoryWidgetSettings()
 {

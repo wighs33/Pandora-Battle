@@ -36,6 +36,9 @@ namespace
 	const FString TrainingRoomMap = TEXT("/Game/Map/LV_TrainingRoom");
 	const TCHAR* BowPath = TEXT("/Game/Item/Weapon/LoyalBow/DA_LoyalBow.DA_LoyalBow");
 	const TCHAR* GreatswordPath = TEXT("/Game/Item/Weapon/Greatsword/DA_Greatsword.DA_Greatsword");
+	// 키를 누르고 있을 때 보낼 반복 이벤트 수와 간격. 첫 반복이 핵심이라 몇 번이면 충분하다.
+	constexpr int32 HeldKeyRepeatEvents = 3;
+	constexpr float KeyRepeatIntervalSeconds = 0.05f;
 
 	ACharacterBase* GetPlayerCharacter()
 	{
@@ -274,7 +277,7 @@ namespace
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPdInfoShortcutsTest, "LabProject.Integration.TrainingRoom.UiShortcuts",
 	EAutomationTestFlags::ClientContext | EAutomationTestFlags::EngineFilter)
 
-// 정보창 다섯 탭의 단축키와 ESC가 입력 매핑 → 입력 컴포넌트 → HUD → 화면 열기까지 이어진다.
+// 정보창 다섯 탭의 단축키는 입력 매핑 → 입력 컴포넌트 → HUD로, ESC는 CommonUI 뒤로 가기 → HUD로 화면 열기까지 이어진다.
 bool FPdInfoShortcutsTest::RunTest(const FString& Parameters)
 {
 	PdIntegrationTest::OpenMap(this, TrainingRoomMap);
@@ -309,27 +312,30 @@ bool FPdInfoShortcutsTest::RunTest(const FString& Parameters)
 		});
 	}
 
-	TapMappedKey(this, TEXT("ESC 메뉴"), []()
-	{
-		UControllerInputDefinition* Definition = GetInputDefinition();
-		return Definition ? Definition->GetEscapeInputAction().Get() : nullptr;
-	});
+	// ESC는 입력 매핑이 아니라 CommonUI 뒤로 가기다. 게임 중 기본 화면이 받아 메뉴를 열고, 열린 메뉴가 받아 닫는다.
+	PdIntegrationTest::Step(0.2f, []() { PdIntegrationTest::PressKey(EKeys::Escape, true); });
+	PdIntegrationTest::Step(0.1f, []() { PdIntegrationTest::PressKey(EKeys::Escape, false); });
 	PdIntegrationTest::WaitUntil(this, TEXT("ESC 메뉴 열기"), 5.f, []()
 	{
 		const APdHUD* Hud = GetHud();
 		return Hud && !Hud->GetInfoWidget() && Hud->IsGameplayInputBlockedByUi();
 	});
-	PdIntegrationTest::Step(0.2f, []()
-	{
-		if (APdHUD* Hud = GetHud())
-		{
-			Hud->ToggleEscapeMenu();
-		}
-	});
+	PdIntegrationTest::Step(0.2f, []() { PdIntegrationTest::PressKey(EKeys::Escape, true); });
 	PdIntegrationTest::WaitUntil(this, TEXT("ESC 메뉴 닫기"), 5.f, []()
 	{
 		const APdHUD* Hud = GetHud();
 		return Hud && !Hud->IsGameplayInputBlockedByUi();
+	});
+	// 누른 채로 있으면 운영체제가 키 반복을 보낸다. 첫 반복이 새 입력으로 처리돼 메뉴가 다시 열리면 안 된다.
+	for (int32 RepeatIndex = 0; RepeatIndex < HeldKeyRepeatEvents; ++RepeatIndex)
+	{
+		PdIntegrationTest::Step(KeyRepeatIntervalSeconds, []() { PdIntegrationTest::SendKeyEvent(EKeys::Escape, IE_Repeat); });
+	}
+	PdIntegrationTest::Step(0.2f, [this]()
+	{
+		const APdHUD* Hud = GetHud();
+		TestFalse(TEXT("ESC를 누른 채 메뉴를 닫아도 키 반복으로 다시 열리지 않는다"), Hud && Hud->IsGameplayInputBlockedByUi());
+		PdIntegrationTest::PressKey(EKeys::Escape, false);
 	});
 	return true;
 }

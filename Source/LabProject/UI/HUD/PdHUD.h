@@ -101,8 +101,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!UI|Menu")
 	void OpenEscapeMenu();
 
+	/** ESC 입력을 화면이 처리했으면 true. 열린 창을 닫고, 닫을 창이 없으면 ESC 메뉴를 연다. */
 	UFUNCTION(BlueprintCallable, Category = "!UI|Menu")
-	virtual bool HandleEscapeInput() override;
+	virtual bool HandleEscapeInput();
 
 	virtual void OnOpenSettingsMenuInputStarted(const FInputActionValue& InputValue) override;
 	virtual void OnSelectPandoraInputStarted(const FInputActionValue& InputValue) override;
@@ -112,6 +113,8 @@ public:
 private:
 	void HandlePossessedCharacterReady(ACharacterBase* Character, UPdAbilitySystemComponent* AbilitySystemComponent);
 	void HandleEscapeMenuClosed();
+	// 게임 중 기본 화면이 받은 ESC. 포커스가 빠진 채팅이 남아 있으면 채팅부터 닫는다.
+	void HandleGameplayBackAction();
 	void HandleAimCrosshairChanged(bool bVisible, FGameplayTag CrosshairWidgetTag);
 	void ShowRightNotification(const FPdNotificationData& NotificationData);
 	void ShowGoldenKillAnnouncement(const FText& AnnouncementText);

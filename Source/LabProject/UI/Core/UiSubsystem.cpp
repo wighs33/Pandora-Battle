@@ -420,6 +420,7 @@ void UUiSubsystem::PushScreen(UCommonActivatableWidget* Screen, EUiScreenLayer L
 	}
 	switch (Layer)
 	{
+	case EUiScreenLayer::Game: ScreenRoot->GameStack->AddWidgetInstance(*Screen); break;
 	case EUiScreenLayer::Screen: ScreenRoot->ScreenStack->AddWidgetInstance(*Screen); break;
 	case EUiScreenLayer::Menu: ScreenRoot->MenuStack->AddWidgetInstance(*Screen); break;
 	case EUiScreenLayer::Modal: ScreenRoot->ModalStack->AddWidgetInstance(*Screen); break;

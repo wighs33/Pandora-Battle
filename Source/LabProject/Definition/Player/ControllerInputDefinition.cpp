@@ -175,7 +175,6 @@ void UControllerInputDefinition::GetRuntimePreloadAssetPaths(TArray<FSoftObjectP
 	AddSoftPath(OpenInfoPandoraInputAction);
 	AddSoftPath(OpenInfoMapInputAction);
 	AddSoftPath(OpenSettingUiInputAction);
-	AddSoftPath(EscapeInputAction);
 	AddSoftPath(OpenLobbyInputAction);
 	AddSoftPath(SelectPandoraInputAction);
 	AddSoftPath(PandoraTreeInputAction);
@@ -212,7 +211,6 @@ EDataValidationResult UControllerInputDefinition::IsDataValid(FDataValidationCon
 	ValidateRequiredInputAction(Context, Result, InteractInputAction, TEXT("InteractInputAction"));
 	ValidateRequiredInputAction(Context, Result, AttackInputAction, TEXT("AttackInputAction"));
 	ValidateRequiredInputAction(Context, Result, AimInputAction, TEXT("AimInputAction"));
-	ValidateRequiredInputAction(Context, Result, EscapeInputAction, TEXT("EscapeInputAction"));
 
 	const bool bHasNativeInputAction = !MoveInputAction.IsNull() || !LookInputAction.IsNull()
 		|| !JumpInputAction.IsNull() || !CrouchInputAction.IsNull() || !InteractInputAction.IsNull()
@@ -224,7 +222,7 @@ EDataValidationResult UControllerInputDefinition::IsDataValid(FDataValidationCon
 		|| !TargetConfirmInputAction.IsNull() || !OpenInfoProfileInputAction.IsNull()
 		|| !OpenInfoItemInputAction.IsNull() || !OpenInfoSkinInputAction.IsNull()
 		|| !OpenInfoPandoraInputAction.IsNull() || !OpenInfoMapInputAction.IsNull()
-		|| !OpenSettingUiInputAction.IsNull() || !EscapeInputAction.IsNull() || !OpenLobbyInputAction.IsNull()
+		|| !OpenSettingUiInputAction.IsNull() || !OpenLobbyInputAction.IsNull()
 		|| !SelectPandoraInputAction.IsNull() || !PandoraTreeInputAction.IsNull() || !ScoreboardInputAction.IsNull()
 		|| !ChatInputAction.IsNull() || !ChatScrollInputAction.IsNull();
 
