@@ -20,6 +20,7 @@
 #include "Definition/Item/ItemDefinition.h"
 #include "Definition/Player/ControllerInputDefinition.h"
 #include "EngineUtils.h"
+#include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/GameModeBase.h"
@@ -336,6 +337,84 @@ bool FPdInfoShortcutsTest::RunTest(const FString& Parameters)
 		const APdHUD* Hud = GetHud();
 		TestFalse(TEXT("ESC를 누른 채 메뉴를 닫아도 키 반복으로 다시 열리지 않는다"), Hud && Hud->IsGameplayInputBlockedByUi());
 		PdIntegrationTest::PressKey(EKeys::Escape, false);
+	});
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPdHeldKeyAcrossMenuTest, "LabProject.Integration.TrainingRoom.HeldKeyAcrossMenu",
+	EAutomationTestFlags::ClientContext | EAutomationTestFlags::EngineFilter)
+
+// 메뉴가 떠 있는 동안 누른 스킬 키를 누른 채 메뉴를 닫아도, 뗄 때까지 게임 입력이 되지 않는다(UPdUIActionRouter의 KeysAwaitingRelease).
+// 게임 입력은 그 키가 눌린 줄 모르므로, 막지 않으면 첫 키 반복을 새로 누른 것으로 처리해 스킬 입력이 들어간다.
+bool FPdHeldKeyAcrossMenuTest::RunTest(const FString& Parameters)
+{
+	struct FSkillInputWatch
+	{
+		FKey Key = EKeys::Invalid;
+		int32 StartedCount = 0;
+		uint32 BindingHandle = 0;
+	};
+	TSharedRef<FSkillInputWatch> Watch = MakeShared<FSkillInputWatch>();
+
+	PdIntegrationTest::OpenMap(this, TrainingRoomMap);
+	PdIntegrationTest::Step(0.f, [this, Watch]()
+	{
+		StopTrainingBot();
+		const UControllerInputDefinition* Definition = GetInputDefinition();
+		const UInputAction* SkillAction = Definition ? Definition->GetSkill1InputAction().Get() : nullptr;
+		const APlayerController* Controller = PdIntegrationTest::GetPlayerController();
+		UEnhancedInputComponent* Input = Controller ? Cast<UEnhancedInputComponent>(Controller->InputComponent) : nullptr;
+		Watch->Key = FindMappedKey(SkillAction);
+		TestTrue(TEXT("스킬 키가 입력 매핑에 있다"), Watch->Key.IsValid() && Input);
+		if (Input && SkillAction)
+		{
+			Watch->BindingHandle = Input->BindActionInstanceLambda(SkillAction, ETriggerEvent::Started,
+				[Watch](const FInputActionInstance&) { ++Watch->StartedCount; }).GetHandle();
+		}
+	});
+
+	PdIntegrationTest::Step(0.2f, []() { PdIntegrationTest::PressKey(EKeys::Escape, true); });
+	PdIntegrationTest::Step(0.1f, []() { PdIntegrationTest::PressKey(EKeys::Escape, false); });
+	PdIntegrationTest::WaitUntil(this, TEXT("ESC 메뉴 열기"), 5.f, []()
+	{
+		const APdHUD* Hud = GetHud();
+		return Hud && Hud->IsGameplayInputBlockedByUi();
+	});
+	// 메뉴가 입력을 막는 동안 스킬 키를 누르고, 누른 채로 마우스로 "계속하기"를 누른 것처럼 메뉴를 닫는다.
+	PdIntegrationTest::Step(0.2f, [Watch]() { PdIntegrationTest::PressKey(Watch->Key, true); });
+	PdIntegrationTest::Step(0.2f, []()
+	{
+		if (APdHUD* Hud = GetHud())
+		{
+			Hud->ToggleEscapeMenu();
+		}
+	});
+	PdIntegrationTest::WaitUntil(this, TEXT("ESC 메뉴 닫기"), 5.f, []()
+	{
+		const APdHUD* Hud = GetHud();
+		return Hud && !Hud->IsGameplayInputBlockedByUi();
+	});
+	for (int32 RepeatIndex = 0; RepeatIndex < HeldKeyRepeatEvents; ++RepeatIndex)
+	{
+		PdIntegrationTest::Step(KeyRepeatIntervalSeconds, [Watch]() { PdIntegrationTest::SendKeyEvent(Watch->Key, IE_Repeat); });
+	}
+	PdIntegrationTest::Step(0.2f, [this, Watch]()
+	{
+		TestEqual(TEXT("메뉴를 닫을 때 누르고 있던 스킬 키는 반복돼도 게임 입력이 되지 않는다"), Watch->StartedCount, 0);
+		PdIntegrationTest::PressKey(Watch->Key, false);
+	});
+
+	// 떼고 다시 누르면 평소처럼 들어온다. 막는 것이 그 한 번의 누름뿐인지 확인한다.
+	PdIntegrationTest::Step(0.2f, [Watch]() { PdIntegrationTest::PressKey(Watch->Key, true); });
+	PdIntegrationTest::Step(0.1f, [Watch]() { PdIntegrationTest::PressKey(Watch->Key, false); });
+	PdIntegrationTest::Step(0.2f, [this, Watch]()
+	{
+		TestEqual(TEXT("뗀 뒤 다시 누른 스킬 키는 게임 입력이 된다"), Watch->StartedCount, 1);
+		const APlayerController* Controller = PdIntegrationTest::GetPlayerController();
+		if (UEnhancedInputComponent* Input = Controller ? Cast<UEnhancedInputComponent>(Controller->InputComponent) : nullptr)
+		{
+			Input->RemoveBindingByHandle(Watch->BindingHandle);
+		}
 	});
 	return true;
 }
