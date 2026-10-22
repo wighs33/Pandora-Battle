@@ -9,6 +9,7 @@
          단위 테스트는 맵·콘텐츠 없이 도는 게임 규칙(LabProject.Unit.Rules.*)과 외부 프로토콜(LabProject.Unit.Protocol.*)이다.
       3. -game 프로세스: 훈련장 게임 월드의 입력·UI·장비·전투 연결 테스트(LabProject.Integration.TrainingRoom.*)와
          보스 레이드 월드의 월드 보스 피해·HUD 연결 테스트(LabProject.Integration.BossRaid.*)
+         CommonUI는 가장 위에 그려진 화면에 입력을 주므로, 이 단계는 화면을 실제로 그리도록 창 없이 렌더링한다.
 
     단계마다 ReportDir 아래에 엔진 리포트(index.json)와 로그를 남긴다.
     실패한 테스트가 있거나, 기대한 단계에서 테스트가 하나도 돌지 않았거나, 리포트가 없으면 종료 코드 1을 돌려준다.
@@ -45,11 +46,12 @@ $ReportDir = (Resolve-Path $ReportDir).Path
 # 단계 이름, 실행 파일, 추가 인자, 테스트 필터
 $Passes = @()
 if ($Suite -eq "All" -or $Suite -eq "Unit") {
-    $Passes += @{ Name = "Unit"; Exe = $EditorCmd; Args = ""; Filter = "LabProject.Unit" }
+    $Passes += @{ Name = "Unit"; Exe = $EditorCmd; Args = "-nullrhi"; Filter = "LabProject.Unit" }
 }
 if ($Suite -eq "All" -or $Suite -eq "Integration") {
-    $Passes += @{ Name = "IntegrationEditor"; Exe = $EditorCmd; Args = ""; Filter = "LabProject.Integration.Content" }
-    $Passes += @{ Name = "IntegrationGame"; Exe = $EditorGame; Args = "-game"; Filter = "LabProject.Integration.TrainingRoom+LabProject.Integration.BossRaid" }
+    $Passes += @{ Name = "IntegrationEditor"; Exe = $EditorCmd; Args = "-nullrhi"; Filter = "LabProject.Integration.Content" }
+    $Passes += @{ Name = "IntegrationGame"; Exe = $EditorGame; Args = "-game -RenderOffScreen -windowed -ResX=1280 -ResY=720";
+        Filter = "LabProject.Integration.TrainingRoom+LabProject.Integration.BossRaid" }
 }
 
 if (-not $SkipBuild) {
@@ -72,7 +74,7 @@ foreach ($Pass in $Passes) {
 
     Write-Host "== $($Pass.Name): $($Pass.Filter)"
     $Arguments = "`"$Project`" $($Pass.Args) -ExecCmds=`"Automation RunTests $($Pass.Filter);Quit`" " +
-        "-unattended -nullrhi -nosplash -nosound -nop4 -nosteam " +
+        "-unattended -nosplash -nosound -nop4 -nosteam " +
         "-ReportExportPath=`"$PassDir`" -abslog=`"$LogPath`""
     $Process = Start-Process -FilePath $Pass.Exe -ArgumentList $Arguments -Wait -PassThru -NoNewWindow
 

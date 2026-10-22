@@ -5,8 +5,10 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Engine/Engine.h"
+#include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
+#include "Input/CommonUIActionRouterBase.h"
 #include "InputKeyEventArgs.h"
 #include "Kismet/GameplayStatics.h"
 #include "Misc/AutomationTest.h"
@@ -96,13 +98,31 @@ namespace PdIntegrationTest
 		ADD_LATENT_AUTOMATION_COMMAND(FWaitLatentCommand(SettleSeconds));
 	}
 
-	/** 실제 키 입력과 같은 경로(PlayerController → Enhanced Input)로 키를 누른다. 떼기는 다음 단계에서 한다. */
+	/**
+	 * 실제 키 입력과 같은 경로로 키 이벤트를 보낸다. 게임 뷰포트(UCommonGameViewportClient)처럼 CommonUI 라우터가 먼저 받고,
+	 * 라우터가 처리하지도 막지도 않은 키만 PlayerController(Enhanced Input)로 간다.
+	 */
+	inline void SendKeyEvent(const FKey& Key, const EInputEvent Event)
+	{
+		APlayerController* Controller = GetPlayerController();
+		const ULocalPlayer* LocalPlayer = Controller ? Controller->GetLocalPlayer() : nullptr;
+		if (!LocalPlayer)
+		{
+			return;
+		}
+
+		const UCommonUIActionRouterBase* Router = LocalPlayer->GetSubsystem<UCommonUIActionRouterBase>();
+		if (Router && Router->ProcessInput(Key, Event) != ERouteUIInputResult::Unhandled)
+		{
+			return;
+		}
+		Controller->InputKey(FInputKeyEventArgs::CreateSimulated(Key, Event, Event == IE_Released ? 0.f : 1.f));
+	}
+
+	/** 키를 누르거나 뗀다. 떼기는 다음 단계에서 한다. */
 	inline void PressKey(const FKey& Key, const bool bPressed)
 	{
-		if (APlayerController* Controller = GetPlayerController())
-		{
-			Controller->InputKey(FInputKeyEventArgs::CreateSimulated(Key, bPressed ? IE_Pressed : IE_Released, bPressed ? 1.f : 0.f));
-		}
+		SendKeyEvent(Key, bPressed ? IE_Pressed : IE_Released);
 	}
 }
 
