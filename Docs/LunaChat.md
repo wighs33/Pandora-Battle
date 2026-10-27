@@ -37,7 +37,7 @@ sequenceDiagram
 | [`LunaChatProtocol`](../Source/LabProject/Luna/LunaChatProtocol.h) | NDJSON·SSE 줄 해석, 가이드 절 나누기와 고른 절 번호 해석, `<think>` 구간 제거, 말풍선용 정리(자동화 테스트) |
 | [`LunaChatSettings`](../Source/LabProject/Luna/LunaChatSettings.h) | 번들 폴더·실행 파일·모델·문맥 길이, Ollama 주소·모델, 온도, 최대 토큰, 시간 제한 (Project Settings → Game → Luna Chat) |
 | [`TitleWidget`](../Source/LabProject/UI/Title/TitleWidget.cpp) | 입력창 생성(말풍선처럼 C++ 위젯 트리로), Enter 처리 |
-| [`TitleHUD`](../Source/LabProject/Lobby/Contents/TitleHUD.cpp) | 말풍선 타이밍, 입 모양, 안내 문구와 대화의 전환 |
+| [`TitleHUD`](../Source/LabProject/UI/Title/TitleHUD.cpp) | 말풍선 타이밍, 입 모양, 안내 문구와 대화의 전환 |
 
 ## 설계 포인트
 

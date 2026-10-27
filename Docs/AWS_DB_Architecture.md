@@ -193,7 +193,7 @@ stateDiagram-v2
 | 게임 흐름 연결 지점 | [`LobbyGameMode`](../Source/LabProject/Lobby/Contents/LobbyGameMode.cpp) (ProcessReady, PreLogin, DENY_ALL), [`ExperienceGameMode`](../Source/LabProject/Mode/ExperienceGameMode.cpp), [`MatchFlowComponent`](../Source/LabProject/Component/Match/MatchFlowComponent.cpp) (결과 보고, 세션 종료), [`PdPlayerState`](../Source/LabProject/Mode/PdPlayerState.h) (신원 유지) |
 | 백엔드 | [`auth.py`](../Backend/src/auth.py), [`match_join.py`](../Backend/src/match_join.py), [`player.py`](../Backend/src/player.py), [`match_result.py`](../Backend/src/match_result.py), [`common.py`](../Backend/src/common.py) |
 | 인프라 | [`template.yaml`](../Backend/template.yaml), [`deploy.ps1`](../Backend/deploy.ps1), [`run-anywhere-server.ps1`](../Backend/run-anywhere-server.ps1) |
-| 테스트 | [`Backend/tests`](../Backend/tests) (19개), [`AwsSigV4Tests`](../Source/LabProject/Tests/AwsSigV4Tests.cpp) (SHA-256·HMAC·SigV4) |
+| 테스트 | [`Backend/tests`](../Backend/tests) (32개), [`ProtocolTests`](../Source/LabProject/Tests/Unit/ProtocolTests.cpp)의 `LabProject.Unit.Protocol.AwsSigV4` (SHA-256·HMAC·SigV4) |
 
 ## 9. 지금 환경과 앞으로
 
