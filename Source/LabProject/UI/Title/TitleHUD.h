@@ -83,7 +83,7 @@ private:
 	/** 인사말을 보여 주기 전에는 INDEX_NONE이고, 그 뒤에는 마지막 팁 번호다(0 = 인사말). */
 	int32 LastTitleTip = INDEX_NONE;
 	/** 같은 동작을 다시 요청하면 처음부터 다시 시작하지 않고 이어서 재생한다. */
-	const UAnimSequenceBase* CurrentTitleAnimation = nullptr;
+	TWeakObjectPtr<const UAnimSequenceBase> CurrentTitleAnimation;
 
 protected:
 	UPROPERTY(EditDefaultsOnly, Category = "!Title|Character|Blink", meta = (ClampMin = "0.1", Units = "s"))

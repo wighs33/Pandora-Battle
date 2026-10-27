@@ -3,6 +3,7 @@
 #include "Character/CharacterBase.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "UI/HUD/Combat/DamageIndicatorActor.h"
@@ -86,9 +87,8 @@ FVector UDamageIndicatorComponent::ResolveDamageIndicatorWorldLocation() const
 
 bool UDamageIndicatorComponent::ResolveCameraAxes(FVector& OutCameraUp, FVector& OutCameraRight) const
 {
-	const UWorld* World = GetWorld();
-	const APlayerController* PlayerController = World ? World->GetFirstPlayerController() : nullptr;
-	if (!PlayerController || !PlayerController->IsLocalController())
+	const APlayerController* PlayerController = GEngine ? GEngine->GetFirstLocalPlayerController(GetWorld()) : nullptr;
+	if (!PlayerController)
 	{
 		return false;
 	}

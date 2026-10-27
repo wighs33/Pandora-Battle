@@ -5,6 +5,7 @@
 #include "Components/TextBlock.h"
 #include "Components/WidgetComponent.h"
 #include "Curves/CurveFloat.h"
+#include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
@@ -205,9 +206,8 @@ void ADamageIndicatorActor::UpdateFacing()
 		return;
 	}
 
-	const UWorld* World = GetWorld();
-	const APlayerController* PlayerController = World ? World->GetFirstPlayerController() : nullptr;
-	if (!PlayerController || !PlayerController->IsLocalController())
+	const APlayerController* PlayerController = GEngine ? GEngine->GetFirstLocalPlayerController(GetWorld()) : nullptr;
+	if (!PlayerController)
 	{
 		return;
 	}

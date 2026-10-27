@@ -228,7 +228,7 @@ void UBossRaidBenchmarkSubsystem::AdvanceClientStage(const double Now, const dou
 		}
 		NextMonsterCountTime = Now + ClientMonsterCountInterval;
 		const int32 MonsterCount = CountMonsters();
-		const APlayerController* LocalPlayer = GetWorld()->GetFirstPlayerController();
+		const APlayerController* LocalPlayer = GEngine->GetFirstLocalPlayerController(GetWorld());
 		if (ClientMonstersBeforeSummon == INDEX_NONE && MonsterCount > 0 && LocalPlayer && LocalPlayer->GetPawn())
 		{
 			ClientMonstersBeforeSummon = MonsterCount;

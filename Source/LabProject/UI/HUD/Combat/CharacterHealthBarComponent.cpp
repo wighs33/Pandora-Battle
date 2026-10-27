@@ -7,6 +7,7 @@
 #include "Character/EnemyBase.h"
 #include "Common/LabGameplayTags.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Engine/Engine.h"
 #include "UI/Core/WidgetClassDefinition.h"
 #include "GameFramework/PlayerController.h"
 #include "UI/HUD/Combat/EnemyAvatarWidget.h"
@@ -287,9 +288,8 @@ void UCharacterHealthBarComponent::UpdateFacing()
 		return;
 	}
 
-	UWorld* World = GetWorld();
-	APlayerController* LocalPlayerController = World ? World->GetFirstPlayerController() : nullptr;
-	if (!LocalPlayerController || !LocalPlayerController->IsLocalController())
+	const APlayerController* LocalPlayerController = GEngine ? GEngine->GetFirstLocalPlayerController(GetWorld()) : nullptr;
+	if (!LocalPlayerController)
 	{
 		return;
 	}

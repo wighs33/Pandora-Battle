@@ -91,9 +91,9 @@ void AExperienceGameState::Multicast_ShowGameResult_Implementation(const FText& 
 	const int32 WinnerTeamColorIndex, const FText& MaxKillerName, const int32 MaxKillCount,
 	const TArray<FGameResultPlayerStat>& PlayerStats)
 {
-	UWorld* World = GetWorld();
-	APlayerController* LocalPlayerController = World ? World->GetFirstPlayerController() : nullptr;
-	if (!LocalPlayerController || !LocalPlayerController->IsLocalController())
+	const UGameInstance* GameInstance = GetGameInstance();
+	APlayerController* LocalPlayerController = GameInstance ? GameInstance->GetFirstLocalPlayerController(GetWorld()) : nullptr;
+	if (!LocalPlayerController)
 	{
 		return;
 	}
