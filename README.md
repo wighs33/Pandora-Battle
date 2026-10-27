@@ -54,7 +54,7 @@ Animation → AnimNotify / GameplayEvent → Ability / Equipment / Weapon
 - `ItemDefinition`은 정적 콘텐츠, `ItemInstance`는 수량·강화값·ID를 가진 보유 아이템입니다.
 - `InventoryComponent`는 ownership과 Quick Slot·장비 슬롯·무기 loadout 참조를 복제합니다.
 - `SelectingPandoraAndWeaponComponent`는 현재 선택 슬롯을 유지하고 Weapon/Pandora 적용을 조율합니다.
-- `EquipmentComponent`는 equip/unequip transaction, 현재 Weapon Actor, 장비 능력치와 Ability/Effect를 관리합니다.
+- `EquipmentComponent`는 equip/unequip transaction과 현재 Weapon Actor를 관리합니다.
 - `WeaponBase`와 파생 Actor는 현재 Pawn의 무기 실행·표현 객체입니다.
 
 기본 지급의 원본은 `DA_DefaultProvision`입니다. `ItemGrants`의 명시적 수량·Quick Slot 설정이 우선하며, `GrantAllItems.TrainingRoom`은 훈련방에서 전체 ItemDefinition을 추가 지급합니다. Pandora·상태 포인트·Gesture 지급도 이 DataAsset을 사용합니다.
@@ -69,14 +69,14 @@ Animation → AnimNotify / GameplayEvent → Ability / Equipment / Weapon
 | --- | --- |
 | Lobby GameMode/GameState와 Component | 참가자·팀·경기 설정·시작 조건 및 복제 |
 | `LobbyTravelCoordinator` | Lobby → Match travel transaction |
-| `LobbyRuntimeSubsystem` | World를 넘어 필요한 loadout·paint·결과 cache와 preload |
-| `MatchFlowComponent` | 경기 진행·timer·승패·Golden Kill·보상·결과 |
+| `LobbyRuntimeSubsystem` | World를 넘어 필요한 paint·결과 cache와 preload |
+| `MatchFlowComponent` | 경기 진행·timer·승패·Golden Kill·결과 |
 | Lobby/Match PlayerSetup Component | 플레이어 콘텐츠 준비와 기본 지급 순서 |
 | `OnlineSessionsSubsystem` | Steam/Online Subsystem 기반 Create·Find·Join·Start·End·Destroy 비동기 lifecycle |
 
 로비의 맵 목록과 기본 선택은 `DA_Level`을 사용하며, 기본 경기장은 콜로세움입니다. 이전·다음 버튼으로 맵을 선택하고, 선택한 설정을 경기 진입 시 전달합니다.
 
-기본 플레이는 Listen Server입니다. 같은 코드를 전용 서버(`LabProjectServer` target)로도 실행할 수 있습니다. 전용 서버 전용 동작은 모두 `NM_DedicatedServer` 분기 안에 있습니다.
+기본 플레이는 Listen Server입니다. 같은 코드를 전용 서버(`LabProjectServer` target)로도 실행할 수 있습니다.
 
 - IP 넷 드라이버를 사용합니다.
 - 호스트 없이 로비가 자동으로 시작합니다.
@@ -84,8 +84,8 @@ Animation → AnimNotify / GameplayEvent → Ability / Equipment / Weapon
 
 원격 클라이언트의 총 사격은 서버 되감기로 판정합니다(지연 보상).
 
-- 클라이언트는 서버 시간을 동기화하고, 사격 시 화면에 보이던 서버 시각을 보냅니다.
-- 서버는 캐릭터 판정 메시의 최근 1초 기록으로 그 시각을 재현해 판정합니다. 되감기 한도는 최대 200ms이며, 측정 ping으로도 제한합니다.
+- 클라이언트는 시점과 방향만 보냅니다.
+- 서버는 캐릭터 판정 메시의 위치를 기록해 두고, 자신이 잰 왕복 지연만큼(최대 200ms) 되감은 위치로 판정합니다.
 
 실행·검증 방법은 [전용 서버와 지연 보상](Docs/DedicatedServer_LagCompensation.md)에 정리했습니다.
 
@@ -95,7 +95,12 @@ Animation → AnimNotify / GameplayEvent → Ability / Equipment / Weapon
 - 서버는 GameLift로 player session을 검증합니다. 경기가 끝나면 SigV4로 서명한 결과를 IAM 인증 경로에 보고합니다.
 - 결과는 DynamoDB 트랜잭션 하나로 경기 기록과 개인 전적에 반영됩니다. 같은 경기는 한 번만 기록됩니다.
 
-배포와 검증은 [GameLift 호스팅과 백엔드](Docs/GameLift_Backend.md)에 정리했습니다.
+구조는 [AWS·DB 연결 구조](Docs/AWS_DB_Architecture.md)에, 배포와 검증은 [GameLift 호스팅과 백엔드](Docs/GameLift_Backend.md)에 정리했습니다.
+
+타이틀의 **보스 레이드**는 GameLift 전용 서버의 공유 월드(`LV_Village`)로 들어갑니다. 경기 끝 없이 여러 명이 몬스터를 사냥하고 자유롭게 들어오고 나갑니다.
+- 백엔드는 게임 세션을 게임 속성 `mode`(`match`/`bossraid`)로 나눠 찾고 만듭니다.
+- 서버는 보스 레이드 세션을 받으면 공유 월드를 먼저 열고, 플레이어를 받을 준비가 된 뒤 세션을 활성화합니다.
+- 설계와 시험 방법은 [보스 레이드](Docs/BossRaid.md)에 정리했습니다.
 
 관련 코드: [Lobby](Source/LabProject/Lobby) · [Match](Source/LabProject/Component/Match) · [Online](Source/LabProject/Online) · [LagCompensation](Source/LabProject/Character/LagCompensationSubsystem.h) · [Backend](Backend)
 
@@ -111,7 +116,7 @@ Monster는 StateTree, Training Bot은 BehaviorTree를 사용합니다. Controlle
 
 CommonUI 기반 `UUiSubsystem` / `UUiScreen`과 `UPdUIActionRouter`가 화면·입력 수명을 관리합니다. HUD Router/Layer는 메뉴·Info·scoreboard를 구성하고, Info는 Widget·Presenter·LoadoutStore로 역할을 나눕니다. UI 폴더는 HUD·Info·Pandora·Shop 등 기능별로 배치되어 있습니다. 일부 상태 UI는 MVVM ViewModel을 사용합니다.
 
-`WBP_ConnectingPopup`은 실제 대기 작업의 표시만 담당합니다. `UUiSubsystem`이 콘텐츠 preload·세션 요청·게임 진입 준비·Travel·관련 PSO 대기를 함께 집계하며, 모든 대기가 끝나야 팝업을 닫습니다. Controller나 HUD 재생성은 새 대기를 만들지 않습니다. Travel은 엔진의 실제 이동 이벤트에서 시작해 목적지 콘텐츠와 화면 준비가 끝날 때 종료됩니다. 세션 취소는 요청 ID로 해당 작업에만 전달합니다.
+`WBP_ConnectingPopup`은 실제 대기 작업의 표시만 담당합니다. Controller나 HUD 재생성은 새 대기를 만들지 않습니다. Travel은 엔진의 실제 이동 이벤트에서 시작해 목적지 콘텐츠와 화면 준비가 끝날 때 종료됩니다. 세션 취소는 요청 ID로 해당 작업에만 전달합니다.
 
 HUD의 체력·전투 기술·Pandora 스킬·퀵슬롯과 Paint 작업실은 기준 디자인 공간을 `ScaleBox`로 감싸 외부 크기에 맞춰 비율을 유지합니다. 입력키 표시는 입력 Definition의 텍스트 설정을 사용합니다.
 
@@ -121,7 +126,12 @@ HUD의 체력·전투 기술·Pandora 스킬·퀵슬롯과 Paint 작업실은 �
 
 Skin은 PlayerState의 `SkinComponent`가 보유 목록을, Pawn의 `SkinEquipmentComponent`가 장착 외형·Pet·Gesture를 관리합니다. 비 Gesture Skin의 `bGrantedByDefault`는 기본 profile ownership을 결정하며, Gesture 기본 지급·슬롯 배치는 `DA_DefaultProvision.GestureGrants`가 결정합니다.
 
-관련 코드: [UI](Source/LabProject/UI) · [Profile](Source/LabProject/Profile) · [Skin](Source/LabProject/Component/Skin)
+타이틀의 안내자 Luna에게 질문하면, 로컬 Ollama 모델이 만든 답을 말풍선에 스트리밍으로 보여 줍니다.
+- `ULunaChatSubsystem`이 `DT_MenuText`의 Luna 안내 문구를 현재 메뉴 언어로 읽어 시스템 프롬프트를 만듭니다. 그래서 게임에 있는 설명만 근거로, 메뉴 언어로 답합니다.
+- 응답 조각(NDJSON)은 HTTP 스레드에서 버퍼에 쌓고 게임 스레드에서 해석합니다. 답이 오는 동안 Luna의 입 모양이 함께 움직입니다.
+- 설치와 설계는 [Luna 대화](Docs/LunaChat.md)에 정리했습니다.
+
+관련 코드: [UI](Source/LabProject/UI) · [Profile](Source/LabProject/Profile) · [Skin](Source/LabProject/Component/Skin) · [Luna](Source/LabProject/Luna)
 
 ## 프로젝트 구조
 

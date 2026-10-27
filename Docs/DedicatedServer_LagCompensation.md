@@ -105,24 +105,22 @@ UnrealEditor.exe "<경로>\LabProject.uproject" -server -log -ExecCmds="pd.Dedic
 ```mermaid
 sequenceDiagram
     participant C as 원격 클라이언트
-    participant PC as ControllerLagCompensationComponent
     participant S as 서버 AGun
     participant L as ULagCompensationSubsystem
-    C->>PC: 주기적 서버 시간 요청 (Unreliable)
-    PC-->>C: 서버 수신 시각 → RTT·시계 차이 추정
-    Note over L: 서버 틱마다 캐릭터 메시 위치를 약 1초 기록
-    C->>S: ServerHandlePrimaryAttack(시점, 방향, 화면의 서버 시각)
-    S->>L: ResolveRewindRequest (최대 200ms, ping+50ms로 제한)
-    S->>L: 되감은 시각 기준 조준 trace + 사격 sphere trace
+    Note over L: 서버 틱마다 캐릭터 판정 메시 위치를 기록 (최대 되감기 폭만큼)
+    C->>S: ServerHandlePrimaryAttack(시점, 방향)
+    S->>L: GetRewindTime = 지금 − min(서버가 잰 왕복 지연, 200ms)
+    S->>L: 그 시각 기준 조준 trace + 사격 sphere trace (TraceAtTime)
     L-->>S: 월드는 현재, 캐릭터는 과거 위치 기준 충돌
     S->>S: 기존 규칙(primary mesh·팀 판정)으로 피해 적용
 ```
 
+사수 화면의 상대는 서버보다 편도 지연만큼 늦고, 사격 요청은 다시 편도 지연만큼 늦게 도착합니다. 그래서 요청이 도착한 시각에서 왕복 지연만큼 되감으면 사수가 보던 위치가 됩니다. 왕복 지연은 엔진이 서버에서 재는 값(`APlayerState::GetPingInMilliseconds`, 4초 평균)이라 클라이언트가 바꿀 수 없고, 클라이언트 시계를 맞출 필요도 없습니다.
+
 | 코드 | 역할 |
 | --- | --- |
-| [`ControllerLagCompensationComponent`](../Source/LabProject/Component/Player/ControllerLagCompensationComponent.h) | 클라이언트 서버 시간 동기화. 여러 표본 중 RTT가 가장 짧은 표본의 시계 차이를 사용합니다. 공격 시 "화면의 서버 시각 = 추정 서버 시간 − RTT/2"를 보냅니다. |
-| [`LagCompensationSubsystem`](../Source/LabProject/Character/LagCompensationSubsystem.h) | 서버의 캐릭터별 판정 메시 기록(링 버퍼)과 과거 시각 trace. 되감기 한도 검증과 통계를 담당합니다. |
-| [`Gun`](../Source/LabProject/Weapon/Gun.cpp) / [`RangedWeaponBase`](../Source/LabProject/Weapon/RangedWeaponBase.cpp) | 사격 RPC에 시각을 추가합니다. 조준·사격 trace를 되감기 trace로 교체하고, 판정 규칙은 기존 `PdCharacterHitValidation`을 그대로 씁니다. |
+| [`LagCompensationSubsystem`](../Source/LabProject/Character/LagCompensationSubsystem.h) | 서버의 캐릭터별 판정 메시 기록, 되감을 시각 계산, 과거 시각 trace |
+| [`Gun`](../Source/LabProject/Weapon/Gun.cpp) / [`RangedWeaponBase`](../Source/LabProject/Weapon/RangedWeaponBase.cpp) | 되감을 시각이 있으면 조준·사격 trace를 되감기 trace로 바꿉니다. 판정 규칙은 기존 `PdCharacterHitValidation`을 그대로 씁니다. |
 
 ### 되감기 방식
 
@@ -130,8 +128,8 @@ sequenceDiagram
 
 ```text
 과거 메시 변환 H, 현재 메시 변환 C
-사선(S, E) → C · H⁻¹ 로 이동 → Mesh->SweepComponent / LineTraceComponent
-충돌 지점·법선 → H · C⁻¹ 로 되돌림
+사선(S, E) → H⁻¹ 다음 C 를 적용해 지금 메시 위치로 → Mesh->SweepComponent / LineTraceComponent
+충돌 지점·법선 → 그 역변환으로 과거 위치 기준으로 되돌림
 ```
 
 강체 변환이므로, 액터를 되감았다가 복원한 것과 결과가 같습니다. 대신 다음 문제가 생기지 않습니다.
@@ -142,57 +140,29 @@ sequenceDiagram
 
 벽 같은 월드 충돌은 현재 상태로 판정하고, 기록이 있는 캐릭터는 월드 trace에서 빼고 과거 위치로 따로 판정합니다. 두 결과를 거리순으로 합치므로, 이후 판정 코드(첫 유효 충돌 선택, 아군 판정, 데칼)는 바뀌지 않습니다.
 
-악용 방지:
+- **최대 폭:** 핑이 아주 큰 사수 때문에 이미 엄폐한 상대가 오래전 위치로 맞지 않도록 `pd.LagComp.MaxRewindMs`(기본 200, 0이면 끔)로 자릅니다.
+- **되감지 않는 사격:** 서버·리슨 서버 호스트 자신의 사격과 AI 사격은 지금 월드로 판정합니다.
+- **순간 이동:** 부활·포털처럼 연속한 두 기록이 300cm보다 멀면 중간 위치를 만들지 않고 가까운 기록을 씁니다.
 
-- 되감기 시간은 `min(pd.LagComp.MaxRewindMs, 서버 측정 ping + pd.LagComp.PingToleranceMs)`로 제한합니다.
-- 범위를 벗어난 시각(NaN 포함)은 잘라내고, 잘린 사격 수를 `clamped`로 셉니다.
-
-순간 이동(부활·포털) 구간은 보간하지 않습니다. 두 표본이 `pd.LagComp.TeleportDistance`보다 멀면 가까운 표본을 사용합니다.
-
-### CVar와 명령
+### CVar
 
 | 이름 | 기본값 | 설명 |
 | --- | --- | --- |
-| `pd.LagComp.Enabled` | 1 | 0이면 현재 서버 상태로 판정(비교 영상용) |
-| `pd.LagComp.MaxRewindMs` | 200 | 최대 되감기 시간 |
-| `pd.LagComp.PingToleranceMs` | 50 | 측정 ping에 더해 허용하는 여유 |
-| `pd.LagComp.HistoryMs` | 1000 | 기록 보관 시간 |
-| `pd.LagComp.TeleportDistance` | 300 | 보간하지 않는 표본 간 거리 |
-| `pd.LagComp.Stats` | 0 | 1이면 매 사격마다 되감기 전·후 판정을 함께 계산해 로그를 남기고 통계를 누적 |
-| `pd.LagComp.DebugDraw` | 0 | 명중 대상의 서버 현재 위치(빨강)와 되감은 위치(초록)를 서버와 사격한 클라이언트에 표시 (Shipping 제외) |
-| `pd.LagComp.PrintStats` | 명령 | 이 프로세스의 모든 게임 월드 통계 출력 |
-| `pd.LagComp.ResetStats` | 명령 | 통계 초기화 |
+| `pd.LagComp.MaxRewindMs` | 200 | 최대 되감기 폭. 0이면 지연 보상을 끕니다(적용 전후 비교용). |
+| `pd.LagComp.DebugDraw` | 0 | 되감아 맞힌 대상의 서버 현재 위치(빨강)와 판정한 과거 위치(초록)를 모든 화면에 표시 (Shipping 제외) |
 
-### 검증 절차 (포트폴리오 수치)
+### 검증
 
-1. 전용 서버와 클라이언트를 띄웁니다. PIE라면 Editor Preferences → Play → Multiplayer Options → Network Emulation을 사용합니다.
-2. 사격하는 클라이언트에서 다음을 실행합니다.
-   ```text
-   NetEmulation.PktLag 150
-   NetEmulation.PktLoss 5
-   pd.LagComp.Stats 1
-   pd.LagComp.DebugDraw 1
-   ```
-   서버에도 `pd.LagComp.Stats 1`이 필요합니다. PIE는 한 프로세스라 CVar를 공유합니다. 별도 프로세스라면 서버를 `-ExecCmds="pd.LagComp.Stats 1"`로 실행합니다.
-3. 훈련 봇이나 다른 클라이언트가 좌우로 움직이는 상태에서 총으로 50~100발 사격합니다.
-4. 서버와 클라이언트에서 `pd.LagComp.PrintStats`를 실행해 다음 값을 비교합니다.
-   - `hit(current)`: 되감기 없이 판정했을 때의 명중률
-   - `hit(rewound)`: 실제로 적용된 되감기 판정의 명중률
-   - `client perceivedHits`: 클라이언트 화면 기준으로 맞았다고 본 비율
-   - `rewoundOnly`: 되감기 덕분에 인정된 명중 수
-5. `pd.LagComp.Enabled 0`으로 같은 조건의 영상을 한 번 더 찍으면 적용 전후를 비교할 수 있습니다.
-
-정상이라면 다음과 같이 나옵니다.
-
-- `hit(rewound)`가 `client perceivedHits`에 가깝습니다.
-- `avgRewind`가 측정 ping 근처입니다.
-- DebugDraw에서 초록 캡슐이 클라이언트 화면의 대상 위치와 겹칩니다.
+- **자동 테스트:** `LabProject.Integration.TrainingRoom.LagCompensationRewind`가 훈련장을 리슨 서버로 열고 봇을 옮긴 뒤, 옮기기 전 시각으로 판정하면 옛 위치의 봇을 맞히고 새 위치는 맞히지 않는지 확인합니다. 호스트 자신의 사격은 되감지 않는 것도 확인합니다.
+- **지연 시뮬레이션 (2026-10-17):** 리슨 호스트와 클라이언트에 `NetEmulation.PktLag 50`을 걸었을 때, 핑이 106~118ms로 안정된 뒤 되감는 폭이 핑과 같았습니다(118.2ms). 접속 직후 로딩 지연으로 핑 평균이 404ms까지 올라간 동안에는 200ms로 잘렸고, `pd.LagComp.MaxRewindMs 50`으로 바꾸자 바로 50ms가 됐습니다.
+- **눈으로 확인:** 사격하는 클라이언트와 서버에 `NetEmulation.PktLag 150`, 서버에 `pd.LagComp.DebugDraw 1`을 켜고 움직이는 대상을 쏘면, 초록 캡슐이 클라이언트 화면의 대상 위치와 겹칩니다. `pd.LagComp.MaxRewindMs 0`으로 같은 장면을 찍으면 적용 전후를 비교할 수 있습니다.
 
 ### 한계
 
-- **적용 범위:** 히트스캔 총에만 적용됩니다. 화살·스킬 투사체는 서버가 시뮬레이션하고, 근접 공격은 서버 애니메이션 판정이라 이번 범위에서 제외했습니다.
+- **적용 범위:** 히트스캔 총에만 적용됩니다. 화살·스킬 투사체는 서버가 시뮬레이션하고, 근접 공격은 서버 애니메이션 판정이라 범위에서 제외했습니다.
 - **포즈:** 애니메이션 포즈는 되감지 않고 현재 포즈를 씁니다(위치·회전만 되감음).
-- **보간 지연:** 시뮬레이션 프록시의 이동 보간 지연(최대 약 0.1초)은 따로 더하지 않습니다. 필요하면 클라이언트가 보내는 시각에서 보간 시간을 빼는 방식으로 확장합니다.
+- **보간 지연:** 시뮬레이션 프록시의 이동 보간 지연은 따로 더하지 않습니다.
+- **핑 평균:** 엔진의 핑은 4초 평균이라 접속 직후나 지연이 갑자기 바뀐 순간에는 실제 지연과 몇 초 동안 다를 수 있습니다. 최대 폭이 그 영향을 묶어 둡니다.
 
 ## 다음 단계 (AWS)
 
