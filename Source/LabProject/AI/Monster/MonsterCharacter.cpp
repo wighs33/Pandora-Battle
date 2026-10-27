@@ -197,12 +197,14 @@ EDataValidationResult AMonsterCharacter::IsDataValid(FDataValidationContext& Con
 		|| (Definition && (!Definition->GetMonsterPresentationSettings().ContactDamageEffectClass
 		|| !Definition->GetMonsterPresentationSettings().HitReactMontage)))
 	{
-		Context.AddError(FText::FromString(TEXT("Monster EnemyDefinition requires damage and hit-react settings.")));
+		Context.AddError(NSLOCTEXT("MonsterCharacter", "MissingEnemyCombatSettings",
+			"Monster EnemyDefinition requires damage and hit-react settings."));
 		Result = EDataValidationResult::Invalid;
 	}
 	if (MonsterRewardDefinition.IsNull() || (!GCompilingBlueprint && !MonsterRewardDefinition.LoadSynchronous()))
 	{
-		Context.AddError(FText::FromString(TEXT("MonsterRewardDefinition must reference a loadable reward definition.")));
+		Context.AddError(NSLOCTEXT("MonsterCharacter", "InvalidRewardDefinition",
+			"MonsterRewardDefinition must reference a loadable reward definition."));
 		Result = EDataValidationResult::Invalid;
 	}
 	const bool bHasInvalidAttack = MonsterAttacks.ContainsByPredicate([](const FMonsterAttackPattern& Attack)
@@ -212,12 +214,14 @@ EDataValidationResult AMonsterCharacter::IsDataValid(FDataValidationContext& Con
 	});
 	if (bHasInvalidAttack || (!MonsterAttacks.IsEmpty() && AttackComponentName.IsNone()))
 	{
-		Context.AddError(FText::FromString(TEXT("Every monster attack needs a loadable montage, a valid distance range and an exact attack component name.")));
+		Context.AddError(NSLOCTEXT("MonsterCharacter", "InvalidAttackPattern",
+			"Every monster attack needs a loadable montage, a valid distance range and an exact attack component name."));
 		Result = EDataValidationResult::Invalid;
 	}
 	if (PhaseSummon.HealthRatio > 0.0f && (PhaseSummon.MinionClass.IsNull() || PhaseSummon.Count <= 0))
 	{
-		Context.AddError(FText::FromString(TEXT("A phase summon needs a minion class and a positive count.")));
+		Context.AddError(NSLOCTEXT("MonsterCharacter", "InvalidPhaseSummon",
+			"A phase summon needs a minion class and a positive count."));
 		Result = EDataValidationResult::Invalid;
 	}
 	if (!FMath::IsFinite(AttackDamageMagnitude) || AttackDamageMagnitude < 0.0f
@@ -226,7 +230,8 @@ EDataValidationResult AMonsterCharacter::IsDataValid(FDataValidationContext& Con
 		|| !FMath::IsFinite(SightRadiusOverride) || SightRadiusOverride < 0.0f
 		|| !FMath::IsFinite(DeathDestroyDelay) || DeathDestroyDelay < 0.0f)
 	{
-		Context.AddError(FText::FromString(TEXT("Monster damage and durations must be finite and non-negative.")));
+		Context.AddError(NSLOCTEXT("MonsterCharacter", "InvalidCombatValues",
+			"Monster damage and durations must be finite and non-negative."));
 		Result = EDataValidationResult::Invalid;
 	}
 	return Result;

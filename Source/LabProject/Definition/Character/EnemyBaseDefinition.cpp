@@ -49,8 +49,9 @@ EDataValidationResult UEnemyBaseDefinition::IsDataValid(FDataValidationContext& 
 		{
 			if (!FMath::IsFinite(Value) || Value < 0.0f)
 			{
-				Context.AddError(FText::FromString(FString::Printf(TEXT("%s must be finite and non-negative."),
-					FieldName)));
+				Context.AddError(FText::Format(
+					NSLOCTEXT("EnemyBaseDefinition", "InvalidNonNegativeValue", "{0} must be finite and non-negative."),
+					FText::FromString(FieldName)));
 				Result = EDataValidationResult::Invalid;
 			}
 		};
@@ -63,18 +64,19 @@ EDataValidationResult UEnemyBaseDefinition::IsDataValid(FDataValidationContext& 
 	RequireFiniteNonNegative(TrainingBot.RespawnDelay, TEXT("TrainingBot.RespawnDelay"));
 	if (!FMath::IsFinite(MonsterMaxHealth) || MonsterMaxHealth <= 0.0f)
 	{
-		Context.AddError(FText::FromString(TEXT("MonsterMaxHealth must be finite and positive.")));
+		Context.AddError(NSLOCTEXT("EnemyBaseDefinition", "InvalidMonsterMaxHealth", "MonsterMaxHealth must be finite and positive."));
 		Result = EDataValidationResult::Invalid;
 	}
 
 	if (Combat.DefaultMonsterClass.IsNull())
 	{
-		Context.AddError(FText::FromString(TEXT("Combat.DefaultMonsterClass is required.")));
+		Context.AddError(NSLOCTEXT("EnemyBaseDefinition", "MissingDefaultMonsterClass", "Combat.DefaultMonsterClass is required."));
 		Result = EDataValidationResult::Invalid;
 	}
 	if (MonsterStateTree.IsNull())
 	{
-		Context.AddError(FText::FromString(TEXT("MonsterStateTree is required for server-side monster AI.")));
+		Context.AddError(NSLOCTEXT("EnemyBaseDefinition", "MissingMonsterStateTree",
+			"MonsterStateTree is required for server-side monster AI."));
 		Result = EDataValidationResult::Invalid;
 	}
 
@@ -83,13 +85,14 @@ EDataValidationResult UEnemyBaseDefinition::IsDataValid(FDataValidationContext& 
 	if (bHasAnyMonsterPresentationSetting
 		&& (!MonsterPresentation.ContactDamageEffectClass || !MonsterPresentation.HitReactMontage))
 	{
-		Context.AddError(FText::FromString(
-			TEXT("MonsterPresentation must configure the damage effect and hit-react montage together. Death uses immediate ragdoll.")));
+		Context.AddError(NSLOCTEXT("EnemyBaseDefinition", "IncompleteMonsterPresentation",
+			"MonsterPresentation must configure the damage effect and hit-react montage together. Death uses immediate ragdoll."));
 		Result = EDataValidationResult::Invalid;
 	}
 	if (!FMath::IsFinite(MonsterPresentation.HitReactPlayRate) || MonsterPresentation.HitReactPlayRate <= 0.0f)
 	{
-		Context.AddError(FText::FromString(TEXT("MonsterPresentation.HitReactPlayRate must be finite and positive.")));
+		Context.AddError(NSLOCTEXT("EnemyBaseDefinition", "InvalidHitReactPlayRate",
+			"MonsterPresentation.HitReactPlayRate must be finite and positive."));
 		Result = EDataValidationResult::Invalid;
 	}
 

@@ -31,8 +31,9 @@ EDataValidationResult UCharacterBaseDefinition::IsDataValid(FDataValidationConte
 		{
 			if (!FMath::IsFinite(Value) || Value < 0.0f)
 			{
-				Context.AddError(FText::FromString(FString::Printf(TEXT("%s must be finite and non-negative."),
-					FieldName)));
+				Context.AddError(FText::Format(
+					NSLOCTEXT("CharacterBaseDefinition", "InvalidNonNegativeValue", "{0} must be finite and non-negative."),
+					FText::FromString(FieldName)));
 				Result = EDataValidationResult::Invalid;
 			}
 		};
@@ -44,8 +45,8 @@ EDataValidationResult UCharacterBaseDefinition::IsDataValid(FDataValidationConte
 
 	if (Death.bUseDissolve && Death.DissolveScalarParameterName.IsNone())
 	{
-		Context.AddError(FText::FromString(
-			TEXT("Death.DissolveScalarParameterName is required when dissolve is enabled.")));
+		Context.AddError(NSLOCTEXT("CharacterBaseDefinition", "MissingDissolveParameter",
+			"Death.DissolveScalarParameterName is required when dissolve is enabled."));
 		Result = EDataValidationResult::Invalid;
 	}
 
