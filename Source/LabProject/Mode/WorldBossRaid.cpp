@@ -12,6 +12,7 @@
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/PlayerController.h"
 #include "Mode/PdPlayerState.h"
+#include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
 #include "Online/Backend/AwsSigV4.h"
 #include "Online/Backend/BackendClientSubsystem.h"
@@ -49,10 +50,12 @@ void AWorldBossRaid::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-	DOREPLIFETIME(AWorldBossRaid, BossHealth);
-	DOREPLIFETIME(AWorldBossRaid, BossMaxHealth);
-	DOREPLIFETIME(AWorldBossRaid, bBossDefeated);
-	DOREPLIFETIME(AWorldBossRaid, Attempts);
+	FDoRepLifetimeParams Params;
+	Params.bIsPushBased = true;
+	DOREPLIFETIME_WITH_PARAMS_FAST(AWorldBossRaid, BossHealth, Params);
+	DOREPLIFETIME_WITH_PARAMS_FAST(AWorldBossRaid, BossMaxHealth, Params);
+	DOREPLIFETIME_WITH_PARAMS_FAST(AWorldBossRaid, bBossDefeated, Params);
+	DOREPLIFETIME_WITH_PARAMS_FAST(AWorldBossRaid, Attempts, Params);
 }
 
 AWorldBossRaid* AWorldBossRaid::Find(const UObject* WorldContextObject)
@@ -139,6 +142,8 @@ void AWorldBossRaid::RegisterBoss(AMonsterCharacter& InBoss)
 	}
 	BossMaxHealth = AbilitySystem->GetNumericAttribute(UBasicAttributeSet::GetMaxHealthAttribute());
 	BossHealth = AbilitySystem->GetNumericAttribute(UBasicAttributeSet::GetHealthAttribute());
+	MARK_PROPERTY_DIRTY_FROM_NAME(AWorldBossRaid, BossMaxHealth, this);
+	MARK_PROPERTY_DIRTY_FROM_NAME(AWorldBossRaid, BossHealth, this);
 }
 
 // 도전 중인 플레이어의 딜만 순위에 넣는다. 도전이 끝난 뒤(타이틀로 가는 사이)의 딜이나 공격자를 알 수 없는 딜은 전역 체력에만 들어간다.
@@ -160,6 +165,7 @@ void AWorldBossRaid::RecordBossDamage(const APlayerState* Attacker, const float 
 	if (Attempt)
 	{
 		Attempt->Damage += Damage;
+		MARK_PROPERTY_DIRTY_FROM_NAME(AWorldBossRaid, Attempts, this);
 		Pending.DisplayName = UPlayerMatchComponent::ResolveDisplayName(Attacker).ToString();
 	}
 }
@@ -192,13 +198,17 @@ void AWorldBossRaid::HandleLogout(AGameModeBase* GameMode, AController* Exiting)
 		return;
 	}
 	const APlayerState* Player = Exiting->PlayerState;
-	Attempts.RemoveAll([Player](const FWorldBossAttempt& Attempt) { return Attempt.Player == Player; });
+	if (Attempts.RemoveAll([Player](const FWorldBossAttempt& Attempt) { return Attempt.Player == Player; }) > 0)
+	{
+		MARK_PROPERTY_DIRTY_FROM_NAME(AWorldBossRaid, Attempts, this);
+	}
 	SendReport();
 }
 
 void AWorldBossRaid::HandleBossHealthChanged(const FOnAttributeChangeData& Data)
 {
 	BossHealth = Data.NewValue;
+	MARK_PROPERTY_DIRTY_FROM_NAME(AWorldBossRaid, BossHealth, this);
 	// 이 월드에서 쓰러졌으면 전역 체력도 0 이하다. 다음 보고 간격을 기다리지 않고 마지막 일격을 알린다.
 	if (Data.OldValue > 0.0f && Data.NewValue <= 0.0f)
 	{
@@ -209,6 +219,7 @@ void AWorldBossRaid::HandleBossHealthChanged(const FOnAttributeChangeData& Data)
 void AWorldBossRaid::HandleBossMaxHealthChanged(const FOnAttributeChangeData& Data)
 {
 	BossMaxHealth = Data.NewValue;
+	MARK_PROPERTY_DIRTY_FROM_NAME(AWorldBossRaid, BossMaxHealth, this);
 }
 
 void AWorldBossRaid::OnRep_Attempts()
@@ -244,6 +255,7 @@ void AWorldBossRaid::TickRaid()
 		{
 			Attempt.bEnded = true;
 			bAttemptEnded = true;
+			MARK_PROPERTY_DIRTY_FROM_NAME(AWorldBossRaid, Attempts, this);
 		}
 		else if (Attempt.bEnded && !Attempt.bSentToTitle && Now >= Attempt.EndServerTime + AttemptEndTravelDelaySeconds)
 		{
@@ -281,6 +293,7 @@ void AWorldBossRaid::BeginAttempt(APlayerState* Player)
 	FWorldBossAttempt& Attempt = Attempts.AddDefaulted_GetRef();
 	Attempt.Player = Player;
 	Attempt.EndServerTime = GetServerTime() + AttemptSeconds;
+	MARK_PROPERTY_DIRTY_FROM_NAME(AWorldBossRaid, Attempts, this);
 	// 단독 실행·리슨 서버의 로컬 플레이어는 복제 알림을 받지 않는다.
 	NoteLocalPlayerAttempts();
 }
@@ -426,6 +439,7 @@ void AWorldBossRaid::ApplyGlobalHealth(const double Health, const double MaxHeal
 	{
 		UE_LOG(LogWorldBossRaid, Log, TEXT("World boss raid %s was defeated."), *RaidId);
 		bBossDefeated = true;
+		MARK_PROPERTY_DIRTY_FROM_NAME(AWorldBossRaid, bBossDefeated, this);
 		DefeatedServerTime = GetServerTime();
 	}
 }

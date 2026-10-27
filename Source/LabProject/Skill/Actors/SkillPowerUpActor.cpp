@@ -10,6 +10,7 @@
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
 #include "Component/Player/EquipmentComponent.h"
+#include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
 #include "Weapon/WeaponBase.h"
 #include "Weapon/MeleeWeapon.h"
@@ -28,7 +29,10 @@ ASkillPowerUpActor::ASkillPowerUpActor()
 void ASkillPowerUpActor::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-	DOREPLIFETIME(ThisClass, PresentationSettings);
+
+	FDoRepLifetimeParams Params;
+	Params.bIsPushBased = true;
+	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, PresentationSettings, Params);
 }
 
 void ASkillPowerUpActor::ConfigurePresentationSettings(const FSkillPowerUpPresentationSettings& InSettings)
@@ -39,6 +43,7 @@ void ASkillPowerUpActor::ConfigurePresentationSettings(const FSkillPowerUpPresen
 	}
 
 	PresentationSettings = InSettings;
+	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, PresentationSettings, this);
 }
 
 void ASkillPowerUpActor::BeginPlay()

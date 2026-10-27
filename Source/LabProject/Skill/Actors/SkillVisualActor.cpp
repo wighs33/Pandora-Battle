@@ -8,6 +8,7 @@
 #include "Definition/AbilitySystem/SkillDefinition.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Materials/MaterialInterface.h"
+#include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
 #include "NiagaraComponent.h"
 #include "NiagaraFunctionLibrary.h"
@@ -83,6 +84,9 @@ void ASkillVisualActor::InitializePresentation(ACharacterBase* InSourceCharacter
 	SourceCharacter = InSourceCharacter;
 	SkillDefinition = InSkillDefinition;
 	PresentationFlags = static_cast<uint8>(InFlags);
+	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, SourceCharacter, this);
+	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, SkillDefinition, this);
+	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, PresentationFlags, this);
 }
 
 void ASkillVisualActor::SetPresentationEnabled(const ESkillPresentationFlags Flag, const bool bEnabled)
@@ -100,6 +104,7 @@ void ASkillVisualActor::SetPresentationEnabled(const ESkillPresentationFlags Fla
 	}
 
 	PresentationFlags = NewFlags;
+	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, PresentationFlags, this);
 	RefreshLocalPresentation();
 	ForceNetUpdate();
 }
@@ -127,6 +132,7 @@ void ASkillVisualActor::SetMissileTargetActors(const TArray<AActor*>& InTargetAc
 	}
 
 	MissileTargetActors = MoveTemp(NewTargetActors);
+	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, MissileTargetActors, this);
 	RefreshLocalPresentation();
 	ForceNetUpdate();
 }
@@ -169,12 +175,14 @@ void ASkillVisualActor::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-	DOREPLIFETIME(ThisClass, SourceCharacter);
-	DOREPLIFETIME(ThisClass, SkillDefinition);
-	DOREPLIFETIME(ThisClass, PresentationFlags);
-	DOREPLIFETIME(ThisClass, MissileTargetActors);
-	DOREPLIFETIME(ThisClass, MissileAimParameter);
-	DOREPLIFETIME(ThisClass, MissileTargetSocket);
+	FDoRepLifetimeParams Params;
+	Params.bIsPushBased = true;
+	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, SourceCharacter, Params);
+	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, SkillDefinition, Params);
+	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, PresentationFlags, Params);
+	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, MissileTargetActors, Params);
+	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, MissileAimParameter, Params);
+	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, MissileTargetSocket, Params);
 }
 
 void ASkillVisualActor::OnRep_PresentationState()
@@ -651,6 +659,8 @@ void ASkillVisualActor::SetMissileTargeting(FName InAimParameter, FName InTarget
 	}
 	MissileAimParameter = InAimParameter;
 	MissileTargetSocket = InTargetSocket;
+	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, MissileAimParameter, this);
+	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, MissileTargetSocket, this);
 	RefreshLocalPresentation();
 	ForceNetUpdate();
 }

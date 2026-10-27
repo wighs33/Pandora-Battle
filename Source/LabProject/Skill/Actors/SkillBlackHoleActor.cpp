@@ -16,6 +16,7 @@
 #include "Engine/World.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/RootMotionSource.h"
+#include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
 #include "NiagaraComponent.h"
 #include "UObject/ObjectKey.h"
@@ -34,7 +35,10 @@ void ASkillBlackHoleActor::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>&
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-	DOREPLIFETIME_CONDITION(ASkillBlackHoleActor, GrowthDuration, COND_InitialOnly);
+	FDoRepLifetimeParams Params;
+	Params.bIsPushBased = true;
+	Params.Condition = COND_InitialOnly;
+	DOREPLIFETIME_WITH_PARAMS_FAST(ASkillBlackHoleActor, GrowthDuration, Params);
 }
 
 void ASkillBlackHoleActor::BeginPlay()
@@ -102,6 +106,7 @@ void ASkillBlackHoleActor::ConfigureFromFieldSettings(const FSkillActorFieldSett
 	SourcePandoraLoadoutDirection = InSourcePandoraLoadoutDirection;
 
 	GrowthDuration = static_cast<float>(FMath::Max(FieldSettings.BlackHoleGrowthDuration, 0.01));
+	MARK_PROPERTY_DIRTY_FROM_NAME(ASkillBlackHoleActor, GrowthDuration, this);
 	bPullEnemiesDuringGrowth = FieldSettings.bBlackHolePullEnemiesDuringGrowth;
 	PullRadius = static_cast<float>(FMath::Max(FieldSettings.BlackHolePullRadius, 0.0));
 	PullSpeed = static_cast<float>(FMath::Max(FieldSettings.BlackHolePullSpeed, 0.0));
