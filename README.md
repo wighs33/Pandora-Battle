@@ -126,9 +126,10 @@ HUD의 체력·전투 기술·Pandora 스킬·퀵슬롯과 Paint 작업실은 �
 
 Skin은 PlayerState의 `SkinComponent`가 보유 목록을, Pawn의 `SkinEquipmentComponent`가 장착 외형·Pet·Gesture를 관리합니다. 비 Gesture Skin의 `bGrantedByDefault`는 기본 profile ownership을 결정하며, Gesture 기본 지급·슬롯 배치는 `DA_DefaultProvision.GestureGrants`가 결정합니다.
 
-타이틀의 안내자 Luna에게 질문하면, 로컬 Ollama 모델이 만든 답을 말풍선에 스트리밍으로 보여 줍니다.
-- `ULunaChatSubsystem`이 `DT_MenuText`의 Luna 안내 문구를 현재 메뉴 언어로 읽어 시스템 프롬프트를 만듭니다. 그래서 게임에 있는 설명만 근거로, 메뉴 언어로 답합니다.
-- 응답 조각(NDJSON)은 HTTP 스레드에서 버퍼에 쌓고 게임 스레드에서 해석합니다. 답이 오는 동안 Luna의 입 모양이 함께 움직입니다.
+타이틀의 안내자 Luna에게 질문하면, 게임과 함께 배포한 로컬 LLM(llama.cpp `llama-server` + Gemma 3 4B)이 만든 답을 말풍선에 스트리밍으로 보여 줍니다. 번들이 없으면 같은 PC의 Ollama를 씁니다.
+- `ULunaChatSubsystem`은 먼저 짧은 요청으로 질문에 맞는 가이드 절을 고르고(JSON 스키마로 형식 고정), 그 절과 `DT_MenuText`의 Luna 안내 문구로 시스템 프롬프트를 만듭니다. 그래서 게임에 있는 설명만 근거로, 메뉴 언어로 답합니다.
+- `FLunaLocalServer`가 모델 서버를 빈 로컬 포트에 띄우고 `/health`로 준비를 확인하며, Job Object로 게임과 함께 종료되게 묶습니다.
+- 응답 조각(NDJSON·SSE)은 HTTP 스레드에서 버퍼에 쌓고 게임 스레드에서 해석합니다. 답이 오는 동안 Luna의 입 모양이 함께 움직입니다.
 - 설치와 설계는 [Luna 대화](Docs/LunaChat.md)에 정리했습니다.
 
 관련 코드: [UI](Source/LabProject/UI) · [Profile](Source/LabProject/Profile) · [Skin](Source/LabProject/Component/Skin) · [Luna](Source/LabProject/Luna)
