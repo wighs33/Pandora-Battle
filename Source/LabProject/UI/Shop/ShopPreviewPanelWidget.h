@@ -27,7 +27,6 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "!Shop")
 	void SetMessage(const FText& Message);
-	void SetLocalizedMessage(FName Key, const FText& Fallback, const FText& ProductName = FText::GetEmpty());
 
 	UFUNCTION(BlueprintCallable, Category = "!Shop")
 	void RefreshUI();
@@ -74,24 +73,6 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Shop|Bind")
 	TObjectPtr<UButton> Btn_Buy = nullptr;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Shop|Text")
-	FText EmptyPreviewText = NSLOCTEXT("ShopPreviewPanelWidget", "EmptyPreviewText", "Select a Pandora");
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Shop|Text")
-	FText PriceTextFormat = NSLOCTEXT("ShopPreviewPanelWidget", "PriceTextFormat", "{0} Gold");
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Shop|Text")
-	FText OwnedText = NSLOCTEXT("ShopPreviewPanelWidget", "OwnedText", "Owned");
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Shop|Text")
-	FText AvailableText = NSLOCTEXT("ShopPreviewPanelWidget", "AvailableText", "Available");
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Shop|Text")
-	FText NotEnoughGoldText = NSLOCTEXT("ShopPreviewPanelWidget", "NotEnoughGoldText", "Need Gold");
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Shop|Text")
-	FText NotForSaleText = NSLOCTEXT("ShopPreviewPanelWidget", "NotForSaleText", "Not for sale");
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Shop|Style")
 	FSlateColor NotEnoughGoldPriceColor = FSlateColor(FLinearColor::Red);
 
@@ -106,8 +87,6 @@ private:
 	TObjectPtr<UShopEntryViewData> EntryData = nullptr;
 
 	FText MessageText;
-	FName MessageKey;
-	FText MessageProductName;
 
 	FSlateColor DefaultNameColor = FSlateColor(FLinearColor::White);
 	FSlateColor DefaultPriceColor = FSlateColor(FLinearColor::White);

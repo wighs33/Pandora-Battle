@@ -147,18 +147,8 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Lobby|UI", meta = (ClampMin = "1"))
 	int32 MaxLobbySlots = LabGameSession::MaxPlayerCount;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Lobby|Countdown")
-	FText GameStartCountdownFormatText = NSLOCTEXT("Lobby", "GameStartCountdownFormatText", "{Seconds}");
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Lobby|Countdown")
-	FText GameStartCountdownFinishedText = NSLOCTEXT("Lobby", "GameStartCountdownFinishedText", "Start");
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Lobby|Countdown", meta = (ClampMin = "0.01"))
 	float GameStartCountdownTickInterval = 0.1f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Lobby|Team", meta = (MultiLine = "true",
-		ToolTip = "Optional override for Txt_Warning. If empty, the text written on Txt_Warning in the widget designer is used."))
-	FText TeamBalanceWarningText;
 
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "!Lobby|UI")
 	TArray<TObjectPtr<ULobbyUserWidget>> LobbyUsers;
@@ -168,7 +158,6 @@ private:
 	FTimerHandle CloseDestroyTimerHandle;
 	FTimerHandle GameStartCountdownTickHandle;
 	bool bPendingCloseAfterDestroy = false;
-	FText DefaultTeamBalanceWarningText;
 	FSlateColor DefaultSelectedMapPlayerCountColor;
 	bool bHasDefaultSelectedMapPlayerCountColor = false;
 	TMap<TWeakObjectPtr<UWidget>, bool> LobbyInteractionEnabledStates;

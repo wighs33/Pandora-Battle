@@ -42,7 +42,7 @@ void UGameResultPlayerStatEntryWidget::RefreshUI()
 	if (Txt_PlayerName)
 	{
 		Txt_PlayerName->SetText(PlayerStat.PlayerName.IsEmpty()
-			? MenuTextOrFallback(TEXT("Result.UnknownPlayer"), UnknownPlayerText)
+			? MenuText(TEXT("Result.UnknownPlayer"))
 			: PlayerStat.PlayerName);
 	}
 
@@ -51,8 +51,8 @@ void UGameResultPlayerStatEntryWidget::RefreshUI()
 		// 서버가 보낸 팀 이름은 서버 쪽 언어라, 팀 번호로 이 화면의 언어에서 다시 찾는다.
 		const FName TeamKey = LabTeamColorUtils::GetTeamTextKey(PlayerStat.TeamColorIndex);
 		Txt_TeamName->SetText(TeamKey.IsNone()
-			? MenuTextOrFallback(TEXT("Result.NoTeam"), UnknownTeamText)
-			: MenuTextOrFallback(TeamKey, PlayerStat.TeamName));
+			? MenuText(TEXT("Result.NoTeam"))
+			: MenuText(TeamKey));
 	}
 
 	if (Txt_Kills)
@@ -69,7 +69,7 @@ void UGameResultPlayerStatEntryWidget::RefreshUI()
 	{
 		if (bShowReward)
 		{
-			Txt_Reward->SetText(FText::Format(RewardTextFormat, FText::AsNumber(PlayerStat.GoldReward)));
+			Txt_Reward->SetText(FText::AsNumber(PlayerStat.GoldReward));
 			Txt_Reward->SetVisibility(ESlateVisibility::HitTestInvisible);
 		}
 		else

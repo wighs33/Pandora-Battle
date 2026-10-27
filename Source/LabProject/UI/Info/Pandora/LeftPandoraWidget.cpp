@@ -117,13 +117,11 @@ void ULeftPandoraWidget::RefreshPandoraLoadoutSlots(UPandoraComponent* PandoraCo
 
 		if (PandoraLevelText)
 		{
-			const UMenuLocalizationSubsystem* Localization = GetLocalization();
-			const FText LevelFormat = Localization ? Localization->GetText(TEXT("Pandora.Level")) : FText::FromString(TEXT("Lv. {Level}"));
 			FFormatNamedArguments Arguments;
 			Arguments.Add(TEXT("Level"), FText::AsNumber(PandoraLevel));
 			PandoraLevelText->SetText(PandoraDefinition
-				? FText::Format(LevelFormat, Arguments)
-				: Localization ? Localization->GetText(TEXT("Pandora.Empty")) : FText::FromString(TEXT("Not equipped")));
+				? FText::Format(MenuText(TEXT("Pandora.Level")), Arguments)
+				: MenuText(TEXT("Pandora.Empty")));
 		}
 
 		if (PandoraLevelLabel)

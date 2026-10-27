@@ -41,19 +41,6 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!KillLog|Bind")
 	TObjectPtr<UTextBlock> Txt_KillMessage = nullptr;
 
-	/** 아래 문구는 번역표(HUD.KillFormat, HUD.KillConnector, HUD.SelfKillFormat, HUD.DiedFormat)에 없을 때 쓴다. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!KillLog|Text")
-	FText KillMessageFormat = NSLOCTEXT("KillLog", "KillMessageFormat", "{0} eliminated {1}");
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!KillLog|Text")
-	FText KillConnectorText = NSLOCTEXT("KillLog", "KillConnectorText", "eliminated");
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!KillLog|Text")
-	FText SelfKillMessageFormat = NSLOCTEXT("KillLog", "SelfKillMessageFormat", "{0} eliminated themselves");
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!KillLog|Text")
-	FText EnvironmentKillMessageFormat = NSLOCTEXT("KillLog", "EnvironmentKillMessageFormat", "{0} died");
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!KillLog|Visual")
 	FLinearColor KillerNameColor = FLinearColor(0.95f, 0.25f, 0.2f, 1.0f);
 

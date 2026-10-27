@@ -199,7 +199,7 @@ void UPandoraTreeWidget::SetPandoraPointsText()
 
 	const int32 PointsAvailable = PandoraTreeComponent->GetPointsAvailable();
 	ViewModel->SetPointsAvailable(PointsAvailable);
-	ViewModel->SetPandoraPointsText(FText::Format(MenuTextOrFallback(TEXT("Pandora.Points"), PandoraPointsFormat), FText::AsNumber(PointsAvailable)));
+	ViewModel->SetPandoraPointsText(FText::Format(MenuText(TEXT("Pandora.Points")), FText::AsNumber(PointsAvailable)));
 }
 
 void UPandoraTreeWidget::RefreshPandoraWidgets()
@@ -466,7 +466,6 @@ void UPandoraTreeWidget::ApplyWidgetDefinitionSettings()
 	if (const UWidgetClassDefinition* WidgetDefinition = UWidgetClassDefinition::ResolveWidgetClassDefinition(this))
 	{
 		const FPandoraTreeWidgetSettings& Settings = WidgetDefinition->GetPandoraTreeWidgetSettings();
-		PandoraPointsFormat = Settings.PandoraPointsFormat;
 		bCloseOnToggleKey = Settings.bCloseOnToggleKey;
 		HideAnimationDelay = Settings.HideAnimationDelay;
 		bUseCharacterPreviewCamera = Settings.bUseCharacterPreviewCamera;

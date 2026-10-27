@@ -95,15 +95,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!GameResult|Style")
 	FSlateColor NeutralTitleColor = FSlateColor(FLinearColor(0.846873f, 0.603827f, 0.23074f, 1.0f));
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!GameResult|Text")
-	FText WinnerInfoFormat = NSLOCTEXT("GameResult", "WinnerInfoFormat", "{0}");
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!GameResult|Text")
-	FText MostKillFormat = NSLOCTEXT("GameResult", "MostKillFormat", "{0} got the most kills ({1})");
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!GameResult|Text")
-	FText UnknownPlayerText = NSLOCTEXT("GameResult", "UnknownPlayerText", "Unknown");
-
 private:
 	UPROPERTY(Transient)
 	FText WinnerTitle;

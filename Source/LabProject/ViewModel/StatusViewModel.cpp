@@ -50,12 +50,7 @@ namespace StatusViewModel
 
 		const FText NumberText = FText::AsNumber(BonusValue);
 		return BonusValue > 0.0f
-			? FText::Format(
-				NSLOCTEXT(
-					"StatusViewModel",
-					"PositiveStatBonusFormat",
-					"+{0}"),
-				NumberText)
+			? FText::Format(INVTEXT("+{0}"), NumberText)
 			: NumberText;
 	}
 

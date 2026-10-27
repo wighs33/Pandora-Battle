@@ -34,7 +34,7 @@ namespace LabTeamColorUtils
 		}
 	}
 
-	/** 공통 번역표(DT_MenuText)에서 팀 이름을 찾는 키. 팀이 없으면 None이다. */
+	/** 문자열 테이블 MenuText에서 팀 이름을 찾는 키. 팀이 없으면 None이다. */
 	inline FName GetTeamTextKey(const int32 TeamColorIndex)
 	{
 		static const FName Keys[TeamColorCount] = {

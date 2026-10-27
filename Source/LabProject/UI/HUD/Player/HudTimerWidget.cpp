@@ -216,10 +216,10 @@ FText UHudTimerWidget::FormatTimerText() const
 
 	if (bShowHoursWhenNeeded && Hours > 0)
 	{
-		return FText::FromString(FString::Printf(TEXT("%02d:%02d:%02d"), Hours, Minutes, Seconds));
+		return FText::AsCultureInvariant(FString::Printf(TEXT("%02d:%02d:%02d"), Hours, Minutes, Seconds));
 	}
 
-	return FText::FromString(FString::Printf(TEXT("%02d:%02d"), Minutes + (Hours * 60), Seconds));
+	return FText::AsCultureInvariant(FString::Printf(TEXT("%02d:%02d"), Minutes + (Hours * 60), Seconds));
 }
 
 const UMatchRuleDefinition* UHudTimerWidget::GetMatchRuleDefinition() const

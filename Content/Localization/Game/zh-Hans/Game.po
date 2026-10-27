@@ -4,8 +4,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: Game\n"
-"POT-Creation-Date: 2026-10-27 18:52\n"
-"PO-Revision-Date: 2026-10-27 18:52\n"
+"POT-Creation-Date: 2026-10-27 19:28\n"
+"PO-Revision-Date: 2026-10-27 19:28\n"
 "Language-Team: \n"
 "Language: zh-Hans\n"
 "MIME-Version: 1.0\n"
@@ -18,98 +18,98 @@ msgstr ""
 #: /Game/Data/DA_Achievement.DA_Achievement.Achievements(0).Achievements.Description
 msgctxt ",B7672CF04993CA6B365B53A9F95CE331"
 msgid "Enter the game for the first time."
-msgstr ""
+msgstr "首次进入游戏。"
 
 #. Key:	C129833A4D7C6438908E83BC5EE50589
 #. SourceLocation:	/Game/Data/DA_Achievement.DA_Achievement.Achievements(0).Achievements.DisplayName
 #: /Game/Data/DA_Achievement.DA_Achievement.Achievements(0).Achievements.DisplayName
 msgctxt ",C129833A4D7C6438908E83BC5EE50589"
 msgid "First Step"
-msgstr ""
+msgstr "第一步"
 
 #. Key:	895E34364D4774CC992E61A610EDE267
 #. SourceLocation:	/Game/Data/DA_Achievement.DA_Achievement.Achievements(1).Achievements.Description
 #: /Game/Data/DA_Achievement.DA_Achievement.Achievements(1).Achievements.Description
 msgctxt ",895E34364D4774CC992E61A610EDE267"
 msgid "Win your first match."
-msgstr ""
+msgstr "赢得你的第一场比赛。"
 
 #. Key:	E78F51BF4BE55741C5751182C75B3827
 #. SourceLocation:	/Game/Data/DA_Achievement.DA_Achievement.Achievements(1).Achievements.DisplayName
 #: /Game/Data/DA_Achievement.DA_Achievement.Achievements(1).Achievements.DisplayName
 msgctxt ",E78F51BF4BE55741C5751182C75B3827"
 msgid "First Victory"
-msgstr ""
+msgstr "首胜"
 
 #. Key:	CF25AEAE41B75250C766519AB5139A01
 #. SourceLocation:	/Game/Data/DA_Achievement.DA_Achievement.Achievements(2).Achievements.Description
 #: /Game/Data/DA_Achievement.DA_Achievement.Achievements(2).Achievements.Description
 msgctxt ",CF25AEAE41B75250C766519AB5139A01"
 msgid "Get 5 total kills."
-msgstr ""
+msgstr "累计击杀5次。"
 
 #. Key:	F80414A74A3F35052C47FE88010ECCA4
 #. SourceLocation:	/Game/Data/DA_Achievement.DA_Achievement.Achievements(2).Achievements.DisplayName
 #: /Game/Data/DA_Achievement.DA_Achievement.Achievements(2).Achievements.DisplayName
 msgctxt ",F80414A74A3F35052C47FE88010ECCA4"
 msgid "Five Strikes"
-msgstr ""
+msgstr "五次出击"
 
 #. Key:	3C8DA6754432BE56E15E47B0A537EC6D
 #. SourceLocation:	/Game/Data/DA_Achievement.DA_Achievement.Achievements(3).Achievements.Description
 #: /Game/Data/DA_Achievement.DA_Achievement.Achievements(3).Achievements.Description
 msgctxt ",3C8DA6754432BE56E15E47B0A537EC6D"
 msgid "Win 10 matches."
-msgstr ""
+msgstr "赢得10场比赛。"
 
 #. Key:	284DD33443F5098D7626CEBDA8A2E288
 #. SourceLocation:	/Game/Data/DA_Achievement.DA_Achievement.Achievements(3).Achievements.DisplayName
 #: /Game/Data/DA_Achievement.DA_Achievement.Achievements(3).Achievements.DisplayName
 msgctxt ",284DD33443F5098D7626CEBDA8A2E288"
 msgid "Proven Winner"
-msgstr ""
+msgstr "公认的胜者"
 
 #. Key:	B0BC327E4716A0685DAC648FCEC46066
 #. SourceLocation:	/Game/Data/DA_Achievement.DA_Achievement.Achievements(4).Achievements.Description
 #: /Game/Data/DA_Achievement.DA_Achievement.Achievements(4).Achievements.Description
 msgctxt ",B0BC327E4716A0685DAC648FCEC46066"
 msgid "Reach Wolf Tier by winning 20 matches."
-msgstr ""
+msgstr "赢得20场比赛，达到狼段位。"
 
 #. Key:	6E9C620D46BBDC405A90859F30EB4461
 #. SourceLocation:	/Game/Data/DA_Achievement.DA_Achievement.Achievements(4).Achievements.DisplayName
 #: /Game/Data/DA_Achievement.DA_Achievement.Achievements(4).Achievements.DisplayName
 msgctxt ",6E9C620D46BBDC405A90859F30EB4461"
 msgid "Wolf Tier"
-msgstr ""
+msgstr "狼段位"
 
 #. Key:	F5FCD22243815B5FCA18F0B08B6156CD
 #. SourceLocation:	/Game/Data/DA_Achievement.DA_Achievement.Achievements(5).Achievements.Description
 #: /Game/Data/DA_Achievement.DA_Achievement.Achievements(5).Achievements.Description
 msgctxt ",F5FCD22243815B5FCA18F0B08B6156CD"
 msgid "Reach Tiger Tier by winning 80 matches."
-msgstr ""
+msgstr "赢得80场比赛，达到虎段位。"
 
 #. Key:	832C681F497D23A81AF390A6EF79E140
 #. SourceLocation:	/Game/Data/DA_Achievement.DA_Achievement.Achievements(5).Achievements.DisplayName
 #: /Game/Data/DA_Achievement.DA_Achievement.Achievements(5).Achievements.DisplayName
 msgctxt ",832C681F497D23A81AF390A6EF79E140"
 msgid "Tiger Tier"
-msgstr ""
+msgstr "虎段位"
 
 #. Key:	0027C48047AFF2ABC65E65AEA20FF003
 #. SourceLocation:	/Game/Data/DA_Achievement.DA_Achievement.Achievements(6).Achievements.Description
 #: /Game/Data/DA_Achievement.DA_Achievement.Achievements(6).Achievements.Description
 msgctxt ",0027C48047AFF2ABC65E65AEA20FF003"
 msgid "Reach God Tier by winning 160 matches."
-msgstr ""
+msgstr "赢得160场比赛，达到神段位。"
 
 #. Key:	BACA89E841E249452AE8039B444E32E8
 #. SourceLocation:	/Game/Data/DA_Achievement.DA_Achievement.Achievements(6).Achievements.DisplayName
 #: /Game/Data/DA_Achievement.DA_Achievement.Achievements(6).Achievements.DisplayName
 msgctxt ",BACA89E841E249452AE8039B444E32E8"
 msgid "God Tier"
-msgstr ""
+msgstr "神段位"
 
 #. Key:	D2C2E19E4B8EF55A335CE4BD267DA6A2
 #. SourceLocation:	/Game/Data/DA_Guide.DA_Guide.Pages(0).Pages.Content
@@ -179,7 +179,7 @@ msgstr "斗兽场"
 #: /Game/Data/DA_Level.DA_Level.IngameLevels(1).IngameLevels.DisplayName
 msgctxt ",9304605B427DF584BDD62680CF710BD7"
 msgid "WindNest"
-msgstr ""
+msgstr "风之巢"
 
 #. Key:	4D47918D49D103AF2643ACACA7C5046D
 #. SourceLocation:	/Game/Data/DA_Level.DA_Level.IngameLevels(2).IngameLevels.DisplayName
@@ -2414,139 +2414,6 @@ msgctxt "MonsterAIController,InvalidBrainComponentRoute"
 msgid "{0} must use its inherited NativeStateTreeAI component as BrainComponent."
 msgstr ""
 
-#. Key:	DefaultNicknameFormat
-#. SourceLocation:	Source/LabProject/Component/Lobby/LobbyPlayerSetupComponent.cpp(43)
-#: Source/LabProject/Component/Lobby/LobbyPlayerSetupComponent.cpp(43)
-msgctxt "Lobby,DefaultNicknameFormat"
-msgid "User{0}"
-msgstr ""
-
-#. Key:	GoldenKillAnnouncement
-#. SourceLocation:	Source/LabProject/Component/Match/MatchFlowComponent.cpp(267)
-#: Source/LabProject/Component/Match/MatchFlowComponent.cpp(267)
-msgctxt "GoldenKill,GoldenKillAnnouncement"
-msgid "GOLDEN KILL"
-msgstr ""
-
-#. Key:	MatchEndedByPlayerExit
-#. SourceLocation:	Source/LabProject/Component/Match/MatchResultReport.cpp(131)
-#: Source/LabProject/Component/Match/MatchResultReport.cpp(131)
-msgctxt "GameResult,MatchEndedByPlayerExit"
-msgid "Match Ended Due to Player Leaving"
-msgstr ""
-
-#. Key:	TeamNameRed
-#. SourceLocation:	Source/LabProject/Component/Match/MatchResultReport.cpp(35)
-#: Source/LabProject/Component/Match/MatchResultReport.cpp(35)
-msgctxt "GameResult,TeamNameRed"
-msgid "Red"
-msgstr "红色"
-
-#. Key:	TeamNameBlue
-#. SourceLocation:	Source/LabProject/Component/Match/MatchResultReport.cpp(37)
-#: Source/LabProject/Component/Match/MatchResultReport.cpp(37)
-msgctxt "GameResult,TeamNameBlue"
-msgid "Blue"
-msgstr "蓝色"
-
-#. Key:	TeamNameYellow
-#. SourceLocation:	Source/LabProject/Component/Match/MatchResultReport.cpp(39)
-#: Source/LabProject/Component/Match/MatchResultReport.cpp(39)
-msgctxt "GameResult,TeamNameYellow"
-msgid "Yellow"
-msgstr "黄色"
-
-#. Key:	TeamNamePurple
-#. SourceLocation:	Source/LabProject/Component/Match/MatchResultReport.cpp(41)
-#: Source/LabProject/Component/Match/MatchResultReport.cpp(41)
-msgctxt "GameResult,TeamNamePurple"
-msgid "Purple"
-msgstr "紫色"
-
-#. Key:	TeamNameGreen
-#. SourceLocation:	Source/LabProject/Component/Match/MatchResultReport.cpp(43)
-#: Source/LabProject/Component/Match/MatchResultReport.cpp(43)
-msgctxt "GameResult,TeamNameGreen"
-msgid "Green"
-msgstr "绿色"
-
-#. Key:	TeamNameOrange
-#. SourceLocation:	Source/LabProject/Component/Match/MatchResultReport.cpp(45)
-#: Source/LabProject/Component/Match/MatchResultReport.cpp(45)
-msgctxt "GameResult,TeamNameOrange"
-msgid "Orange"
-msgstr "橙色"
-
-#. Key:	TeamNameNone
-#. SourceLocation:	Source/LabProject/Component/Match/MatchResultReport.cpp(47)
-#: Source/LabProject/Component/Match/MatchResultReport.cpp(47)
-msgctxt "GameResult,TeamNameNone"
-msgid "No Team"
-msgstr ""
-
-#. Key:	WinnerTeamTitleFormat
-#. SourceLocation:	Source/LabProject/Component/Match/MatchResultReport.cpp(69)
-#: Source/LabProject/Component/Match/MatchResultReport.cpp(69)
-msgctxt "GameResult,WinnerTeamTitleFormat"
-msgid "{0} Team Wins"
-msgstr "{0}队获胜"
-
-#. Key:	UnknownPlayerName
-#. SourceLocation:	Source/LabProject/Component/Player/PlayerMatchComponent.cpp(88)
-#: Source/LabProject/Component/Player/PlayerMatchComponent.cpp(88)
-msgctxt "GameResult,UnknownPlayerName"
-msgid "Unknown"
-msgstr "未知"
-
-#. Key:	ItemRewardFallback
-#. SourceLocation:	Source/LabProject/Component/Player/PlayerNotificationComponent.cpp(177)
-#: Source/LabProject/Component/Player/PlayerNotificationComponent.cpp(177)
-msgctxt "PlayerNotificationComponent,ItemRewardFallback"
-msgid "Item Collected"
-msgstr ""
-
-#. Key:	SkinRewardFallback
-#. SourceLocation:	Source/LabProject/Component/Player/PlayerNotificationComponent.cpp(188)
-#: Source/LabProject/Component/Player/PlayerNotificationComponent.cpp(188)
-msgctxt "PlayerNotificationComponent,SkinRewardFallback"
-msgid "Skin Collected"
-msgstr ""
-
-#. Key:	PandoraRewardFallback
-#. SourceLocation:	Source/LabProject/Component/Player/PlayerNotificationComponent.cpp(199)
-#: Source/LabProject/Component/Player/PlayerNotificationComponent.cpp(199)
-msgctxt "PlayerNotificationComponent,PandoraRewardFallback"
-msgid "Pandora Collected"
-msgstr ""
-
-#. Key:	NumericRewardFormat
-#. SourceLocation:	Source/LabProject/Component/Player/PlayerNotificationComponent.cpp(212)
-#: Source/LabProject/Component/Player/PlayerNotificationComponent.cpp(212)
-msgctxt "PlayerNotificationComponent,NumericRewardFormat"
-msgid "{0} +{1}"
-msgstr ""
-
-#. Key:	ExperienceRewardName
-#. SourceLocation:	Source/LabProject/Component/Player/PlayerNotificationComponent.cpp(214)
-#: Source/LabProject/Component/Player/PlayerNotificationComponent.cpp(214)
-msgctxt "PlayerNotificationComponent,ExperienceRewardName"
-msgid "Experience"
-msgstr "经验"
-
-#. Key:	SoulDustRewardName
-#. SourceLocation:	Source/LabProject/Component/Player/PlayerNotificationComponent.cpp(215)
-#: Source/LabProject/Component/Player/PlayerNotificationComponent.cpp(215)
-msgctxt "PlayerNotificationComponent,SoulDustRewardName"
-msgid "Soul Dust"
-msgstr "灵魂之尘"
-
-#. Key:	RewardCollectedFormat
-#. SourceLocation:	Source/LabProject/Component/Player/PlayerNotificationComponent.cpp(29)
-#: Source/LabProject/Component/Player/PlayerNotificationComponent.cpp(29)
-msgctxt "PlayerNotificationComponent,RewardCollectedFormat"
-msgid "{0} Collected"
-msgstr ""
-
 #. Key:	InvalidFeatureId
 #. SourceLocation:	Source/LabProject/Definition/Experience/ExperienceDefinition.cpp(29)
 #: Source/LabProject/Definition/Experience/ExperienceDefinition.cpp(29)
@@ -2573,14 +2440,14 @@ msgstr ""
 #: Source/LabProject/Definition/Player/CharacterActionDefinition.cpp(151)
 msgctxt "CharacterActionDefinition,PandoraWeaponSwapDisplayName"
 msgid "Swap"
-msgstr ""
+msgstr "切换"
 
 #. Key:	GrappleHookDisplayName
 #. SourceLocation:	Source/LabProject/Definition/Player/CharacterActionDefinition.cpp(155)
 #: Source/LabProject/Definition/Player/CharacterActionDefinition.cpp(155)
 msgctxt "CharacterActionDefinition,GrappleHookDisplayName"
 msgid "Hook"
-msgstr ""
+msgstr "钩子"
 
 #. Key:	DefaultTierNameFormat
 #. SourceLocation:	Source/LabProject/Definition/UI/RecordDefinition.cpp(21)
@@ -2594,525 +2461,21 @@ msgstr "段位{0}"
 #: Source/LabProject/Item/RewardChest.cpp(140)
 msgctxt "RewardChest,OpenChestInteractText"
 msgid "Open"
-msgstr ""
+msgstr "打开"
 
 #. Key:	KickedByHost
 #. SourceLocation:	Source/LabProject/Lobby/Contents/LobbyGameMode.cpp(305)
 #: Source/LabProject/Lobby/Contents/LobbyGameMode.cpp(305)
 msgctxt "Lobby,KickedByHost"
 msgid "Kicked by host"
-msgstr ""
+msgstr "已被房主移出"
 
 #. Key:	EnvironmentKillerName
 #. SourceLocation:	Source/LabProject/Mode/PlayerEliminationSubsystem.cpp(109)
 #: Source/LabProject/Mode/PlayerEliminationSubsystem.cpp(109)
 msgctxt "KillLog,EnvironmentKillerName"
 msgid "Environment"
-msgstr ""
-
-#. Key:	PandoraPointsFormat
-#. SourceLocation:	Source/LabProject/UI/Core/WidgetClassDefinition.h(233)
-#: Source/LabProject/UI/Core/WidgetClassDefinition.h(233)
-msgctxt "PandoraTreeWidget,PandoraPointsFormat"
-msgid "Soul Dust: {0}"
-msgstr "灵魂之尘：{0}"
-
-#. Key:	GameStartCountdownFormatText
-#. SourceLocation:	Source/LabProject/UI/Core/WidgetClassDefinition.h(554)
-#: Source/LabProject/UI/Core/WidgetClassDefinition.h(554)
-msgctxt "Lobby,GameStartCountdownFormatText"
-msgid "{Seconds}"
-msgstr ""
-
-#. Key:	GameStartCountdownFinishedText
-#. SourceLocation:	Source/LabProject/UI/Core/WidgetClassDefinition.h(557)
-#: Source/LabProject/UI/Core/WidgetClassDefinition.h(557)
-msgctxt "Lobby,GameStartCountdownFinishedText"
-msgid "Start"
-msgstr ""
-
-#. Key:	GoldenKillText
-#. SourceLocation:	Source/LabProject/UI/HUD/Match/GoldenKillAnnouncementWidget.h(42)
-#: Source/LabProject/UI/HUD/Match/GoldenKillAnnouncementWidget.h(42)
-msgctxt "GoldenKill,GoldenKillText"
-msgid "GOLDEN KILL"
-msgstr ""
-
-#. Key:	KillMessageFormat
-#. SourceLocation:	Source/LabProject/UI/HUD/Match/KillLogEntryWidget.h(46)
-#: Source/LabProject/UI/HUD/Match/KillLogEntryWidget.h(46)
-msgctxt "KillLog,KillMessageFormat"
-msgid "{0} eliminated {1}"
-msgstr "{0}击败了{1}"
-
-#. Key:	KillConnectorText
-#. SourceLocation:	Source/LabProject/UI/HUD/Match/KillLogEntryWidget.h(49)
-#: Source/LabProject/UI/HUD/Match/KillLogEntryWidget.h(49)
-msgctxt "KillLog,KillConnectorText"
-msgid "eliminated"
-msgstr "击败"
-
-#. Key:	SelfKillMessageFormat
-#. SourceLocation:	Source/LabProject/UI/HUD/Match/KillLogEntryWidget.h(52)
-#: Source/LabProject/UI/HUD/Match/KillLogEntryWidget.h(52)
-msgctxt "KillLog,SelfKillMessageFormat"
-msgid "{0} eliminated themselves"
-msgstr "{0}自行倒下了"
-
-#. Key:	EnvironmentKillMessageFormat
-#. SourceLocation:	Source/LabProject/UI/HUD/Match/KillLogEntryWidget.h(55)
-#: Source/LabProject/UI/HUD/Match/KillLogEntryWidget.h(55)
-msgctxt "KillLog,EnvironmentKillMessageFormat"
-msgid "{0} died"
-msgstr "{0}倒下了"
-
-#. Key:	FinishedText
-#. SourceLocation:	Source/LabProject/UI/HUD/Player/HudTimerWidget.h(70)
-#: Source/LabProject/UI/HUD/Player/HudTimerWidget.h(70)
-msgctxt "HudTimer,FinishedText"
-msgid "00:00"
-msgstr ""
-
-#. Key:	ResourcePair
-#. SourceLocation:	Source/LabProject/UI/HUD/Player/PlayerVitalsWidget.cpp(229)
-#: Source/LabProject/UI/HUD/Player/PlayerVitalsWidget.cpp(229)
-msgctxt "PlayerHUD,ResourcePair"
-msgid "{0} / {1}"
-msgstr ""
-
-#. Key:	RespawnDelayFormatText
-#. SourceLocation:	Source/LabProject/UI/HUD/Player/RespawnDelayWidget.h(60)
-#: Source/LabProject/UI/HUD/Player/RespawnDelayWidget.h(60)
-msgctxt "RespawnDelay,RespawnDelayFormatText"
-msgid "Respawn in {Seconds}"
-msgstr "{Seconds}秒后复活"
-
-#. Key:	FinishedText
-#. SourceLocation:	Source/LabProject/UI/HUD/Player/RespawnDelayWidget.h(63)
-#: Source/LabProject/UI/HUD/Player/RespawnDelayWidget.h(63)
-msgctxt "RespawnDelay,FinishedText"
-msgid "Respawning..."
-msgstr ""
-
-#. Key:	BossName
-#. SourceLocation:	Source/LabProject/UI/HUD/Player/WorldBossBarWidget.cpp(116)
-#: Source/LabProject/UI/HUD/Player/WorldBossBarWidget.cpp(116)
-msgctxt "WorldBossBar,BossName"
-msgid "Usurper Dragon"
-msgstr "篡夺者巨龙"
-
-#. Key:	Attempt
-#. SourceLocation:	Source/LabProject/UI/HUD/Player/WorldBossBarWidget.cpp(173)
-#: Source/LabProject/UI/HUD/Player/WorldBossBarWidget.cpp(173)
-msgctxt "WorldBossBar,Attempt"
-msgid "Time left {Time} · Damage this run {Damage}"
-msgstr "剩余时间 {Time} · 本次伤害 {Damage}"
-
-#. Key:	AttemptEnded
-#. SourceLocation:	Source/LabProject/UI/HUD/Player/WorldBossBarWidget.cpp(177)
-#: Source/LabProject/UI/HUD/Player/WorldBossBarWidget.cpp(177)
-msgctxt "WorldBossBar,AttemptEnded"
-msgid "Time's up! Damage this run {Damage}"
-msgstr "挑战结束！本次伤害 {Damage}"
-
-#. Key:	Defeated
-#. SourceLocation:	Source/LabProject/UI/HUD/Player/WorldBossBarWidget.cpp(181)
-#: Source/LabProject/UI/HUD/Player/WorldBossBarWidget.cpp(181)
-msgctxt "WorldBossBar,Defeated"
-msgid "The boss has fallen! Collect your reward on the title screen."
-msgstr "首领已被击败！请在标题画面领取奖励。"
-
-#. Key:	UpgradeLevelFormat
-#. SourceLocation:	Source/LabProject/UI/Info/Item/ItemSlotWidget.cpp(265)
-#: Source/LabProject/UI/Info/Item/ItemSlotWidget.cpp(265)
-msgctxt "ItemSlotWidget,UpgradeLevelFormat"
-msgid "+{0}"
-msgstr ""
-
-#. Key:	CombineDuplicateItemsMessage
-#. SourceLocation:	Source/LabProject/UI/Info/Item/RightInventoryWidget.cpp(138)
-#: Source/LabProject/UI/Info/Item/RightInventoryWidget.cpp(138)
-msgctxt "RightInventoryWidget,CombineDuplicateItemsMessage"
-msgid "Combine duplicate weapons or equipment to upgrade them."
-msgstr "合成重复的武器或装备进行强化。"
-
-#. Key:	UnknownPlayerText
-#. SourceLocation:	Source/LabProject/UI/Match/GameResultPlayerStatEntryWidget.h(56)
-#: Source/LabProject/UI/Match/GameResultPlayerStatEntryWidget.h(56)
-msgctxt "GameResult,UnknownPlayerText"
-msgid "Unknown"
-msgstr "未知"
-
-#. Key:	UnknownTeamText
-#. SourceLocation:	Source/LabProject/UI/Match/GameResultPlayerStatEntryWidget.h(59)
-#: Source/LabProject/UI/Match/GameResultPlayerStatEntryWidget.h(59)
-msgctxt "GameResult,UnknownTeamText"
-msgid "No Team"
-msgstr ""
-
-#. Key:	RewardTextFormat
-#. SourceLocation:	Source/LabProject/UI/Match/GameResultPlayerStatEntryWidget.h(62)
-#: Source/LabProject/UI/Match/GameResultPlayerStatEntryWidget.h(62)
-msgctxt "GameResult,RewardTextFormat"
-msgid "{0}"
-msgstr ""
-
-#. Key:	MostKillFormat
-#. SourceLocation:	Source/LabProject/UI/Match/GameResultWidget.h(102)
-#: Source/LabProject/UI/Match/GameResultWidget.h(102)
-msgctxt "GameResult,MostKillFormat"
-msgid "{0} got the most kills ({1})"
-msgstr ""
-
-#. Key:	WinnerInfoFormat
-#. SourceLocation:	Source/LabProject/UI/Match/GameResultWidget.h(99)
-#: Source/LabProject/UI/Match/GameResultWidget.h(99)
-msgctxt "GameResult,WinnerInfoFormat"
-msgid "{0}"
-msgstr ""
-
-#. Key:	UnownedPandoraDescription
-#. SourceLocation:	Source/LabProject/UI/Pandora/PandoraDescriptionWidget.cpp(73)
-#: Source/LabProject/UI/Pandora/PandoraDescriptionWidget.cpp(73)
-msgctxt "PandoraDescriptionWidget,UnownedPandoraDescription"
-msgid "You do not own this Pandora."
-msgstr ""
-
-#. Key:	UnequipText
-#. SourceLocation:	Source/LabProject/UI/Pandora/PandoraWidget.cpp(609)
-#: Source/LabProject/UI/Pandora/PandoraWidget.cpp(609)
-msgctxt "PandoraWidget,UnequipText"
-msgid "Unequip"
-msgstr "卸下"
-
-#. Key:	EquippedText
-#. SourceLocation:	Source/LabProject/UI/Pandora/PandoraWidget.cpp(610)
-#: Source/LabProject/UI/Pandora/PandoraWidget.cpp(610)
-msgctxt "PandoraWidget,EquippedText"
-msgid "Equipped"
-msgstr ""
-
-#. Key:	MaxLevel
-#. SourceLocation:	Source/LabProject/UI/Pandora/PandoraWidgetViewData.cpp(18)
-#: Source/LabProject/UI/Pandora/PandoraWidgetViewData.cpp(18)
-msgctxt "PandoraWidget,MaxLevel"
-msgid "MAX"
-msgstr ""
-
-#. Key:	PandoraLevelFormat
-#. SourceLocation:	Source/LabProject/UI/Pandora/PandoraWidgetViewData.cpp(183)
-#: Source/LabProject/UI/Pandora/PandoraWidgetViewData.cpp(183)
-msgctxt "PandoraWidget,PandoraLevelFormat"
-msgid "{0}/{1}"
-msgstr ""
-
-#. Key:	LockedRequirementFallback
-#. SourceLocation:	Source/LabProject/UI/Pandora/PandoraWidgetViewData.cpp(265)
-#: Source/LabProject/UI/Pandora/PandoraWidgetViewData.cpp(265)
-msgctxt "PandoraDescriptionWidget,LockedRequirementFallback"
-msgid "Unlock requirements are not met."
-msgstr ""
-
-#. Key:	WeaponRequirementFormat
-#. SourceLocation:	Source/LabProject/UI/Pandora/PandoraWidgetViewData.cpp(57)
-#: Source/LabProject/UI/Pandora/PandoraWidgetViewData.cpp(57)
-msgctxt "PandoraDescriptionWidget,WeaponRequirementFormat"
-msgid "Required Weapon Type: {0}"
-msgstr ""
-
-#. Key:	PandoraUnlockRequirementLine
-#. SourceLocation:	Source/LabProject/UI/Pandora/PandoraWidgetViewData.cpp(70)
-#: Source/LabProject/UI/Pandora/PandoraWidgetViewData.cpp(70)
-msgctxt "PandoraTreeComponent,PandoraUnlockRequirementLine"
-msgid "- {0} Lv. {1} ({2}/{1})"
-msgstr ""
-
-#. Key:	PandoraUnlockRequirements
-#. SourceLocation:	Source/LabProject/UI/Pandora/PandoraWidgetViewData.cpp(77)
-#: Source/LabProject/UI/Pandora/PandoraWidgetViewData.cpp(77)
-msgctxt "PandoraTreeComponent,PandoraUnlockRequirements"
-msgid "Requirements"
-msgstr "解锁条件"
-
-#. Key:	WinText
-#. SourceLocation:	Source/LabProject/UI/Record/RecordEntryWidget.h(49)
-#: Source/LabProject/UI/Record/RecordEntryWidget.h(49)
-msgctxt "RecordEntryWidget,WinText"
-msgid "WIN"
-msgstr ""
-
-#. Key:	LoseText
-#. SourceLocation:	Source/LabProject/UI/Record/RecordEntryWidget.h(52)
-#: Source/LabProject/UI/Record/RecordEntryWidget.h(52)
-msgctxt "RecordEntryWidget,LoseText"
-msgid "LOSE"
-msgstr ""
-
-#. Key:	RewardTextFormat
-#. SourceLocation:	Source/LabProject/UI/Record/RecordEntryWidget.h(55)
-#: Source/LabProject/UI/Record/RecordEntryWidget.h(55)
-msgctxt "RecordEntryWidget,RewardTextFormat"
-msgid "{0}"
-msgstr ""
-
-#. Key:	PriceTextFormat
-#. SourceLocation:	Source/LabProject/UI/Shop/ShopEntryWidget.h(67)
-#: Source/LabProject/UI/Shop/ShopEntryWidget.h(67)
-msgctxt "ShopEntryWidget,PriceTextFormat"
-msgid "{0} Gold"
-msgstr "{0} 金币"
-
-#. Key:	OwnedText
-#. SourceLocation:	Source/LabProject/UI/Shop/ShopEntryWidget.h(70)
-#: Source/LabProject/UI/Shop/ShopEntryWidget.h(70)
-msgctxt "ShopEntryWidget,OwnedText"
-msgid "Owned"
-msgstr "已拥有"
-
-#. Key:	AvailableText
-#. SourceLocation:	Source/LabProject/UI/Shop/ShopEntryWidget.h(73)
-#: Source/LabProject/UI/Shop/ShopEntryWidget.h(73)
-msgctxt "ShopEntryWidget,AvailableText"
-msgid "Available"
-msgstr "可购买"
-
-#. Key:	NotEnoughGoldText
-#. SourceLocation:	Source/LabProject/UI/Shop/ShopEntryWidget.h(76)
-#: Source/LabProject/UI/Shop/ShopEntryWidget.h(76)
-msgctxt "ShopEntryWidget,NotEnoughGoldText"
-msgid "Need Gold"
-msgstr ""
-
-#. Key:	NotForSaleText
-#. SourceLocation:	Source/LabProject/UI/Shop/ShopEntryWidget.h(79)
-#: Source/LabProject/UI/Shop/ShopEntryWidget.h(79)
-msgctxt "ShopEntryWidget,NotForSaleText"
-msgid "Not for sale"
-msgstr "暂不出售"
-
-#. Key:	EmptyPreviewText
-#. SourceLocation:	Source/LabProject/UI/Shop/ShopPreviewPanelWidget.h(78)
-#: Source/LabProject/UI/Shop/ShopPreviewPanelWidget.h(78)
-msgctxt "ShopPreviewPanelWidget,EmptyPreviewText"
-msgid "Select a Pandora"
-msgstr ""
-
-#. Key:	PriceTextFormat
-#. SourceLocation:	Source/LabProject/UI/Shop/ShopPreviewPanelWidget.h(81)
-#: Source/LabProject/UI/Shop/ShopPreviewPanelWidget.h(81)
-msgctxt "ShopPreviewPanelWidget,PriceTextFormat"
-msgid "{0} Gold"
-msgstr "{0} 金币"
-
-#. Key:	OwnedText
-#. SourceLocation:	Source/LabProject/UI/Shop/ShopPreviewPanelWidget.h(84)
-#: Source/LabProject/UI/Shop/ShopPreviewPanelWidget.h(84)
-msgctxt "ShopPreviewPanelWidget,OwnedText"
-msgid "Owned"
-msgstr "已拥有"
-
-#. Key:	AvailableText
-#. SourceLocation:	Source/LabProject/UI/Shop/ShopPreviewPanelWidget.h(87)
-#: Source/LabProject/UI/Shop/ShopPreviewPanelWidget.h(87)
-msgctxt "ShopPreviewPanelWidget,AvailableText"
-msgid "Available"
-msgstr "可购买"
-
-#. Key:	NotEnoughGoldText
-#. SourceLocation:	Source/LabProject/UI/Shop/ShopPreviewPanelWidget.h(90)
-#: Source/LabProject/UI/Shop/ShopPreviewPanelWidget.h(90)
-msgctxt "ShopPreviewPanelWidget,NotEnoughGoldText"
-msgid "Need Gold"
-msgstr ""
-
-#. Key:	NotForSaleText
-#. SourceLocation:	Source/LabProject/UI/Shop/ShopPreviewPanelWidget.h(93)
-#: Source/LabProject/UI/Shop/ShopPreviewPanelWidget.h(93)
-msgctxt "ShopPreviewPanelWidget,NotForSaleText"
-msgid "Not for sale"
-msgstr "暂不出售"
-
-#. Key:	GoldTextFormat
-#. SourceLocation:	Source/LabProject/UI/Shop/ShopWidget.h(129)
-#: Source/LabProject/UI/Shop/ShopWidget.h(129)
-msgctxt "ShopWidget,GoldTextFormat"
-msgid "{0}"
-msgstr ""
-
-#. Key:	SelectItemText
-#. SourceLocation:	Source/LabProject/UI/Shop/ShopWidget.h(132)
-#: Source/LabProject/UI/Shop/ShopWidget.h(132)
-msgctxt "ShopWidget,SelectItemText"
-msgid "Select an item."
-msgstr ""
-
-#. Key:	AlreadyOwnedText
-#. SourceLocation:	Source/LabProject/UI/Shop/ShopWidget.h(135)
-#: Source/LabProject/UI/Shop/ShopWidget.h(135)
-msgctxt "ShopWidget,AlreadyOwnedText"
-msgid "Already owned."
-msgstr ""
-
-#. Key:	NotEnoughGoldText
-#. SourceLocation:	Source/LabProject/UI/Shop/ShopWidget.h(138)
-#: Source/LabProject/UI/Shop/ShopWidget.h(138)
-msgctxt "ShopWidget,NotEnoughGoldText"
-msgid "Not enough gold."
-msgstr ""
-
-#. Key:	NotForSaleText
-#. SourceLocation:	Source/LabProject/UI/Shop/ShopWidget.h(141)
-#: Source/LabProject/UI/Shop/ShopWidget.h(141)
-msgctxt "ShopWidget,NotForSaleText"
-msgid "Not for sale."
-msgstr ""
-
-#. Key:	PandoraComingSoonText
-#. SourceLocation:	Source/LabProject/UI/Shop/ShopWidget.h(144)
-#: Source/LabProject/UI/Shop/ShopWidget.h(144)
-msgctxt "ShopWidget,PandoraComingSoonText"
-msgid "Update scheduled."
-msgstr ""
-
-#. Key:	UnsupportedProductTypeText
-#. SourceLocation:	Source/LabProject/UI/Shop/ShopWidget.h(147)
-#: Source/LabProject/UI/Shop/ShopWidget.h(147)
-msgctxt "ShopWidget,UnsupportedProductTypeText"
-msgid "This product type cannot be purchased yet."
-msgstr ""
-
-#. Key:	PurchaseSucceededTextFormat
-#. SourceLocation:	Source/LabProject/UI/Shop/ShopWidget.h(150)
-#: Source/LabProject/UI/Shop/ShopWidget.h(150)
-msgctxt "ShopWidget,PurchaseSucceededTextFormat"
-msgid "Purchased {0}."
-msgstr ""
-
-#. Key:	ShopSaveResetText
-#. SourceLocation:	Source/LabProject/UI/Shop/ShopWidget.h(153)
-#: Source/LabProject/UI/Shop/ShopWidget.h(153)
-msgctxt "ShopWidget,ShopSaveResetText"
-msgid "Shop data reset."
-msgstr ""
-
-#. Key:	BossRaidJoining
-#. SourceLocation:	Source/LabProject/UI/Title/TitleHUD.cpp(281)
-#: Source/LabProject/UI/Title/TitleHUD.cpp(281)
-msgctxt "TitleHUD,BossRaidJoining"
-msgid "Let me find you a spot in the boss raid..."
-msgstr ""
-
-#. Key:	BossRaidNoAttempts
-#. SourceLocation:	Source/LabProject/UI/Title/TitleHUD.cpp(308)
-#: Source/LabProject/UI/Title/TitleHUD.cpp(308)
-msgctxt "TitleHUD,BossRaidNoAttempts"
-msgid "You've used all of today's attempts. Come back tomorrow!"
-msgstr "今天的挑战次数已用完。明天再来吧！"
-
-#. Key:	BossRaidClosed
-#. SourceLocation:	Source/LabProject/UI/Title/TitleHUD.cpp(312)
-#: Source/LabProject/UI/Title/TitleHUD.cpp(312)
-msgctxt "TitleHUD,BossRaidClosed"
-msgid "Not open yet."
-msgstr "尚未开放。"
-
-#. Key:	BossRaidFailed
-#. SourceLocation:	Source/LabProject/UI/Title/TitleHUD.cpp(314)
-#: Source/LabProject/UI/Title/TitleHUD.cpp(314)
-msgctxt "TitleHUD,BossRaidFailed"
-msgid "I couldn't reach the boss raid. Please try again in a moment."
-msgstr "无法连接到首领突袭，请稍后再试。"
-
-#. Key:	BossRaidResult
-#. SourceLocation:	Source/LabProject/UI/Title/TitleHUD.cpp(362)
-#: Source/LabProject/UI/Title/TitleHUD.cpp(362)
-msgctxt "TitleHUD,BossRaidResult"
-msgid "Nice work! You've dealt {Damage} damage so far, rank #{Rank}. You can try {Attempts} more times today."
-msgstr "辛苦了！你目前累计造成{Damage}点伤害，排名第{Rank}。今天还可以挑战{Attempts}次。"
-
-#. Key:	BossRaidReward
-#. SourceLocation:	Source/LabProject/UI/Title/TitleHUD.cpp(375)
-#: Source/LabProject/UI/Title/TitleHUD.cpp(375)
-msgctxt "TitleHUD,BossRaidReward"
-msgid "The boss has fallen! You received {Gold} gold for fighting together."
-msgstr "首领倒下了！作为共同作战的奖励，你获得了{Gold}金币。"
-
-#. Key:	LunaChatThinking
-#. SourceLocation:	Source/LabProject/UI/Title/TitleHUD.cpp(395)
-#: Source/LabProject/UI/Title/TitleHUD.cpp(395)
-msgctxt "TitleHUD,LunaChatThinking"
-msgid "Hmm, let me think..."
-msgstr "嗯……让我想一想。"
-
-#. Key:	LunaChatUnavailable
-#. SourceLocation:	Source/LabProject/UI/Title/TitleHUD.cpp(408)
-#: Source/LabProject/UI/Title/TitleHUD.cpp(408)
-msgctxt "TitleHUD,LunaChatUnavailable"
-msgid "I can't answer right now. Please ask me again in a moment."
-msgstr "我现在暂时无法回答，请稍后再问我一次。"
-
-#. Key:	LunaChatHint
-#. SourceLocation:	Source/LabProject/UI/Title/TitleWidget.cpp(117)
-#: Source/LabProject/UI/Title/TitleWidget.cpp(117)
-msgctxt "TitleWidget,LunaChatHint"
-msgid "Ask Luna anything (Enter)"
-msgstr "向露娜提问（按 Enter 发送）"
-
-#. Key:	BossRaidClosed
-#. SourceLocation:	Source/LabProject/UI/Title/TitleWidget.cpp(162)
-#: Source/LabProject/UI/Title/TitleWidget.cpp(162)
-msgctxt "TitleWidget,BossRaidClosed"
-msgid "Not open yet."
-msgstr "尚未开放。"
-
-#. Key:	BossRaidNoAttempts
-#. SourceLocation:	Source/LabProject/UI/Title/TitleWidget.cpp(165)
-#: Source/LabProject/UI/Title/TitleWidget.cpp(165)
-msgctxt "TitleWidget,BossRaidNoAttempts"
-msgid "You've used all of today's attempts. Come back tomorrow!"
-msgstr "今天的挑战次数已用完。明天再来吧！"
-
-#. Key:	BossRaidHealth
-#. SourceLocation:	Source/LabProject/UI/Title/TitleWidget.cpp(203)
-#: Source/LabProject/UI/Title/TitleWidget.cpp(203)
-msgctxt "TitleWidget,BossRaidHealth"
-msgid "Boss health {Percent}%"
-msgstr "首领生命值 {Percent}%"
-
-#. Key:	BossRaidAttemptsLeft
-#. SourceLocation:	Source/LabProject/UI/Title/TitleWidget.cpp(207)
-#: Source/LabProject/UI/Title/TitleWidget.cpp(207)
-msgctxt "TitleWidget,BossRaidAttemptsLeft"
-msgid "Attempts left today: {Attempts}"
-msgstr "今日剩余挑战 {Attempts} 次"
-
-#. Key:	BossRaidMyRank
-#. SourceLocation:	Source/LabProject/UI/Title/TitleWidget.cpp(211)
-#: Source/LabProject/UI/Title/TitleWidget.cpp(211)
-msgctxt "TitleWidget,BossRaidMyRank"
-msgid "My rank #{Rank} ({Damage})"
-msgstr "我的排名 第{Rank}名（{Damage}）"
-
-#. Key:	HealthTextFormat
-#. SourceLocation:	Source/LabProject/ViewModel/HealthBarViewModel.cpp(25)
-#: Source/LabProject/ViewModel/HealthBarViewModel.cpp(25)
-msgctxt "HealthBarViewModel,HealthTextFormat"
-msgid "{0}/{1}"
-msgstr ""
-
-#. Key:	ExperienceTextFormat
-#. SourceLocation:	Source/LabProject/ViewModel/HealthBarViewModel.cpp(38)
-#: Source/LabProject/ViewModel/HealthBarViewModel.cpp(38)
-msgctxt "HealthBarViewModel,ExperienceTextFormat"
-msgid "{0}/{1}"
-msgstr ""
-
-#. Key:	PositiveStatBonusFormat
-#. SourceLocation:	Source/LabProject/ViewModel/StatusViewModel.cpp(54)
-#: Source/LabProject/ViewModel/StatusViewModel.cpp(54)
-msgctxt "StatusViewModel,PositiveStatBonusFormat"
-msgid "+{0}"
-msgstr ""
+msgstr "环境"
 
 #. Key:	Common.Back
 #. SourceLocation:	UI/Localization/StringTables/MenuText.csv
@@ -3309,6 +2672,13 @@ msgstr "{0}倒下了"
 msgctxt "MenuText,HUD.Experience"
 msgid "Experience"
 msgstr "经验"
+
+#. Key:	HUD.GoldenKill
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,HUD.GoldenKill"
+msgid "GOLDEN KILL"
+msgstr "黄金击杀"
 
 #. Key:	HUD.ItemCollected
 #. SourceLocation:	UI/Localization/StringTables/MenuText.csv
@@ -4415,6 +3785,13 @@ msgstr "冷却时间 {0}秒"
 msgctxt "MenuText,PandoraDescription.ManaFormat"
 msgid "Mana {0}"
 msgstr "法力 {0}"
+
+#. Key:	PandoraDescription.Unowned
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,PandoraDescription.Unowned"
+msgid "You do not own this Pandora."
+msgstr "您尚未拥有此潘多拉。"
 
 #. Key:	Player.EditName
 #. SourceLocation:	UI/Localization/StringTables/MenuText.csv

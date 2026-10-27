@@ -807,18 +807,16 @@ void UInfoWidget::ClosePandoraDrawerForNavigation()
 
 void UInfoWidget::RefreshPandoraDrawerLabel()
 {
-	const FText Label = MenuTextOrFallback(bPandoraDrawerExpanded ? TEXT("Pandora.Collapse") : TEXT("Pandora.Expand"),
-		FText::FromString(bPandoraDrawerExpanded ? TEXT("Collapse") : TEXT("Expand")));
+	const FText Label = MenuText(bPandoraDrawerExpanded ? TEXT("Pandora.Collapse") : TEXT("Pandora.Expand"));
 	if (PandoraDrawerAction)
 	{
 		PandoraDrawerAction->SetText(Label);
 	}
 	if (PandoraDrawerArrow)
 	{
-		PandoraDrawerArrow->SetText(FText::FromString(bPandoraDrawerExpanded ? TEXT("‹") : TEXT("›")));
+		PandoraDrawerArrow->SetText(bPandoraDrawerExpanded ? INVTEXT("‹") : INVTEXT("›"));
 	}
-	SetHoverTooltip(Btn_PandoraUpgrade, MenuTextOrFallback(
-		bPandoraDrawerExpanded ? TEXT("Pandora.CollapseHint") : TEXT("Pandora.ExpandHint"), Label));
+	SetHoverTooltip(Btn_PandoraUpgrade, MenuText(bPandoraDrawerExpanded ? TEXT("Pandora.CollapseHint") : TEXT("Pandora.ExpandHint")));
 }
 
 void UInfoWidget::OnMenuLanguageChanged()

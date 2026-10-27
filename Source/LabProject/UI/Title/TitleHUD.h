@@ -49,7 +49,6 @@ private:
 	void HandleLunaReplyUpdated(const FString& ReplySoFar);
 	void HandleLunaReplyFinished(bool bSucceeded, const FString& Reply);
 	void ShowLunaChatText(const FText& Text, bool bSpeaking);
-	FText GetLunaChatLine(FName Key, const FText& Fallback) const;
 	/** true인 동안 팁 순환을 멈춘다. 다음 팁은 SpeechHiddenInterval 대신 ChatTipResumeDelay만큼 기다린다. */
 	bool bLunaChatActive = false;
 	FDelegateHandle LunaReplyUpdatedHandle;

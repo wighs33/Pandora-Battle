@@ -1,6 +1,7 @@
 #include "Component/Player/PlayerMatchComponent.h"
 
 #include "GameFramework/PlayerState.h"
+#include "Localization/MenuLocalizationSubsystem.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
 
@@ -85,7 +86,7 @@ FText UPlayerMatchComponent::ResolveDisplayName(const APlayerState* PlayerState)
 {
 	if (!PlayerState)
 	{
-		return NSLOCTEXT("GameResult", "UnknownPlayerName", "Unknown");
+		return UMenuLocalizationSubsystem::GetText(TEXT("Result.UnknownPlayer"));
 	}
 
 	if (const UPlayerMatchComponent* MatchComponent = PlayerState->FindComponentByClass<UPlayerMatchComponent>())

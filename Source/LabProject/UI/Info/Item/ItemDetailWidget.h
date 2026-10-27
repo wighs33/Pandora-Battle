@@ -51,7 +51,7 @@ private:
 		const TMap<FGameplayTag, float>& NewStats,
 		const TMap<FGameplayTag, float>& UpgradeBonusStats);
 	void AddStatRow(FGameplayTag StatTag, float NewValue, float UpgradeBonusValue);
-	static FString GetDisplayNameForStatTag(FGameplayTag StatTag);
+	static FText GetDisplayNameForStatTag(FGameplayTag StatTag);
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Detail|Stats")

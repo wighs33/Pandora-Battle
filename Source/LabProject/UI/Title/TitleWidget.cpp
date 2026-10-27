@@ -113,8 +113,7 @@ void UTitleWidget::OnMenuLanguageChanged()
 	}
 	if (LunaChatInput)
 	{
-		LunaChatInput->SetHintText(MenuTextOrFallback(LunaChatHintKey,
-			NSLOCTEXT("TitleWidget", "LunaChatHint", "Ask Luna anything (Enter)")));
+		LunaChatInput->SetHintText(MenuText(LunaChatHintKey));
 	}
 	ApplyBossRaidAvailability();
 }
@@ -159,10 +158,9 @@ void UTitleWidget::ApplyBossRaidAvailability()
 	Btn_BossRaid->SetIsEnabled(bBossRaidOpen && bAttemptsLeft && !bBossRaidJoining);
 	const FName* OpenTooltipKey = MenuTooltipBindings.Find(Btn_BossRaid->GetFName());
 	const FText Availability = !bBossRaidOpen
-		? MenuTextOrFallback(BossRaidClosedKey, NSLOCTEXT("TitleWidget", "BossRaidClosed", "Not open yet."))
+		? MenuText(BossRaidClosedKey)
 		: !bAttemptsLeft
-		? MenuTextOrFallback(BossRaidNoAttemptsKey,
-			NSLOCTEXT("TitleWidget", "BossRaidNoAttempts", "You've used all of today's attempts. Come back tomorrow!"))
+		? MenuText(BossRaidNoAttemptsKey)
 		: OpenTooltipKey ? MenuText(*OpenTooltipKey) : FText::GetEmpty();
 	FText Tooltip = Availability;
 	if (const FText Details = BuildBossRaidDetails(); !Details.IsEmpty())
@@ -199,16 +197,13 @@ FText UTitleWidget::BuildBossRaidDetails() const
 	Arguments.Add(TEXT("Attempts"), FText::AsNumber(BossRaidStanding.AttemptsLeft));
 	Arguments.Add(TEXT("Rank"), FText::AsNumber(BossRaidStanding.Rank));
 	Arguments.Add(TEXT("Damage"), FText::AsNumber(BossRaidStanding.Damage));
-	Lines.Add(FText::Format(MenuTextOrFallback(BossRaidHealthKey,
-		NSLOCTEXT("TitleWidget", "BossRaidHealth", "Boss health {Percent}%")), Arguments));
+	Lines.Add(FText::Format(MenuText(BossRaidHealthKey), Arguments));
 	if (BossRaidStanding.bReceived)
 	{
-		FText Standing = FText::Format(MenuTextOrFallback(BossRaidAttemptsLeftKey,
-			NSLOCTEXT("TitleWidget", "BossRaidAttemptsLeft", "Attempts left today: {Attempts}")), Arguments);
+		FText Standing = FText::Format(MenuText(BossRaidAttemptsLeftKey), Arguments);
 		if (BossRaidStanding.Rank > 0)
 		{
-			Standing = FText::Format(INVTEXT("{0} · {1}"), Standing, FText::Format(MenuTextOrFallback(BossRaidMyRankKey,
-				NSLOCTEXT("TitleWidget", "BossRaidMyRank", "My rank #{Rank} ({Damage})")), Arguments));
+			Standing = FText::Format(INVTEXT("{0} · {1}"), Standing, FText::Format(MenuText(BossRaidMyRankKey), Arguments));
 		}
 		Lines.Add(Standing);
 		for (const FBackendBossRaidRankEntry& Entry : BossRaidStanding.Top)
@@ -217,7 +212,7 @@ FText UTitleWidget::BuildBossRaidDetails() const
 				FText::AsNumber(Entry.Rank), FText::FromString(Entry.Name), FText::AsNumber(Entry.Damage)));
 		}
 	}
-	return FText::Join(FText::FromString(TEXT("\n")), Lines);
+	return FText::Join(INVTEXT("\n"), Lines);
 }
 
 void UTitleWidget::NativeConstruct()
@@ -335,7 +330,7 @@ void UTitleWidget::BuildVersionLabel()
 		return;
 	}
 	UTextBlock* VersionText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("VersionLabel"));
-	VersionText->SetText(FText::FromString(PdBuildVersion::GetDisplayString()));
+	VersionText->SetText(FText::AsCultureInvariant(PdBuildVersion::GetDisplayString()));
 	VersionText->SetColorAndOpacity(FSlateColor(FLinearColor(1.f, 1.f, 1.f, 0.55f)));
 	FSlateFontInfo Font = VersionText->GetFont();
 	Font.Size = 12;
@@ -463,8 +458,7 @@ void UTitleWidget::BuildLunaChatInput()
 		.SetPadding(FMargin(16.f, 10.f)).SetFont(Font).SetForegroundColor(TextColor)
 		.SetFocusedForegroundColor(TextColor);
 	LunaChatInput->SetWidgetStyle(Style);
-	LunaChatInput->SetHintText(MenuTextOrFallback(LunaChatHintKey,
-		NSLOCTEXT("TitleWidget", "LunaChatHint", "Ask Luna anything (Enter)")));
+	LunaChatInput->SetHintText(MenuText(LunaChatHintKey));
 	LunaChatInput->SetClearKeyboardFocusOnCommit(false);
 	LunaChatInput->OnTextCommitted.AddDynamic(this, &ThisClass::HandleLunaChatCommitted);
 

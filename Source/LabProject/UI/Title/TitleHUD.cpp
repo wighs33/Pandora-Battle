@@ -31,7 +31,7 @@ namespace
 	const FName TitleBlinkMorph(TEXT("Key_1"));
 	// Blender의 "Key 2"(입)는 Luna에 "Key_2"로 들어온다.
 	const FName TitleMouthMorph(TEXT("Key_2"));
-	// DT_MenuText rows: Title.LunaGreeting, then Title.LunaTip01 ... Title.LunaTip20.
+	// MenuText string table keys: Title.LunaGreeting, then Title.LunaTip01 ... Title.LunaTip20.
 	const FName LunaGreetingKey(TEXT("Title.LunaGreeting"));
 	const FName LunaChatThinkingKey(TEXT("Title.LunaChatThinking"));
 	const FName LunaChatUnavailableKey(TEXT("Title.LunaChatUnavailable"));
@@ -277,8 +277,7 @@ void ATitleHUD::HandleBossRaidRequested()
 	}
 	bBossRaidJoinPending = true;
 	TitleWidget->SetBossRaidJoining(true);
-	ShowLunaChatText(GetLunaChatLine(BossRaidJoiningKey,
-		NSLOCTEXT("TitleHUD", "BossRaidJoining", "Let me find you a spot in the boss raid...")), true);
+	ShowLunaChatText(UMenuLocalizationSubsystem::GetText(BossRaidJoiningKey), true);
 	// 필요하면 먼저 로그인한다. 실패는 이 호출이 돌아오기 전에 알려질 수 있다.
 	Backend->JoinOnlineMatch(EOnlineMatchMode::BossRaid);
 }
@@ -304,14 +303,12 @@ void ATitleHUD::HandleBossRaidJoinFinished(const bool bSucceeded, const FString&
 	const UBackendClientSubsystem* Backend = UGameInstance::GetSubsystem<UBackendClientSubsystem>(GetGameInstance());
 	if (Backend && Backend->GetLastMatchJoinErrorCode() == TEXT("no_attempts_left"))
 	{
-		SayLunaLine(GetLunaChatLine(BossRaidNoAttemptsLineKey,
-			NSLOCTEXT("TitleHUD", "BossRaidNoAttempts", "You've used all of today's attempts. Come back tomorrow!")));
+		SayLunaLine(UMenuLocalizationSubsystem::GetText(BossRaidNoAttemptsLineKey));
 		return;
 	}
 	SayLunaLine(Backend && !Backend->IsBossRaidOpen()
-		? GetLunaChatLine(BossRaidClosedLineKey, NSLOCTEXT("TitleHUD", "BossRaidClosed", "Not open yet."))
-		: GetLunaChatLine(BossRaidFailedKey,
-			NSLOCTEXT("TitleHUD", "BossRaidFailed", "I couldn't reach the boss raid. Please try again in a moment.")));
+		? UMenuLocalizationSubsystem::GetText(BossRaidClosedLineKey)
+		: UMenuLocalizationSubsystem::GetText(BossRaidFailedKey));
 }
 
 // 회차가 있으면 받을 보상과 내 기록을 한 번 묻는다. 로그인이 안 돼 있으면 백엔드 클라이언트가 먼저 로그인한다.
@@ -359,8 +356,7 @@ void ATitleHUD::HandleBossRaidStandingUpdated()
 	Arguments.Add(TEXT("Damage"), FText::AsNumber(Standing.Damage));
 	Arguments.Add(TEXT("Rank"), FText::AsNumber(Standing.Rank));
 	Arguments.Add(TEXT("Attempts"), FText::AsNumber(Standing.AttemptsLeft));
-	SayLunaLine(FText::Format(GetLunaChatLine(BossRaidResultKey, NSLOCTEXT("TitleHUD", "BossRaidResult",
-		"Nice work! You've dealt {Damage} damage so far, rank #{Rank}. You can try {Attempts} more times today.")), Arguments));
+	SayLunaLine(FText::Format(UMenuLocalizationSubsystem::GetText(BossRaidResultKey), Arguments));
 }
 
 void ATitleHUD::HandleBossRaidRewardClaimed(const int32 Gold)
@@ -372,8 +368,7 @@ void ATitleHUD::HandleBossRaidRewardClaimed(const int32 Gold)
 	}
 	FFormatNamedArguments Arguments;
 	Arguments.Add(TEXT("Gold"), FText::AsNumber(Gold));
-	SayLunaLine(FText::Format(GetLunaChatLine(BossRaidRewardKey, NSLOCTEXT("TitleHUD", "BossRaidReward",
-		"The boss has fallen! You received {Gold} gold for fighting together.")), Arguments));
+	SayLunaLine(FText::Format(UMenuLocalizationSubsystem::GetText(BossRaidRewardKey), Arguments));
 }
 
 void ATitleHUD::SayLunaLine(const FText& Line)
@@ -391,8 +386,7 @@ void ATitleHUD::HandleLunaQuestion(const FString& Question)
 		return;
 	}
 	// Luna는 답의 첫 단어가 올 때까지 입을 다문 채 듣는다.
-	ShowLunaChatText(GetLunaChatLine(LunaChatThinkingKey,
-		NSLOCTEXT("TitleHUD", "LunaChatThinking", "Hmm, let me think...")), false);
+	ShowLunaChatText(UMenuLocalizationSubsystem::GetText(LunaChatThinkingKey), false);
 }
 
 void ATitleHUD::HandleLunaReplyUpdated(const FString& ReplySoFar)
@@ -404,8 +398,7 @@ void ATitleHUD::HandleLunaReplyFinished(const bool bSucceeded, const FString& Re
 {
 	const FText Line = bSucceeded
 		? FText::FromString(Reply)
-		: GetLunaChatLine(LunaChatUnavailableKey,
-			NSLOCTEXT("TitleHUD", "LunaChatUnavailable", "I can't answer right now. Please ask me again in a moment."));
+		: UMenuLocalizationSubsystem::GetText(LunaChatUnavailableKey);
 	ShowLunaChatText(Line, true);
 	const float ReadingTime = Line.ToString().Len() * ChatReplySecondsPerCharacter;
 	GetWorldTimerManager().SetTimer(TitleSpeechTimer, this, &ATitleHUD::HideTitleSpeech,
@@ -437,11 +430,6 @@ void ATitleHUD::ShowLunaChatText(const FText& Text, const bool bSpeaking)
 	}
 }
 
-FText ATitleHUD::GetLunaChatLine(const FName Key, const FText& Fallback) const
-{
-	const UMenuLocalizationSubsystem* Localization = UGameInstance::GetSubsystem<UMenuLocalizationSubsystem>(GetGameInstance());
-	return Localization ? Localization->GetTextOrFallback(Key, Fallback) : Fallback;
-}
 
 FVector2D ATitleHUD::GetTitleCharacterHeadTopUV() const
 {

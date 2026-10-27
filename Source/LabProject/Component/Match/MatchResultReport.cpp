@@ -5,10 +5,12 @@
 #include "Component/Player/PlayerMatchComponent.h"
 #include "Definition/Level/LevelDefinition.h"
 #include "Engine/GameInstance.h"
+#include "Localization/MenuLocalizationSubsystem.h"
 #include "GameFramework/GameStateBase.h"
 #include "Mode/ExperienceGameMode.h"
 #include "Mode/PdPlayerState.h"
 #include "Online/Backend/MatchReportSubsystem.h"
+#include "UI/Common/TeamColorUtils.h"
 
 namespace
 {
@@ -27,25 +29,11 @@ namespace
 	}
 }
 
+// 문자열 테이블 문구는 키째로 복제되므로, 서버가 만든 이름도 받는 쪽 언어로 보인다.
 FText MatchResultReport::ResolveTeamName(const int32 TeamColorIndex)
 {
-	switch (TeamColorIndex)
-	{
-	case 0:
-		return NSLOCTEXT("GameResult", "TeamNameRed", "Red");
-	case 1:
-		return NSLOCTEXT("GameResult", "TeamNameBlue", "Blue");
-	case 2:
-		return NSLOCTEXT("GameResult", "TeamNameYellow", "Yellow");
-	case 3:
-		return NSLOCTEXT("GameResult", "TeamNamePurple", "Purple");
-	case 4:
-		return NSLOCTEXT("GameResult", "TeamNameGreen", "Green");
-	case 5:
-		return NSLOCTEXT("GameResult", "TeamNameOrange", "Orange");
-	default:
-		return NSLOCTEXT("GameResult", "TeamNameNone", "No Team");
-	}
+	const FName TeamKey = LabTeamColorUtils::GetTeamTextKey(TeamColorIndex);
+	return UMenuLocalizationSubsystem::GetText(TeamKey.IsNone() ? FName(TEXT("Result.NoTeam")) : TeamKey);
 }
 
 void MatchResultReport::SortPlayerStats(TArray<FGameResultPlayerStat>& PlayerStats)
@@ -66,8 +54,7 @@ void MatchResultReport::SortPlayerStats(TArray<FGameResultPlayerStat>& PlayerSta
 
 FText MatchResultReport::ResolveWinnerTitle(const int32 WinnerTeamColorIndex)
 {
-	return FText::Format(NSLOCTEXT("GameResult", "WinnerTeamTitleFormat", "{0} Team Wins"),
-		ResolveTeamName(WinnerTeamColorIndex));
+	return FText::Format(UMenuLocalizationSubsystem::GetText(TEXT("Result.TeamWinsFormat")), ResolveTeamName(WinnerTeamColorIndex));
 }
 
 TArray<FGameResultPlayerStat> MatchResultReport::BuildPlayerStats(const AGameStateBase& GameState)
@@ -128,7 +115,7 @@ FGameResultPresentationData MatchResultReport::BuildPlayerExitResult(const AGame
 	const int32 WinnerTeamMemberCount, const FVictoryGoldRates& Rates)
 {
 	FGameResultPresentationData GameResultData;
-	GameResultData.WinnerTitle = NSLOCTEXT("GameResult", "MatchEndedByPlayerExit", "Match Ended Due to Player Leaving");
+	GameResultData.WinnerTitle = UMenuLocalizationSubsystem::GetText(TEXT("Result.PlayerLeft"));
 	GameResultData.bEndedByPlayerExit = true;
 	GameResultData.WinnerTeamColorIndex = WinnerTeamColorIndex;
 	GameResultData.bAllowLobbyTravelOnExit = false;

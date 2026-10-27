@@ -39,8 +39,6 @@ void UShopPreviewPanelWidget::SetEntryData(UShopEntryViewData* InEntryData)
 		|| EntryData->GetProductType() != InEntryData->GetProductType())
 	{
 		MessageText = FText::GetEmpty();
-		MessageKey = NAME_None;
-		MessageProductName = FText::GetEmpty();
 	}
 
 	EntryData = InEntryData;
@@ -49,17 +47,7 @@ void UShopPreviewPanelWidget::SetEntryData(UShopEntryViewData* InEntryData)
 
 void UShopPreviewPanelWidget::SetMessage(const FText& Message)
 {
-	MessageKey = NAME_None;
-	MessageProductName = FText::GetEmpty();
 	MessageText = Message;
-	ApplyMessage();
-}
-
-void UShopPreviewPanelWidget::SetLocalizedMessage(FName Key, const FText& Fallback, const FText& ProductName)
-{
-	MessageKey = Key;
-	MessageText = Fallback;
-	MessageProductName = ProductName;
 	ApplyMessage();
 }
 
@@ -121,14 +109,10 @@ void UShopPreviewPanelWidget::ApplyMessage()
 	if (Txt_Message)
 	{
 		const FShopEntryUiData* UiData = EntryData ? &EntryData->GetUiData() : nullptr;
-		FText EffectiveMessage = MessageKey.IsNone() ? MessageText : MenuTextOrFallback(MessageKey, MessageText);
-		if (!MessageProductName.IsEmpty())
-		{
-			EffectiveMessage = FText::Format(EffectiveMessage, MessageProductName);
-		}
+		FText EffectiveMessage = MessageText;
 		if (UiData && UiData->bValid && UiData->bOwned && EffectiveMessage.IsEmpty())
 		{
-			EffectiveMessage = MenuTextOrFallback(TEXT("Shop.Owned"), OwnedText);
+			EffectiveMessage = MenuText(TEXT("Shop.Owned"));
 		}
 		Txt_Message->SetText(EffectiveMessage);
 		Txt_Message->SetVisibility(EffectiveMessage.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::SelfHitTestInvisible);
@@ -144,7 +128,7 @@ void UShopPreviewPanelWidget::RefreshUI()
 	{
 		if (Txt_Name)
 		{
-			Txt_Name->SetText(MenuTextOrFallback(TEXT("Shop.SelectItem"), EmptyPreviewText));
+			Txt_Name->SetText(MenuText(TEXT("Shop.SelectItem")));
 			Txt_Name->SetColorAndOpacity(DefaultNameColor);
 		}
 		if (Txt_Description)
@@ -183,15 +167,15 @@ void UShopPreviewPanelWidget::RefreshUI()
 	}
 	if (Txt_Price)
 	{
-		Txt_Price->SetText(FText::Format(MenuTextOrFallback(TEXT("Shop.Price"), PriceTextFormat), FText::AsNumber(UiData->GoldPrice)));
+		Txt_Price->SetText(FText::Format(MenuText(TEXT("Shop.Price")), FText::AsNumber(UiData->GoldPrice)));
 	}
 	ApplyPriceColor(UiData);
 	if (Txt_State)
 	{
-		const FText StateText = UiData->bOwned ? MenuTextOrFallback(TEXT("Shop.Owned"), OwnedText)
-			: (!UiData->bCanSell ? MenuTextOrFallback(TEXT("Shop.NotForSale"), NotForSaleText)
-				: (UiData->bCanAfford ? MenuTextOrFallback(TEXT("Shop.Available"), AvailableText)
-					: MenuTextOrFallback(TEXT("Shop.NeedGold"), NotEnoughGoldText)));
+		const FText StateText = UiData->bOwned ? MenuText(TEXT("Shop.Owned"))
+			: (!UiData->bCanSell ? MenuText(TEXT("Shop.NotForSale"))
+				: (UiData->bCanAfford ? MenuText(TEXT("Shop.Available"))
+					: MenuText(TEXT("Shop.NeedGold"))));
 		Txt_State->SetText(StateText);
 		Txt_State->SetVisibility(StateText.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::SelfHitTestInvisible);
 	}

@@ -201,21 +201,21 @@ void UItemDetailWidget::AddStatRow(const FGameplayTag StatTag, const float NewVa
 		return;
 	}
 
-	RowText->SetText(FText::FromString(FString::Printf(TEXT("%s  %s"), *GetDisplayNameForStatTag(StatTag), *ValueText)));
+	RowText->SetText(FText::Format(INVTEXT("{0}  {1}"), GetDisplayNameForStatTag(StatTag), FText::AsCultureInvariant(ValueText)));
 	RowText->SetColorAndOpacity(FSlateColor(NeutralStatColor));
 	RowText->SetJustification(ETextJustify::Left);
 	StatsList->AddChild(RowText);
 }
 
-FString UItemDetailWidget::GetDisplayNameForStatTag(const FGameplayTag StatTag)
+// Status.Offense.Strength는 문자열 테이블의 Info.Strength로 찾는다. 없으면 태그의 마지막 이름을 쓴다.
+FText UItemDetailWidget::GetDisplayNameForStatTag(const FGameplayTag StatTag)
 {
-	FString TagString = StatTag.IsValid() ? StatTag.ToString() : TEXT("Stat");
-	FString Left;
-	FString Right;
-	if (TagString.Split(TEXT("."), &Left, &Right, ESearchCase::IgnoreCase, ESearchDir::FromEnd))
+	FString StatName = StatTag.IsValid() ? StatTag.ToString() : TEXT("Stat");
+	FString Parent;
+	FString Leaf;
+	if (StatName.Split(TEXT("."), &Parent, &Leaf, ESearchCase::IgnoreCase, ESearchDir::FromEnd))
 	{
-		return Right;
+		StatName = Leaf;
 	}
-
-	return TagString;
+	return UMenuLocalizationSubsystem::GetTextOrFallback(*(TEXT("Info.") + StatName), FText::FromString(StatName));
 }

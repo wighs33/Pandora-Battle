@@ -538,12 +538,6 @@ void UPandoraWidget::ApplyDesignerDefaults()
 
 void UPandoraWidget::ApplyEquipHintDefaults()
 {
-	if (Txt_Equip && !bHasCachedDefaultEquipText)
-	{
-		DefaultEquipText = Txt_Equip->GetText();
-		bHasCachedDefaultEquipText = true;
-	}
-
 	if (IsDesignTime())
 	{
 		SetEquipHintWidgetsVisible(true, true);
@@ -588,12 +582,6 @@ void UPandoraWidget::RefreshEquipHintState(const bool bHovered)
 {
 	ResolvePandoraComponent();
 
-	if (Txt_Equip && !bHasCachedDefaultEquipText)
-	{
-		DefaultEquipText = Txt_Equip->GetText();
-		bHasCachedDefaultEquipText = true;
-	}
-
 	if (IsDesignTime())
 	{
 		SetEquipHintWidgetsVisible(true, true);
@@ -605,17 +593,15 @@ void UPandoraWidget::RefreshEquipHintState(const bool bHovered)
 	{
 		if (Txt_Equip)
 		{
-			Txt_Equip->SetText(bHovered
-				? MenuTextOrFallback(TEXT("Pandora.Unequip"), NSLOCTEXT("PandoraWidget", "UnequipText", "Unequip"))
-				: MenuTextOrFallback(TEXT("Info.Assigned"), NSLOCTEXT("PandoraWidget", "EquippedText", "Equipped")));
+			Txt_Equip->SetText(MenuText(bHovered ? TEXT("Pandora.Unequip") : TEXT("Info.Assigned")));
 		}
 		SetEquipHintWidgetsVisible(true, bHovered);
 		return;
 	}
 
-	if (Txt_Equip && bHasCachedDefaultEquipText)
+	if (Txt_Equip)
 	{
-		Txt_Equip->SetText(MenuTextOrFallback(TEXT("Pandora.Equip"), DefaultEquipText));
+		Txt_Equip->SetText(MenuText(TEXT("Pandora.Equip")));
 	}
 
 	SetEquipHintWidgetsVisible(bHovered && CanShowEquipHint(), bHovered && CanShowEquipHint());

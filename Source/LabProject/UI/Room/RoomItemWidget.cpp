@@ -81,7 +81,7 @@ void URoomItemWidget::RefreshUI()
 
 	if (Txt_PlayerCount)
 	{
-		Txt_PlayerCount->SetText(FText::FromString(FString::Printf(TEXT("( %d / %d )"), CurrentPlayers, MaxPlayers)));
+		Txt_PlayerCount->SetText(FText::Format(INVTEXT("( {0} / {1} )"), FText::AsNumber(CurrentPlayers), FText::AsNumber(MaxPlayers)));
 	}
 
 	if (Btn_Join)

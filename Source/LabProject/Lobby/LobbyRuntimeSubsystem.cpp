@@ -39,7 +39,7 @@ namespace
 
 	FText MakeFallbackNickname(const int32 FallbackIndex)
 	{
-		return FText::Format(NSLOCTEXT("Lobby", "DefaultNicknameFormat", "User{0}"),
+		return FText::Format(INVTEXT("User{0}"),
 			FallbackIndex > 0 ? FallbackIndex : 1);
 	}
 

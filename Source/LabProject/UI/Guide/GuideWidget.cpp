@@ -24,18 +24,6 @@ namespace
 {
 	constexpr int32 MaxGuideButtonBindings = 12;
 
-	FText MakeGuideText(const TCHAR* Text)
-	{
-		return FText::FromString(Text);
-	}
-
-	FGuidePageEntry MakeGuidePage(const FName ButtonWidgetName, const FText& Content)
-	{
-		FGuidePageEntry Page;
-		Page.ButtonWidgetName = ButtonWidgetName;
-		Page.Content = Content;
-		return Page;
-	}
 }
 
 UGuideWidget::UGuideWidget(const FObjectInitializer& ObjectInitializer)
@@ -278,26 +266,11 @@ void UGuideWidget::RebuildPages()
 {
 	CachedPages.Reset();
 
+	// 정의를 불러오기 전에는 쪽이 없다. 불러오면 BeginPageImagePreload가 다시 채운다.
 	if (const UGuideDefinition* LoadedGuideData = ResolveGuideDefinition())
 	{
 		CachedPages = LoadedGuideData->Pages;
 	}
-
-	if (!CachedPages.IsEmpty())
-	{
-		return;
-	}
-
-	CachedPages = {
-		MakeGuidePage(TEXT("Btn_QuickStart"), MakeGuideText(TEXT("Choose Training Mode to test weapons, Pandora powers, items, and painting before joining a match."))),
-		MakeGuidePage(TEXT("Btn_ProfileAndStatus"), MakeGuideText(TEXT("Open the Character Hub to review your profile, check status values, and manage character growth."))),
-		MakeGuidePage(TEXT("Btn_Controls"), MakeGuideText(TEXT("Move, aim, attack, dodge, use skills, open the Character Hub, and chat using the configured input bindings."))),
-		MakeGuidePage(TEXT("Btn_GameRules"), MakeGuideText(TEXT("Defeat enemies, score points, respawn after death, and chase the final reward before the match ends."))),
-		MakeGuidePage(TEXT("Btn_Modes"), MakeGuideText(TEXT("Use Training Mode, Quick Match, Room List, Shop, and Gameplay to move through the main game flow."))),
-		MakeGuidePage(TEXT("Btn_Pandora"), MakeGuideText(TEXT("Pandora powers are special blessings that change how your character fights."))),
-		MakeGuidePage(TEXT("Btn_ItemsAndSkins"), MakeGuideText(TEXT("Equip weapons, gear, consumables, skins, gestures, and pets from the Character Hub and Shop."))),
-		MakeGuidePage(TEXT("Btn_Paint"), MakeGuideText(TEXT("Draw on the canvas, export it above your character, or project your drawing onto the face decal.")))
-	};
 }
 
 void UGuideWidget::BindGuideButtons()

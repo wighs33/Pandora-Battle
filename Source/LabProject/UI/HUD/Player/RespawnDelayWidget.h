@@ -55,13 +55,6 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Respawn|Bind")
 	TObjectPtr<UTextBlock> Txt_RespawnDelay = nullptr;
 
-	/** 번역표(HUD.RespawnIn, HUD.Respawning)에 없을 때 쓰는 문구. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Respawn|Text")
-	FText RespawnDelayFormatText = NSLOCTEXT("RespawnDelay", "RespawnDelayFormatText", "Respawn in {Seconds}");
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Respawn|Text")
-	FText FinishedText = NSLOCTEXT("RespawnDelay", "FinishedText", "Respawning...");
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Respawn|Timing", meta = (ClampMin = "0.01"))
 	float TickInterval = 0.1f;
 

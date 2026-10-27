@@ -100,16 +100,16 @@ void UShopEntryWidget::RefreshUI()
 
 	if (Txt_Price)
 	{
-		Txt_Price->SetText(FText::Format(MenuTextOrFallback(TEXT("Shop.Price"), PriceTextFormat), FText::AsNumber(UiData->GoldPrice)));
+		Txt_Price->SetText(FText::Format(MenuText(TEXT("Shop.Price")), FText::AsNumber(UiData->GoldPrice)));
 	}
 
 	if (Txt_State)
 	{
 		const FText StateText = UiData->bOwned
-			? MenuTextOrFallback(TEXT("Shop.Owned"), OwnedText)
-			: (!UiData->bCanSell ? MenuTextOrFallback(TEXT("Shop.NotForSale"), NotForSaleText)
-				: (UiData->bCanAfford ? MenuTextOrFallback(TEXT("Shop.Available"), AvailableText)
-					: MenuTextOrFallback(TEXT("Shop.NeedGold"), NotEnoughGoldText)));
+			? MenuText(TEXT("Shop.Owned"))
+			: (!UiData->bCanSell ? MenuText(TEXT("Shop.NotForSale"))
+				: (UiData->bCanAfford ? MenuText(TEXT("Shop.Available"))
+					: MenuText(TEXT("Shop.NeedGold"))));
 		Txt_State->SetText(StateText);
 	}
 

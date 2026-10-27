@@ -129,7 +129,7 @@ void UEscapeMenuWidget::HandleDestroySessionForExit(const bool bWasSuccessful)
 	TravelToTitleMap();
 }
 
-// CommonUI 화면이라 ULocalizedMenuWidget을 쓸 수 없어, 같은 번역표에서 문구와 언어별 글꼴을 직접 가져온다.
+// CommonUI 화면이라 ULocalizedMenuWidget을 쓸 수 없어, 같은 문자열 테이블에서 문구와 언어별 글꼴을 직접 가져온다.
 // 메뉴가 열린 동안에는 언어를 바꿀 수 없으므로 열 때 한 번만 적용한다.
 void UEscapeMenuWidget::ApplyMenuText() const
 {

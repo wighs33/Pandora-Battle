@@ -48,7 +48,7 @@ void UKillLogEntryWidget::RefreshUI()
 	if (Txt_KillMessage)
 	{
 		Txt_KillMessage->SetText(bUseSeparatedNameTextBlocks
-			? MenuTextOrFallback(TEXT("HUD.KillConnector"), KillConnectorText)
+			? MenuText(TEXT("HUD.KillConnector"))
 			: BuildKillMessage());
 		Txt_KillMessage->SetColorAndOpacity(FSlateColor(MessageColor));
 	}
@@ -58,15 +58,15 @@ FText UKillLogEntryWidget::BuildKillMessage() const
 {
 	if (KillLogEntry.bEnvironmentKill)
 	{
-		return FText::Format(MenuTextOrFallback(TEXT("HUD.DiedFormat"), EnvironmentKillMessageFormat), KillLogEntry.VictimName);
+		return FText::Format(MenuText(TEXT("HUD.DiedFormat")), KillLogEntry.VictimName);
 	}
 
 	if (KillLogEntry.bSelfKill)
 	{
-		return FText::Format(MenuTextOrFallback(TEXT("HUD.SelfKillFormat"), SelfKillMessageFormat), KillLogEntry.VictimName);
+		return FText::Format(MenuText(TEXT("HUD.SelfKillFormat")), KillLogEntry.VictimName);
 	}
 
-	return FText::Format(MenuTextOrFallback(TEXT("HUD.KillFormat"), KillMessageFormat), KillLogEntry.KillerName, KillLogEntry.VictimName);
+	return FText::Format(MenuText(TEXT("HUD.KillFormat")), KillLogEntry.KillerName, KillLogEntry.VictimName);
 }
 
 bool UKillLogEntryWidget::ShouldUseSeparatedNameTextBlocks() const

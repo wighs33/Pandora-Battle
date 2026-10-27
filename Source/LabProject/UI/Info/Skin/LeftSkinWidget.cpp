@@ -194,20 +194,20 @@ void ULeftSkinWidget::RebuildSkinEquipSlotList()
 void ULeftSkinWidget::RebuildEquipSlotNameList()
 {
 	EquipSlotNameList = {
-			MenuTextOrFallback(TEXT("Info.Hat"), FText::FromString(TEXT("Hat"))),
-			MenuTextOrFallback(TEXT("Info.Top"), FText::FromString(TEXT("Top"))),
-			MenuTextOrFallback(TEXT("Info.Bottom"), FText::FromString(TEXT("Bottom"))),
-			MenuTextOrFallback(TEXT("Info.Shoes"), FText::FromString(TEXT("Shoes"))),
-			MenuTextOrFallback(TEXT("Info.Head"), FText::FromString(TEXT("Head"))),
-			MenuTextOrFallback(TEXT("Info.SkinColor"), FText::FromString(TEXT("Skin Color"))),
-			MenuTextOrFallback(TEXT("Info.Back"), FText::FromString(TEXT("Back"))),
-			MenuTextOrFallback(TEXT("Info.Aura"), FText::FromString(TEXT("Aura"))),
-			FText::FromString(TEXT("1")),
-			FText::FromString(TEXT("2")),
-			FText::FromString(TEXT("3")),
-			FText::FromString(TEXT("4")),
-			MenuTextOrFallback(TEXT("Info.Riding"), FText::FromString(TEXT("Riding"))),
-			MenuTextOrFallback(TEXT("Info.Pet"), FText::FromString(TEXT("Pet"))),
+			MenuText(TEXT("Info.Hat")),
+			MenuText(TEXT("Info.Top")),
+			MenuText(TEXT("Info.Bottom")),
+			MenuText(TEXT("Info.Shoes")),
+			MenuText(TEXT("Info.Head")),
+			MenuText(TEXT("Info.SkinColor")),
+			MenuText(TEXT("Info.Back")),
+			MenuText(TEXT("Info.Aura")),
+			INVTEXT("1"),
+			INVTEXT("2"),
+			INVTEXT("3"),
+			INVTEXT("4"),
+			MenuText(TEXT("Info.Riding")),
+			MenuText(TEXT("Info.Pet")),
 		};
 }
 

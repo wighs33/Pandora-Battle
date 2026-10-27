@@ -67,10 +67,10 @@ void UPandoraDescriptionWidget::SetDetails()
 	ViewModel->SetWeaponRequirementTextColor(WeaponRequirementTextColor);
 
 	FPandoraDescriptionViewData ViewData = FPandoraDescriptionViewDataBuilder::Build(PandoraDefinition.Get(),
-		PandoraTreeComponent.Get(), GetLocalization());
+		PandoraTreeComponent.Get());
 	if (!PandoraTreeComponent && PandoraDefinition && !FPandoraWidgetViewDataBuilder::IsPandoraOwnedInProfile(this, PandoraDefinition))
 	{
-		ViewData.DescriptionText = NSLOCTEXT("PandoraDescriptionWidget", "UnownedPandoraDescription", "You do not own this Pandora.");
+		ViewData.DescriptionText = MenuText(TEXT("PandoraDescription.Unowned"));
 		ViewData.WeaponRequirementVisibility = ESlateVisibility::Collapsed;
 		ViewData.SkillSectionVisibility = ESlateVisibility::Collapsed;
 	}

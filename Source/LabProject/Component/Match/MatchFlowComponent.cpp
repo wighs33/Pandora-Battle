@@ -16,6 +16,7 @@
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
+#include "Localization/MenuLocalizationSubsystem.h"
 #include "Map/ForceMoveGateActor.h"
 #include "Mode/ExperienceGameMode.h"
 #include "Mode/ExperienceGameState.h"
@@ -263,8 +264,7 @@ void UMatchFlowComponent::StartGoldenKill()
 	{
 		if (APdPlayerController* PdPlayerController = Cast<APdPlayerController>(Player))
 		{
-			PdPlayerController->Client_ShowGoldenKillAnnouncement(
-				NSLOCTEXT("GoldenKill", "GoldenKillAnnouncement", "GOLDEN KILL"));
+			PdPlayerController->Client_ShowGoldenKillAnnouncement(UMenuLocalizationSubsystem::GetText(TEXT("HUD.GoldenKill")));
 		}
 	}
 

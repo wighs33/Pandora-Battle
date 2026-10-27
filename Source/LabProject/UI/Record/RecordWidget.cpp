@@ -265,7 +265,7 @@ void URecordWidget::ApplyWinCountUI()
 	}
 	if (Txt_ProgressFraction)
 	{
-		Txt_ProgressFraction->SetText(FText::Format(FText::FromString(TEXT("{0} / {1}")), FText::AsNumber(WinCount), FText::AsNumber(FMath::RoundToInt(MaxTierProgressWinCount))));
+		Txt_ProgressFraction->SetText(FText::Format(INVTEXT("{0} / {1}"), FText::AsNumber(WinCount), FText::AsNumber(FMath::RoundToInt(MaxTierProgressWinCount))));
 	}
 	if (Txt_RecentCount)
 	{

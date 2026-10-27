@@ -37,10 +37,6 @@ void ULobbyWidget::NativeConstruct()
 	SetIsFocusable(true);
 
 	ApplyWidgetDefinitionSettings();
-	if (const UTextBlock* WarningText = Txt_Warning)
-	{
-		DefaultTeamBalanceWarningText = WarningText->GetText();
-	}
 	ApplyLobbyInputPassthroughVisibility();
 	if (!bHasDefaultSelectedMapPlayerCountColor)
 	{
@@ -119,11 +115,6 @@ bool ULobbyWidget::CloseTopmostUiForEscape()
 
 void ULobbyWidget::NativeDestruct()
 {
-	if (UTextBlock* WarningText = Txt_Warning)
-	{
-		WarningText->SetText(DefaultTeamBalanceWarningText);
-	}
-
 	if (AudioVolumeControl)
 	{
 		AudioVolumeControl->Shutdown();
@@ -191,13 +182,7 @@ void ULobbyWidget::ApplyWidgetDefinitionSettings()
 			LobbyUserWidgetClass = ResolvedLobbyUserWidgetClass;
 		}
 		MaxLobbySlots = FMath::Max(Settings.MaxLobbySlots, 1);
-		GameStartCountdownFormatText = Settings.GameStartCountdownFormatText;
-		GameStartCountdownFinishedText = Settings.GameStartCountdownFinishedText;
 		GameStartCountdownTickInterval = FMath::Max(Settings.GameStartCountdownTickInterval, 0.01f);
-		if (!Settings.TeamBalanceWarningText.IsEmpty())
-		{
-			TeamBalanceWarningText = Settings.TeamBalanceWarningText;
-		}
 	}
 }
 
@@ -528,7 +513,7 @@ void ULobbyWidget::RefreshSelectedMapUI()
 
 	if (UTextBlock* PlayerCountText = Txt_SelectedMapPlayerCount)
 	{
-		PlayerCountText->SetText(FText::FromString(FString::Printf(TEXT("%d / %d"), ActivePlayers, MaxPlayers)));
+		PlayerCountText->SetText(FText::Format(INVTEXT("{0} / {1}"), FText::AsNumber(ActivePlayers), FText::AsNumber(MaxPlayers)));
 		if (!bHasDefaultSelectedMapPlayerCountColor)
 		{
 			DefaultSelectedMapPlayerCountColor = PlayerCountText->GetColorAndOpacity();
@@ -765,12 +750,10 @@ FText ULobbyWidget::FormatGameStartCountdownText() const
 	const float RemainingSeconds = GetGameStartRemainingSeconds();
 	if (!IsGameStartPending() || RemainingSeconds <= 0.0f)
 	{
-		return MenuTextOrFallback(TEXT("Lobby.Start"), GameStartCountdownFinishedText);
+		return MenuText(TEXT("Lobby.Start"));
 	}
 
-	FFormatNamedArguments Arguments;
-	Arguments.Add(TEXT("Seconds"), FText::AsNumber(FMath::CeilToInt(RemainingSeconds)));
-	return FText::Format(GameStartCountdownFormatText, Arguments);
+	return FText::AsNumber(FMath::CeilToInt(RemainingSeconds));
 }
 
 const ALobbyGameState* ULobbyWidget::GetLobbyGameState() const

@@ -39,9 +39,6 @@ protected:
 	TObjectPtr<UWidgetAnimation> GoldenKillAnimation = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!GoldenKill|Text")
-	FText GoldenKillText = NSLOCTEXT("GoldenKill", "GoldenKillText", "GOLDEN KILL");
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!GoldenKill|Text")
 	FLinearColor GoldenKillTextColor = FLinearColor(1.0f, 0.75f, 0.08f, 1.0f);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!GoldenKill|Timing", meta = (ClampMin = "0.01"))

@@ -21,7 +21,7 @@
 
 namespace
 {
-	// DT_MenuText rows
+	// MenuText string table keys
 	const FName BossNameKey(TEXT("HUD.WorldBossName"));
 	const FName AttemptKey(TEXT("HUD.WorldBossAttempt"));
 	const FName AttemptEndedKey(TEXT("HUD.WorldBossAttemptEnded"));
@@ -113,7 +113,7 @@ void UWorldBossBarWidget::NativeDestruct()
 void UWorldBossBarWidget::HandleLanguageChanged()
 {
 	ApplyLanguageFonts();
-	NameText->SetText(GetMenuText(BossNameKey, NSLOCTEXT("WorldBossBar", "BossName", "Usurper Dragon")));
+	NameText->SetText(UMenuLocalizationSubsystem::GetText(BossNameKey));
 	Shown = FShownValues();
 	RefreshTexts();
 }
@@ -164,21 +164,18 @@ void UWorldBossBarWidget::RefreshTexts()
 		FText::AsNumber(Values.Health), FText::AsNumber(Values.MaxHealth), FText::AsNumber(Percent, &PercentFormat)));
 
 	FFormatNamedArguments Arguments;
-	Arguments.Add(TEXT("Time"), FText::FromString(FString::Printf(TEXT("%02lld:%02lld"), Values.SecondsLeft / 60, Values.SecondsLeft % 60)));
+	Arguments.Add(TEXT("Time"), FText::AsCultureInvariant(FString::Printf(TEXT("%02lld:%02lld"), Values.SecondsLeft / 60, Values.SecondsLeft % 60)));
 	Arguments.Add(TEXT("Damage"), FText::AsNumber(Values.Damage));
 	switch (Phase)
 	{
 	case EAttemptPhase::Running:
-		AttemptText->SetText(FText::Format(GetMenuText(AttemptKey,
-			NSLOCTEXT("WorldBossBar", "Attempt", "Time left {Time} · Damage this run {Damage}")), Arguments));
+		AttemptText->SetText(FText::Format(UMenuLocalizationSubsystem::GetText(AttemptKey), Arguments));
 		break;
 	case EAttemptPhase::Ended:
-		AttemptText->SetText(FText::Format(GetMenuText(AttemptEndedKey,
-			NSLOCTEXT("WorldBossBar", "AttemptEnded", "Time's up! Damage this run {Damage}")), Arguments));
+		AttemptText->SetText(FText::Format(UMenuLocalizationSubsystem::GetText(AttemptEndedKey), Arguments));
 		break;
 	case EAttemptPhase::BossDefeated:
-		AttemptText->SetText(GetMenuText(DefeatedKey,
-			NSLOCTEXT("WorldBossBar", "Defeated", "The boss has fallen! Collect your reward on the title screen.")));
+		AttemptText->SetText(UMenuLocalizationSubsystem::GetText(DefeatedKey));
 		break;
 	case EAttemptPhase::None:
 		AttemptText->SetText(FText::GetEmpty());
@@ -225,8 +222,3 @@ void UWorldBossBarWidget::ApplyLanguageFonts()
 	}
 }
 
-FText UWorldBossBarWidget::GetMenuText(const FName Key, const FText& Fallback) const
-{
-	const UMenuLocalizationSubsystem* Localization = UGameInstance::GetSubsystem<UMenuLocalizationSubsystem>(GetGameInstance());
-	return Localization ? Localization->GetTextOrFallback(Key, Fallback) : Fallback;
-}

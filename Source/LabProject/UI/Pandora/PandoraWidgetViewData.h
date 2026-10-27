@@ -6,7 +6,6 @@
 
 class APdPlayerState;
 class UUserWidget;
-class UMenuLocalizationSubsystem;
 class UPandoraDefinition;
 class UPandoraComponent;
 class UPandoraTreeComponent;
@@ -107,8 +106,5 @@ class LABPROJECT_API FPandoraDescriptionViewDataBuilder
 {
 public:
 	// Public API ------------------------------------------------------------------------------------------------------
-	static FPandoraDescriptionViewData Build(
-		const UPandoraDefinition* PandoraDefinition,
-		const UPandoraTreeComponent* PandoraTreeComponent,
-		const UMenuLocalizationSubsystem* Localization = nullptr);
+	static FPandoraDescriptionViewData Build(const UPandoraDefinition* PandoraDefinition, const UPandoraTreeComponent* PandoraTreeComponent);
 };

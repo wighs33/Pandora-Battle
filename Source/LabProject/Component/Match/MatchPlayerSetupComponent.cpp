@@ -100,7 +100,7 @@ void UMatchPlayerSetupComponent::InitializeMatchIdentity(APlayerController* NewP
 		}
 		const FText DefaultNickname = LobbySubsystem
 			? LobbySubsystem->ResolveDefaultPlayerNickname(NewPlayer, PdPlayerState, FallbackDisplayNameIndex)
-			: FText::Format(NSLOCTEXT("Lobby", "DefaultNicknameFormat", "User{0}"), FallbackDisplayNameIndex);
+			: FText::Format(INVTEXT("User{0}"), FallbackDisplayNameIndex);
 		PlayerMatchComponent->SetMatchDisplayName(DefaultNickname);
 	}
 

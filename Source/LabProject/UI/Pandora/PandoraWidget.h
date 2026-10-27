@@ -190,8 +190,6 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UPandoraComponent> PandoraComponent;
 
-	FText DefaultEquipText;
-	bool bHasCachedDefaultEquipText = false;
 	bool bIsButtonHoverActive = false;
 	bool bIsFocusWithinWidget = false;
 	bool bIsPandoraDescriptionRequested = false;

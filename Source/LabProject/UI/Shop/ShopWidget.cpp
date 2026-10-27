@@ -198,7 +198,7 @@ void UShopWidget::RefreshUI()
 
 	if (Txt_Gold)
 	{
-		Txt_Gold->SetText(FText::Format(GoldTextFormat, FText::AsNumber(GetCurrentGold())));
+		Txt_Gold->SetText(FText::AsNumber(GetCurrentGold()));
 	}
 
 	if (TileView)
@@ -238,7 +238,7 @@ void UShopWidget::SelectEntry(UShopEntryViewData* EntryData)
 		WBP_ShopPreviewPanel->SetVisibility(ESlateVisibility::Visible);
 		if (IsPandoraComingSoonEntry(EntryData))
 		{
-			WBP_ShopPreviewPanel->SetLocalizedMessage(TEXT("Shop.ComingSoon"), PandoraComingSoonText);
+			WBP_ShopPreviewPanel->SetMessage(MenuText(TEXT("Shop.ComingSoon")));
 		}
 	}
 }
@@ -247,7 +247,7 @@ bool UShopWidget::TryPurchaseSelectedEntry()
 {
 	if (!SelectedEntryData || !SelectedEntryData->GetProductObject())
 	{
-		SetMessage(TEXT("Shop.SelectItem"), SelectItemText);
+		SetMessage(MenuText(TEXT("Shop.SelectItem")));
 		return false;
 	}
 
@@ -258,20 +258,20 @@ bool UShopWidget::TryPurchaseSelectedEntry()
 
 	if (IsPandoraComingSoonProduct(ProductObject, ProductType))
 	{
-		SetMessage(TEXT("Shop.ComingSoon"), PandoraComingSoonText);
+		SetMessage(MenuText(TEXT("Shop.ComingSoon")));
 		RefreshAndSelectProduct(ProductObject, ProductType);
 		return false;
 	}
 
 	if (!SelectedEntryData->CanSell())
 	{
-		SetMessage(TEXT("Shop.NotForSale"), NotForSaleText);
+		SetMessage(MenuText(TEXT("Shop.NotForSale")));
 		return false;
 	}
 
 	if (!CanPurchaseProductType(ProductType))
 	{
-		SetMessage(TEXT("Shop.Unsupported"), UnsupportedProductTypeText);
+		SetMessage(MenuText(TEXT("Shop.Unsupported")));
 		return false;
 	}
 
@@ -284,21 +284,21 @@ bool UShopWidget::TryPurchaseSelectedEntry()
 	switch (PurchaseProductWithGold(*ProfileSubsystem, ProductObject, ProductType, GoldPrice, PurchasedPandoraStartingLevel))
 	{
 	case EShopPurchaseResult::Unsupported:
-		SetMessage(TEXT("Shop.Unsupported"), UnsupportedProductTypeText);
+		SetMessage(MenuText(TEXT("Shop.Unsupported")));
 		return false;
 	case EShopPurchaseResult::AlreadyOwned:
-		SetMessage(TEXT("Shop.AlreadyOwned"), AlreadyOwnedText);
+		SetMessage(MenuText(TEXT("Shop.AlreadyOwned")));
 		RefreshAndSelectProduct(ProductObject, ProductType);
 		return false;
 	case EShopPurchaseResult::NotEnoughGold:
-		SetMessage(TEXT("Shop.NeedGold"), NotEnoughGoldText);
+		SetMessage(MenuText(TEXT("Shop.NeedGold")));
 		RefreshAndSelectProduct(ProductObject, ProductType);
 		return false;
 	case EShopPurchaseResult::Purchased:
 		break;
 	}
 
-	SetMessage(TEXT("Shop.Purchased"), PurchaseSucceededTextFormat, SelectedEntryData->GetDisplayName());
+	SetMessage(FText::Format(MenuText(TEXT("Shop.Purchased")), SelectedEntryData->GetDisplayName()));
 	ProfileSubsystem->SaveProfile();
 	if (APdPlayerController* PdPlayerController = Cast<APdPlayerController>(GetOwningPlayer()))
 	{
@@ -364,7 +364,7 @@ void UShopWidget::HandleResetShopSaveClicked()
 
 	if (bReset)
 	{
-		SetMessage(TEXT("Shop.ResetDone"), ShopSaveResetText);
+		SetMessage(MenuText(TEXT("Shop.ResetDone")));
 	}
 }
 
@@ -616,11 +616,11 @@ void UShopWidget::EnsurePlayerSaveLoaded() const
 	ProfileSubsystem->LoadProfile();
 }
 
-void UShopWidget::SetMessage(FName Key, const FText& Fallback, const FText& ProductName) const
+void UShopWidget::SetMessage(const FText& Message) const
 {
 	if (WBP_ShopPreviewPanel)
 	{
-		WBP_ShopPreviewPanel->SetLocalizedMessage(Key, Fallback, ProductName);
+		WBP_ShopPreviewPanel->SetMessage(Message);
 	}
 }
 

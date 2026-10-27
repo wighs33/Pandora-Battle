@@ -135,8 +135,7 @@ void URightInventoryWidget::UpdateCombineMessage(const bool bHasCombinableItems)
 		return;
 	}
 
-	Txt_Message->SetText(MenuTextOrFallback(TEXT("Info.Combine"), NSLOCTEXT("RightInventoryWidget",
-		"CombineDuplicateItemsMessage", "Combine duplicate weapons or equipment to upgrade them.")));
+	Txt_Message->SetText(MenuText(TEXT("Info.Combine")));
 	Txt_Message->SetVisibility(
 		bHasCombinableItems
 			? ESlateVisibility::SelfHitTestInvisible

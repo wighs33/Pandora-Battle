@@ -2,6 +2,7 @@
 
 #include "Animation/WidgetAnimation.h"
 #include "Components/TextBlock.h"
+#include "Localization/MenuLocalizationSubsystem.h"
 #include "TimerManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GoldenKillAnnouncementWidget)
@@ -15,7 +16,7 @@ UGoldenKillAnnouncementWidget::UGoldenKillAnnouncementWidget(const FObjectInitia
 void UGoldenKillAnnouncementWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
-	ApplyTextStyle(GoldenKillText);
+	ApplyTextStyle(UMenuLocalizationSubsystem::GetText(TEXT("HUD.GoldenKill")));
 	HideGoldenKillAnnouncement();
 }
 
@@ -36,7 +37,7 @@ void UGoldenKillAnnouncementWidget::PlayGoldenKillAnnouncement(const FText& Over
 		World->GetTimerManager().ClearTimer(HideTimerHandle);
 	}
 
-	const FText TextToShow = OverrideText.IsEmpty() ? GoldenKillText : OverrideText;
+	const FText TextToShow = OverrideText.IsEmpty() ? UMenuLocalizationSubsystem::GetText(TEXT("HUD.GoldenKill")) : OverrideText;
 	ApplyTextStyle(TextToShow);
 
 	SetVisibility(ESlateVisibility::HitTestInvisible);

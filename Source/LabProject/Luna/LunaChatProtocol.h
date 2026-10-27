@@ -10,7 +10,7 @@ class FJsonObject;
  */
 namespace LunaChat
 {
-	/** DT_MenuText의 Luna 안내 문구 수(Title.LunaTip01 ~ Title.LunaTip20) */
+	/** 문자열 테이블 MenuText의 Luna 안내 문구 수(Title.LunaTip01 ~ Title.LunaTip20) */
 	inline constexpr int32 TipCount = 20;
 
 	LABPROJECT_API FName TipKey(int32 TipNumber);

@@ -90,12 +90,12 @@ void UGameResultWidget::SetInGameScoreboardInfo(const TArray<FGameResultPlayerSt
 
 	if (PlayerStats.IsEmpty())
 	{
-		MaxKillerName = UnknownPlayerText;
+		MaxKillerName = MenuText(TEXT("Result.UnknownPlayer"));
 		MaxKillCount = 0;
 	}
 	else
 	{
-		MaxKillerName = PlayerStats[0].PlayerName.IsEmpty() ? UnknownPlayerText : PlayerStats[0].PlayerName;
+		MaxKillerName = PlayerStats[0].PlayerName.IsEmpty() ? MenuText(TEXT("Result.UnknownPlayer")) : PlayerStats[0].PlayerName;
 		MaxKillCount = PlayerStats[0].KillCount;
 	}
 
@@ -136,7 +136,7 @@ void UGameResultWidget::RefreshUI()
 
 	if (Txt_WinnerInfo)
 	{
-		Txt_WinnerInfo->SetText(FText::Format(WinnerInfoFormat, MakeTitleText()));
+		Txt_WinnerInfo->SetText(MakeTitleText());
 		Txt_WinnerInfo->SetColorAndOpacity(IsTeamVictoryTitle()
 			? FSlateColor(LabTeamColorUtils::GetTeamColor(WinnerTeamColorIndex))
 			: NeutralTitleColor);
@@ -147,7 +147,7 @@ void UGameResultWidget::RefreshUI()
 		// 아직 아무도 처치하지 못했거나 누가 가장 많이 처치했는지 모르면 보여 줄 내용이 없다.
 		const bool bHasTopKiller = MaxKillCount > 0 && !MaxKillerName.IsEmpty();
 		Txt_MostKill->SetVisibility(bHasTopKiller ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
-		Txt_MostKill->SetText(FText::Format(MenuTextOrFallback(TEXT("Result.MostKillsFormat"), MostKillFormat),
+		Txt_MostKill->SetText(FText::Format(MenuText(TEXT("Result.MostKillsFormat")),
 			MaxKillerName, MaxKillCount));
 	}
 
@@ -212,13 +212,13 @@ FText UGameResultWidget::MakeTitleText() const
 	}
 	if (bEndedByPlayerExit)
 	{
-		return MenuTextOrFallback(TEXT("Result.PlayerLeft"), WinnerTitle);
+		return MenuText(TEXT("Result.PlayerLeft"));
 	}
 	if (IsTeamVictoryTitle())
 	{
 		return FText::Format(MenuText(TEXT("Result.TeamWinsFormat")), MenuText(LabTeamColorUtils::GetTeamTextKey(WinnerTeamColorIndex)));
 	}
-	return WinnerTitle.IsEmpty() ? MenuTextOrFallback(TEXT("Result.UnknownPlayer"), UnknownPlayerText) : WinnerTitle;
+	return WinnerTitle.IsEmpty() ? MenuText(TEXT("Result.UnknownPlayer")) : WinnerTitle;
 }
 
 bool UGameResultWidget::IsTeamVictoryTitle() const

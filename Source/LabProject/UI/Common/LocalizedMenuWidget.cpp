@@ -67,13 +67,12 @@ UMenuLocalizationSubsystem* ULocalizedMenuWidget::GetLocalization() const
 
 FText ULocalizedMenuWidget::MenuText(FName Key) const
 {
-	return MenuTextOrFallback(Key, FText::FromName(Key));
+	return UMenuLocalizationSubsystem::GetText(Key);
 }
 
 FText ULocalizedMenuWidget::MenuTextOrFallback(FName Key, const FText& Fallback) const
 {
-	const UMenuLocalizationSubsystem* Localization = GetLocalization();
-	return Localization ? Localization->GetTextOrFallback(Key, Fallback) : Fallback;
+	return UMenuLocalizationSubsystem::GetTextOrFallback(Key, Fallback);
 }
 
 void ULocalizedMenuWidget::RefreshLocalizedText()

@@ -128,10 +128,10 @@ FText URespawnDelayWidget::FormatRespawnDelayText() const
 {
 	if (!bRespawnDelayActive && RemainingSeconds <= 0.0f)
 	{
-		return MenuTextOrFallback(TEXT("HUD.Respawning"), FinishedText);
+		return MenuText(TEXT("HUD.Respawning"));
 	}
 
 	FFormatNamedArguments Arguments;
 	Arguments.Add(TEXT("Seconds"), FText::AsNumber(FMath::CeilToInt(FMath::Max(RemainingSeconds, 0.0f))));
-	return FText::Format(MenuTextOrFallback(TEXT("HUD.RespawnIn"), RespawnDelayFormatText), Arguments);
+	return FText::Format(MenuText(TEXT("HUD.RespawnIn")), Arguments);
 }

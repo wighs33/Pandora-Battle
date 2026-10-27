@@ -128,7 +128,7 @@ void UGameSettingsWidget::HandleLanguageSelected(FString Option, ESelectInfo::Ty
 UWidget* UGameSettingsWidget::GenerateLanguageOption(FString Option)
 {
 	UTextBlock* Text = WidgetTree->ConstructWidget<UTextBlock>();
-	Text->SetText(FText::FromString(Option));
+	Text->SetText(FText::AsCultureInvariant(Option));
 	FSlateFontInfo Font = Text->GetFont();
 	Font.Size = 22;
 	Font.TypefaceFontName = NAME_None;
@@ -165,7 +165,7 @@ void UGameSettingsWidget::RefreshVolume(int32 Percent)
 {
 	TGuardValue<bool> Guard(bSynchronizing, true);
 	Slider_MasterVolume->SetValue(Percent / 100.f);
-	Txt_VolumeValue->SetText(FText::FromString(FString::Printf(TEXT("%d%%"), Percent)));
+	Txt_VolumeValue->SetText(FText::AsPercent(Percent / 100.0));
 }
 
 void UGameSettingsWidget::HandleMouseSensitivityChanged(float Value)
@@ -185,7 +185,7 @@ void UGameSettingsWidget::RefreshMouseSensitivityText()
 {
 	if (const ULocalPlayerSettingsSubsystem* Settings = ULocalPlayerSettingsSubsystem::Get(GetOwningPlayer()))
 	{
-		Txt_MouseSensitivityValue->SetText(FText::FromString(FString::Printf(TEXT("%d%%"), Settings->GetMouseSensitivityPercent())));
+		Txt_MouseSensitivityValue->SetText(FText::AsPercent(Settings->GetMouseSensitivityPercent() / 100.0));
 	}
 }
 

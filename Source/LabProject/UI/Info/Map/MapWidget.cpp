@@ -639,14 +639,14 @@ FText UMapWidget::GetMapViewName(const EMapView MapView) const
 	switch (MapView)
 	{
 	case EMapView::Windmill:
-		return MenuTextOrFallback(TEXT("Info.Windmill"), FText::FromString(TEXT("Windmill")));
+		return MenuText(TEXT("Info.Windmill"));
 	case EMapView::Dome:
-		return MenuTextOrFallback(TEXT("Info.Dome"), FText::FromString(TEXT("Dome")));
+		return MenuText(TEXT("Info.Dome"));
 	case EMapView::Temple:
-		return MenuTextOrFallback(TEXT("Info.Temple"), FText::FromString(TEXT("Temple")));
+		return MenuText(TEXT("Info.Temple"));
 	case EMapView::Area:
 	default:
-		return MenuTextOrFallback(TEXT("Info.AreaMap"), FText::FromString(TEXT("Area Map")));
+		return MenuText(TEXT("Info.AreaMap"));
 	}
 }
 

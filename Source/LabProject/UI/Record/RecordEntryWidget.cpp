@@ -37,7 +37,7 @@ void URecordEntryWidget::RefreshUI()
 
 	if (Txt_Result)
 	{
-		Txt_Result->SetText(MenuTextOrFallback(Record.bWin ? TEXT("Record.Win") : TEXT("Record.Lose"), Record.bWin ? WinText : LoseText));
+		Txt_Result->SetText(MenuText(Record.bWin ? TEXT("Record.Win") : TEXT("Record.Lose")));
 		Txt_Result->SetColorAndOpacity(FSlateColor(Record.bWin ? FLinearColor(0.58f, 0.9f, 0.7f) : FLinearColor(1.0f, 0.58f, 0.64f)));
 	}
 	if (UBorder* Badge = Cast<UBorder>(GetWidgetFromName(TEXT("ResultBadge"))))
@@ -57,6 +57,6 @@ void URecordEntryWidget::RefreshUI()
 
 	if (Txt_Reward)
 	{
-		Txt_Reward->SetText(FText::Format(RewardTextFormat, FText::AsNumber(Record.Reward)));
+		Txt_Reward->SetText(FText::AsNumber(Record.Reward));
 	}
 }

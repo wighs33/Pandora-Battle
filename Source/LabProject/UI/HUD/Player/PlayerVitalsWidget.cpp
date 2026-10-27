@@ -226,7 +226,7 @@ void UPlayerVitalsWidget::RefreshResourceReadouts()
 	{
 		if (UTextBlock* Text = Cast<UTextBlock>(GetWidgetFromName(Name)))
 		{
-			Text->SetText(FText::Format(NSLOCTEXT("PlayerHUD", "ResourcePair", "{0} / {1}"), Number(Current), Number(Maximum)));
+			Text->SetText(FText::Format(INVTEXT("{0} / {1}"), Number(Current), Number(Maximum)));
 		}
 	};
 	SetValue(TEXT("HealthValue"), UBasicAttributeSet::GetHealthAttribute(), UBasicAttributeSet::GetMaxHealthAttribute());

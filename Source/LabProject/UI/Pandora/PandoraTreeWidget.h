@@ -145,9 +145,6 @@ protected:
 	TObjectPtr<UWidgetAnimation> SlideInLeft;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Pandora")
-	FText PandoraPointsFormat = NSLOCTEXT("PandoraTreeWidget", "PandoraPointsFormat", "Soul Dust: {0}");
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Pandora")
 	TObjectPtr<const UPandoraDefinition> PandoraDefinition;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Pandora|Input")

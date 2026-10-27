@@ -39,12 +39,7 @@ void ULobbyPlayerSetupComponent::
 				PlayerController,
 				LobbyPlayerState,
 				NicknameIndex)
-			: FText::Format(
-				NSLOCTEXT(
-					"Lobby",
-					"DefaultNicknameFormat",
-					"User{0}"),
-				NicknameIndex);
+			: FText::Format(INVTEXT("User{0}"), NicknameIndex);
 		LobbyState->SetDefaultNickname(DefaultNickname);
 	}
 	else

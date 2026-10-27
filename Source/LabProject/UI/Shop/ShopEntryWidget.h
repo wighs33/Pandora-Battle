@@ -63,21 +63,6 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Shop|Bind")
 	TObjectPtr<UButton> Btn_Select = nullptr;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Shop|Text")
-	FText PriceTextFormat = NSLOCTEXT("ShopEntryWidget", "PriceTextFormat", "{0} Gold");
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Shop|Text")
-	FText OwnedText = NSLOCTEXT("ShopEntryWidget", "OwnedText", "Owned");
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Shop|Text")
-	FText AvailableText = NSLOCTEXT("ShopEntryWidget", "AvailableText", "Available");
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Shop|Text")
-	FText NotEnoughGoldText = NSLOCTEXT("ShopEntryWidget", "NotEnoughGoldText", "Need Gold");
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Shop|Text")
-	FText NotForSaleText = NSLOCTEXT("ShopEntryWidget", "NotForSaleText", "Not for sale");
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Shop|Style")
 	FLinearColor SelectionBorderDefaultColor = FLinearColor(1.0f, 1.0f, 1.0f, 0.35f);
 

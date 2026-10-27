@@ -73,7 +73,7 @@ private:
 	bool IsPandoraComingSoonEntry(const UShopEntryViewData* EntryData) const;
 	bool CanPurchaseProductType(EShopProductType ProductType) const;
 	void EnsurePlayerSaveLoaded() const;
-	void SetMessage(FName Key, const FText& Fallback, const FText& ProductName = FText::GetEmpty()) const;
+	void SetMessage(const FText& Message) const;
 	UShopEntryViewData* FindEntryDataByProduct(UObject* ProductObject, EShopProductType ProductType) const;
 	/** 목록을 새로 만든 뒤 같은 상품을 다시 고른다. 구매 결과를 보여 줄 때 쓴다. */
 	void RefreshAndSelectProduct(UObject* ProductObject, EShopProductType ProductType);
@@ -124,33 +124,6 @@ protected:
 		TEXT("Lightning"),
 		TEXT("Darkness")
 	};
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Shop|Text")
-	FText GoldTextFormat = NSLOCTEXT("ShopWidget", "GoldTextFormat", "{0}");
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Shop|Text")
-	FText SelectItemText = NSLOCTEXT("ShopWidget", "SelectItemText", "Select an item.");
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Shop|Text")
-	FText AlreadyOwnedText = NSLOCTEXT("ShopWidget", "AlreadyOwnedText", "Already owned.");
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Shop|Text")
-	FText NotEnoughGoldText = NSLOCTEXT("ShopWidget", "NotEnoughGoldText", "Not enough gold.");
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Shop|Text")
-	FText NotForSaleText = NSLOCTEXT("ShopWidget", "NotForSaleText", "Not for sale.");
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Shop|Text")
-	FText PandoraComingSoonText = NSLOCTEXT("ShopWidget", "PandoraComingSoonText", "Update scheduled.");
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Shop|Text")
-	FText UnsupportedProductTypeText = NSLOCTEXT("ShopWidget", "UnsupportedProductTypeText", "This product type cannot be purchased yet.");
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Shop|Text")
-	FText PurchaseSucceededTextFormat = NSLOCTEXT("ShopWidget", "PurchaseSucceededTextFormat", "Purchased {0}.");
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Shop|Text")
-	FText ShopSaveResetText = NSLOCTEXT("ShopWidget", "ShopSaveResetText", "Shop data reset.");
 
 private:
 	UPROPERTY(Transient)

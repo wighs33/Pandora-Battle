@@ -15,15 +15,11 @@
 
 namespace
 {
-	const FText MaxLevelText = NSLOCTEXT("PandoraWidget", "MaxLevel", "MAX");
+	/** 레벨 표시(MAX, Lv.)는 언어와 관계없이 같은 표기를 쓴다. */
+	const FText MaxLevelText = INVTEXT("MAX");
 
-	FText MenuTextOr(const UMenuLocalizationSubsystem* Localization, const TCHAR* Key, const FText& Fallback)
-	{
-		return Localization ? Localization->GetTextOrFallback(Key, Fallback) : Fallback;
-	}
-
-	/** Item.Weapon.Axe는 번역표의 Weapon.Axe로 찾는다. 번역이 없으면 태그 이름을 쓴다. */
-	FText MakeWeaponTagDisplayName(const FGameplayTag& WeaponTag, const UMenuLocalizationSubsystem* Localization)
+	/** Item.Weapon.Axe는 문자열 테이블의 Weapon.Axe로 찾는다. 없으면 태그 이름을 쓴다. */
+	FText MakeWeaponTagDisplayName(const FGameplayTag& WeaponTag)
 	{
 		FString TagText = WeaponTag.ToString();
 		const FGameplayTag& WeaponTypeRoot = LabGameplayTags::Item_Weapon;
@@ -33,17 +29,17 @@ namespace
 			TagText.RemoveFromStart(WeaponTypePrefix);
 		}
 		const FText Fallback = FText::FromString(TagText.Replace(TEXT("."), TEXT(" / ")));
-		return MenuTextOr(Localization, *(TEXT("Weapon.") + TagText), Fallback);
+		return UMenuLocalizationSubsystem::GetTextOrFallback(*(TEXT("Weapon.") + TagText), Fallback);
 	}
 
-	FText MakeWeaponRequirementText(const FGameplayTagContainer& RequiredWeaponTags, const UMenuLocalizationSubsystem* Localization)
+	FText MakeWeaponRequirementText(const FGameplayTagContainer& RequiredWeaponTags)
 	{
 		TArray<FText> WeaponTypeNames;
 		for (const FGameplayTag& WeaponTag : RequiredWeaponTags)
 		{
 			if (WeaponTag.IsValid())
 			{
-				WeaponTypeNames.Add(MakeWeaponTagDisplayName(WeaponTag, Localization));
+				WeaponTypeNames.Add(MakeWeaponTagDisplayName(WeaponTag));
 			}
 		}
 
@@ -52,14 +48,12 @@ namespace
 			return FText::GetEmpty();
 		}
 
-		return FText::Format(
-			MenuTextOr(Localization, TEXT("Pandora.WeaponRequirementFormat"),
-				NSLOCTEXT("PandoraDescriptionWidget", "WeaponRequirementFormat", "Required Weapon Type: {0}")),
-			FText::Join(FText::FromString(TEXT(", ")), WeaponTypeNames));
+		return FText::Format(UMenuLocalizationSubsystem::GetText(TEXT("Pandora.WeaponRequirementFormat")),
+			FText::Join(INVTEXT(", "), WeaponTypeNames));
 	}
 
 	// 해금 판정은 게임플레이 컴포넌트가 맡고, 조건의 표시 문구만 UI에서 만든다.
-	FText MakePandoraUnlockRequirementsText(const UPandoraDefinition* Definition, const UPandoraTreeComponent* Tree, const UMenuLocalizationSubsystem* Localization)
+	FText MakePandoraUnlockRequirementsText(const UPandoraDefinition* Definition, const UPandoraTreeComponent* Tree)
 	{
 		TArray<FText> Lines;
 		for (const FPandoraUnlockRule& Rule : Definition->GetUnlockRules())
@@ -67,16 +61,14 @@ namespace
 			if (Rule.RequiredPandora)
 			{
 				Lines.Add(FText::Format(
-					NSLOCTEXT("PandoraTreeComponent", "PandoraUnlockRequirementLine", "- {0} Lv. {1} ({2}/{1})"),
+					INVTEXT("- {0} Lv. {1} ({2}/{1})"),
 					Rule.RequiredPandora->GetDisplayName(),
 					FText::AsNumber(FMath::Max(Rule.RequiredLevel, 1)),
 					FText::AsNumber(Tree->GetCurrentPandoraLevel(Rule.RequiredPandora))));
 			}
 		}
-		const FText Header = MenuTextOr(Localization, TEXT("Pandora.UnlockRequirements"),
-			NSLOCTEXT("PandoraTreeComponent", "PandoraUnlockRequirements", "Requirements"));
-		return Lines.IsEmpty() ? FText::GetEmpty() : FText::Format(FText::FromString(TEXT("{0}\n{1}")),
-			Header, FText::Join(FText::FromString(TEXT("\n")), Lines));
+		return Lines.IsEmpty() ? FText::GetEmpty() : FText::Format(INVTEXT("{0}\n{1}"),
+			UMenuLocalizationSubsystem::GetText(TEXT("Pandora.UnlockRequirements")), FText::Join(INVTEXT("\n"), Lines));
 	}
 }
 
@@ -180,7 +172,7 @@ FText FPandoraWidgetViewDataBuilder::MakeLevelText(const int32 CurrentLevel, con
 		return MaxLevelText;
 	}
 
-	return FText::Format(NSLOCTEXT("PandoraWidget", "PandoraLevelFormat", "{0}/{1}"), FText::AsNumber(CurrentLevel),
+	return FText::Format(INVTEXT("{0}/{1}"), FText::AsNumber(CurrentLevel),
 		FText::AsNumber(MaxLevel));
 }
 
@@ -212,7 +204,7 @@ FPandoraSlotViewData FPandoraSlotViewDataBuilder::Build(const UPandoraDefinition
 }
 
 FPandoraDescriptionViewData FPandoraDescriptionViewDataBuilder::Build(const UPandoraDefinition* PandoraDefinition,
-	const UPandoraTreeComponent* PandoraTreeComponent, const UMenuLocalizationSubsystem* Localization)
+	const UPandoraTreeComponent* PandoraTreeComponent)
 {
 	FPandoraDescriptionViewData ViewData;
 	ViewData.SkillSlots.SetNum(UPandoraDefinition::GetFixedMaxLevel());
@@ -228,12 +220,8 @@ FPandoraDescriptionViewData FPandoraDescriptionViewDataBuilder::Build(const UPan
 
 	FNumberFormattingOptions NumberFormat;
 	NumberFormat.SetMinimumFractionalDigits(0).SetMaximumFractionalDigits(1);
-	const FText ManaFormat = Localization
-		? Localization->GetTextOrFallback(TEXT("PandoraDescription.ManaFormat"), FText::GetEmpty())
-		: FText::GetEmpty();
-	const FText CooldownFormat = Localization
-		? Localization->GetTextOrFallback(TEXT("PandoraDescription.CooldownFormat"), FText::GetEmpty())
-		: FText::GetEmpty();
+	const FText ManaFormat = UMenuLocalizationSubsystem::GetText(TEXT("PandoraDescription.ManaFormat"));
+	const FText CooldownFormat = UMenuLocalizationSubsystem::GetText(TEXT("PandoraDescription.CooldownFormat"));
 
 	for (int32 SkillIndex = 0; SkillIndex < ViewData.SkillSlots.Num(); ++SkillIndex)
 	{
@@ -251,18 +239,17 @@ FPandoraDescriptionViewData FPandoraDescriptionViewDataBuilder::Build(const UPan
 		SkillViewData.CooldownText = FText::Format(CooldownFormat, FText::AsNumber(Skill->Time.CooldownDuration, &NumberFormat));
 	}
 
-	const FText WeaponRequirement = MakeWeaponRequirementText(PandoraDefinition->GetActivatableWeaponTags(), Localization);
+	const FText WeaponRequirement = MakeWeaponRequirementText(PandoraDefinition->GetActivatableWeaponTags());
 	ViewData.WeaponRequirementText = WeaponRequirement;
 	ViewData.WeaponRequirementVisibility = WeaponRequirement.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::Visible;
 
 	// 아직 투자할 수 없는 판도라는 설명 대신 해금 조건을 보여 준다.
 	if (PandoraTreeComponent && !PandoraTreeComponent->IsPandoraAvailableForInvestment(PandoraDefinition))
 	{
-		FText RequirementText = MakePandoraUnlockRequirementsText(PandoraDefinition, PandoraTreeComponent, Localization);
+		FText RequirementText = MakePandoraUnlockRequirementsText(PandoraDefinition, PandoraTreeComponent);
 		if (RequirementText.IsEmpty())
 		{
-			RequirementText = MenuTextOr(Localization, TEXT("Pandora.UnlockRequirementsUnmet"),
-				NSLOCTEXT("PandoraDescriptionWidget", "LockedRequirementFallback", "Unlock requirements are not met."));
+			RequirementText = UMenuLocalizationSubsystem::GetText(TEXT("Pandora.UnlockRequirementsUnmet"));
 		}
 
 		ViewData.DescriptionText = RequirementText;

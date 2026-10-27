@@ -67,7 +67,7 @@ protected:
 	bool bShowHoursWhenNeeded = true;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Timer|Format")
-	FText FinishedText = NSLOCTEXT("HudTimer", "FinishedText", "00:00");
+	FText FinishedText = INVTEXT("00:00");
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Timer|Visual")
 	FLinearColor NormalTextColor = FLinearColor::White;

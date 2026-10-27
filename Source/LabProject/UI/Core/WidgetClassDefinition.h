@@ -229,9 +229,6 @@ struct LABPROJECT_API FPandoraTreeWidgetSettings
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|PandoraTreeWidget")
 	TSubclassOf<UPandoraTreeWidget> WidgetClass;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|PandoraTreeWidget")
-	FText PandoraPointsFormat = NSLOCTEXT("PandoraTreeWidget", "PandoraPointsFormat", "Soul Dust: {0}");
-
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|PandoraTreeWidget|Input")
 	bool bCloseOnToggleKey = true;
 
@@ -550,17 +547,8 @@ struct LABPROJECT_API FLobbyWidgetSettings
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Lobby|UI", meta = (ClampMin = "1"))
 	int32 MaxLobbySlots = LabGameSession::MaxPlayerCount;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Lobby|Countdown")
-	FText GameStartCountdownFormatText = NSLOCTEXT("Lobby", "GameStartCountdownFormatText", "{Seconds}");
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Lobby|Countdown")
-	FText GameStartCountdownFinishedText = NSLOCTEXT("Lobby", "GameStartCountdownFinishedText", "Start");
-
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Lobby|Countdown", meta = (ClampMin = "0.01"))
 	float GameStartCountdownTickInterval = 0.1f;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Lobby|Team", meta = (MultiLine = "true"))
-	FText TeamBalanceWarningText;
 };
 
 USTRUCT(BlueprintType)

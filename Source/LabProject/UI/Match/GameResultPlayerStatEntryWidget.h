@@ -52,15 +52,6 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!GameResult|Bind")
 	TObjectPtr<UBorder> ColorBorder;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!GameResult|Text")
-	FText UnknownPlayerText = NSLOCTEXT("GameResult", "UnknownPlayerText", "Unknown");
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!GameResult|Text")
-	FText UnknownTeamText = NSLOCTEXT("GameResult", "UnknownTeamText", "No Team");
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!GameResult|Text")
-	FText RewardTextFormat = NSLOCTEXT("GameResult", "RewardTextFormat", "{0}");
-
 private:
 	UPROPERTY(Transient)
 	FGameResultPlayerStat PlayerStat;

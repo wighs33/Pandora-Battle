@@ -45,15 +45,6 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Record|Bind")
 	TObjectPtr<UTextBlock> Txt_Reward;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Record|Text")
-	FText WinText = NSLOCTEXT("RecordEntryWidget", "WinText", "WIN");
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Record|Text")
-	FText LoseText = NSLOCTEXT("RecordEntryWidget", "LoseText", "LOSE");
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Record|Text")
-	FText RewardTextFormat = NSLOCTEXT("RecordEntryWidget", "RewardTextFormat", "{0}");
-
 private:
 	UPROPERTY(Transient)
 	FMatchRecord Record;

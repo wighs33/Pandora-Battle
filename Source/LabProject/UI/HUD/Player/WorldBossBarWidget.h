@@ -40,7 +40,6 @@ private:
 	UProgressBar* MakeBar(const FLinearColor& BackgroundColor, const FLinearColor& FillColor);
 	void ApplyLanguageFonts();
 	void RefreshTexts();
-	FText GetMenuText(FName Key, const FText& Fallback) const;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> NameText;

@@ -262,7 +262,7 @@ void UItemSlotWidget::ApplyItemVisual(const FItemViewData& ViewData)
 	if (Txt_Upgrade)
 	{
 		const int32 UpgradeLevel = FMath::Max(ViewData.UpgradeLevel, 0);
-		Txt_Upgrade->SetText(FText::Format(NSLOCTEXT("ItemSlotWidget", "UpgradeLevelFormat", "+{0}"),
+		Txt_Upgrade->SetText(FText::Format(INVTEXT("+{0}"),
 			FText::AsNumber(UpgradeLevel)));
 		Txt_Upgrade->SetVisibility(
 			UpgradeLevel > 0 && ViewData.HasContent()
