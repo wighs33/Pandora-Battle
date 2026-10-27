@@ -5,6 +5,7 @@
 #include "ServerOnlyMonsterSpawner.generated.h"
 
 class AMonsterCharacter;
+class FContentLease;
 
 /**
  * 레벨에 배치된 몬스터 스포너의 서버 실행을 담당한다.
@@ -29,6 +30,8 @@ public:
 private:
 	// Event Handlers --------------------------------------------------------------------------------------------------
 	void SpawnMonster();
+	void HandleEnemyDefinitionLoaded();
+	void HandleDefaultMonsterClassLoaded();
 
 	UFUNCTION()
 	void HandleSpawnedMonsterDestroyed(AActor* DestroyedActor);
@@ -58,6 +61,9 @@ protected:
 private:
 	UPROPERTY(Transient)
 	TObjectPtr<AMonsterCharacter> SpawnedMonster;
+
+	/** Monster Class가 비어 있을 때 DA_EnemyBase와 그 기본 몬스터 클래스를 차례로 읽는 동안 붙잡는다. */
+	TSharedPtr<FContentLease> DefaultMonsterClassLease;
 
 	FTimerHandle RespawnTimerHandle;
 	bool bEndingPlay = false;

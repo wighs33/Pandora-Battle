@@ -467,9 +467,12 @@ void UUiSubsystem::OpenGameSettings(UUserWidget* OwnerMenu)
 	{
 		return;
 	}
-	const TSubclassOf<UGameSettingsWidget> SettingsClass = Definition->SettingsWidgetClass.LoadSynchronous();
+	// 설정 화면 클래스는 Core 묶음이라 ConfiguredCoreContentLease가 처음부터 붙잡고 있다.
+	const TSubclassOf<UGameSettingsWidget> SettingsClass = Definition->SettingsWidgetClass.Get();
 	if (!SettingsClass)
 	{
+		UE_LOG(PdUiSubsystemLog, Warning, TEXT("Game settings widget class '%s' is not loaded yet."),
+			*Definition->SettingsWidgetClass.ToString());
 		return;
 	}
 	ActiveGameSettings = CreateWidget<UGameSettingsWidget>(Controller, SettingsClass);

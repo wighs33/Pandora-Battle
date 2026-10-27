@@ -7,6 +7,8 @@
 #include "Components/SceneCaptureComponent2D.h"
 #include "Components/StaticMeshComponent.h"
 #include "Common/CollisionChannels.h"
+#include "Data/ContentDataSubsystem.h"
+#include "Data/ContentLease.h"
 #include "Definition/Room/PortalDefinition.h"
 #include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"
@@ -140,7 +142,20 @@ APortalActor::APortalActor(const FObjectInitializer& ObjectInitializer)
 void APortalActor::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
-	ApplyPortalDefinition();
+#if WITH_EDITOR
+	// 에디터에 놓인 포털은 바로 읽어 모습을 보여 준다. 게임 월드는 BeginPlay에서 막지 않고 읽는다.
+	const UWorld* World = GetWorld();
+	if (World && !World->IsGameWorld())
+	{
+		if (const UPortalDefinition* Definition = PortalDefinition.LoadSynchronous())
+		{
+			Definition->PortalPlaneMesh.LoadSynchronous();
+			Definition->PortalMaterial.LoadSynchronous();
+			Definition->PortalEffect.LoadSynchronous();
+		}
+		ApplyPortalDefinition();
+	}
+#endif
 }
 
 #if WITH_EDITOR
@@ -193,24 +208,49 @@ void APortalActor::BeginPlay()
 	PlayerDetectionComponent->OnComponentEndOverlap.AddUniqueDynamic(this, &ThisClass::HandleDetectionEndOverlap);
 	DetectionOverlaps.Seed(PlayerDetectionComponent, IsCandidate);
 
-	const bool bPortalDefinitionReady = LoadedPortalDefinition || ApplyPortalDefinition();
-	if (bPortalDefinitionReady && ShouldRenderPortalView())
-	{
-		NativeTryInitPortalMaterial();
+	// 정의를 읽어야 메시·머티리얼·이펙트 경로를 알 수 있다. 두 단계 모두 게임 스레드를 막지 않는다.
+	PortalContentLease = UContentDataSubsystem::AcquireContent({PortalDefinition.ToSoftObjectPath()},
+		FSimpleDelegate::CreateUObject(this, &ThisClass::HandlePortalDefinitionLoaded));
 
-		if (UWorld* World = GetWorld())
-		{
-			World->GetTimerManager().SetTimer(InitMaterialTimerHandle, this, &ThisClass::NativeTryInitPortalMaterial,
-				FMath::Max(InitRetryInterval, 0.01f), true);
-		}
+	SetTickEnabledFromOverlaps();
+}
+
+void APortalActor::HandlePortalDefinitionLoaded()
+{
+	// 다음 lease가 정의를 넘겨받을 때까지 놓지 않는다.
+	const TSharedPtr<FContentLease> DefinitionLease = MoveTemp(PortalContentLease);
+	const UPortalDefinition* Definition = PortalDefinition.Get();
+	if (!Definition)
+	{
+		HandlePortalAssetsLoaded();
+		return;
 	}
-	else
+
+	PortalContentLease = UContentDataSubsystem::AcquireContent({PortalDefinition.ToSoftObjectPath(),
+		Definition->PortalPlaneMesh.ToSoftObjectPath(), Definition->PortalMaterial.ToSoftObjectPath(),
+		Definition->PortalEffect.ToSoftObjectPath()},
+		FSimpleDelegate::CreateUObject(this, &ThisClass::HandlePortalAssetsLoaded));
+}
+
+void APortalActor::HandlePortalAssetsLoaded()
+{
+	if (!ApplyPortalDefinition())
 	{
 		UE_LOG(LogPortalActor, Error, TEXT("PortalDefinition or one of its required assets could not be loaded for %s: %s"),
 			*GetPathName(), *PortalDefinition.ToSoftObjectPath().ToString());
+		return;
+	}
+	if (!ShouldRenderPortalView())
+	{
+		return;
 	}
 
-	SetTickEnabledFromOverlaps();
+	NativeTryInitPortalMaterial();
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().SetTimer(InitMaterialTimerHandle, this, &ThisClass::NativeTryInitPortalMaterial,
+			FMath::Max(InitRetryInterval, 0.01f), true);
+	}
 }
 
 void APortalActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -237,6 +277,7 @@ void APortalActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	PortalMat = nullptr;
 	PortalMaterialParent = nullptr;
 	LoadedPortalDefinition = nullptr;
+	PortalContentLease.Reset();
 
 	Super::EndPlay(EndPlayReason);
 }
@@ -498,7 +539,7 @@ FIntPoint APortalActor::GetDesiredRenderTargetSize() const
 
 bool APortalActor::ApplyPortalDefinition()
 {
-	UPortalDefinition* ResolvedDefinition = PortalDefinition.LoadSynchronous();
+	UPortalDefinition* ResolvedDefinition = PortalDefinition.Get();
 	if (!ResolvedDefinition)
 	{
 		LoadedPortalDefinition = nullptr;
@@ -506,9 +547,9 @@ bool APortalActor::ApplyPortalDefinition()
 		return false;
 	}
 
-	UStaticMesh* PortalMesh = ResolvedDefinition->PortalPlaneMesh.LoadSynchronous();
-	UMaterialInterface* PortalMaterial = ResolvedDefinition->PortalMaterial.LoadSynchronous();
-	UNiagaraSystem* PortalEffect = ResolvedDefinition->PortalEffect.LoadSynchronous();
+	UStaticMesh* PortalMesh = ResolvedDefinition->PortalPlaneMesh.Get();
+	UMaterialInterface* PortalMaterial = ResolvedDefinition->PortalMaterial.Get();
+	UNiagaraSystem* PortalEffect = ResolvedDefinition->PortalEffect.Get();
 	if (!PortalMesh || !PortalMaterial || !PortalEffect)
 	{
 		LoadedPortalDefinition = nullptr;

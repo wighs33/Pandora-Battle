@@ -1,8 +1,9 @@
 #include "AI/Monster/ServerOnlyMonsterSpawner.h"
 
 #include "AI/Monster/MonsterCharacter.h"
+#include "Data/ContentDataSubsystem.h"
+#include "Data/ContentLease.h"
 #include "Definition/Character/EnemyBaseDefinition.h"
-#include "Engine/AssetManager.h"
 #include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
 #include "TimerManager.h"
@@ -34,28 +35,49 @@ void AServerOnlyMonsterSpawner::BeginPlay()
 	}
 
 	Super::BeginPlay();
-	if (!MonsterClass)
+	if (MonsterClass)
 	{
-		UAssetManager& AssetManager = UAssetManager::Get();
-		const FPrimaryAssetId DefinitionId = UEnemyBaseDefinition::GetDefaultPrimaryAssetId();
-		UEnemyBaseDefinition* EnemyDefinition = AssetManager.GetPrimaryAssetObject<UEnemyBaseDefinition>(DefinitionId);
-		if (!EnemyDefinition)
-		{
-			const FSoftObjectPath DefinitionPath = AssetManager.GetPrimaryAssetPath(DefinitionId);
-			EnemyDefinition = Cast<UEnemyBaseDefinition>(DefinitionPath.TryLoad());
-		}
-
-		if (EnemyDefinition)
-		{
-			MonsterClass = EnemyDefinition->GetCombatSettings().DefaultMonsterClass.LoadSynchronous();
-		}
+		SpawnMonster();
+		return;
 	}
+
+	// 기본 몬스터 클래스 경로는 DA_EnemyBase를 읽어야 알 수 있다. 두 단계 모두 게임 스레드를 막지 않는다.
+	DefaultMonsterClassLease = UContentDataSubsystem::AcquireContent({UEnemyBaseDefinition::GetDefaultDefinitionPath()},
+		FSimpleDelegate::CreateUObject(this, &ThisClass::HandleEnemyDefinitionLoaded));
+}
+
+void AServerOnlyMonsterSpawner::HandleEnemyDefinitionLoaded()
+{
+	// 다음 lease가 정의를 넘겨받을 때까지 놓지 않는다.
+	const TSharedPtr<FContentLease> DefinitionLease = MoveTemp(DefaultMonsterClassLease);
+	const FSoftObjectPath DefinitionPath = UEnemyBaseDefinition::GetDefaultDefinitionPath();
+	const UEnemyBaseDefinition* EnemyDefinition = Cast<UEnemyBaseDefinition>(DefinitionPath.ResolveObject());
+	if (!EnemyDefinition)
+	{
+		UE_LOG(LogServerOnlyMonsterSpawner, Error, TEXT("Spawner '%s' could not load the default enemy definition."),
+			*GetPathName());
+		return;
+	}
+
+	DefaultMonsterClassLease = UContentDataSubsystem::AcquireContent(
+		{DefinitionPath, EnemyDefinition->GetCombatSettings().DefaultMonsterClass.ToSoftObjectPath()},
+		FSimpleDelegate::CreateUObject(this, &ThisClass::HandleDefaultMonsterClassLoaded));
+}
+
+void AServerOnlyMonsterSpawner::HandleDefaultMonsterClassLoaded()
+{
+	// MonsterClass가 클래스를 붙잡으므로 lease는 여기서 놓는다.
+	const TSharedPtr<FContentLease> ClassLease = MoveTemp(DefaultMonsterClassLease);
+	const UEnemyBaseDefinition* EnemyDefinition =
+		Cast<UEnemyBaseDefinition>(UEnemyBaseDefinition::GetDefaultDefinitionPath().ResolveObject());
+	MonsterClass = EnemyDefinition ? EnemyDefinition->GetCombatSettings().DefaultMonsterClass.Get() : nullptr;
 	SpawnMonster();
 }
 
 void AServerOnlyMonsterSpawner::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	bEndingPlay = true;
+	DefaultMonsterClassLease.Reset();
 
 	if (UWorld* World = GetWorld())
 	{

@@ -19,6 +19,7 @@ class UMovementComponent;
 class UNiagaraComponent;
 class UPrimitiveComponent;
 class UPortalDefinition;
+class FContentLease;
 class USceneComponent;
 class USceneCaptureComponent2D;
 class UStaticMeshComponent;
@@ -153,11 +154,15 @@ private:
 	UFUNCTION()
 	void HandleDetectionEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
 
+	void HandlePortalDefinitionLoaded();
+	void HandlePortalAssetsLoaded();
+
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	// 포털 화면(Scene Capture·Render Target·MID)은 보는 사람이 있는 인스턴스에서만 만든다. 순간 이동 판정은 항상 동작한다.
 	bool ShouldRenderPortalView() const;
 	bool EnsureRenderTargetSize();
 	FIntPoint GetDesiredRenderTargetSize() const;
+	// 이미 읽힌 정의와 자산만 적용한다. 읽는 일은 OnConstruction(에디터)과 BeginPlay(게임)가 맡는다.
 	bool ApplyPortalDefinition();
 	bool IsCaptureRateLimitElapsed();
 	void ConfigureLinkedCaptureComponent() const;
@@ -175,6 +180,8 @@ private:
 
 private:
 	FTimerHandle InitMaterialTimerHandle;
+	/** 게임 월드에서 정의와 그 메시·머티리얼·이펙트를 차례로 비동기로 읽어 EndPlay까지 붙잡는다. */
+	TSharedPtr<FContentLease> PortalContentLease;
 	UPROPERTY(Transient)
 	TObjectPtr<UPortalDefinition> LoadedPortalDefinition;
 
