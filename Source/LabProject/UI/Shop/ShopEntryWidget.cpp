@@ -95,7 +95,7 @@ void UShopEntryWidget::RefreshUI()
 
 	if (Txt_Name)
 	{
-		Txt_Name->SetText(EntryData->GetLocalizedName(GetLocalization()));
+		Txt_Name->SetText(EntryData->GetDisplayName());
 	}
 
 	if (Txt_Price)

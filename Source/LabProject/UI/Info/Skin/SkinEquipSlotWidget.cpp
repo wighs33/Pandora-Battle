@@ -30,7 +30,7 @@ void USkinEquipSlotWidget::SetSkinDefinition(const USkinDefinition* Target)
 		return;
 	}
 
-	SlotText = GetLocalization() ? GetLocalization()->GetProductText(SkinDefinition, TEXT("Name"), SkinDefinition->DisplayName) : SkinDefinition->DisplayName;
+	SlotText = SkinDefinition->DisplayName;
 	CurrentSkinIconTexture = SkinDefinition->IconTexture;
 	ApplySlotVisual();
 }
@@ -40,7 +40,7 @@ void USkinEquipSlotWidget::OnMenuLanguageChanged()
 	Super::OnMenuLanguageChanged();
 	if (SkinDefinition)
 	{
-		SlotText = GetLocalization() ? GetLocalization()->GetProductText(SkinDefinition, TEXT("Name"), SkinDefinition->DisplayName) : SkinDefinition->DisplayName;
+		SlotText = SkinDefinition->DisplayName;
 		ApplySlotVisual();
 	}
 }

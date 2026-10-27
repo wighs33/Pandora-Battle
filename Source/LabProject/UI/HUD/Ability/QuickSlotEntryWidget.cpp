@@ -10,8 +10,6 @@
 #include "Definition/Skin/SkinDefinition.h"
 #include "UI/Common/InputKeyIconResolver.h"
 #include "UI/Info/Item/ItemViewData.h"
-#include "Engine/GameInstance.h"
-#include "Localization/MenuLocalizationSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(QuickSlotEntryWidget)
 
@@ -53,10 +51,9 @@ void UQuickSlotEntryWidget::RefreshVisual()
 
 void UQuickSlotEntryWidget::ApplyItemVisual()
 {
-	const UMenuLocalizationSubsystem* Localization = UGameInstance::GetSubsystem<UMenuLocalizationSubsystem>(GetGameInstance());
 	const FItemViewData ViewData = SkinDefinition
-		? FItemViewDataBuilder::FromSkinDefinition(SkinDefinition, Localization)
-		: FItemViewDataBuilder::FromItemInstance(ItemInstance, Localization);
+		? FItemViewDataBuilder::FromSkinDefinition(SkinDefinition)
+		: FItemViewDataBuilder::FromItemInstance(ItemInstance);
 
 	if (IconImage)
 	{

@@ -8,6 +8,8 @@
 #include "HAL/IConsoleManager.h"
 #include "HttpModule.h"
 #include "Interfaces/IHttpResponse.h"
+#include "Internationalization/Culture.h"
+#include "Internationalization/Internationalization.h"
 #include "Localization/MenuLocalizationSubsystem.h"
 #include "Common/PdTicker.h"
 #include "Common/UiLanguage.h"
@@ -317,7 +319,7 @@ void ULunaChatSubsystem::HandleMenuLanguageChanged()
 }
 
 // 절 이름에 영어 이름을 함께 적어, 플레이어가 쓰는 외래어(크리티컬)와 가이드의 UI 용어(치명타)가 달라도 절을 고를 수 있게 한다.
-// 모든 언어의 가이드는 절 구성이 같으므로 같은 순서의 영어 절을 짝지을 수 있다.
+// 모든 언어의 가이드는 절 구성이 같으므로 같은 순서의 영어 절(원문)을 짝지을 수 있다.
 void ULunaChatSubsystem::RebuildGuideSections()
 {
 	GuideSections.Reset();
@@ -329,13 +331,14 @@ void ULunaChatSubsystem::RebuildGuideSections()
 		return;
 	}
 
-	const EGuideLanguage Language = Localization ? Localization->GetLanguage() : Guide->DefaultLanguage;
+	const bool bEnglish = !Localization || Localization->GetLanguage() == TEXT("en");
 	for (const FGuidePageEntry& Page : Guide->Pages)
 	{
-		const TArray<LunaChat::FGuideSection> Sections = LunaChat::SplitGuideSections(Page.GetContent(Language).ToString());
+		const TArray<LunaChat::FGuideSection> Sections = LunaChat::SplitGuideSections(Page.Content.ToString());
+		const FString* EnglishContent = FTextInspector::GetSourceString(Page.Content);
 		const TArray<LunaChat::FGuideSection> EnglishSections =
-			LunaChat::SplitGuideSections(Page.GetContent(EGuideLanguage::English).ToString());
-		const bool bAddEnglishNames = Language != EGuideLanguage::English && EnglishSections.Num() == Sections.Num();
+			LunaChat::SplitGuideSections(EnglishContent ? *EnglishContent : FString());
+		const bool bAddEnglishNames = !bEnglish && EnglishSections.Num() == Sections.Num();
 		for (int32 Index = 0; Index < Sections.Num(); ++Index)
 		{
 			FString Name = LunaChat::DescribeGuideSection(Sections[Index]);
@@ -473,8 +476,9 @@ TSharedRef<FJsonObject> ULunaChatSubsystem::BuildSectionRequestBody(const FStrin
 FString ULunaChatSubsystem::BuildSystemPrompt(const TArray<int32>& GuideSectionIndices) const
 {
 	const UMenuLocalizationSubsystem* Localization = GetGameInstance()->GetSubsystem<UMenuLocalizationSubsystem>();
-	const EGuideLanguage Language = Localization ? Localization->GetLanguage() : EGuideLanguage::Korean;
-	const FString LanguageName = StaticEnum<EGuideLanguage>()->GetNameStringByValue(static_cast<int64>(Language));
+	const FString Culture = Localization ? Localization->GetLanguage() : TEXT("ko");
+	const FCulturePtr CultureInfo = FInternationalization::Get().GetCulture(Culture);
+	const FString LanguageName = CultureInfo ? CultureInfo->GetEnglishName() : Culture;
 
 	FString Prompt = FString::Printf(TEXT("You are Luna, the guide of the multiplayer action game \"Pandora Battle\". "
 		"You appear on the title screen and talk with the player through a small speech bubble.\n"
@@ -487,7 +491,7 @@ FString ULunaChatSubsystem::BuildSystemPrompt(const TArray<int32>& GuideSectionI
 		"If nothing below covers the question, say you are not sure and suggest the Guide menu on the title screen. "
 		"Never invent features.\n"
 		"- For questions unrelated to the game, answer briefly and gently bring the conversation back to Pandora Battle.\n"),
-		*LanguageName, *UiLanguage::NativeName(Language), MaxReplyCharacters);
+		*LanguageName, *UiLanguage::NativeName(Culture), MaxReplyCharacters);
 
 	if (!GuideSectionIndices.IsEmpty())
 	{

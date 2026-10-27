@@ -153,7 +153,7 @@ void ULocalizedMenuWidget::UpdateHoverTooltip()
 		HoverTooltip->AddToViewport(HoverTooltipZOrder);
 	}
 	const UMenuLocalizationSubsystem* Localization = GetLocalization();
-	HoverTooltip->ShowFor(*Widget, *Text, Localization ? Localization->GetFontForLanguage(Localization->GetLanguage()) : nullptr);
+	HoverTooltip->ShowFor(*Widget, *Text, Localization ? Localization->GetCurrentFont() : nullptr);
 }
 
 // Slate의 마우스 진입 이벤트는 비활성 위젯을 건너뛰므로, 닫힌 버튼까지 찾도록 활성 여부를 무시하고 커서 아래 위젯 경로를 직접 구한다.

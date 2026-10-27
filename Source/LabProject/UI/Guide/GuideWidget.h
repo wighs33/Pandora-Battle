@@ -81,7 +81,6 @@ private:
 	void ApplyContentFont();
 	void ApplyImage(UTexture2D* Texture);
 	void SelectBoundGuideButton(int32 PageIndex);
-	void ResolveSelectedLanguage();
 
 public:
 	UPROPERTY(BlueprintAssignable, Category = "!Guide")
@@ -116,7 +115,6 @@ private:
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UButton>> BoundGuideButtons;
 
-	EGuideLanguage CurrentLanguage = EGuideLanguage::Korean;
 	int32 CurrentPageIndex = INDEX_NONE;
 	ESlateVisibility DefaultBackgroundPatternVisibility = ESlateVisibility::Visible;
 	UPROPERTY(Transient)

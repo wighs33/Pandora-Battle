@@ -450,7 +450,7 @@ void UTitleWidget::BuildLunaChatInput()
 	const UGameInstance* GameInstance = GetGameInstance();
 	if (const UMenuLocalizationSubsystem* Localization = GameInstance ? GameInstance->GetSubsystem<UMenuLocalizationSubsystem>() : nullptr)
 	{
-		if (UFont* CjkFont = Localization->GetFontForLanguage(EGuideLanguage::Korean))
+		if (UFont* CjkFont = Localization->GetCjkFont())
 		{
 			Font.FontObject = CjkFont;
 			Font.TypefaceFontName = NAME_None;

@@ -48,8 +48,8 @@ public:
 	TObjectPtr<USkillAction> Action;
 
 	/** UI에 표시할 스킬 이름. 비어 있으면 데이터 에셋 이름을 사용한다. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|UI", AssetRegistrySearchable)
-	FName Name;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|UI")
+	FText DisplayName;
 
 	/** 스킬 툴팁에 표시할 설명. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|UI", meta = (MultiLine = "true"))

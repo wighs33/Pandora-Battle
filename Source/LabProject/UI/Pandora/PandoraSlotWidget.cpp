@@ -156,9 +156,7 @@ void UPandoraSlotWidget::ApplyViewData(const FPandoraSlotViewData& ViewData)
 {
 	if (TextBlock)
 	{
-		TextBlock->SetText(GetLocalization()
-			? GetLocalization()->GetProductText(CachedData, TEXT("Name"), ViewData.DisplayName)
-			: ViewData.DisplayName);
+		TextBlock->SetText(ViewData.DisplayName);
 	}
 
 	if (IconImage)

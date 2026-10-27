@@ -66,7 +66,7 @@ void UEquipSlotWidget::SetData(UItemInstance* Target)
 		return;
 	}
 
-	SlotText = GetLocalization() ? GetLocalization()->GetProductText(ItemDefinition, TEXT("Name"), ItemDefinition->DisplayName) : ItemDefinition->DisplayName;
+	SlotText = ItemDefinition->DisplayName;
 	CurrentItemIconTexture = ItemDefinition->IconTexture.Get();
 	ApplySlotVisual();
 }
@@ -76,7 +76,7 @@ void UEquipSlotWidget::OnMenuLanguageChanged()
 	Super::OnMenuLanguageChanged();
 	if (const UItemDefinition* Definition = ItemInstance ? ItemInstance->ItemDefinition.Get() : nullptr)
 	{
-		SlotText = GetLocalization() ? GetLocalization()->GetProductText(Definition, TEXT("Name"), Definition->DisplayName) : Definition->DisplayName;
+		SlotText = Definition->DisplayName;
 		ApplySlotVisual();
 	}
 }

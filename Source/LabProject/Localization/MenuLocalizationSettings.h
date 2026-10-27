@@ -2,23 +2,16 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DeveloperSettings.h"
-#include "Common/UiLanguage.h"
 #include "MenuLocalizationSettings.generated.h"
 
-class UDataTable;
 class UFont;
 
+/** 언어에 따라 바꿔 끼우는 메뉴 글꼴. 기본 언어는 [Internationalization] Culture가 정한다. */
 UCLASS(Config=Game, DefaultConfig, meta=(DisplayName="Menu Localization"))
 class LABPROJECT_API UMenuLocalizationSettings : public UDeveloperSettings
 {
 	GENERATED_BODY()
 public:
-	UPROPERTY(Config, EditAnywhere, Category="Localization")
-	EGuideLanguage DefaultLanguage = EGuideLanguage::Korean;
-
-	UPROPERTY(Config, EditAnywhere, Category="Localization", meta=(RequiredAssetDataTags="RowStructure=/Script/LabProject.MenuTextRow"))
-	TSoftObjectPtr<UDataTable> TextTable;
-
 	UPROPERTY(Config, EditAnywhere, Category="Localization")
 	TSoftObjectPtr<UFont> CjkFont;
 

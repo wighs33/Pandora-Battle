@@ -2,9 +2,6 @@
 
 #include "Item/ItemInstance.h"
 #include "UI/Info/Item/ItemViewData.h"
-#include "Blueprint/UserWidget.h"
-#include "Engine/GameInstance.h"
-#include "Localization/MenuLocalizationSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InventorySlotViewData)
 
@@ -13,9 +10,7 @@ void UInventorySlotViewData::Initialize(const int32 InSlotIndex, UItemInstance* 
 {
 	SlotIndex = InSlotIndex;
 	ItemInstance = InItemInstance;
-	const UUserWidget* OwnerWidget = GetTypedOuter<UUserWidget>();
-	const UMenuLocalizationSubsystem* Localization = UGameInstance::GetSubsystem<UMenuLocalizationSubsystem>(OwnerWidget ? OwnerWidget->GetGameInstance() : nullptr);
-	ViewData = FItemViewDataBuilder::FromItemInstance(InItemInstance, Localization);
+	ViewData = FItemViewDataBuilder::FromItemInstance(InItemInstance);
 	bDuplicateWeaponOrEquipment = bInDuplicateWeaponOrEquipment;
 	bAssigned = bInAssigned;
 }

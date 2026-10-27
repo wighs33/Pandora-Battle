@@ -3,7 +3,6 @@
 #include "Definition/Item/ItemDefinition.h"
 #include "Definition/Pandora/PandoraDefinition.h"
 #include "Definition/Skin/SkinDefinition.h"
-#include "Localization/MenuLocalizationSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ShopEntryViewData)
 
@@ -62,14 +61,4 @@ UPandoraDefinition* UShopEntryViewData::GetPandoraDefinition() const
 void UShopEntryViewData::BroadcastClicked()
 {
 	OnClicked.Broadcast(this);
-}
-
-FText UShopEntryViewData::GetLocalizedName(const UMenuLocalizationSubsystem* Localization) const
-{
-	return Localization ? Localization->GetProductText(ProductObject, TEXT("Name"), UiData.DisplayName) : UiData.DisplayName;
-}
-
-FText UShopEntryViewData::GetLocalizedDescription(const UMenuLocalizationSubsystem* Localization) const
-{
-	return Localization ? Localization->GetProductText(ProductObject, TEXT("Description"), UiData.Description) : UiData.Description;
 }

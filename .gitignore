@@ -54,6 +54,16 @@ Content/**
 !Content/UI/Localization/*.uasset
 !Content/UI/Localization/Source/*.csv
 
+# Menu text string table (English source), registered from code and staged as a raw file.
+!Content/UI/Localization/StringTables/*.csv
+
+# Game localization target: gathered manifest, per-culture archives, translators' .po files and compiled .locres.
+!Content/Localization/Game/Game.manifest
+!Content/Localization/Game/Game.locmeta
+!Content/Localization/Game/*/Game.archive
+!Content/Localization/Game/*/Game.po
+!Content/Localization/Game/*/Game.locres
+
 # Runtime UI rendering material used by the paint-canvas feature.
 !Content/Materials/M_UI_PaintCanvasOpaque.uasset
 !Content/Materials/M_SpeechBubble.uasset

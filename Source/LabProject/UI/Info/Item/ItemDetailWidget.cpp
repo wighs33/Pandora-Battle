@@ -67,7 +67,7 @@ void UItemDetailWidget::RefreshLocalizedDetails()
 void UItemDetailWidget::ApplyLocalizedFont() const
 {
 	const UMenuLocalizationSubsystem* Localization = GetLocalization();
-	UFont* Font = Localization ? Localization->GetFontForLanguage(Localization->GetLanguage()) : nullptr;
+	UFont* Font = Localization ? Localization->GetCurrentFont() : nullptr;
 	if (!Font || !WidgetTree)
 	{
 		return;
@@ -88,7 +88,7 @@ void UItemDetailWidget::SetItem(UItemInstance* InItemInstance, UItemInstance* In
 {
 	(void)InCompareItemInstance;
 
-	const FItemViewData ViewData = FItemViewDataBuilder::FromItemInstance(InItemInstance, GetLocalization());
+	const FItemViewData ViewData = FItemViewDataBuilder::FromItemInstance(InItemInstance);
 	SetItemViewData(ViewData);
 	DisplayedItem = InItemInstance;
 }
@@ -110,7 +110,7 @@ void UItemDetailWidget::SetItemViewData(const FItemViewData& InViewData)
 
 void UItemDetailWidget::SetSkinDefinition(const USkinDefinition* SkinDefinition)
 {
-	const FItemViewData ViewData = FItemViewDataBuilder::FromSkinDefinition(SkinDefinition, GetLocalization());
+	const FItemViewData ViewData = FItemViewDataBuilder::FromSkinDefinition(SkinDefinition);
 	SetItemViewData(ViewData);
 	DisplayedSkin = SkinDefinition;
 }

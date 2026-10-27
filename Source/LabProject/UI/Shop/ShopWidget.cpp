@@ -298,7 +298,7 @@ bool UShopWidget::TryPurchaseSelectedEntry()
 		break;
 	}
 
-	SetMessage(TEXT("Shop.Purchased"), PurchaseSucceededTextFormat, ProductObject);
+	SetMessage(TEXT("Shop.Purchased"), PurchaseSucceededTextFormat, SelectedEntryData->GetDisplayName());
 	ProfileSubsystem->SaveProfile();
 	if (APdPlayerController* PdPlayerController = Cast<APdPlayerController>(GetOwningPlayer()))
 	{
@@ -616,11 +616,11 @@ void UShopWidget::EnsurePlayerSaveLoaded() const
 	ProfileSubsystem->LoadProfile();
 }
 
-void UShopWidget::SetMessage(FName Key, const FText& Fallback, UObject* Product) const
+void UShopWidget::SetMessage(FName Key, const FText& Fallback, const FText& ProductName) const
 {
 	if (WBP_ShopPreviewPanel)
 	{
-		WBP_ShopPreviewPanel->SetLocalizedMessage(Key, Fallback, Product);
+		WBP_ShopPreviewPanel->SetLocalizedMessage(Key, Fallback, ProductName);
 	}
 }
 

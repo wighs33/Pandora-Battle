@@ -2,6 +2,7 @@
 #include "Input/CommonUIActionRouterBase.h"
 #include "CommonActivatableWidget.h"
 #include "Localization/MenuLocalizationSubsystem.h"
+#include "Common/UiLanguage.h"
 #include "Audio/AudioSettingsSubsystem.h"
 #include "UI/Core/UiSubsystem.h"
 #include "Blueprint/WidgetTree.h"
@@ -34,9 +35,9 @@ void UGameSettingsWidget::NativeConstruct()
 	{
 		TGuardValue<bool> Guard(bSynchronizing, true);
 		CB_SettingsLanguage->ClearOptions();
-		for (EGuideLanguage Language : UiLanguage::All())
+		for (const FString& Culture : UiLanguage::Cultures())
 		{
-			CB_SettingsLanguage->AddOption(UiLanguage::NativeName(Language));
+			CB_SettingsLanguage->AddOption(UiLanguage::NativeName(Culture));
 		}
 	}
 	CB_SettingsLanguage->OnSelectionChanged.AddUniqueDynamic(this, &ThisClass::HandleLanguageSelected);
@@ -113,11 +114,11 @@ void UGameSettingsWidget::HandleLanguageSelected(FString Option, ESelectInfo::Ty
 	{
 		return;
 	}
-	for (EGuideLanguage Language : UiLanguage::All())
+	for (const FString& Culture : UiLanguage::Cultures())
 	{
-		if (Option == UiLanguage::NativeName(Language))
+		if (Option == UiLanguage::NativeName(Culture))
 		{
-			bLanguageSaveFailed = !GetLocalization()->SetLanguage(Language);
+			bLanguageSaveFailed = !GetLocalization()->SetLanguage(Culture);
 			OnMenuLanguageChanged();
 			break;
 		}
@@ -133,11 +134,11 @@ UWidget* UGameSettingsWidget::GenerateLanguageOption(FString Option)
 	Font.TypefaceFontName = NAME_None;
 	if (const UMenuLocalizationSubsystem* Localization = GetLocalization())
 	{
-		for (EGuideLanguage Language : UiLanguage::All())
+		for (const FString& Culture : UiLanguage::Cultures())
 		{
-			if (Option == UiLanguage::NativeName(Language))
+			if (Option == UiLanguage::NativeName(Culture))
 			{
-				Font.FontObject = Localization->GetFontForLanguage(Language);
+				Font.FontObject = Localization->GetFontForLanguage(Culture);
 			}
 		}
 	}

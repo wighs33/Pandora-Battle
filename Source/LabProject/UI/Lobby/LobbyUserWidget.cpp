@@ -439,7 +439,7 @@ UWidget* ULobbyUserWidget::GenerateTeamOption(FString Option)
 	Font.TypefaceFontName = NAME_None;
 	if (const UMenuLocalizationSubsystem* Localization = GetLocalization())
 	{
-		Font.FontObject = Localization->GetFontForLanguage(Localization->GetLanguage());
+		Font.FontObject = Localization->GetCurrentFont();
 	}
 	Text->SetFont(Font);
 	Text->SetColorAndOpacity(FSlateColor(FLinearColor(1.f, 0.89f, 0.61f)));

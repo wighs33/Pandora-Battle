@@ -152,8 +152,7 @@ bool URightListPanelWidget::MatchesSearch(const UObject* Product, const FText& D
 		return false;
 	}
 
-	const FText LocalizedName = GetLocalization() ? GetLocalization()->GetProductText(Product, TEXT("Name"), DisplayName) : DisplayName;
-	return LocalizedName.ToString().Contains(SearchText, ESearchCase::IgnoreCase)
+	return DisplayName.ToString().Contains(SearchText, ESearchCase::IgnoreCase)
 		|| Product->GetName().Contains(SearchText, ESearchCase::IgnoreCase);
 }
 

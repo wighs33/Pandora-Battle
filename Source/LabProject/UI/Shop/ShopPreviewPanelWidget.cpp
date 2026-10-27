@@ -40,7 +40,7 @@ void UShopPreviewPanelWidget::SetEntryData(UShopEntryViewData* InEntryData)
 	{
 		MessageText = FText::GetEmpty();
 		MessageKey = NAME_None;
-		MessageProduct = nullptr;
+		MessageProductName = FText::GetEmpty();
 	}
 
 	EntryData = InEntryData;
@@ -50,16 +50,16 @@ void UShopPreviewPanelWidget::SetEntryData(UShopEntryViewData* InEntryData)
 void UShopPreviewPanelWidget::SetMessage(const FText& Message)
 {
 	MessageKey = NAME_None;
-	MessageProduct = nullptr;
+	MessageProductName = FText::GetEmpty();
 	MessageText = Message;
 	ApplyMessage();
 }
 
-void UShopPreviewPanelWidget::SetLocalizedMessage(FName Key, const FText& Fallback, UObject* Product)
+void UShopPreviewPanelWidget::SetLocalizedMessage(FName Key, const FText& Fallback, const FText& ProductName)
 {
 	MessageKey = Key;
 	MessageText = Fallback;
-	MessageProduct = Product;
+	MessageProductName = ProductName;
 	ApplyMessage();
 }
 
@@ -122,13 +122,9 @@ void UShopPreviewPanelWidget::ApplyMessage()
 	{
 		const FShopEntryUiData* UiData = EntryData ? &EntryData->GetUiData() : nullptr;
 		FText EffectiveMessage = MessageKey.IsNone() ? MessageText : MenuTextOrFallback(MessageKey, MessageText);
-		if (MessageProduct)
+		if (!MessageProductName.IsEmpty())
 		{
-			const UMenuLocalizationSubsystem* Localization = GetLocalization();
-			const FText Name = Localization
-				? Localization->GetProductText(MessageProduct, TEXT("Name"), FText::FromName(MessageProduct->GetFName()))
-				: FText::FromName(MessageProduct->GetFName());
-			EffectiveMessage = FText::Format(EffectiveMessage, Name);
+			EffectiveMessage = FText::Format(EffectiveMessage, MessageProductName);
 		}
 		if (UiData && UiData->bValid && UiData->bOwned && EffectiveMessage.IsEmpty())
 		{
@@ -178,12 +174,12 @@ void UShopPreviewPanelWidget::RefreshUI()
 
 	if (Txt_Name)
 	{
-		Txt_Name->SetText(EntryData->GetLocalizedName(GetLocalization()));
+		Txt_Name->SetText(EntryData->GetDisplayName());
 		Txt_Name->SetColorAndOpacity(DefaultNameColor);
 	}
 	if (Txt_Description)
 	{
-		Txt_Description->SetText(EntryData->GetLocalizedDescription(GetLocalization()));
+		Txt_Description->SetText(EntryData->GetDescription());
 	}
 	if (Txt_Price)
 	{

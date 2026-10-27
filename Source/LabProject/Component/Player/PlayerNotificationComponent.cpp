@@ -23,12 +23,11 @@ namespace
 		return Localization ? Localization->GetTextOrFallback(Key, Fallback) : Fallback;
 	}
 
-	FText FormatRewardNotificationText(const UMenuLocalizationSubsystem* Localization, const UObject* Definition, const FText& DisplayName)
+	FText FormatRewardNotificationText(const UMenuLocalizationSubsystem* Localization, const FText& DisplayName)
 	{
-		const FText Name = Localization ? Localization->GetProductText(Definition, TEXT("Name"), DisplayName) : DisplayName;
 		return FText::Format(
 			RewardText(Localization, TEXT("HUD.RewardCollectedFormat"), NSLOCTEXT("PlayerNotificationComponent", "RewardCollectedFormat", "{0} Collected")),
-			Name);
+			DisplayName);
 	}
 }
 
@@ -179,7 +178,7 @@ void UPlayerNotificationComponent::ShowLoadedRewardNotifications(const TArray<FP
 			if (const UItemDefinition* Definition = Cast<UItemDefinition>(AssetManager.GetPrimaryAssetObject(Reward.AssetId)))
 			{
 				const FText Name = Definition->DisplayName.IsEmpty() ? FText::FromName(Definition->GetFName()) : Definition->DisplayName;
-				NotificationData.Text = FormatRewardNotificationText(Localization, Definition, Name);
+				NotificationData.Text = FormatRewardNotificationText(Localization, Name);
 				NotificationData.IconResource = Definition->IconTexture.Get();
 			}
 			break;
@@ -190,7 +189,7 @@ void UPlayerNotificationComponent::ShowLoadedRewardNotifications(const TArray<FP
 			if (const USkinDefinition* Definition = Cast<USkinDefinition>(AssetManager.GetPrimaryAssetObject(Reward.AssetId)))
 			{
 				const FText Name = Definition->DisplayName.IsEmpty() ? FText::FromName(Definition->GetFName()) : Definition->DisplayName;
-				NotificationData.Text = FormatRewardNotificationText(Localization, Definition, Name);
+				NotificationData.Text = FormatRewardNotificationText(Localization, Name);
 				NotificationData.IconResource = Definition->IconTexture.Get();
 			}
 			break;
@@ -202,7 +201,7 @@ void UPlayerNotificationComponent::ShowLoadedRewardNotifications(const TArray<FP
 			{
 				const FText Name = Definition->GetDisplayName().IsEmpty()
 					? FText::FromName(Definition->GetFName()) : Definition->GetDisplayName();
-				NotificationData.Text = FormatRewardNotificationText(Localization, Definition, Name);
+				NotificationData.Text = FormatRewardNotificationText(Localization, Name);
 				NotificationData.IconResource = Definition->GetIconResource();
 			}
 			break;

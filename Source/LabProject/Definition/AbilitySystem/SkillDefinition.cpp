@@ -19,7 +19,7 @@ FPrimaryAssetId USkillDefinition::GetPrimaryAssetId() const
 
 FText USkillDefinition::GetDisplayName() const
 {
-	return !Name.IsNone() ? FText::FromName(Name) : FText::FromName(GetFName());
+	return !DisplayName.IsEmpty() ? DisplayName : FText::FromName(GetFName());
 }
 
 UObject* USkillDefinition::GetIconResource() const

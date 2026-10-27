@@ -145,7 +145,6 @@ void UGuideWidget::RefreshGuide()
 {
 	ResolveWidgets();
 	RebuildPages();
-	ResolveSelectedLanguage();
 	BindGuideButtons();
 
 	if (CachedPages.IsEmpty())
@@ -427,7 +426,7 @@ void UGuideWidget::ApplyPage(const FGuidePageEntry& Page)
 	if (Txt_Content)
 	{
 		ApplyContentFont();
-		Txt_Content->SetText(Page.GetContent(CurrentLanguage));
+		Txt_Content->SetText(Page.Content);
 	}
 
 	ApplyImage(Page.Image.Get());
@@ -442,7 +441,7 @@ void UGuideWidget::ApplyContentFont()
 	FSlateFontInfo Font = DefaultContentFont;
 	if (const UMenuLocalizationSubsystem* Localization = GetLocalization())
 	{
-		Font.FontObject = Localization->GetFontForLanguage(CurrentLanguage);
+		Font.FontObject = Localization->GetCurrentFont();
 		Font.TypefaceFontName = NAME_None;
 	}
 	Txt_Content->SetFont(Font);
@@ -478,18 +477,6 @@ void UGuideWidget::ApplyImage(UTexture2D* Texture)
 	if (UImage* Image = Cast<UImage>(ImageBorder))
 	{
 		Image->SetBrushFromTexture(Texture, true);
-	}
-}
-
-void UGuideWidget::ResolveSelectedLanguage()
-{
-	if (const UMenuLocalizationSubsystem* Localization = GetLocalization())
-	{
-		CurrentLanguage = Localization->GetLanguage();
-	}
-	else if (const UGuideDefinition* Definition = ResolveGuideDefinition())
-	{
-		CurrentLanguage = Definition->DefaultLanguage;
 	}
 }
 

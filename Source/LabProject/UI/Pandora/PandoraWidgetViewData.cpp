@@ -68,7 +68,7 @@ namespace
 			{
 				Lines.Add(FText::Format(
 					NSLOCTEXT("PandoraTreeComponent", "PandoraUnlockRequirementLine", "- {0} Lv. {1} ({2}/{1})"),
-					Localization ? Localization->GetProductText(Rule.RequiredPandora, TEXT("Name"), Rule.RequiredPandora->GetDisplayName()) : Rule.RequiredPandora->GetDisplayName(),
+					Rule.RequiredPandora->GetDisplayName(),
 					FText::AsNumber(FMath::Max(Rule.RequiredLevel, 1)),
 					FText::AsNumber(Tree->GetCurrentPandoraLevel(Rule.RequiredPandora))));
 			}
@@ -222,8 +222,8 @@ FPandoraDescriptionViewData FPandoraDescriptionViewDataBuilder::Build(const UPan
 		return ViewData;
 	}
 
-	ViewData.TitleText = Localization ? Localization->GetProductText(PandoraDefinition, TEXT("Name"), PandoraDefinition->GetDisplayName()) : PandoraDefinition->GetDisplayName();
-	ViewData.DescriptionText = Localization ? Localization->GetProductText(PandoraDefinition, TEXT("Description"), PandoraDefinition->GetDescription()) : PandoraDefinition->GetDescription();
+	ViewData.TitleText = PandoraDefinition->GetDisplayName();
+	ViewData.DescriptionText = PandoraDefinition->GetDescription();
 	ViewData.SkillSectionVisibility = ESlateVisibility::Visible;
 
 	FNumberFormattingOptions NumberFormat;
@@ -245,8 +245,8 @@ FPandoraDescriptionViewData FPandoraDescriptionViewDataBuilder::Build(const UPan
 
 		FPandoraSkillSlotViewData& SkillViewData = ViewData.SkillSlots[SkillIndex];
 		SkillViewData.IconResource = Skill->GetIconResource();
-		SkillViewData.DisplayName = Localization ? Localization->GetProductText(Skill, TEXT("Name"), Skill->GetDisplayName()) : Skill->GetDisplayName();
-		SkillViewData.Description = Localization ? Localization->GetProductText(Skill, TEXT("Description"), Skill->Description) : Skill->Description;
+		SkillViewData.DisplayName = Skill->GetDisplayName();
+		SkillViewData.Description = Skill->Description;
 		SkillViewData.ManaText = FText::Format(ManaFormat, FText::AsNumber(Skill->ManaCost, &NumberFormat));
 		SkillViewData.CooldownText = FText::Format(CooldownFormat, FText::AsNumber(Skill->Time.CooldownDuration, &NumberFormat));
 	}

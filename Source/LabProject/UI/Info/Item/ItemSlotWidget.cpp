@@ -194,7 +194,7 @@ void UItemSlotWidget::SetData(UItemInstance* Target)
 {
 	CachedData = Target;
 	CachedSlotData = nullptr;
-	CachedViewData = FItemViewDataBuilder::FromItemInstance(Target, GetLocalization());
+	CachedViewData = FItemViewDataBuilder::FromItemInstance(Target);
 	bDuplicateWeaponOrEquipment = false;
 
 	ApplyItemVisual(CachedViewData);
@@ -204,7 +204,7 @@ void UItemSlotWidget::SetSlotData(UInventorySlotViewData* Target)
 {
 	CachedSlotData = Target;
 	CachedData = Target ? Target->GetItemInstance() : nullptr;
-	CachedViewData = FItemViewDataBuilder::FromItemInstance(CachedData, GetLocalization());
+	CachedViewData = FItemViewDataBuilder::FromItemInstance(CachedData);
 	bDuplicateWeaponOrEquipment = Target && Target->IsDuplicateWeaponOrEquipment();
 
 	ApplyItemVisual(CachedViewData);
@@ -213,7 +213,7 @@ void UItemSlotWidget::SetSlotData(UInventorySlotViewData* Target)
 void UItemSlotWidget::OnMenuLanguageChanged()
 {
 	Super::OnMenuLanguageChanged();
-	CachedViewData = FItemViewDataBuilder::FromItemInstance(CachedData, GetLocalization());
+	CachedViewData = FItemViewDataBuilder::FromItemInstance(CachedData);
 	ApplyItemVisual(CachedViewData);
 }
 

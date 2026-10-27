@@ -228,7 +228,7 @@ void UPandoraWidget::SetPandoraInfo()
 
 	if (ViewModel)
 	{
-		ViewModel->SetDisplayName(GetLocalization() ? GetLocalization()->GetProductText(PandoraDefinition, TEXT("Name"), ViewData.DisplayName) : ViewData.DisplayName);
+		ViewModel->SetDisplayName(ViewData.DisplayName);
 		ViewModel->SetLevelText(ViewData.LevelText);
 		ViewModel->SetIconResource(ViewData.IconResource);
 		ViewModel->SetOverlayColor(ViewData.OverlayColor);

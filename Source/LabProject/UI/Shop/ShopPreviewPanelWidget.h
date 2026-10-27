@@ -27,7 +27,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "!Shop")
 	void SetMessage(const FText& Message);
-	void SetLocalizedMessage(FName Key, const FText& Fallback, UObject* Product = nullptr);
+	void SetLocalizedMessage(FName Key, const FText& Fallback, const FText& ProductName = FText::GetEmpty());
 
 	UFUNCTION(BlueprintCallable, Category = "!Shop")
 	void RefreshUI();
@@ -107,7 +107,7 @@ private:
 
 	FText MessageText;
 	FName MessageKey;
-	UPROPERTY(Transient) TObjectPtr<UObject> MessageProduct;
+	FText MessageProductName;
 
 	FSlateColor DefaultNameColor = FSlateColor(FLinearColor::White);
 	FSlateColor DefaultPriceColor = FSlateColor(FLinearColor::White);
