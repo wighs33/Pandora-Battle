@@ -171,10 +171,20 @@ void UPandoraSlotWidget::ApplyViewData(const FPandoraSlotViewData& ViewData)
 	SetRenderOpacity(1.0f);
 	if (OwnershipText)
 	{
-		OwnershipText->SetText(MenuText(ViewData.bEquipped ? TEXT("Info.Assigned") : ViewData.bOwned ? TEXT("Pandora.Owned") : TEXT("Pandora.Unowned")));
-		OwnershipText->SetColorAndOpacity(FSlateColor(ViewData.bEquipped
-			? FLinearColor(0.76f, 0.56f, 1.0f) : ViewData.bOwned
-			? FLinearColor(0.77f, 0.66f, 0.43f) : FLinearColor(0.48f, 0.50f, 0.58f)));
+		FName OwnershipKey = TEXT("Pandora.Unowned");
+		FLinearColor OwnershipColor(0.48f, 0.50f, 0.58f);
+		if (ViewData.bEquipped)
+		{
+			OwnershipKey = TEXT("Info.Assigned");
+			OwnershipColor = FLinearColor(0.76f, 0.56f, 1.0f);
+		}
+		else if (ViewData.bOwned)
+		{
+			OwnershipKey = TEXT("Pandora.Owned");
+			OwnershipColor = FLinearColor(0.77f, 0.66f, 0.43f);
+		}
+		OwnershipText->SetText(MenuText(OwnershipKey));
+		OwnershipText->SetColorAndOpacity(FSlateColor(OwnershipColor));
 	}
 	if (EquippedMark)
 	{
