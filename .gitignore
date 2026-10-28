@@ -50,10 +50,6 @@ Content/**
 # Project-owned Player Vitals HUD artwork.
 !Content/UI/Asset/VitalsSigil/*.uasset
 
-# Shared menu translations and their editable import source.
-!Content/UI/Localization/*.uasset
-!Content/UI/Localization/Source/*.csv
-
 # Menu text string table (English source), registered from code and staged as a raw file.
 !Content/UI/Localization/StringTables/*.csv
 
