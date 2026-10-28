@@ -7,7 +7,6 @@
 #include "UiSubsystem.generated.h"
 
 class UUiLayerRoot;
-class UUiScreen;
 enum class EUiScreenLayer : uint8 { Game, Screen, Overlay, Menu, Modal };
 
 class UCommonActivatableWidget;

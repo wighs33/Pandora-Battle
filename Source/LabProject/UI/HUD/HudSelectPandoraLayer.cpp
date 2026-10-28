@@ -3,7 +3,6 @@
 #include "Common/Enum_Direction.h"
 #include "Engine/LocalPlayer.h"
 #include "Mode/PdPlayerController.h"
-#include "UI/Core/UiScreen.h"
 #include "UI/Core/UiSubsystem.h"
 #include "UI/Core/WidgetClassDefinition.h"
 #include "UI/HUD/PdHUD.h"
@@ -77,7 +76,7 @@ void UHudSelectPandoraLayer::ReleaseWidget()
 	{
 		Widget->OnSelected.RemoveDynamic(Presenter, &UInfoUiPresenter::HandleSelectedPandoraDirection);
 	}
-	Widget->RemoveFromParent();
+	Widget->DeactivateWidget();
 	Widget = nullptr;
 }
 
@@ -90,9 +89,9 @@ bool UHudSelectPandoraLayer::Open()
 		return false;
 	}
 
-	Screen = UUiScreen::CreateBlocking(Controller, Widget, nullptr,
-		FSimpleDelegate::CreateWeakLambda(Hud, [Hud]() { Hud->CloseSelectPandoraUiInternal(false); }), ECommonInputMode::All);
-	Controller->GetLocalPlayer()->GetSubsystem<UUiSubsystem>()->PushScreen(Screen, EUiScreenLayer::Overlay);
+	Widget->ConfigureScreen(nullptr, FSimpleDelegate::CreateWeakLambda(Hud, [Hud]() { Hud->CloseSelectPandoraUiInternal(false); }),
+		ECommonInputMode::All);
+	Controller->GetLocalPlayer()->GetSubsystem<UUiSubsystem>()->PushScreen(Widget, EUiScreenLayer::Overlay);
 	int32 Width = 0, Height = 0;
 	Controller->GetViewportSize(Width, Height);
 	Controller->SetMouseLocation(Width / 2, Height / 2);
@@ -115,20 +114,14 @@ bool UHudSelectPandoraLayer::Close(const bool bCommitSelection)
 
 			Widget->SetDirection(DirectionIndex);
 		}
-		Widget->RemoveFromParent();
-	}
-
-	if (Screen)
-	{
-		Screen->DeactivateWidget();
-		Screen = nullptr;
+		Widget->DeactivateWidget();
 	}
 	return bSelectionWouldChangeLoadout;
 }
 
 bool UHudSelectPandoraLayer::IsOpen() const
 {
-	return Screen && Screen->IsActivated();
+	return Widget && Widget->IsActivated();
 }
 
 void UHudSelectPandoraLayer::UpdateDirectionFromMouse()

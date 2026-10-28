@@ -1,6 +1,4 @@
 #include "UI/Record/RecordWidget.h"
-#include "CommonActivatableWidget.h"
-#include "Input/CommonUIActionRouterBase.h"
 
 #include "Components/Button.h"
 #include "Components/Image.h"
@@ -138,11 +136,7 @@ void URecordWidget::RefreshRecords()
 
 void URecordWidget::HandleCloseClicked()
 {
-	if (UCommonActivatableWidget* Screen = UCommonUIActionRouterBase::FindOwningActivatable(GetCachedWidget(), GetOwningLocalPlayer()))
-	{
-		Screen->DeactivateWidget();
-	}
-	RemoveFromParent();
+	DeactivateWidget();
 }
 
 void URecordWidget::OnMenuLanguageChanged()

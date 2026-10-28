@@ -36,7 +36,6 @@
 #include "UI/Core/WidgetClassDefinition.h"
 #include "UI/Shop/ShopWidget.h"
 #include "UI/Core/UiSubsystem.h"
-#include "UI/Core/UiScreen.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(TitleWidget)
 
@@ -265,7 +264,6 @@ void UTitleWidget::NativeDestruct()
 	GuideWidget = nullptr;
 	if (IsValid(RecordWidget))
 	{
-		UnbindRecordCloseButton();
 		DismissMenuPopup(RecordWidget);
 	}
 	RecordWidget = nullptr;
@@ -300,11 +298,11 @@ void UTitleWidget::ApplyWidgetDefinitionSettings()
 		}
 		if (const TSubclassOf<UGuideWidget> ResolvedGuideWidgetClass = WidgetDefinition->GetGuideWidgetClass())
 		{
-			GuideWidgetClass = TSubclassOf<UUserWidget>(ResolvedGuideWidgetClass.Get());
+			GuideWidgetClass = ResolvedGuideWidgetClass;
 		}
 		if (const TSubclassOf<URecordWidget> ResolvedRecordWidgetClass = WidgetDefinition->GetRecordWidgetClass())
 		{
-			RecordWidgetClass = TSubclassOf<UUserWidget>(ResolvedRecordWidgetClass.Get());
+			RecordWidgetClass = ResolvedRecordWidgetClass;
 		}
 		QuickMatchMaxSearchResults = FMath::Max(Settings.QuickMatchMaxSearchResults, 1);
 		QuickMatchMaxPublicConnections = FMath::Max(Settings.QuickMatchMaxPublicConnections, 1);
@@ -534,12 +532,7 @@ void UTitleWidget::HandleRecordCloseClicked()
 		return;
 	}
 
-	UnbindRecordCloseButton();
-	if (UCommonActivatableWidget* Screen = UCommonUIActionRouterBase::FindOwningActivatable(RecordWidget->GetCachedWidget(), GetOwningLocalPlayer()))
-	{
-		Screen->DeactivateWidget();
-	}
-	RecordWidget->RemoveFromParent();
+	RecordWidget->DeactivateWidget();
 }
 
 void UTitleWidget::HandleExitClicked()
@@ -643,7 +636,7 @@ void UTitleWidget::OpenGuide()
 		return;
 	}
 
-	const TSubclassOf<UUserWidget> ResolvedGuideWidgetClass = ResolveGuideWidgetClass();
+	const TSubclassOf<UGuideWidget> ResolvedGuideWidgetClass = ResolveGuideWidgetClass();
 	if (!ResolvedGuideWidgetClass)
 	{
 		return;
@@ -662,7 +655,7 @@ void UTitleWidget::OpenGuide()
 			GuideWidget = nullptr;
 		}
 
-		GuideWidget = CreateWidget<UUserWidget>(PlayerController, ResolvedGuideWidgetClass);
+		GuideWidget = CreateWidget<UGuideWidget>(PlayerController, ResolvedGuideWidgetClass);
 	}
 
 	if (!GuideWidget)
@@ -670,16 +663,13 @@ void UTitleWidget::OpenGuide()
 		return;
 	}
 
-	if (UGuideWidget* TypedGuideWidget = Cast<UGuideWidget>(GuideWidget))
-	{
-		TypedGuideWidget->RefreshGuide();
-	}
+	GuideWidget->RefreshGuide();
 
 	PresentMenuPopup(GuideWidget, FSimpleDelegate::CreateWeakLambda(this, [this]()
 	{
-		if (UGuideWidget* Guide = Cast<UGuideWidget>(GuideWidget))
+		if (IsValid(GuideWidget))
 		{
-			Guide->CloseGuide();
+			GuideWidget->CloseGuide();
 		}
 	}));
 }
@@ -694,7 +684,7 @@ void UTitleWidget::OpenRecord()
 		return;
 	}
 
-	const TSubclassOf<UUserWidget> ResolvedRecordWidgetClass = ResolveRecordWidgetClass();
+	const TSubclassOf<URecordWidget> ResolvedRecordWidgetClass = ResolveRecordWidgetClass();
 	if (!ResolvedRecordWidgetClass)
 	{
 		return;
@@ -709,12 +699,11 @@ void UTitleWidget::OpenRecord()
 	{
 		if (RecordWidget)
 		{
-			UnbindRecordCloseButton();
 			DismissMenuPopup(RecordWidget);
 			RecordWidget = nullptr;
 		}
 
-		RecordWidget = CreateWidget<UUserWidget>(PlayerController, ResolvedRecordWidgetClass);
+		RecordWidget = CreateWidget<URecordWidget>(PlayerController, ResolvedRecordWidgetClass);
 	}
 
 	if (!RecordWidget)
@@ -724,39 +713,7 @@ void UTitleWidget::OpenRecord()
 
 	PresentMenuPopup(RecordWidget, FSimpleDelegate::CreateUObject(this, &ThisClass::HandleRecordCloseClicked));
 
-	if (URecordWidget* TypedRecordWidget = Cast<URecordWidget>(RecordWidget))
-	{
-		TypedRecordWidget->RefreshRecords();
-	}
-	else
-	{
-		BindRecordCloseButton();
-	}
-}
-
-void UTitleWidget::BindRecordCloseButton()
-{
-	UButton* RecordCloseButton = FindRecordCloseButton();
-	if (!RecordCloseButton)
-	{
-		return;
-	}
-
-	RecordCloseButton->OnClicked.RemoveDynamic(this, &ThisClass::HandleRecordCloseClicked);
-	RecordCloseButton->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleRecordCloseClicked);
-}
-
-void UTitleWidget::UnbindRecordCloseButton()
-{
-	if (UButton* RecordCloseButton = FindRecordCloseButton())
-	{
-		RecordCloseButton->OnClicked.RemoveDynamic(this, &ThisClass::HandleRecordCloseClicked);
-	}
-}
-
-UButton* UTitleWidget::FindRecordCloseButton() const
-{
-	return IsValid(RecordWidget) ? Cast<UButton>(RecordWidget->GetWidgetFromName(TEXT("Btn_Close"))) : nullptr;
+	RecordWidget->RefreshRecords();
 }
 
 TSubclassOf<UShopWidget> UTitleWidget::ResolveShopWidgetClass() const
@@ -774,7 +731,7 @@ TSubclassOf<UShopWidget> UTitleWidget::ResolveShopWidgetClass() const
 	return nullptr;
 }
 
-TSubclassOf<UUserWidget> UTitleWidget::ResolveGuideWidgetClass() const
+TSubclassOf<UGuideWidget> UTitleWidget::ResolveGuideWidgetClass() const
 {
 	if (GuideWidgetClass)
 	{
@@ -783,13 +740,13 @@ TSubclassOf<UUserWidget> UTitleWidget::ResolveGuideWidgetClass() const
 
 	if (const UWidgetClassDefinition* WidgetDefinition = UWidgetClassDefinition::ResolveWidgetClassDefinition(this))
 	{
-		return TSubclassOf<UUserWidget>(WidgetDefinition->GetGuideWidgetClass().Get());
+		return WidgetDefinition->GetGuideWidgetClass();
 	}
 
 	return nullptr;
 }
 
-TSubclassOf<UUserWidget> UTitleWidget::ResolveRecordWidgetClass() const
+TSubclassOf<URecordWidget> UTitleWidget::ResolveRecordWidgetClass() const
 {
 	if (RecordWidgetClass)
 	{
@@ -798,7 +755,7 @@ TSubclassOf<UUserWidget> UTitleWidget::ResolveRecordWidgetClass() const
 
 	if (const UWidgetClassDefinition* WidgetDefinition = UWidgetClassDefinition::ResolveWidgetClassDefinition(this))
 	{
-		return TSubclassOf<UUserWidget>(WidgetDefinition->GetRecordWidgetClass().Get());
+		return WidgetDefinition->GetRecordWidgetClass();
 	}
 
 	return nullptr;
@@ -902,25 +859,21 @@ void UTitleWidget::ClearQuickMatchDelegates()
 	}
 }
 
-void UTitleWidget::PresentMenuPopup(UUserWidget* Popup, FSimpleDelegate OnBack)
+void UTitleWidget::PresentMenuPopup(UPdScreenWidget* Popup, FSimpleDelegate OnBack)
 {
 	Popup->SetVisibility(ESlateVisibility::Visible);
-	const UCommonActivatableWidget* ExistingScreen = UCommonUIActionRouterBase::FindOwningActivatable(Popup->GetCachedWidget(), GetOwningLocalPlayer());
-	if (ExistingScreen && ExistingScreen->IsActivated())
+	if (Popup->IsActivated())
 	{
 		return;
 	}
 
-	GetUiSubsystem()->PushScreen(UUiScreen::CreateBlocking(GetOwningPlayer(), Popup, Popup, MoveTemp(OnBack)), EUiScreenLayer::Menu);
+	Popup->ConfigureScreen(Popup, MoveTemp(OnBack));
+	GetUiSubsystem()->PushScreen(Popup, EUiScreenLayer::Menu);
 }
 
-void UTitleWidget::DismissMenuPopup(UUserWidget* Popup) const
+void UTitleWidget::DismissMenuPopup(UPdScreenWidget* Popup) const
 {
-	if (UCommonActivatableWidget* Screen = UCommonUIActionRouterBase::FindOwningActivatable(Popup->GetCachedWidget(), GetOwningLocalPlayer()))
-	{
-		Screen->DeactivateWidget();
-	}
-	Popup->RemoveFromParent();
+	Popup->DeactivateWidget();
 }
 
 UUiSubsystem* UTitleWidget::GetUiSubsystem() const

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "CommonActivatableWidget.h"
+#include "UI/Core/PdScreenWidget.h"
 #include "EscapeMenuWidget.generated.h"
 
 class UButton;
@@ -11,7 +11,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FEscapeMenuClosedSignature, UEscapeM
 
 /** 게임 중 ESC로 여는 메뉴. 게임으로 돌아가기와 타이틀로 나가기만 맡고, 설정은 게임 설정 화면이 맡는다. */
 UCLASS(Blueprintable, BlueprintType)
-class LABPROJECT_API UEscapeMenuWidget : public UCommonActivatableWidget
+class LABPROJECT_API UEscapeMenuWidget : public UPdScreenWidget
 {
 	GENERATED_BODY()
 
@@ -19,7 +19,6 @@ public:
 	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
-	virtual TOptional<FUIInputConfig> GetDesiredInputConfig() const override;
 	virtual UWidget* NativeGetDesiredFocusTarget() const override;
 	virtual bool NativeOnHandleBackAction() override;
 
@@ -44,7 +43,6 @@ protected:
 
 private:
 	// Internal Helpers ------------------------------------------------------------------------------------------------
-	void ApplyMenuText() const;
 	void SetRequestedPause(bool bPaused);
 	void TravelToTitleMap();
 	void ClearDestroySessionDelegate();

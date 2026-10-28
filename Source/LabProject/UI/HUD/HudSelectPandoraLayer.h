@@ -8,7 +8,6 @@
 class APdHUD;
 class APlayerController;
 class USelectPandoraWidget;
-class UUiScreen;
 class UWidgetClassDefinition;
 
 /**
@@ -46,9 +45,6 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<USelectPandoraWidget> Widget;
-
-	UPROPERTY(Transient)
-	TObjectPtr<UUiScreen> Screen;
 
 	/** 마우스가 가리키는 방향 칸. 가운데 무시 범위 안이면 -1이다. */
 	int32 DirectionIndex = -1;

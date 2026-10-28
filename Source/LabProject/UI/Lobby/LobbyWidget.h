@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Common/GameSessionConstants.h"
-#include "UI/Common/LocalizedMenuWidget.h"
+#include "UI/Core/PdScreenWidget.h"
 #include "Definition/Level/LevelDefinition.h"
 #include "LobbyWidget.generated.h"
 
@@ -18,7 +18,7 @@ class UVerticalBox;
 class UWidget;
 
 UCLASS(Blueprintable, BlueprintType)
-class LABPROJECT_API ULobbyWidget : public ULocalizedMenuWidget
+class LABPROJECT_API ULobbyWidget : public UPdScreenWidget
 {
 	GENERATED_BODY()
 

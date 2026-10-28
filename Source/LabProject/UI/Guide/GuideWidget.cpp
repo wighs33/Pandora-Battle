@@ -1,6 +1,4 @@
 #include "UI/Guide/GuideWidget.h"
-#include "Input/CommonUIActionRouterBase.h"
-#include "CommonActivatableWidget.h"
 
 #include "Components/Border.h"
 #include "Components/Button.h"
@@ -168,11 +166,7 @@ void UGuideWidget::CloseGuide()
 	}
 
 	bIsClosing = true;
-	if (UCommonActivatableWidget* Screen = UCommonUIActionRouterBase::FindOwningActivatable(GetCachedWidget(), GetOwningLocalPlayer()))
-	{
-		Screen->DeactivateWidget();
-	}
-	RemoveFromParent();
+	DeactivateWidget();
 	OnGuideClosed.Broadcast(this);
 }
 
@@ -189,7 +183,7 @@ void UGuideWidget::SetOpenedFromGameSettings(const bool bInOpenedFromGameSetting
 
 FReply UGuideWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
 {
-	if (UCommonUIActionRouterBase::FindOwningActivatable(GetCachedWidget(), GetOwningLocalPlayer()))
+	if (IsActivated())
 	{
 		return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
 	}

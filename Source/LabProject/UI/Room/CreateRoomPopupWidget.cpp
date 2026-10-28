@@ -1,6 +1,4 @@
 #include "UI/Room/CreateRoomPopupWidget.h"
-#include "CommonActivatableWidget.h"
-#include "Input/CommonUIActionRouterBase.h"
 
 #include "Components/Button.h"
 #include "Components/EditableTextBox.h"
@@ -100,11 +98,7 @@ void UCreateRoomPopupWidget::HandleCreateClicked()
 
 void UCreateRoomPopupWidget::HandleCancelClicked()
 {
-	if (UCommonActivatableWidget* Screen = UCommonUIActionRouterBase::FindOwningActivatable(GetCachedWidget(), GetOwningLocalPlayer()))
-	{
-		Screen->DeactivateWidget();
-	}
-	RemoveFromParent();
+	DeactivateWidget();
 }
 
 void UCreateRoomPopupWidget::HandleCreateSessionComplete(const uint64 RequestId, const bool bWasSuccessful)

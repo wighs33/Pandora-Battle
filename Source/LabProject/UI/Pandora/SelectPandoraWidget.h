@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Common/Enum_Direction.h"
-#include "UI/Common/LocalizedMenuWidget.h"
+#include "UI/Core/PdScreenWidget.h"
 #include "SelectPandoraWidget.generated.h"
 
 class UImage;
@@ -12,7 +12,7 @@ class UTexture2D;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPdOnSelectedPandoraDirection, EEnum_Direction, Direction);
 
 UCLASS(Blueprintable, BlueprintType)
-class LABPROJECT_API USelectPandoraWidget : public ULocalizedMenuWidget
+class LABPROJECT_API USelectPandoraWidget : public UPdScreenWidget
 {
 	GENERATED_BODY()
 

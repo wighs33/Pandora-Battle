@@ -4,7 +4,6 @@
 #include "Component/Player/ControllerInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "UI/Core/GameplayScreen.h"
-#include "UI/Core/UiScreen.h"
 #include "Engine/GameViewportClient.h"
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/PlayerController.h"
@@ -137,13 +136,8 @@ void UPdUIActionRouter::ApplyUIInputConfig(const FUIInputConfig& NewConfig, bool
 	}
 
 	const bool bWasBlocked = IsGameplayInputBlocked();
-	const UUiScreen* Adapter = Cast<UUiScreen>(GetLeafmostActivatableWidget());
-	// 기존 위젯 어댑터는 선언한 게임플레이 정책을 쓰고, 직접 전환한 메뉴나 채팅 입력은 게임 입력을 막는다.
-	if (Adapter)
-	{
-		AppliedGameplayPolicy = Adapter->GameplayInputPolicy;
-	}
-	else if (!IsDefaultScreenActive() || ChatInputWidget.IsValid())
+	// 게임 중 기본 화면 위에 다른 화면이 있거나 채팅을 입력하는 동안에는 게임 입력을 막는다.
+	if (!IsDefaultScreenActive() || ChatInputWidget.IsValid())
 	{
 		AppliedGameplayPolicy = EPdGameplayInputPolicy::Block;
 	}

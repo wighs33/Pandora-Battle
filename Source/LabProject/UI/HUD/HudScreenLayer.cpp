@@ -1,5 +1,4 @@
 #include "UI/HUD/HudScreenLayer.h"
-#include "UI/Core/UiScreen.h"
 #include "UI/HUD/HudMenuLayer.h"
 #include "UI/HUD/HudUiRouter.h"
 
@@ -56,10 +55,9 @@ void UHudScreenLayer::Shutdown()
 
 	bInfoClosing = false;
 	bPandoraTreeClosing = false;
-	if (InfoScreen)
+	if (Hud && Hud->CachedInfoUI)
 	{
-		InfoScreen->DeactivateWidget();
-		InfoScreen = nullptr;
+		Hud->CachedInfoUI->DeactivateWidget();
 	}
 	ReleaseInfoContent();
 }
@@ -120,9 +118,9 @@ void UHudScreenLayer::OpenInfo(const EInfoUiSection InitialSection)
 	Hud->ApplyStatusViewModelToWidgetTree(Hud->CachedInfoUI);
 	Hud->ApplyInventoryWidgetSettings();
 
-	if (!InfoScreen)
+	if (!Hud->CachedInfoUI->IsActivated())
 	{
-		InfoScreen = UUiScreen::CreateBlocking(Controller, Hud->CachedInfoUI, Hud->CachedInfoUI,
+		Hud->CachedInfoUI->ConfigureScreen(Hud->CachedInfoUI,
 			FSimpleDelegate::CreateWeakLambda(this, [this]()
 			{
 				if (IsPandoraTreeOpen())
@@ -135,10 +133,7 @@ void UHudScreenLayer::OpenInfo(const EInfoUiSection InitialSection)
 				}
 			}),
 			ECommonInputMode::All);
-	}
-	if (!InfoScreen->IsActivated())
-	{
-		Controller->GetLocalPlayer()->GetSubsystem<UUiSubsystem>()->PushScreen(InfoScreen, EUiScreenLayer::Screen);
+		Controller->GetLocalPlayer()->GetSubsystem<UUiSubsystem>()->PushScreen(Hud->CachedInfoUI, EUiScreenLayer::Screen);
 	}
 	Hud->RefreshPlayerHudVisibility();
 	Hud->CachedInfoUI->ShowInfoUi();
@@ -332,7 +327,8 @@ void UHudScreenLayer::TogglePandoraTree()
 
 bool UHudScreenLayer::IsInfoOpen() const
 {
-	return InfoScreen && InfoScreen->IsActivated();
+	const APdHUD* Hud = OwnerHud.Get();
+	return Hud && Hud->CachedInfoUI && Hud->CachedInfoUI->IsActivated();
 }
 
 bool UHudScreenLayer::IsPandoraTreeOpen() const
@@ -402,13 +398,8 @@ void UHudScreenLayer::FinishCloseInfo()
 
 	if (Hud->CachedInfoUI)
 	{
-		Hud->CachedInfoUI->RemoveFromParent();
+		Hud->CachedInfoUI->DeactivateWidget();
 		Hud->CachedInfoUI->SetReturnCameraOnHide(true);
-	}
-	if (InfoScreen)
-	{
-		InfoScreen->DeactivateWidget();
-		InfoScreen = nullptr;
 	}
 	bInfoClosing = false;
 

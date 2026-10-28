@@ -6,10 +6,8 @@
 #include "Engine/GameInstance.h"
 #include "Kismet/GameplayStatics.h"
 #include "Lobby/LobbyRuntimeSubsystem.h"
-#include "Localization/MenuLocalizationSubsystem.h"
 #include "Mode/PdPlayerController.h"
 #include "Online/OnlineSessionsSubsystem.h"
-#include "UI/Core/UiScreen.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(EscapeMenuWidget)
 
@@ -17,8 +15,8 @@ UEscapeMenuWidget::UEscapeMenuWidget(const FObjectInitializer& ObjectInitializer
 	: Super(ObjectInitializer)
 {
 	SetIsFocusable(true);
-	bIsBackHandler = true;
-	bAutoRestoreFocus = true;
+	MenuTextBindings = {{TEXT("Txt_Title"), TEXT("Escape.Title")}, {TEXT("Txt_Resume"), TEXT("Escape.Resume")},
+		{TEXT("Txt_Exit"), TEXT("Escape.Exit")}};
 }
 
 void UEscapeMenuWidget::NativeConstruct()
@@ -26,7 +24,6 @@ void UEscapeMenuWidget::NativeConstruct()
 	Super::NativeConstruct();
 
 	SetIsFocusable(true);
-	ApplyMenuText();
 	Btn_Resume->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleResumeClicked);
 	Btn_Exit->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleExitClicked);
 
@@ -48,11 +45,6 @@ void UEscapeMenuWidget::NativeDestruct()
 	}
 
 	Super::NativeDestruct();
-}
-
-TOptional<FUIInputConfig> UEscapeMenuWidget::GetDesiredInputConfig() const
-{
-	return UUiScreen::MakeBlockingInputConfig();
 }
 
 UWidget* UEscapeMenuWidget::NativeGetDesiredFocusTarget() const
@@ -127,27 +119,6 @@ void UEscapeMenuWidget::HandleDestroySessionForExit(const bool bWasSuccessful)
 {
 	ClearDestroySessionDelegate();
 	TravelToTitleMap();
-}
-
-// CommonUI 화면이라 ULocalizedMenuWidget을 쓸 수 없어, 같은 문자열 테이블에서 문구와 언어별 글꼴을 직접 가져온다.
-// 메뉴가 열린 동안에는 언어를 바꿀 수 없으므로 열 때 한 번만 적용한다.
-void UEscapeMenuWidget::ApplyMenuText() const
-{
-	const UMenuLocalizationSubsystem* Localization = GetGameInstance() ? GetGameInstance()->GetSubsystem<UMenuLocalizationSubsystem>() : nullptr;
-	if (!Localization)
-	{
-		return;
-	}
-	const TPair<UTextBlock*, FName> Entries[] = {
-		{Txt_Title, TEXT("Escape.Title")}, {Txt_Resume, TEXT("Escape.Resume")}, {Txt_Exit, TEXT("Escape.Exit")}};
-	for (const TPair<UTextBlock*, FName>& Entry : Entries)
-	{
-		if (Entry.Key)
-		{
-			Entry.Key->SetText(Localization->GetTextOrFallback(Entry.Value, Entry.Key->GetText()));
-			Localization->ApplyLanguageFont(*Entry.Key);
-		}
-	}
 }
 
 void UEscapeMenuWidget::SetRequestedPause(const bool bPaused)

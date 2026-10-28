@@ -25,7 +25,6 @@
 #include "Online/OnlineSessionsSubsystem.h"
 #include "OnlineSubsystemUtils.h"
 #include "TimerManager.h"
-#include "Input/CommonUIActionRouterBase.h"
 #include "UI/Settings/AudioVolumeControl.h"
 #include "UI/Core/WidgetClassDefinition.h"
 
@@ -86,7 +85,7 @@ void ULobbyWidget::NativeConstruct()
 
 FReply ULobbyWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
 {
-	if (UCommonUIActionRouterBase::FindOwningActivatable(GetCachedWidget(), GetOwningLocalPlayer()) || InKeyEvent.GetKey() != EKeys::Escape)
+	if (IsActivated() || InKeyEvent.GetKey() != EKeys::Escape)
 	{
 		return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
 	}
@@ -399,7 +398,7 @@ void ULobbyWidget::HandleGameStartClicked()
 
 void ULobbyWidget::HandleEnterClicked()
 {
-	RemoveFromParent();
+	DeactivateWidget();
 
 	if (APlayerController* PlayerController = GetOwningPlayer())
 	{

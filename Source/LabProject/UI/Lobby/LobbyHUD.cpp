@@ -1,6 +1,5 @@
 #include "UI/Lobby/LobbyHUD.h"
 #include "UI/Core/UiSubsystem.h"
-#include "UI/Core/UiScreen.h"
 
 #include "UI/Lobby/LobbyWidget.h"
 #include "Lobby/Contents/LobbyGameState.h"
@@ -36,33 +35,26 @@ void ALobbyHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 	if (LobbyWidget)
 	{
-		LobbyWidget->RemoveFromParent();
+		LobbyWidget->DeactivateWidget();
 		LobbyWidget = nullptr;
-	}
-
-	if (LobbyScreen)
-	{
-		LobbyScreen->DeactivateWidget();
-		LobbyScreen = nullptr;
 	}
 	Super::EndPlay(EndPlayReason);
 }
 
 bool ALobbyHUD::IsPlayerHudSuppressedByUi() const
 {
-	return Super::IsPlayerHudSuppressedByUi() || (LobbyScreen && LobbyScreen->IsActivated());
+	return Super::IsPlayerHudSuppressedByUi() || (LobbyWidget && LobbyWidget->IsActivated());
 }
 
 bool ALobbyHUD::HandleEscapeInput()
 {
-	if (LobbyScreen && LobbyScreen->IsActivated())
+	if (LobbyWidget && LobbyWidget->IsActivated())
 	{
 		if (LobbyWidget->CloseTopmostUiForEscape())
 		{
 			return true;
 		}
 
-		LobbyWidget->RemoveFromParent();
 		NotifyLobbyWidgetClosed();
 		return true;
 	}
@@ -95,11 +87,10 @@ ULobbyWidget* ALobbyHUD::CreateLobbyUI()
 		return nullptr;
 	}
 
-	if (!LobbyScreen)
+	if (!LobbyWidget->IsActivated())
 	{
-		LobbyScreen = UUiScreen::CreateBlocking(PlayerController, LobbyWidget, LobbyWidget,
-			FSimpleDelegate::CreateWeakLambda(this, [this]() { HandleEscapeInput(); }));
-		PlayerController->GetLocalPlayer()->GetSubsystem<UUiSubsystem>()->PushScreen(LobbyScreen, EUiScreenLayer::Screen);
+		LobbyWidget->ConfigureScreen(LobbyWidget, FSimpleDelegate::CreateWeakLambda(this, [this]() { HandleEscapeInput(); }));
+		PlayerController->GetLocalPlayer()->GetSubsystem<UUiSubsystem>()->PushScreen(LobbyWidget, EUiScreenLayer::Screen);
 	}
 
 	LobbyWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
@@ -140,18 +131,17 @@ void ALobbyHUD::RefreshLobbyUI()
 void ALobbyHUD::NotifyLobbyWidgetOpened()
 {
 	RefreshPlayerHudVisibility();
-	if (LobbyScreen)
+	if (LobbyWidget)
 	{
-		LobbyScreen->RequestRefreshFocus();
+		LobbyWidget->RequestRefreshFocus();
 	}
 }
 
 void ALobbyHUD::NotifyLobbyWidgetClosed()
 {
-	if (LobbyScreen)
+	if (LobbyWidget)
 	{
-		LobbyScreen->DeactivateWidget();
-		LobbyScreen = nullptr;
+		LobbyWidget->DeactivateWidget();
 	}
 	RefreshPlayerHudVisibility();
 }

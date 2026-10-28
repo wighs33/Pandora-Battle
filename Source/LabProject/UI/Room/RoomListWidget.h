@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UI/Common/LocalizedMenuWidget.h"
+#include "UI/Core/PdScreenWidget.h"
 #include "FindSessionsCallbackProxy.h"
 #include "RoomListWidget.generated.h"
 
@@ -14,7 +14,7 @@ class UWrapBox;
 class UTextBlock;
 
 UCLASS(Blueprintable, BlueprintType)
-class LABPROJECT_API URoomListWidget : public ULocalizedMenuWidget
+class LABPROJECT_API URoomListWidget : public UPdScreenWidget
 {
 	GENERATED_BODY()
 

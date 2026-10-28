@@ -1,6 +1,4 @@
 #include "UI/Settings/GameSettingsWidget.h"
-#include "Input/CommonUIActionRouterBase.h"
-#include "CommonActivatableWidget.h"
 #include "Localization/MenuLocalizationSubsystem.h"
 #include "Common/UiLanguage.h"
 #include "Audio/AudioSettingsSubsystem.h"
@@ -16,7 +14,6 @@
 #include "Engine/Font.h"
 #include "InputCoreTypes.h"
 #include "Settings/LocalPlayerSettingsSubsystem.h"
-#include "UI/Core/UiScreen.h"
 #include "UI/Core/WidgetClassDefinition.h"
 #include "UI/Guide/GuideWidget.h"
 #include "UI/Settings/AudioVolumeControl.h"
@@ -206,8 +203,8 @@ void UGameSettingsWidget::OpenGuide()
 	}
 	ActiveGuideWidget->SetOpenedFromGameSettings(true);
 	ActiveGuideWidget->OnGuideClosed.AddUniqueDynamic(this, &ThisClass::HandleGuideClosed);
-	GetOwningLocalPlayer()->GetSubsystem<UUiSubsystem>()->PushScreen(UUiScreen::CreateBlocking(Controller, ActiveGuideWidget,
-		ActiveGuideWidget, FSimpleDelegate::CreateUObject(ActiveGuideWidget, &UGuideWidget::CloseGuide)), EUiScreenLayer::Modal);
+	ActiveGuideWidget->ConfigureScreen(ActiveGuideWidget, FSimpleDelegate::CreateUObject(ActiveGuideWidget, &UGuideWidget::CloseGuide));
+	GetOwningLocalPlayer()->GetSubsystem<UUiSubsystem>()->PushScreen(ActiveGuideWidget, EUiScreenLayer::Modal);
 	ActiveGuideWidget->RefreshGuide();
 }
 
@@ -250,9 +247,5 @@ void UGameSettingsWidget::ShowPage(int32 PageIndex)
 
 void UGameSettingsWidget::CloseSettings()
 {
-	if (UCommonActivatableWidget* Screen = UCommonUIActionRouterBase::FindOwningActivatable(GetCachedWidget(), GetOwningLocalPlayer()))
-	{
-		Screen->DeactivateWidget();
-	}
-	RemoveFromParent();
+	DeactivateWidget();
 }

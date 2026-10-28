@@ -20,7 +20,6 @@
 #include "UI/HUD/HudSelectPandoraLayer.h"
 #include "UI/HUD/HudUiRouter.h"
 #include "UI/Core/UiSubsystem.h"
-#include "UI/Core/UiScreen.h"
 #include "UI/HUD/Combat/DamageScreenEffectWidget.h"
 #include "UI/HUD/Match/GoldenKillAnnouncementWidget.h"
 #include "UI/HUD/Player/HudTimerWidget.h"

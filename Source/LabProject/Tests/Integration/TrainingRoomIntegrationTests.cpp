@@ -12,6 +12,7 @@
 #include "Common/InfoUiTypes.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Component/Player/CombatComponent.h"
+#include "Component/Player/ControllerPresentationComponent.h"
 #include "Component/Player/ControllerInputComponent.h"
 #include "Component/Player/EquipmentComponent.h"
 #include "Component/Player/EquipmentEffectComponent.h"
@@ -25,9 +26,12 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/GameModeBase.h"
 #include "InputAction.h"
+#include "Mode/PdPlayerController.h"
 #include "Mode/PdPlayerState.h"
 #include "UI/HUD/PdHUD.h"
 #include "UI/Info/InfoWidget.h"
+#include "UI/Match/GameResultWidget.h"
+#include "UObject/UObjectIterator.h"
 #include "Weapon/Bow.h"
 
 // 훈련장 게임 월드에서 입력·UI·장비·전투가 실제로 이어지는지 본다. -game 프로세스에서 돈다.
@@ -416,6 +420,78 @@ bool FPdHeldKeyAcrossMenuTest::RunTest(const FString& Parameters)
 			Input->RemoveBindingByHandle(Watch->BindingHandle);
 		}
 	});
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPdOverlayScreensTest, "LabProject.Integration.TrainingRoom.OverlayScreens",
+	EAutomationTestFlags::ClientContext | EAutomationTestFlags::EngineFilter)
+
+// 판도라 선택창과 점수판은 같은 화면 인스턴스를 겹침 층에 다시 올린다. 두 번씩 열고 닫아도 열리고 닫힌다.
+bool FPdOverlayScreensTest::RunTest(const FString& Parameters)
+{
+	const auto IsScoreboardActive = []()
+	{
+		const UWorld* World = PdIntegrationTest::GetGameWorld();
+		for (TObjectIterator<UGameResultWidget> It; It; ++It)
+		{
+			if (It->GetWorld() == World && It->IsActivated())
+			{
+				return true;
+			}
+		}
+		return false;
+	};
+	const auto SetScoreboardShown = [](const bool bShown)
+	{
+		const APdPlayerController* Controller = Cast<APdPlayerController>(PdIntegrationTest::GetPlayerController());
+		if (UControllerPresentationComponent* Presentation = Controller ? Controller->GetControllerPresentationComponent() : nullptr)
+		{
+			if (bShown)
+			{
+				Presentation->ShowInGameScoreboard();
+			}
+			else
+			{
+				Presentation->HideInGameScoreboard();
+			}
+		}
+	};
+
+	PdIntegrationTest::OpenMap(this, TrainingRoomMap);
+	PdIntegrationTest::Step(0.f, []() { StopTrainingBot(); });
+	for (int32 Round = 1; Round <= 2; ++Round)
+	{
+		const FString Suffix = FString::Printf(TEXT(" (%d번째)"), Round);
+		PdIntegrationTest::Step(0.2f, []()
+		{
+			if (APdHUD* Hud = GetHud())
+			{
+				Hud->OpenSelectPandoraUi();
+			}
+		});
+		PdIntegrationTest::WaitUntil(this, TEXT("판도라 선택창 열기") + Suffix, 5.f, []()
+		{
+			const APdHUD* Hud = GetHud();
+			return Hud && Hud->IsSelectPandoraUiOpen() && Hud->IsGameplayInputBlockedByUi();
+		});
+		PdIntegrationTest::Step(0.2f, []()
+		{
+			if (APdHUD* Hud = GetHud())
+			{
+				Hud->CloseSelectPandoraUi();
+			}
+		});
+		PdIntegrationTest::WaitUntil(this, TEXT("판도라 선택창 닫기") + Suffix, 5.f, []()
+		{
+			const APdHUD* Hud = GetHud();
+			return Hud && !Hud->IsSelectPandoraUiOpen() && !Hud->IsGameplayInputBlockedByUi();
+		});
+
+		PdIntegrationTest::Step(0.2f, [SetScoreboardShown]() { SetScoreboardShown(true); });
+		PdIntegrationTest::WaitUntil(this, TEXT("점수판 열기") + Suffix, 5.f, [IsScoreboardActive]() { return IsScoreboardActive(); });
+		PdIntegrationTest::Step(0.2f, [SetScoreboardShown]() { SetScoreboardShown(false); });
+		PdIntegrationTest::WaitUntil(this, TEXT("점수판 닫기") + Suffix, 5.f, [IsScoreboardActive]() { return !IsScoreboardActive(); });
+	}
 	return true;
 }
 

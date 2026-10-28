@@ -58,9 +58,6 @@ protected:
 	TObjectPtr<ULobbyWidget> LobbyWidget;
 
 private:
-	UPROPERTY(Transient)
-	TObjectPtr<UUiScreen> LobbyScreen;
-
 	TWeakObjectPtr<ALobbyGameState> ObservedLobbyGameState;
 	FTimerHandle LobbyUIRefreshTimerHandle;
 };

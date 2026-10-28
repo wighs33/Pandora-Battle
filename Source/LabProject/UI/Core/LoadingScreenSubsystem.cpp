@@ -23,7 +23,6 @@
 #include "Settings/GameSettingsSubsystem.h"
 #include "ShaderPipelineCache.h"
 #include "UI/Core/ConnectingPopupWidget.h"
-#include "UI/Core/UiScreen.h"
 #include "UI/Core/UiSubsystem.h"
 #include "UI/Lobby/LobbyWidget.h"
 #include "UObject/UObjectGlobals.h"
@@ -141,11 +140,11 @@ void ULoadingScreenSubsystem::ShowConnectingPopup(const bool bEnableCancelButton
 	ActiveConnectingPopupWidget->OnCanceled.AddUniqueDynamic(this, &ThisClass::HandleConnectingPopupCanceled);
 	ActiveConnectingPopupWidget->SetCancelButtonEnabled(bEnableCancelButton);
 
-	if (!ConnectingScreen)
+	if (!ActiveConnectingPopupWidget->IsActivated())
 	{
-		ConnectingScreen = UUiScreen::CreateBlocking(PlayerController, ActiveConnectingPopupWidget, ActiveConnectingPopupWidget,
+		ActiveConnectingPopupWidget->ConfigureScreen(ActiveConnectingPopupWidget,
 			FSimpleDelegate::CreateUObject(ActiveConnectingPopupWidget, &UConnectingPopupWidget::HandleCancelClicked));
-		UiSubsystem->PushScreen(ConnectingScreen, EUiScreenLayer::Modal);
+		UiSubsystem->PushScreen(ActiveConnectingPopupWidget, EUiScreenLayer::Modal);
 	}
 }
 
@@ -155,13 +154,7 @@ void ULoadingScreenSubsystem::HideConnectingPopup()
 	{
 		PopupWidget->OnCanceled.RemoveDynamic(this, &ThisClass::HandleConnectingPopupCanceled);
 		PopupWidget->OnCanceled.Clear();
-		PopupWidget->RemoveFromParent();
-	}
-
-	if (ConnectingScreen)
-	{
-		ConnectingScreen->DeactivateWidget();
-		ConnectingScreen = nullptr;
+		PopupWidget->DeactivateWidget();
 	}
 	ActiveConnectingPopupWidget = nullptr;
 }
@@ -381,7 +374,7 @@ bool ULoadingScreenSubsystem::IsDestinationPresentationReady() const
 			return true;
 		}
 		const ALobbyHUD* HUD = PC->GetHUD<ALobbyHUD>();
-		return HUD && IsValid(HUD->GetLobbyWidget()) && HUD->GetLobbyWidget()->GetParent()
+		return HUD && IsValid(HUD->GetLobbyWidget()) && HUD->GetLobbyWidget()->IsActivated()
 			&& Lobby->IsSelectedMapImageReady() && Lobby->GetExperienceManagerComponent()->IsExperienceLoaded();
 	}
 	if (const AExperienceGameState* GameState = World->GetGameState<AExperienceGameState>())

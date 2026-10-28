@@ -9,7 +9,6 @@
 class APdHUD;
 class UPandoraTreeWidget;
 class UHudUiRouter;
-class UUiScreen;
 class UUserWidget;
 class FContentLease;
 class UWidgetClassDefinition;
@@ -73,9 +72,6 @@ private:
 private:
 	TWeakObjectPtr<APdHUD> OwnerHud;
 	TWeakObjectPtr<UHudUiRouter> Router;
-
-	UPROPERTY(Transient)
-	TObjectPtr<UUiScreen> InfoScreen;
 
 	FTimerHandle InfoCloseTimerHandle;
 	FTimerHandle TrainingRoomPauseTimerHandle;

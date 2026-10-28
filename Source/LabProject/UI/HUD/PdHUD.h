@@ -26,7 +26,6 @@ class UHudScreenLayer;
 class UHudScoreboardLayer;
 class UHudSelectPandoraLayer;
 class UHudUiRouter;
-class UUiScreen;
 class URespawnDelayWidget;
 class URightNotificationsWidget;
 class USelectPandoraWidget;

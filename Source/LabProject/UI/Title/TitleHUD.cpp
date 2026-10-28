@@ -1,6 +1,5 @@
 #include "UI/Title/TitleHUD.h"
 #include "UI/Core/UiSubsystem.h"
-#include "UI/Core/UiScreen.h"
 #include "Engine/LocalPlayer.h"
 #include "Settings/LocalPlayerSettingsSubsystem.h"
 
@@ -501,8 +500,8 @@ void ATitleHUD::BeginPlay()
 	BindLunaChat();
 	BindBossRaid();
 	// 타이틀/방 목록의 종료는 기존 버튼이 담당한다.
-	Screen = UUiScreen::CreateBlocking(PlayerController, TitleWidget, TitleWidget, FSimpleDelegate::CreateLambda([]() {}));
-	PlayerController->GetLocalPlayer()->GetSubsystem<UUiSubsystem>()->PushScreen(Screen, EUiScreenLayer::Screen);
+	TitleWidget->ConfigureScreen(TitleWidget, FSimpleDelegate::CreateLambda([]() {}));
+	PlayerController->GetLocalPlayer()->GetSubsystem<UUiSubsystem>()->PushScreen(TitleWidget, EUiScreenLayer::Screen);
 	// 엔진 기본 PlayerController를 사용하므로 로컬 설정을 여기서 적용한다.
 	PlayerController->GetLocalPlayer()->GetSubsystem<ULocalPlayerSettingsSubsystem>()->ApplyLocalPlayerSettings(PlayerController);
 
@@ -526,20 +525,15 @@ void ATitleHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	TitleCharacterCapture->bCaptureEveryFrame = false;
 	TitleCharacterCapture->TextureTarget = nullptr;
 	TitleCharacterRenderTarget = nullptr;
-	if (Screen)
-	{
-		Screen->DeactivateWidget();
-	}
-	Screen = nullptr;
 	if (GameResultWidget)
 	{
-		GameResultWidget->RemoveFromParent();
+		GameResultWidget->DeactivateWidget();
 		GameResultWidget = nullptr;
 	}
 
 	if (TitleWidget)
 	{
-		TitleWidget->RemoveFromParent();
+		TitleWidget->DeactivateWidget();
 		TitleWidget = nullptr;
 	}
 

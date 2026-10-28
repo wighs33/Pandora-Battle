@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Common/GameSessionConstants.h"
-#include "UI/Common/LocalizedMenuWidget.h"
+#include "UI/Core/PdScreenWidget.h"
 #include "FindSessionsCallbackProxy.h"
 #include "Types/SlateEnums.h"
 #include "Online/Backend/BackendClientSubsystem.h"
@@ -14,6 +14,7 @@ struct FPdButtonClickBinding;
 class UAudioVolumeControl;
 class UEditableTextBox;
 class UGuideWidget;
+class URecordWidget;
 class UShopWidget;
 class UUiSubsystem;
 class UImage;
@@ -25,7 +26,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnLunaQuestionSubmitted, const FString& /*Q
 DECLARE_MULTICAST_DELEGATE(FOnBossRaidRequested);
 
 UCLASS(Blueprintable, BlueprintType)
-class LABPROJECT_API UTitleWidget : public ULocalizedMenuWidget
+class LABPROJECT_API UTitleWidget : public UPdScreenWidget
 {
 	GENERATED_BODY()
 
@@ -117,17 +118,13 @@ private:
 	void OpenShop();
 	void OpenGuide();
 	void OpenRecord();
-	void BindRecordCloseButton();
-	void UnbindRecordCloseButton();
-	UButton* FindRecordCloseButton() const;
-	// 팝업이 켜진 화면에 아직 없으면 입력을 막는 메뉴 화면에 담아 올린다.
-	void PresentMenuPopup(UUserWidget* Popup, FSimpleDelegate OnBack);
-	// 팝업을 담은 화면을 내리고 위젯을 뗀다.
-	void DismissMenuPopup(UUserWidget* Popup) const;
+	// 팝업 화면이 아직 떠 있지 않으면 메뉴 층에 올린다. 뒤로 가기는 OnBack이 맡는다.
+	void PresentMenuPopup(UPdScreenWidget* Popup, FSimpleDelegate OnBack);
+	void DismissMenuPopup(UPdScreenWidget* Popup) const;
 
 	TSubclassOf<UShopWidget> ResolveShopWidgetClass() const;
-	TSubclassOf<UUserWidget> ResolveGuideWidgetClass() const;
-	TSubclassOf<UUserWidget> ResolveRecordWidgetClass() const;
+	TSubclassOf<UGuideWidget> ResolveGuideWidgetClass() const;
+	TSubclassOf<URecordWidget> ResolveRecordWidgetClass() const;
 	void LoadLocalProfile() const;
 	void StartQuickMatch();
 	void OpenLobbyAsListenServer() const;
@@ -185,10 +182,10 @@ protected:
 	TSubclassOf<UShopWidget> ShopWidgetClass;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Lobby|UI")
-	TSubclassOf<UUserWidget> GuideWidgetClass;
+	TSubclassOf<UGuideWidget> GuideWidgetClass;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Lobby|UI")
-	TSubclassOf<UUserWidget> RecordWidgetClass;
+	TSubclassOf<URecordWidget> RecordWidgetClass;
 
 private:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Lobby|QuickMatch", meta = (AllowPrivateAccess = "true", ClampMin = "1"))
@@ -213,10 +210,10 @@ private:
 	TObjectPtr<UShopWidget> ShopWidget;
 
 	UPROPERTY(Transient)
-	TObjectPtr<UUserWidget> GuideWidget;
+	TObjectPtr<UGuideWidget> GuideWidget;
 
 	UPROPERTY(Transient)
-	TObjectPtr<UUserWidget> RecordWidget;
+	TObjectPtr<URecordWidget> RecordWidget;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UAudioVolumeControl> AudioVolumeControl;

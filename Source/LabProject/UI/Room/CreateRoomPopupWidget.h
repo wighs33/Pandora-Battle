@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Common/GameSessionConstants.h"
-#include "UI/Common/LocalizedMenuWidget.h"
+#include "UI/Core/PdScreenWidget.h"
 #include "CreateRoomPopupWidget.generated.h"
 
 class UButton;
@@ -10,7 +10,7 @@ class UEditableTextBox;
 class UOnlineSessionsSubsystem;
 
 UCLASS(Blueprintable, BlueprintType)
-class LABPROJECT_API UCreateRoomPopupWidget : public ULocalizedMenuWidget
+class LABPROJECT_API UCreateRoomPopupWidget : public UPdScreenWidget
 {
 	GENERATED_BODY()
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "UI/Common/LocalizedMenuWidget.h"
+#include "UI/Core/PdScreenWidget.h"
 #include "GameplayTagContainer.h"
 #include "Common/InfoUiTypes.h"
 #include "UI/Info/Item/LeftEquipmentWidget.h"
@@ -42,7 +42,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPdOnDroppedItemToCharacterPanel, UI
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPdOnDroppedSkinToCharacterPanel, const USkinDefinition*, SkinDefinition);
 
 UCLASS(Blueprintable, BlueprintType)
-class LABPROJECT_API UInfoWidget : public ULocalizedMenuWidget
+class LABPROJECT_API UInfoWidget : public UPdScreenWidget
 {
 	GENERATED_BODY()
 

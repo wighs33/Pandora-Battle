@@ -1,6 +1,5 @@
 #include "UI/Room/RoomHUD.h"
 #include "UI/Core/UiSubsystem.h"
-#include "UI/Core/UiScreen.h"
 #include "Engine/LocalPlayer.h"
 #include "Settings/LocalPlayerSettingsSubsystem.h"
 
@@ -29,22 +28,17 @@ void ARoomHUD::BeginPlay()
 	}
 
 	// 타이틀/방 목록의 종료는 기존 버튼이 담당한다.
-	Screen = UUiScreen::CreateBlocking(PlayerController, RoomListWidget, RoomListWidget, FSimpleDelegate::CreateLambda([]() {}));
-	PlayerController->GetLocalPlayer()->GetSubsystem<UUiSubsystem>()->PushScreen(Screen, EUiScreenLayer::Screen);
+	RoomListWidget->ConfigureScreen(RoomListWidget, FSimpleDelegate::CreateLambda([]() {}));
+	PlayerController->GetLocalPlayer()->GetSubsystem<UUiSubsystem>()->PushScreen(RoomListWidget, EUiScreenLayer::Screen);
 	// 엔진 기본 PlayerController를 사용하므로 로컬 설정을 여기서 적용한다.
 	PlayerController->GetLocalPlayer()->GetSubsystem<ULocalPlayerSettingsSubsystem>()->ApplyLocalPlayerSettings(PlayerController);
 }
 
 void ARoomHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	if (Screen)
-	{
-		Screen->DeactivateWidget();
-	}
-	Screen = nullptr;
 	if (RoomListWidget)
 	{
-		RoomListWidget->RemoveFromParent();
+		RoomListWidget->DeactivateWidget();
 		RoomListWidget = nullptr;
 	}
 

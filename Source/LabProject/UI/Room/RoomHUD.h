@@ -6,8 +6,6 @@
 
 class URoomListWidget;
 
-class UUiScreen;
-
 UCLASS()
 class LABPROJECT_API ARoomHUD : public AHUD
 {
@@ -19,9 +17,6 @@ public:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 protected:
-	UPROPERTY(Transient)
-	TObjectPtr<UUiScreen> Screen;
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Room|UI")
 	TSubclassOf<URoomListWidget> RoomListWidgetClass;
 

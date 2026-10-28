@@ -246,7 +246,7 @@ void UHudUiRouter::ReleaseInfoLayers()
 			Presenter->UnbindInfoUi(Hud->CachedInfoUI);
 		}
 		Hud->CachedInfoUI->SetReturnCameraOnHide(true);
-		Hud->CachedInfoUI->RemoveFromParent();
+		Hud->CachedInfoUI->DeactivateWidget();
 		Hud->CachedInfoUI = nullptr;
 	}
 	if (Hud->CachedPandoraTreeUI)

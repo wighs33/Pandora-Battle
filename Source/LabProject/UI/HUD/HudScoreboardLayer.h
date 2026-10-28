@@ -8,7 +8,6 @@
 
 class APdHUD;
 class UGameResultWidget;
-class UUiScreen;
 class UHudUiRouter;
 struct FGameResultPlayerStat;
 
@@ -40,7 +39,5 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UGameResultWidget> ScoreboardWidget;
 
-	UPROPERTY(Transient)
-	TObjectPtr<UUiScreen> ScoreboardScreen;
 	FTimerHandle RefreshTimerHandle;
 };

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "UI/Common/LocalizedMenuWidget.h"
+#include "UI/Core/PdScreenWidget.h"
 #include "CoreMinimal.h"
 #include "UI/Shop/ShopEntryUiData.h"
 #include "ShopWidget.generated.h"
@@ -15,7 +15,7 @@ class UTextBlock;
 class UTileView;
 
 UCLASS(Blueprintable, BlueprintType)
-class LABPROJECT_API UShopWidget : public ULocalizedMenuWidget
+class LABPROJECT_API UShopWidget : public UPdScreenWidget
 {
 	GENERATED_BODY()
 

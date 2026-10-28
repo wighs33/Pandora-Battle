@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UI/Common/LocalizedMenuWidget.h"
+#include "UI/Core/PdScreenWidget.h"
 #include "Components/ComboBoxString.h"
 #include "GameSettingsWidget.generated.h"
 
@@ -13,7 +13,7 @@ class UWidgetSwitcher;
 
 /** 개인 설정만 담당한다. 로비 경기 설정은 호스트가 관리한다. 훈련장에서는 훈련 봇 설정 탭이 함께 보인다. */
 UCLASS()
-class LABPROJECT_API UGameSettingsWidget : public ULocalizedMenuWidget
+class LABPROJECT_API UGameSettingsWidget : public UPdScreenWidget
 {
 	GENERATED_BODY()
 

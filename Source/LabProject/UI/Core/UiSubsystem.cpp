@@ -1,8 +1,6 @@
 #include "UI/Core/UiSubsystem.h"
 #include "UI/Core/UiLayerRoot.h"
-#include "UI/Core/UiScreen.h"
 #include "UI/Settings/GameSettingsWidget.h"
-#include "Input/CommonUIActionRouterBase.h"
 #include "CommonActivatableWidget.h"
 #include "Widgets/CommonActivatableWidgetContainer.h"
 
@@ -429,7 +427,10 @@ void UUiSubsystem::PushScreen(UCommonActivatableWidget* Screen, EUiScreenLayer L
 		UOverlaySlot* Slot = ScreenRoot->OverlayLayer->AddChildToOverlay(Screen);
 		Slot->SetHorizontalAlignment(HAlign_Fill);
 		Slot->SetVerticalAlignment(VAlign_Fill);
-		Screen->OnDeactivated().AddWeakLambda(Screen, [Screen]() { Screen->RemoveFromParent(); });
+		if (!Screen->OnDeactivated().IsBoundToObject(Screen))
+		{
+			Screen->OnDeactivated().AddWeakLambda(Screen, [Screen]() { Screen->RemoveFromParent(); });
+		}
 		Screen->ActivateWidget();
 		break;
 	}
@@ -452,13 +453,9 @@ void UUiSubsystem::OpenGameSettings(UUserWidget* OwnerMenu)
 	{
 		return;
 	}
-	if (ActiveGameSettings && ActiveGameSettings->GetParent())
+	if (ActiveGameSettings && ActiveGameSettings->IsActivated())
 	{
-		if (UCommonActivatableWidget* Screen = UCommonUIActionRouterBase::FindOwningActivatable(
-			ActiveGameSettings->GetCachedWidget(), GetLocalPlayer()))
-		{
-			Screen->RequestRefreshFocus();
-		}
+		ActiveGameSettings->RequestRefreshFocus();
 		return;
 	}
 	const UWidgetClassDefinition* Definition = UWidgetClassDefinition::ResolveWidgetClassDefinition(OwnerMenu);
@@ -481,8 +478,9 @@ void UUiSubsystem::OpenGameSettings(UUserWidget* OwnerMenu)
 		return;
 	}
 	SettingsOwner = OwnerMenu;
-	PushScreen(UUiScreen::CreateBlocking(Controller, ActiveGameSettings, ActiveGameSettings->GetInitialFocusTarget(),
-		FSimpleDelegate::CreateUObject(ActiveGameSettings, &UGameSettingsWidget::CloseSettings)), EUiScreenLayer::Modal);
+	ActiveGameSettings->ConfigureScreen(ActiveGameSettings->GetInitialFocusTarget(),
+		FSimpleDelegate::CreateUObject(ActiveGameSettings, &UGameSettingsWidget::CloseSettings));
+	PushScreen(ActiveGameSettings, EUiScreenLayer::Modal);
 }
 
 bool UUiSubsystem::HasActiveScreen(const UWorld* World) const
@@ -500,7 +498,7 @@ bool UUiSubsystem::CloseGameSettings(const UUserWidget* ExpectedOwner)
 	UGameSettingsWidget* Settings = ActiveGameSettings;
 	ActiveGameSettings = nullptr;
 	SettingsOwner.Reset();
-	if (!IsValid(Settings) || !Settings->GetParent())
+	if (!IsValid(Settings) || !Settings->IsActivated())
 	{
 		return false;
 	}

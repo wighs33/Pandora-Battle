@@ -7,7 +7,6 @@
 class UTitleWidget;
 class UGameResultWidget;
 
-class UUiScreen;
 class USkeletalMeshComponent;
 class USceneCaptureComponent2D;
 class UPointLightComponent;
@@ -144,9 +143,6 @@ private:
 	TObjectPtr<UTextureRenderTarget2D> TitleCharacterRenderTarget;
 
 protected:
-	UPROPERTY(Transient)
-	TObjectPtr<UUiScreen> Screen;
-
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Title|UI")
 	TSubclassOf<UTitleWidget> TitleWidgetClass;
 

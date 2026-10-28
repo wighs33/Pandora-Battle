@@ -10,7 +10,6 @@ struct FWorldContext;
 class APlayerController;
 class UConnectingPopupWidget;
 class UNetDriver;
-class UUiScreen;
 class UUiSubsystem;
 class UWorld;
 
@@ -63,9 +62,6 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UConnectingPopupWidget> ActiveConnectingPopupWidget;
-
-	UPROPERTY(Transient)
-	TObjectPtr<UUiScreen> ConnectingScreen;
 
 	// 콘텐츠·세션 시스템이 가진 작업의 현재 상태와, 월드를 넘는 맵 이동 작업을 함께 담는다.
 	enum class EWaitReason : uint8
