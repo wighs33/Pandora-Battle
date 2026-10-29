@@ -67,9 +67,9 @@ public:
 	bool ApplyWeaponDamageToTarget(AActor* TargetActor);
 
 	/** 장착 중인 무기로 지금 낼 피해를 정한다. 화살처럼 나중에 맞는 공격은 발사할 때 이 값을 담아 둔다. */
-	bool BuildWeaponDamage(const AWeaponBase& Weapon, PdDamageRules::FOutgoingDamage& OutDamage) const;
+	bool BuildWeaponDamage(const AWeaponBase& Weapon, DamageRules::FOutgoingDamage& OutDamage) const;
 	/** 미리 정한 피해를 대상에게 적용한다. 대상·팀·권한은 적용하는 순간에 확인한다. */
-	bool ApplyOutgoingDamageToTarget(AActor* TargetActor, const PdDamageRules::FOutgoingDamage& Damage,
+	bool ApplyOutgoingDamageToTarget(AActor* TargetActor, const DamageRules::FOutgoingDamage& Damage,
 		UObject* SourceObject, AActor* DamageCauser);
 
 	bool CanAffordRangedWeaponAttackStamina() const;
@@ -133,7 +133,7 @@ private:
 	void RefreshTemporaryWeaponDamageBonus();
 
 	bool ApplyAttackDamageToTarget(AActor* TargetActor, float RawDamage, UObject* SourceObject, AActor* DamageCauser, bool bAllowHitReact);
-	bool BuildOutgoingDamage(float RawDamage, bool bAllowHitReact, PdDamageRules::FOutgoingDamage& OutDamage) const;
+	bool BuildOutgoingDamage(float RawDamage, bool bAllowHitReact, DamageRules::FOutgoingDamage& OutDamage) const;
 
 protected:
 	// DamageSpecTags는 Spec의 동적 애셋 태그로 붙어 대상 AttributeSet이 치명타·피격 반응 여부를 읽는다.

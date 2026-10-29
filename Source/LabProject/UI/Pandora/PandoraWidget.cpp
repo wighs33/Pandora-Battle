@@ -32,7 +32,7 @@ void UPandoraWidget::NativePreConstruct()
 
 	ApplyWidgetDefinitionSettings();
 
-	PdViewModelBinding::SetViewModel(this, GetOrCreatePandoraWidgetViewModel());
+	ViewModelBinding::SetViewModel(this, GetOrCreatePandoraWidgetViewModel());
 	ApplyDesignerDefaults();
 	ApplyEquipHintDefaults();
 	SetPandoraInfo();
@@ -47,7 +47,7 @@ void UPandoraWidget::NativeConstruct()
 	bIsPandoraDescriptionRequested = false;
 	ApplyWidgetDefinitionSettings();
 
-	PdViewModelBinding::SetViewModel(this, GetOrCreatePandoraWidgetViewModel());
+	ViewModelBinding::SetViewModel(this, GetOrCreatePandoraWidgetViewModel());
 	ResolvePandoraTreeComponent();
 	ResolvePandoraComponent();
 	BindPandoraTreeEvents();

@@ -9,7 +9,7 @@ struct FAwsCredentials;
 /**
  * 백엔드 JSON API 호출을 묶는다. 응답 콜백은 HTTP 모듈이 게임 스레드에서 실행한다.
  */
-namespace PdBackendHttp
+namespace BackendHttp
 {
 	struct FResponse
 	{

@@ -3,7 +3,7 @@
 #include "AbilitySystem/Ability/SkillAbility.h"
 #include "Component/AbilitySystem/AbilityGrantAndInputManager.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Definition/Pandora/PandoraDefinition.h"
 #include "Pandora/PandoraSkillSource.h"
 #include "AbilitySystemGlobals.h"
@@ -15,9 +15,9 @@ namespace
 	{
 		switch (SkillIndex)
 		{
-		case 0: return LabGameplayTags::Input_Ability_Skill1;
-		case 1: return LabGameplayTags::Input_Ability_Skill2;
-		case 2: return LabGameplayTags::Input_Ability_Skill3;
+		case 0: return PdGameplayTags::Input_Ability_Skill1;
+		case 1: return PdGameplayTags::Input_Ability_Skill2;
+		case 2: return PdGameplayTags::Input_Ability_Skill3;
 		default: return FGameplayTag();
 		}
 	}
@@ -78,11 +78,11 @@ void UPandoraComponent::GrantPandoraSkills(
 		}
 		FGameplayAbilitySpec Spec(AbilityClass, SkillLevel, INDEX_NONE, Source);
 		Spec.GetDynamicSpecSourceTags().AppendTags(Skill->Activation.Tags);
-		Spec.GetDynamicSpecSourceTags().AddTag(LabGameplayTags::Ability_Source_Pandora);
-		Spec.GetDynamicSpecSourceTags().AddTag(LabGameplayTags::Ability_Pandora_Selected);
+		Spec.GetDynamicSpecSourceTags().AddTag(PdGameplayTags::Ability_Source_Pandora);
+		Spec.GetDynamicSpecSourceTags().AddTag(PdGameplayTags::Ability_Pandora_Selected);
 		if (Skill->SkillType == ESkillType::Press)
 		{
-			Spec.GetDynamicSpecSourceTags().AddTag(LabGameplayTags::Skill_Type_Press);
+			Spec.GetDynamicSpecSourceTags().AddTag(PdGameplayTags::Skill_Type_Press);
 		}
 		const FGameplayAbilitySpecHandle Handle = ASC->GiveAbility(Spec);
 		if (Handle.IsValid())
@@ -158,7 +158,7 @@ void UPandoraComponent::RefreshPandoraSkillInputBindings(UPdAbilitySystemCompone
 		}
 		FGameplayTagContainer& Tags = Spec.GetDynamicSpecSourceTags();
 		const FGameplayTagContainer PreviousTags = Tags;
-		Tags.RemoveTag(LabGameplayTags::Ability_Pandora_Selected);
+		Tags.RemoveTag(PdGameplayTags::Ability_Pandora_Selected);
 		for (int32 Index = 0; Index < UPandoraDefinition::GetFixedMaxLevel(); ++Index)
 		{
 			Tags.RemoveTag(GetPandoraInputTag(Index));
@@ -168,7 +168,7 @@ void UPandoraComponent::RefreshPandoraSkillInputBindings(UPdAbilitySystemCompone
 		if (bShouldBindSelectedPandora && Definition && Source->GetPandoraDefinition() == Definition
 			&& Definition->IsSkillSlotUnlocked(SkillIndex, PandoraLevel))
 		{
-			Tags.AddTag(LabGameplayTags::Ability_Pandora_Selected);
+			Tags.AddTag(PdGameplayTags::Ability_Pandora_Selected);
 			if (Spec.Ability->IsA<USkillAbility>())
 			{
 				Tags.AddTag(GetPandoraInputTag(SkillIndex));

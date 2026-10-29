@@ -6,7 +6,7 @@
 #include "Definition/AbilitySystem/SkillDefinition.h"
 #include "Definition/Player/ControllerInputDefinition.h"
 #include "Abilities/GameplayAbility.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Component/Pandora/PandoraComponent.h"
 #include "Components/Image.h"
 #include "Components/Overlay.h"
@@ -160,7 +160,7 @@ void UAbilitySlotWidget::SetInputKeyIcon()
 	// 기존 블루프린트 그래프가 쓰는 리플렉션 진입점을 남겨 둔다.
 	if (KeyText && InputKeyOverlay)
 	{
-		PdInputKeyIconResolver::ApplyInputKeyCaption(*this, *KeyText, *InputKeyOverlay, KeyIcon, ResolveInputAction(), bHideInputKeyIcon);
+		InputKeyIconResolver::ApplyInputKeyCaption(*this, *KeyText, *InputKeyOverlay, KeyIcon, ResolveInputAction(), bHideInputKeyIcon);
 		return;
 	}
 
@@ -187,7 +187,7 @@ void UAbilitySlotWidget::SetInputKeyIcon()
 	}
 
 	InputKeyOverlay->SetVisibility(ESlateVisibility::Visible);
-	KeyIcon->SetBrush(PdInputKeyIconResolver::MakeImageBrushFromExisting(KeyIcon->GetBrush(), IconObject, InputKeyIconSize));
+	KeyIcon->SetBrush(InputKeyIconResolver::MakeImageBrushFromExisting(KeyIcon->GetBrush(), IconObject, InputKeyIconSize));
 }
 
 void UAbilitySlotWidget::CheckForCooldown()
@@ -250,7 +250,7 @@ void UAbilitySlotWidget::UpdateCooldownProgress()
 	{
 		ClearCooldownTimer();
 		TotalCooldownTime = 0.0;
-		PdSlotCooldownDisplay::ShowReady(CooldownTimerContainer, CooldownProgress, TimerText);
+		SlotCooldownDisplay::ShowReady(CooldownTimerContainer, CooldownProgress, TimerText);
 		SetInputKeyRenderOpacity(bAbilitySlotEnabled ? ReadyInputKeyOpacity : DisabledSlotOpacity);
 		return;
 	}
@@ -266,7 +266,7 @@ void UAbilitySlotWidget::UpdateCooldownProgress()
 		CooldownTimerContainer->SetVisibility(ESlateVisibility::Visible);
 	}
 	SetInputKeyRenderOpacity(CooldownInputKeyOpacity);
-	PdSlotCooldownDisplay::ShowRemaining(CooldownProgress, TimerText, TimeRemaining, TotalCooldownTime, bShowCooldownTimeRemaining);
+	SlotCooldownDisplay::ShowRemaining(CooldownProgress, TimerText, TimeRemaining, TotalCooldownTime, bShowCooldownTimeRemaining);
 }
 
 void UAbilitySlotWidget::InitializeAbilityObject()
@@ -328,7 +328,7 @@ void UAbilitySlotWidget::BindGameplayTagEvents()
 		return;
 	}
 
-	const FGameplayTag CooldownTag = LabGameplayTags::Cooldown;
+	const FGameplayTag CooldownTag = PdGameplayTags::Cooldown;
 	if (CooldownTag.IsValid())
 	{
 		BoundCooldownTag = CooldownTag;
@@ -336,7 +336,7 @@ void UAbilitySlotWidget::BindGameplayTagEvents()
 			.AddUObject(this, &ThisClass::HandleCooldownTagChanged);
 	}
 
-	const FGameplayTag GameplayAbilityTag = LabGameplayTags::GameplayAbility;
+	const FGameplayTag GameplayAbilityTag = PdGameplayTags::GameplayAbility;
 	if (GameplayAbilityTag.IsValid())
 	{
 		GameplayAbilityTagChangedHandle = AbilitySystemComponent->RegisterGameplayTagEvent(GameplayAbilityTag, EGameplayTagEventType::AnyCountChange)
@@ -369,7 +369,7 @@ void UAbilitySlotWidget::UnbindGameplayTagEvents()
 	}
 	BoundCooldownTag = FGameplayTag();
 
-	const FGameplayTag GameplayAbilityTag = LabGameplayTags::GameplayAbility;
+	const FGameplayTag GameplayAbilityTag = PdGameplayTags::GameplayAbility;
 	if (GameplayAbilityTag.IsValid() && GameplayAbilityTagChangedHandle.IsValid())
 	{
 		AbilitySystemComponent->RegisterGameplayTagEvent(GameplayAbilityTag, EGameplayTagEventType::AnyCountChange)
@@ -527,19 +527,19 @@ UInputAction* UAbilitySlotWidget::ResolveInputAction() const
 	if (AbilitySpec)
 	{
 		const FGameplayTagContainer& SourceTags = AbilitySpec->GetDynamicSpecSourceTags();
-		if (SourceTags.HasTagExact(LabGameplayTags::Input_Ability_Skill1))
+		if (SourceTags.HasTagExact(PdGameplayTags::Input_Ability_Skill1))
 		{
 			ResolvedSkillSlotIndex = 0;
 		}
-		else if (SourceTags.HasTagExact(LabGameplayTags::Input_Ability_Skill2))
+		else if (SourceTags.HasTagExact(PdGameplayTags::Input_Ability_Skill2))
 		{
 			ResolvedSkillSlotIndex = 1;
 		}
-		else if (SourceTags.HasTagExact(LabGameplayTags::Input_Ability_Skill3))
+		else if (SourceTags.HasTagExact(PdGameplayTags::Input_Ability_Skill3))
 		{
 			ResolvedSkillSlotIndex = 2;
 		}
-		else if (SourceTags.HasTagExact(LabGameplayTags::Input_Ability_Skill4))
+		else if (SourceTags.HasTagExact(PdGameplayTags::Input_Ability_Skill4))
 		{
 			ResolvedSkillSlotIndex = 3;
 		}
@@ -550,7 +550,7 @@ UInputAction* UAbilitySlotWidget::ResolveInputAction() const
 
 UObject* UAbilitySlotWidget::ResolveInputIconObject() const
 {
-	return PdInputKeyIconResolver::ResolveInputDefinitionIconObject(GetOwningPlayer(), ResolveInputAction());
+	return InputKeyIconResolver::ResolveInputDefinitionIconObject(GetOwningPlayer(), ResolveInputAction());
 }
 
 FSlateBrush UAbilitySlotWidget::MakeImageBrush(UObject* ResourceObject)

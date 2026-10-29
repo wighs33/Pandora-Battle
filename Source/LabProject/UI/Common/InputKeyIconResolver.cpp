@@ -5,7 +5,7 @@
 #include "Definition/Player/ControllerInputDefinition.h"
 #include "Mode/PdPlayerController.h"
 
-FText PdInputKeyIconResolver::ResolveInputDefinitionKeyText(APlayerController* PlayerController,
+FText InputKeyIconResolver::ResolveInputDefinitionKeyText(APlayerController* PlayerController,
 	const UInputAction* InputAction)
 {
 	const APdPlayerController* PdPlayerController = Cast<APdPlayerController>(PlayerController);
@@ -15,7 +15,7 @@ FText PdInputKeyIconResolver::ResolveInputDefinitionKeyText(APlayerController* P
 	return InputDefinition ? InputDefinition->ResolveInputActionKeyText(InputAction) : FText::GetEmpty();
 }
 
-UObject* PdInputKeyIconResolver::ResolveInputDefinitionIconObject(APlayerController* PlayerController,
+UObject* InputKeyIconResolver::ResolveInputDefinitionIconObject(APlayerController* PlayerController,
 	const UInputAction* InputAction)
 {
 	const APdPlayerController* PdPlayerController = Cast<APdPlayerController>(PlayerController);
@@ -25,7 +25,7 @@ UObject* PdInputKeyIconResolver::ResolveInputDefinitionIconObject(APlayerControl
 	return InputDefinition ? InputDefinition->ResolveInputActionIconObject(InputAction) : nullptr;
 }
 
-FSlateBrush PdInputKeyIconResolver::MakeImageBrushFromExisting(const FSlateBrush& ExistingBrush,
+FSlateBrush InputKeyIconResolver::MakeImageBrushFromExisting(const FSlateBrush& ExistingBrush,
 	UObject* ResourceObject, const FVector2D ImageSize)
 {
 	FSlateBrush Brush = ExistingBrush;
@@ -37,7 +37,7 @@ FSlateBrush PdInputKeyIconResolver::MakeImageBrushFromExisting(const FSlateBrush
 	return Brush;
 }
 
-void PdInputKeyIconResolver::ApplyInputKeyCaption(const UUserWidget& SlotWidget, UTextBlock& KeyText,
+void InputKeyIconResolver::ApplyInputKeyCaption(const UUserWidget& SlotWidget, UTextBlock& KeyText,
 	UWidget& InputKeyOverlay, UWidget* KeyIcon, const UInputAction* InputAction, const bool bHidden)
 {
 	if (KeyIcon)

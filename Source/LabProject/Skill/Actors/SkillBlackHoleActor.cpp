@@ -8,7 +8,7 @@
 #include "AbilitySystemComponent.h"
 #include "Character/CharacterBase.h"
 #include "Common/ComponentLookup.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Components/SceneComponent.h"
 #include "Curves/CurveFloat.h"
 #include "GameplayEffect.h"
@@ -117,17 +117,17 @@ void ASkillBlackHoleActor::ConfigureFromFieldSettings(const FSkillActorFieldSett
 	FinishDamageEffectClass = FinishDamageConfig.GameplayEffectClass;
 	FinishDamageDataTag = FinishDamageConfig.MagnitudeDataTag.IsValid()
 		? FinishDamageConfig.MagnitudeDataTag
-		: LabGameplayTags::Data_Damage;
+		: PdGameplayTags::Data_Damage;
 	FinishDamageMagnitude = FMath::Max(FinishDamageConfig.Magnitude, 0.0);
 }
 
 void ASkillBlackHoleActor::ResolveBlueprintComponents()
 {
-	OrbComponent = PdComponentLookup::FindByNameOrTag<USceneComponent>(this, OrbComponentName);
-	FloorComponent = PdComponentLookup::FindByNameOrTag<USceneComponent>(this, FloorComponentName);
-	BlackHoleNiagaraComponent = PdComponentLookup::FindByNameOrTag<UNiagaraComponent>(this, BlackHoleNiagaraComponentName);
-	AreaNiagaraComponent = PdComponentLookup::FindByNameOrTag<UNiagaraComponent>(this, AreaNiagaraComponentName);
-	SlashNiagaraComponent = PdComponentLookup::FindByNameOrTag<UNiagaraComponent>(this, SlashNiagaraComponentName);
+	OrbComponent = ComponentLookup::FindByNameOrTag<USceneComponent>(this, OrbComponentName);
+	FloorComponent = ComponentLookup::FindByNameOrTag<USceneComponent>(this, FloorComponentName);
+	BlackHoleNiagaraComponent = ComponentLookup::FindByNameOrTag<UNiagaraComponent>(this, BlackHoleNiagaraComponentName);
+	AreaNiagaraComponent = ComponentLookup::FindByNameOrTag<UNiagaraComponent>(this, AreaNiagaraComponentName);
+	SlashNiagaraComponent = ComponentLookup::FindByNameOrTag<UNiagaraComponent>(this, SlashNiagaraComponentName);
 }
 
 void ASkillBlackHoleActor::CacheInitialComponentScales()
@@ -340,7 +340,7 @@ void ASkillBlackHoleActor::ApplyFinishAreaDamage()
 		return;
 	}
 
-	const FGameplayTag DamageDataTag = FinishDamageDataTag.IsValid() ? FinishDamageDataTag : LabGameplayTags::Data_Damage;
+	const FGameplayTag DamageDataTag = FinishDamageDataTag.IsValid() ? FinishDamageDataTag : PdGameplayTags::Data_Damage;
 	DamageSpecHandle.Data->SetSetByCallerMagnitude(DamageDataTag, DamageMagnitude);
 
 	FCollisionObjectQueryParams ObjectQueryParams;
@@ -385,12 +385,12 @@ void ASkillBlackHoleActor::ApplyFinishAreaDamage()
 float ASkillBlackHoleActor::CalculateFinishAreaDamageMagnitude(const UAbilitySystemComponent* SourceASC) const
 {
 	const double BaseMagnitude = FMath::Max(FinishDamageMagnitude, 0.0);
-	const FGameplayTag DamageDataTag = FinishDamageDataTag.IsValid() ? FinishDamageDataTag : LabGameplayTags::Data_Damage;
+	const FGameplayTag DamageDataTag = FinishDamageDataTag.IsValid() ? FinishDamageDataTag : PdGameplayTags::Data_Damage;
 	const UBasicAttributeSet* SourceAttributeSet = SourceASC ? SourceASC->GetSet<UBasicAttributeSet>() : nullptr;
-	const float IntelligenceDamagePercent = DamageDataTag.MatchesTag(LabGameplayTags::Data_Damage) && SourceAttributeSet
+	const float IntelligenceDamagePercent = DamageDataTag.MatchesTag(PdGameplayTags::Data_Damage) && SourceAttributeSet
 		? FMath::Max(SourceAttributeSet->GetIntelligence(), 0.0f)
 		: 0.0f;
-	const float LoadoutDamagePercent = DamageDataTag.MatchesTag(LabGameplayTags::Data_Damage) && SourceAttributeSet
+	const float LoadoutDamagePercent = DamageDataTag.MatchesTag(PdGameplayTags::Data_Damage) && SourceAttributeSet
 		? SourceAttributeSet->GetPandoraLoadoutDamageBonusPercent(SourcePandoraLoadoutDirection)
 		: 0.0f;
 	const float AttackDamageBonusPercent = IntelligenceDamagePercent + LoadoutDamagePercent;
@@ -545,7 +545,7 @@ bool ASkillBlackHoleActor::ShouldPullCharacter(ACharacterBase* TargetCharacter) 
 	}
 
 	const UAbilitySystemComponent* TargetASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(TargetCharacter);
-	if (TargetASC && TargetASC->HasMatchingGameplayTag(LabGameplayTags::State_Dead))
+	if (TargetASC && TargetASC->HasMatchingGameplayTag(PdGameplayTags::State_Dead))
 	{
 		return false;
 	}

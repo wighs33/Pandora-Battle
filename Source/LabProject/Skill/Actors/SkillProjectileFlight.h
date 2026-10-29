@@ -6,7 +6,7 @@ class UProjectileMovementComponent;
 class USceneComponent;
 
 /** 투사체 이동 규칙. 목표 지점과 속도로 직선 또는 포물선 발사 속도를 정해 ProjectileMovement를 시작한다. */
-namespace PdSkillProjectileFlight
+namespace SkillProjectileFlight
 {
 	struct FLaunchParams
 	{

@@ -108,7 +108,7 @@ void ASkillSummonActor::FindSummonNiagaraComponents(const FName ComponentName, c
 			continue;
 		}
 
-		if (PdComponentLookup::MatchesNameOrTag(*NiagaraComponent, ComponentName))
+		if (ComponentLookup::MatchesNameOrTag(*NiagaraComponent, ComponentName))
 		{
 			OutComponents.Add(NiagaraComponent);
 		}

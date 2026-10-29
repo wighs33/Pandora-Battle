@@ -6,7 +6,7 @@
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
 #include "AbilitySystemGlobals.h"
 #include "Character/CharacterBase.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Component/Player/EquipmentComponent.h"
 #include "Definition/AbilitySystem/SkillGameplayEffectConfig.h"
@@ -25,9 +25,9 @@ UPdGameplayAbility::UPdGameplayAbility(const FObjectInitializer& ObjectInitializ
 {
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerOnly;
-	ActivationOwnedTags.AddTag(LabGameplayTags::GameplayAbility_Active);
-	ActivationBlockedTags.AddTag(LabGameplayTags::State_Dead);
-	CooldownRemovalPolicyTags.AddTag(LabGameplayTags::Effect_Policy_RemoveOnDeath);
+	ActivationOwnedTags.AddTag(PdGameplayTags::GameplayAbility_Active);
+	ActivationBlockedTags.AddTag(PdGameplayTags::State_Dead);
+	CooldownRemovalPolicyTags.AddTag(PdGameplayTags::Effect_Policy_RemoveOnDeath);
 }
 
 void UPdGameplayAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
@@ -49,7 +49,7 @@ void UPdGameplayAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, con
 	OnAbilityEnding();
 
 	const bool bEquipmentTransitionAbility =
-		GetAssetTags().HasTagExact(LabGameplayTags::Action_Equip) || GetAssetTags().HasTagExact(LabGameplayTags::Action_Unequip);
+		GetAssetTags().HasTagExact(PdGameplayTags::Action_Equip) || GetAssetTags().HasTagExact(PdGameplayTags::Action_Unequip);
 
 	// 사망 정리 중 정상 종료 알림이 들어와도 새 쿨다운을 적용하지 않는다.
 	if (!bWasCancelled)
@@ -185,11 +185,11 @@ void UPdGameplayAbility::GetResourceCosts(const FGameplayAbilitySpecHandle Handl
 	const UAbilitySystemComponent* ASC = ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr;
 	const FGameplayAbilitySpec* Spec = ASC && Handle.IsValid() ? ASC->FindAbilitySpecFromHandle(Handle) : GetCurrentAbilitySpec();
 	const UGameplayAbility* GrantedAbility = Spec ? Spec->Ability.Get() : nullptr;
-	if (GrantedAbility && GrantedAbility->GetAssetTags().HasTagExact(LabGameplayTags::Action_Punch))
+	if (GrantedAbility && GrantedAbility->GetAssetTags().HasTagExact(PdGameplayTags::Action_Punch))
 	{
 		StaminaCost = GetDefaultActionStaminaCost(AvatarPawn);
 	}
-	else if (GrantedAbility && GrantedAbility->GetAssetTags().HasTagExact(LabGameplayTags::Action_Attack))
+	else if (GrantedAbility && GrantedAbility->GetAssetTags().HasTagExact(PdGameplayTags::Action_Attack))
 	{
 		StaminaCost = GetWeaponAttackStaminaCost(AvatarPawn);
 	}
@@ -216,8 +216,8 @@ bool UPdGameplayAbility::SetCostEffectMagnitudes(
 	{
 		return false;
 	}
-	SpecHandle.Data->SetSetByCallerMagnitude(LabGameplayTags::Data_ManaCost, -FMath::Max(ManaCost, 0.0f));
-	SpecHandle.Data->SetSetByCallerMagnitude(LabGameplayTags::Data_StaminaCost, -FMath::Max(StaminaCost, 0.0f));
+	SpecHandle.Data->SetSetByCallerMagnitude(PdGameplayTags::Data_ManaCost, -FMath::Max(ManaCost, 0.0f));
+	SpecHandle.Data->SetSetByCallerMagnitude(PdGameplayTags::Data_StaminaCost, -FMath::Max(StaminaCost, 0.0f));
 	return true;
 }
 
@@ -300,7 +300,7 @@ bool UPdGameplayAbility::ApplySharedCooldownEffect(const FGameplayAbilitySpecHan
 		return false;
 	}
 
-	CooldownSpec.Data->SetSetByCallerMagnitude(LabGameplayTags::Data_Cooldown, CooldownDuration);
+	CooldownSpec.Data->SetSetByCallerMagnitude(PdGameplayTags::Data_Cooldown, CooldownDuration);
 	CooldownSpec.Data->DynamicGrantedTags.AppendTags(CooldownTags);
 	CooldownSpec.Data->AppendDynamicAssetTags(CooldownTags);
 
@@ -368,7 +368,7 @@ bool UPdGameplayAbility::CheckAvatarGrounded(const FGameplayAbilityActorInfo* Ac
 
 	if (OptionalRelevantTags)
 	{
-		OptionalRelevantTags->AddTag(LabGameplayTags::State_Movement_Airborne);
+		OptionalRelevantTags->AddTag(PdGameplayTags::State_Movement_Airborne);
 	}
 	return false;
 }

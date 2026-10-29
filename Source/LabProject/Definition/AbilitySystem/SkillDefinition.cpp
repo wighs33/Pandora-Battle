@@ -1,15 +1,15 @@
 #include "Definition/AbilitySystem/SkillDefinition.h"
 
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SkillDefinition)
 
 USkillDefinition::USkillDefinition()
 {
-	Activation.CooldownRemovalTags.AddTag(LabGameplayTags::Effect_Policy_RemoveOnDeath);
+	Activation.CooldownRemovalTags.AddTag(PdGameplayTags::Effect_Policy_RemoveOnDeath);
 
-	Damage.MagnitudeDataTag = LabGameplayTags::Data_Damage;
-	GameplayEffect.MagnitudeDataTag = LabGameplayTags::Data_Damage;
+	Damage.MagnitudeDataTag = PdGameplayTags::Data_Damage;
+	GameplayEffect.MagnitudeDataTag = PdGameplayTags::Data_Damage;
 }
 
 FPrimaryAssetId USkillDefinition::GetPrimaryAssetId() const
@@ -32,7 +32,7 @@ FSkillGameplayEffectConfig USkillDefinition::GetResolvedDamageConfig() const
 	FSkillGameplayEffectConfig ResolvedDamage = Damage.ToGameplayEffectConfig();
 	if (!ResolvedDamage.MagnitudeDataTag.IsValid())
 	{
-		ResolvedDamage.MagnitudeDataTag = LabGameplayTags::Data_Damage;
+		ResolvedDamage.MagnitudeDataTag = PdGameplayTags::Data_Damage;
 	}
 	return ResolvedDamage;
 }

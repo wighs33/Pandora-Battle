@@ -1,6 +1,6 @@
 #include "UI/Pandora/PandoraSlotWidget.h"
 
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Component/Pandora/PandoraComponent.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
@@ -211,12 +211,12 @@ void UPandoraSlotWidget::RefreshWeaponRequirementImages(const FGameplayTagContai
 {
 	HideAllWeaponRequirementImages();
 
-	SetWeaponRequirementImageVisible(Axe, HasRequiredWeaponTag(RequiredWeaponTags, LabGameplayTags::Item_Weapon_Axe));
-	SetWeaponRequirementImageVisible(Bow, HasRequiredWeaponTag(RequiredWeaponTags, LabGameplayTags::Item_Weapon_Bow));
-	SetWeaponRequirementImageVisible(Dagger, HasRequiredWeaponTag(RequiredWeaponTags, LabGameplayTags::Item_Weapon_Dagger));
-	SetWeaponRequirementImageVisible(Greatsword, HasRequiredWeaponTag(RequiredWeaponTags, LabGameplayTags::Item_Weapon_GreatSword));
-	SetWeaponRequirementImageVisible(Sword, HasRequiredWeaponTag(RequiredWeaponTags, LabGameplayTags::Item_Weapon_Sword));
-	SetWeaponRequirementImageVisible(Gun, HasRequiredWeaponTag(RequiredWeaponTags, LabGameplayTags::Item_Weapon_Gun));
+	SetWeaponRequirementImageVisible(Axe, HasRequiredWeaponTag(RequiredWeaponTags, PdGameplayTags::Item_Weapon_Axe));
+	SetWeaponRequirementImageVisible(Bow, HasRequiredWeaponTag(RequiredWeaponTags, PdGameplayTags::Item_Weapon_Bow));
+	SetWeaponRequirementImageVisible(Dagger, HasRequiredWeaponTag(RequiredWeaponTags, PdGameplayTags::Item_Weapon_Dagger));
+	SetWeaponRequirementImageVisible(Greatsword, HasRequiredWeaponTag(RequiredWeaponTags, PdGameplayTags::Item_Weapon_GreatSword));
+	SetWeaponRequirementImageVisible(Sword, HasRequiredWeaponTag(RequiredWeaponTags, PdGameplayTags::Item_Weapon_Sword));
+	SetWeaponRequirementImageVisible(Gun, HasRequiredWeaponTag(RequiredWeaponTags, PdGameplayTags::Item_Weapon_Gun));
 }
 
 void UPandoraSlotWidget::HideAllWeaponRequirementImages() const

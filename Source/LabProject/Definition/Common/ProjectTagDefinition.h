@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Engine/DataAsset.h"
 #include "GameplayTagContainer.h"
 #include "ProjectTagDefinition.generated.h"
@@ -27,78 +27,78 @@ public:
 	static const FPrimaryAssetType& GetDefinitionPrimaryAssetType();
 	static const FPrimaryAssetId& GetPreferredPrimaryAssetId();
 
-	const FGameplayTag& GetItemWeaponTypeTag() const { return ResolveTag(ItemWeaponTypeTag, LabGameplayTags::Item_Weapon); }
-	const FGameplayTag& GetItemEquipmentTypeTag() const { return ResolveTag(ItemEquipmentTypeTag, LabGameplayTags::Item_Equipment); }
-	const FGameplayTag& GetItemConsumableTypeTag() const { return ResolveTag(ItemConsumableTypeTag, LabGameplayTags::Item_Consumable); }
-	const FGameplayTag& GetItemValuableTypeTag() const { return ResolveTag(ItemValuableTypeTag, LabGameplayTags::Item_Valuable); }
+	const FGameplayTag& GetItemWeaponTypeTag() const { return ResolveTag(ItemWeaponTypeTag, PdGameplayTags::Item_Weapon); }
+	const FGameplayTag& GetItemEquipmentTypeTag() const { return ResolveTag(ItemEquipmentTypeTag, PdGameplayTags::Item_Equipment); }
+	const FGameplayTag& GetItemConsumableTypeTag() const { return ResolveTag(ItemConsumableTypeTag, PdGameplayTags::Item_Consumable); }
+	const FGameplayTag& GetItemValuableTypeTag() const { return ResolveTag(ItemValuableTypeTag, PdGameplayTags::Item_Valuable); }
 
-	const FGameplayTag& GetItemHatEquipTypeTag() const { return ResolveTag(ItemHatEquipTypeTag, LabGameplayTags::Item_Equipment_Hat); }
-	const FGameplayTag& GetItemTopEquipTypeTag() const { return ResolveTag(ItemTopEquipTypeTag, LabGameplayTags::Item_Equipment_Top); }
-	const FGameplayTag& GetItemBottomEquipTypeTag() const { return ResolveTag(ItemBottomEquipTypeTag, LabGameplayTags::Item_Equipment_Bottom); }
-	const FGameplayTag& GetItemShoesEquipTypeTag() const { return ResolveTag(ItemShoesEquipTypeTag, LabGameplayTags::Item_Equipment_Shoes); }
-	const FGameplayTag& GetItemEarringEquipTypeTag() const { return ResolveTag(ItemEarringEquipTypeTag, LabGameplayTags::Item_Equipment_Earring); }
-	const FGameplayTag& GetItemNecklaceEquipTypeTag() const { return ResolveTag(ItemNecklaceEquipTypeTag, LabGameplayTags::Item_Equipment_Necklace); }
-	const FGameplayTag& GetItemRingEquipTypeTag() const { return ResolveTag(ItemRingEquipTypeTag, LabGameplayTags::Item_Equipment_Ring); }
-	const FGameplayTag& GetItemRuneEquipTypeTag() const { return ResolveTag(ItemRuneEquipTypeTag, LabGameplayTags::Item_Equipment_Rune); }
+	const FGameplayTag& GetItemHatEquipTypeTag() const { return ResolveTag(ItemHatEquipTypeTag, PdGameplayTags::Item_Equipment_Hat); }
+	const FGameplayTag& GetItemTopEquipTypeTag() const { return ResolveTag(ItemTopEquipTypeTag, PdGameplayTags::Item_Equipment_Top); }
+	const FGameplayTag& GetItemBottomEquipTypeTag() const { return ResolveTag(ItemBottomEquipTypeTag, PdGameplayTags::Item_Equipment_Bottom); }
+	const FGameplayTag& GetItemShoesEquipTypeTag() const { return ResolveTag(ItemShoesEquipTypeTag, PdGameplayTags::Item_Equipment_Shoes); }
+	const FGameplayTag& GetItemEarringEquipTypeTag() const { return ResolveTag(ItemEarringEquipTypeTag, PdGameplayTags::Item_Equipment_Earring); }
+	const FGameplayTag& GetItemNecklaceEquipTypeTag() const { return ResolveTag(ItemNecklaceEquipTypeTag, PdGameplayTags::Item_Equipment_Necklace); }
+	const FGameplayTag& GetItemRingEquipTypeTag() const { return ResolveTag(ItemRingEquipTypeTag, PdGameplayTags::Item_Equipment_Ring); }
+	const FGameplayTag& GetItemRuneEquipTypeTag() const { return ResolveTag(ItemRuneEquipTypeTag, PdGameplayTags::Item_Equipment_Rune); }
 
-	const FGameplayTag& GetPandoraOffensiveTypeTag() const { return ResolveTag(PandoraOffensiveTypeTag, LabGameplayTags::Pandora_Offensive); }
-	const FGameplayTag& GetPandoraDefensiveTypeTag() const { return ResolveTag(PandoraDefensiveTypeTag, LabGameplayTags::Pandora_Defensive); }
-	const FGameplayTag& GetPandoraSupportTypeTag() const { return ResolveTag(PandoraSupportTypeTag, LabGameplayTags::Pandora_Support); }
-	const FGameplayTag& GetPandoraSpecialTypeTag() const { return ResolveTag(PandoraSpecialTypeTag, LabGameplayTags::Pandora_Special); }
+	const FGameplayTag& GetPandoraOffensiveTypeTag() const { return ResolveTag(PandoraOffensiveTypeTag, PdGameplayTags::Pandora_Offensive); }
+	const FGameplayTag& GetPandoraDefensiveTypeTag() const { return ResolveTag(PandoraDefensiveTypeTag, PdGameplayTags::Pandora_Defensive); }
+	const FGameplayTag& GetPandoraSupportTypeTag() const { return ResolveTag(PandoraSupportTypeTag, PdGameplayTags::Pandora_Support); }
+	const FGameplayTag& GetPandoraSpecialTypeTag() const { return ResolveTag(PandoraSpecialTypeTag, PdGameplayTags::Pandora_Special); }
 
-	const FGameplayTag& GetSkinPandoraTypeTag() const { return ResolveTag(SkinPandoraTypeTag, LabGameplayTags::Skin_Pandora); }
-	const FGameplayTag& GetSkinCosmeticsTypeTag() const { return ResolveTag(SkinCosmeticsTypeTag, LabGameplayTags::Skin_Cosmetics); }
-	const FGameplayTag& GetSkinGestureTypeTag() const { return ResolveTag(SkinGestureTypeTag, LabGameplayTags::Skin_Gesture); }
-	const FGameplayTag& GetSkinRidingTypeTag() const { return ResolveTag(SkinRidingTypeTag, LabGameplayTags::Skin_Riding); }
-	const FGameplayTag& GetSkinPetTypeTag() const { return ResolveTag(SkinPetTypeTag, LabGameplayTags::Skin_Pet); }
+	const FGameplayTag& GetSkinPandoraTypeTag() const { return ResolveTag(SkinPandoraTypeTag, PdGameplayTags::Skin_Pandora); }
+	const FGameplayTag& GetSkinCosmeticsTypeTag() const { return ResolveTag(SkinCosmeticsTypeTag, PdGameplayTags::Skin_Cosmetics); }
+	const FGameplayTag& GetSkinGestureTypeTag() const { return ResolveTag(SkinGestureTypeTag, PdGameplayTags::Skin_Gesture); }
+	const FGameplayTag& GetSkinRidingTypeTag() const { return ResolveTag(SkinRidingTypeTag, PdGameplayTags::Skin_Riding); }
+	const FGameplayTag& GetSkinPetTypeTag() const { return ResolveTag(SkinPetTypeTag, PdGameplayTags::Skin_Pet); }
 
-	const FGameplayTag& GetSkinHatEquipTypeTag() const { return ResolveTag(SkinHatEquipTypeTag, LabGameplayTags::Skin_Cosmetics_Hat); }
-	const FGameplayTag& GetSkinTopEquipTypeTag() const { return ResolveTag(SkinTopEquipTypeTag, LabGameplayTags::Skin_Cosmetics_Top); }
-	const FGameplayTag& GetSkinBottomEquipTypeTag() const { return ResolveTag(SkinBottomEquipTypeTag, LabGameplayTags::Skin_Cosmetics_Bottom); }
-	const FGameplayTag& GetSkinShoesEquipTypeTag() const { return ResolveTag(SkinShoesEquipTypeTag, LabGameplayTags::Skin_Cosmetics_Shoes); }
-	const FGameplayTag& GetSkinHeadEquipTypeTag() const { return ResolveTag(SkinHeadEquipTypeTag, LabGameplayTags::Skin_Cosmetics_Head); }
-	const FGameplayTag& GetSkinColorEquipTypeTag() const { return ResolveTag(SkinColorEquipTypeTag, LabGameplayTags::Skin_Cosmetics_SkinColor); }
-	const FGameplayTag& GetSkinBackEquipTypeTag() const { return ResolveTag(SkinBackEquipTypeTag, LabGameplayTags::Skin_Cosmetics_Back); }
-	const FGameplayTag& GetSkinAuraEquipTypeTag() const { return ResolveTag(SkinAuraEquipTypeTag, LabGameplayTags::Skin_Cosmetics_Aura); }
+	const FGameplayTag& GetSkinHatEquipTypeTag() const { return ResolveTag(SkinHatEquipTypeTag, PdGameplayTags::Skin_Cosmetics_Hat); }
+	const FGameplayTag& GetSkinTopEquipTypeTag() const { return ResolveTag(SkinTopEquipTypeTag, PdGameplayTags::Skin_Cosmetics_Top); }
+	const FGameplayTag& GetSkinBottomEquipTypeTag() const { return ResolveTag(SkinBottomEquipTypeTag, PdGameplayTags::Skin_Cosmetics_Bottom); }
+	const FGameplayTag& GetSkinShoesEquipTypeTag() const { return ResolveTag(SkinShoesEquipTypeTag, PdGameplayTags::Skin_Cosmetics_Shoes); }
+	const FGameplayTag& GetSkinHeadEquipTypeTag() const { return ResolveTag(SkinHeadEquipTypeTag, PdGameplayTags::Skin_Cosmetics_Head); }
+	const FGameplayTag& GetSkinColorEquipTypeTag() const { return ResolveTag(SkinColorEquipTypeTag, PdGameplayTags::Skin_Cosmetics_SkinColor); }
+	const FGameplayTag& GetSkinBackEquipTypeTag() const { return ResolveTag(SkinBackEquipTypeTag, PdGameplayTags::Skin_Cosmetics_Back); }
+	const FGameplayTag& GetSkinAuraEquipTypeTag() const { return ResolveTag(SkinAuraEquipTypeTag, PdGameplayTags::Skin_Cosmetics_Aura); }
 
-	const FGameplayTag& GetUiProfileLeftTag() const { return ResolveTag(UiProfileLeftTag, LabGameplayTags::UI_Profile); }
-	const FGameplayTag& GetUiStatusRightTag() const { return ResolveTag(UiStatusRightTag, LabGameplayTags::UI_Status); }
-	const FGameplayTag& GetUiEquipmentLeftTag() const { return ResolveTag(UiEquipmentLeftTag, LabGameplayTags::UI_Equipment); }
-	const FGameplayTag& GetUiInventoryRightTag() const { return ResolveTag(UiInventoryRightTag, LabGameplayTags::UI_Inventory); }
-	const FGameplayTag& GetUiSkinEquipmentLeftTag() const { return ResolveTag(UiSkinEquipmentLeftTag, LabGameplayTags::UI_SkinEquipment); }
-	const FGameplayTag& GetUiSkinInventoryRightTag() const { return ResolveTag(UiSkinInventoryRightTag, LabGameplayTags::UI_SkinInventory); }
-	const FGameplayTag& GetUiPandoraEquipmentLeftTag() const { return ResolveTag(UiPandoraEquipmentLeftTag, LabGameplayTags::UI_PandoraEquipment); }
-	const FGameplayTag& GetUiPandoraInventoryRightTag() const { return ResolveTag(UiPandoraInventoryRightTag, LabGameplayTags::UI_PandoraInventory); }
+	const FGameplayTag& GetUiProfileLeftTag() const { return ResolveTag(UiProfileLeftTag, PdGameplayTags::UI_Profile); }
+	const FGameplayTag& GetUiStatusRightTag() const { return ResolveTag(UiStatusRightTag, PdGameplayTags::UI_Status); }
+	const FGameplayTag& GetUiEquipmentLeftTag() const { return ResolveTag(UiEquipmentLeftTag, PdGameplayTags::UI_Equipment); }
+	const FGameplayTag& GetUiInventoryRightTag() const { return ResolveTag(UiInventoryRightTag, PdGameplayTags::UI_Inventory); }
+	const FGameplayTag& GetUiSkinEquipmentLeftTag() const { return ResolveTag(UiSkinEquipmentLeftTag, PdGameplayTags::UI_SkinEquipment); }
+	const FGameplayTag& GetUiSkinInventoryRightTag() const { return ResolveTag(UiSkinInventoryRightTag, PdGameplayTags::UI_SkinInventory); }
+	const FGameplayTag& GetUiPandoraEquipmentLeftTag() const { return ResolveTag(UiPandoraEquipmentLeftTag, PdGameplayTags::UI_PandoraEquipment); }
+	const FGameplayTag& GetUiPandoraInventoryRightTag() const { return ResolveTag(UiPandoraInventoryRightTag, PdGameplayTags::UI_PandoraInventory); }
 
-	const FGameplayTag& GetStatusStrengthTag() const { return ResolveTag(StatusStrengthTag, LabGameplayTags::Status_Offense_Strength); }
-	const FGameplayTag& GetStatusIntelligenceTag() const { return ResolveTag(StatusIntelligenceTag, LabGameplayTags::Status_Offense_Intelligence); }
-	const FGameplayTag& GetStatusArcaneTag() const { return ResolveTag(StatusArcaneTag, LabGameplayTags::Status_Agility_Arcane); }
-	const FGameplayTag& GetStatusArmorTag() const { return ResolveTag(StatusArmorTag, LabGameplayTags::Status_Defense_Armor); }
-	const FGameplayTag& GetStatusRecoveryTag() const { return ResolveTag(StatusRecoveryTag, LabGameplayTags::Status_Defense_Recovery); }
-	const FGameplayTag& GetStatusFrostbiteTag() const { return ResolveTag(StatusFrostbiteTag, LabGameplayTags::Status_Resistance_Frostbite); }
-	const FGameplayTag& GetStatusBurnTag() const { return ResolveTag(StatusBurnTag, LabGameplayTags::Status_Resistance_Burn); }
-	const FGameplayTag& GetStatusElectricShockTag() const { return ResolveTag(StatusElectricShockTag, LabGameplayTags::Status_Resistance_ElectricShock); }
-	const FGameplayTag& GetStatusFirstPandoraTag() const { return ResolveTag(StatusFirstPandoraTag, LabGameplayTags::Status_PandoraForce_FirstPandora); }
-	const FGameplayTag& GetStatusSecondPandoraTag() const { return ResolveTag(StatusSecondPandoraTag, LabGameplayTags::Status_PandoraForce_SecondPandora); }
-	const FGameplayTag& GetStatusThirdPandoraTag() const { return ResolveTag(StatusThirdPandoraTag, LabGameplayTags::Status_PandoraForce_ThirdPandora); }
-	const FGameplayTag& GetStatusMaxHealthTag() const { return ResolveTag(StatusMaxHealthTag, LabGameplayTags::Status_Resource_MaxHealth); }
-	const FGameplayTag& GetStatusMaxShieldTag() const { return ResolveTag(StatusMaxShieldTag, LabGameplayTags::Status_Defense_MaxShield); }
-	const FGameplayTag& GetStatusMaxManaTag() const { return ResolveTag(StatusMaxManaTag, LabGameplayTags::Status_Resource_MaxMana); }
-	const FGameplayTag& GetStatusMaxStaminaTag() const { return ResolveTag(StatusMaxStaminaTag, LabGameplayTags::Status_Resource_MaxStamina); }
-	const FGameplayTag& GetStatusAttackSpeedTag() const { return ResolveTag(StatusAttackSpeedTag, LabGameplayTags::Status_Agility_AttackSpeed); }
-	const FGameplayTag& GetStatusMovementSpeedTag() const { return ResolveTag(StatusMovementSpeedTag, LabGameplayTags::Status_Agility_MovementSpeed); }
-	const FGameplayTag& GetStatusCriticalTag() const { return ResolveTag(StatusCriticalTag, LabGameplayTags::Status_Offense_Critical); }
+	const FGameplayTag& GetStatusStrengthTag() const { return ResolveTag(StatusStrengthTag, PdGameplayTags::Status_Offense_Strength); }
+	const FGameplayTag& GetStatusIntelligenceTag() const { return ResolveTag(StatusIntelligenceTag, PdGameplayTags::Status_Offense_Intelligence); }
+	const FGameplayTag& GetStatusArcaneTag() const { return ResolveTag(StatusArcaneTag, PdGameplayTags::Status_Agility_Arcane); }
+	const FGameplayTag& GetStatusArmorTag() const { return ResolveTag(StatusArmorTag, PdGameplayTags::Status_Defense_Armor); }
+	const FGameplayTag& GetStatusRecoveryTag() const { return ResolveTag(StatusRecoveryTag, PdGameplayTags::Status_Defense_Recovery); }
+	const FGameplayTag& GetStatusFrostbiteTag() const { return ResolveTag(StatusFrostbiteTag, PdGameplayTags::Status_Resistance_Frostbite); }
+	const FGameplayTag& GetStatusBurnTag() const { return ResolveTag(StatusBurnTag, PdGameplayTags::Status_Resistance_Burn); }
+	const FGameplayTag& GetStatusElectricShockTag() const { return ResolveTag(StatusElectricShockTag, PdGameplayTags::Status_Resistance_ElectricShock); }
+	const FGameplayTag& GetStatusFirstPandoraTag() const { return ResolveTag(StatusFirstPandoraTag, PdGameplayTags::Status_PandoraForce_FirstPandora); }
+	const FGameplayTag& GetStatusSecondPandoraTag() const { return ResolveTag(StatusSecondPandoraTag, PdGameplayTags::Status_PandoraForce_SecondPandora); }
+	const FGameplayTag& GetStatusThirdPandoraTag() const { return ResolveTag(StatusThirdPandoraTag, PdGameplayTags::Status_PandoraForce_ThirdPandora); }
+	const FGameplayTag& GetStatusMaxHealthTag() const { return ResolveTag(StatusMaxHealthTag, PdGameplayTags::Status_Resource_MaxHealth); }
+	const FGameplayTag& GetStatusMaxShieldTag() const { return ResolveTag(StatusMaxShieldTag, PdGameplayTags::Status_Defense_MaxShield); }
+	const FGameplayTag& GetStatusMaxManaTag() const { return ResolveTag(StatusMaxManaTag, PdGameplayTags::Status_Resource_MaxMana); }
+	const FGameplayTag& GetStatusMaxStaminaTag() const { return ResolveTag(StatusMaxStaminaTag, PdGameplayTags::Status_Resource_MaxStamina); }
+	const FGameplayTag& GetStatusAttackSpeedTag() const { return ResolveTag(StatusAttackSpeedTag, PdGameplayTags::Status_Agility_AttackSpeed); }
+	const FGameplayTag& GetStatusMovementSpeedTag() const { return ResolveTag(StatusMovementSpeedTag, PdGameplayTags::Status_Agility_MovementSpeed); }
+	const FGameplayTag& GetStatusCriticalTag() const { return ResolveTag(StatusCriticalTag, PdGameplayTags::Status_Offense_Critical); }
 
-	const FGameplayTag& GetCombatAttackAbilityTag() const { return ResolveTag(CombatAttackAbilityTag, LabGameplayTags::Action_Attack); }
-	const FGameplayTag& GetCombatPunchAbilityTag() const { return ResolveTag(CombatPunchAbilityTag, LabGameplayTags::Action_Punch); }
-	const FGameplayTag& GetCombatRangedAttackAbilityTag() const { return ResolveTag(CombatRangedAttackAbilityTag, LabGameplayTags::Action_RangedAttack); }
-	const FGameplayTag& GetCombatWeaponDamageSourceTag() const { return ResolveTag(CombatWeaponDamageSourceTag, LabGameplayTags::Status_Offense_Strength); }
+	const FGameplayTag& GetCombatAttackAbilityTag() const { return ResolveTag(CombatAttackAbilityTag, PdGameplayTags::Action_Attack); }
+	const FGameplayTag& GetCombatPunchAbilityTag() const { return ResolveTag(CombatPunchAbilityTag, PdGameplayTags::Action_Punch); }
+	const FGameplayTag& GetCombatRangedAttackAbilityTag() const { return ResolveTag(CombatRangedAttackAbilityTag, PdGameplayTags::Action_RangedAttack); }
+	const FGameplayTag& GetCombatWeaponDamageSourceTag() const { return ResolveTag(CombatWeaponDamageSourceTag, PdGameplayTags::Status_Offense_Strength); }
 
-	const FGameplayTag& GetSetByCallerDamageMagnitudeTag() const { return ResolveTag(SetByCallerDamageMagnitudeTag, LabGameplayTags::Data_Damage); }
-	const FGameplayTag& GetSetByCallerStatUpOperationTag() const { return ResolveTag(SetByCallerStatUpOperationTag, LabGameplayTags::Data_StatUp); }
+	const FGameplayTag& GetSetByCallerDamageMagnitudeTag() const { return ResolveTag(SetByCallerDamageMagnitudeTag, PdGameplayTags::Data_Damage); }
+	const FGameplayTag& GetSetByCallerStatUpOperationTag() const { return ResolveTag(SetByCallerStatUpOperationTag, PdGameplayTags::Data_StatUp); }
 
-	const FGameplayTag& GetEquipmentEquipAbilityTag() const { return ResolveTag(EquipmentEquipAbilityTag, LabGameplayTags::Action_Equip); }
-	const FGameplayTag& GetEquipmentUnequipAbilityTag() const { return ResolveTag(EquipmentUnequipAbilityTag, LabGameplayTags::Action_Unequip); }
+	const FGameplayTag& GetEquipmentEquipAbilityTag() const { return ResolveTag(EquipmentEquipAbilityTag, PdGameplayTags::Action_Equip); }
+	const FGameplayTag& GetEquipmentUnequipAbilityTag() const { return ResolveTag(EquipmentUnequipAbilityTag, PdGameplayTags::Action_Unequip); }
 
 	void GetItemEquipmentSlotTags(TArray<FGameplayTag>& OutTags) const;
 	void GetItemFilterTypeTags(TArray<FGameplayTag>& OutTags) const;

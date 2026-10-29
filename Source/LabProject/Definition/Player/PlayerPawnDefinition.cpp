@@ -1,6 +1,6 @@
 #include "Definition/Player/PlayerPawnDefinition.h"
 
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Definition/Mode/PdGameInstanceDefinition.h"
 #include "GameplayEffect.h"
 
@@ -28,8 +28,8 @@ UPlayerPawnDefinition::UPlayerPawnDefinition()
 		ECC_WorldDynamic
 	};
 
-	ActionPolicy.MovementHitReactCancelTags.AddTag(LabGameplayTags::Action_HitReact);
-	ActionPolicy.MovementHitReactCancelTags.AddTag(LabGameplayTags::GameplayAbility_HitReaction);
+	ActionPolicy.MovementHitReactCancelTags.AddTag(PdGameplayTags::Action_HitReact);
+	ActionPolicy.MovementHitReactCancelTags.AddTag(PdGameplayTags::GameplayAbility_HitReaction);
 }
 
 void UPlayerPawnDefinition::PostLoad()

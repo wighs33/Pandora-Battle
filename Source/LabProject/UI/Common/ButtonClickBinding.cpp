@@ -2,7 +2,7 @@
 
 #include "Components/Button.h"
 
-void PdButtonClick::Bind(UObject* Handler, const TConstArrayView<FPdButtonClickBinding> Bindings)
+void ButtonClick::Bind(UObject* Handler, const TConstArrayView<FPdButtonClickBinding> Bindings)
 {
 	for (const FPdButtonClickBinding& Binding : Bindings)
 	{
@@ -15,7 +15,7 @@ void PdButtonClick::Bind(UObject* Handler, const TConstArrayView<FPdButtonClickB
 	}
 }
 
-void PdButtonClick::Unbind(UObject* Handler, const TConstArrayView<FPdButtonClickBinding> Bindings)
+void ButtonClick::Unbind(UObject* Handler, const TConstArrayView<FPdButtonClickBinding> Bindings)
 {
 	for (const FPdButtonClickBinding& Binding : Bindings)
 	{

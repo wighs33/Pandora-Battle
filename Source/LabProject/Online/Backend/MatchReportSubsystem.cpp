@@ -79,9 +79,9 @@ void UMatchReportSubsystem::ReportMatch(const FMatchReport& Report)
 			*Report.MatchId, PlayersWithoutId, Report.Players.Num());
 	}
 
-	const TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = PdBackendHttp::CreateJsonRequest(
+	const TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = BackendHttp::CreateJsonRequest(
 		TEXT("POST"), Url, BuildReportJson(Report), Settings->GetServerReportTimeoutSeconds());
-	if (!PdBackendHttp::SignWithSigV4(*Request, Credentials, Settings->GetAwsRegion(), TEXT("execute-api")))
+	if (!BackendHttp::SignWithSigV4(*Request, Credentials, Settings->GetAwsRegion(), TEXT("execute-api")))
 	{
 		UE_LOG(LogMatchReport, Warning, TEXT("Could not sign the match report for %s."), *Url);
 		return;
@@ -89,8 +89,8 @@ void UMatchReportSubsystem::ReportMatch(const FMatchReport& Report)
 
 	++PendingReportCount;
 	const FString MatchId = Report.MatchId;
-	PdBackendHttp::Send(Request, PdBackendHttp::FOnResponse::CreateWeakLambda(this,
-		[this, MatchId](const PdBackendHttp::FResponse& Response)
+	BackendHttp::Send(Request, BackendHttp::FOnResponse::CreateWeakLambda(this,
+		[this, MatchId](const BackendHttp::FResponse& Response)
 		{
 			--PendingReportCount;
 			if (Response.bSucceeded)

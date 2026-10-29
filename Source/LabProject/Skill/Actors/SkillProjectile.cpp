@@ -28,7 +28,7 @@ ASkillProjectile::ASkillProjectile()
 	SphereCollision = CreateDefaultSubobject<USphereComponent>(TEXT("SphereCollision"));
 	SetRootComponent(SphereCollision);
 	SphereCollision->InitSphereRadius(12.0f);
-	PdSkillProjectileHit::ApplyCollisionProfile(SphereCollision);
+	SkillProjectileHit::ApplyCollisionProfile(SphereCollision);
 	SphereCollision->SetCanEverAffectNavigation(false);
 
 	ProjectileMovement = CreateDefaultSubobject<UProjectileMovementComponent>(TEXT("ProjectileMovement"));
@@ -91,13 +91,13 @@ void ASkillProjectile::PrepareProjectile(const FGameplayEffectSpecHandle& InDama
 
 	DamageEffectSpecHandle = InDamageEffectSpecHandle;
 	ResetImpactState();
-	PdSkillProjectileHit::IgnoreSourceActors(SphereCollision, *this);
+	SkillProjectileHit::IgnoreSourceActors(SphereCollision, *this);
 	if (ProjectileMovement)
 	{
 		ProjectileMovement->StopMovementImmediately();
 		ProjectileMovement->Deactivate();
 	}
-	PdSkillProjectileHit::DisableCollision(SphereCollision);
+	SkillProjectileHit::DisableCollision(SphereCollision);
 	ApplyProjectileLoopVisual();
 }
 
@@ -117,7 +117,7 @@ void ASkillProjectile::PrepareCosmeticReadiedProjectile(const float InLifeSpan)
 		ProjectileMovement->StopMovementImmediately();
 		ProjectileMovement->Deactivate();
 	}
-	PdSkillProjectileHit::DisableCollision(SphereCollision);
+	SkillProjectileHit::DisableCollision(SphereCollision);
 	ApplyProjectileLoopVisual();
 
 	if (InLifeSpan > 0.0f)
@@ -189,8 +189,8 @@ void ASkillProjectile::LaunchProjectile(const FVector& InTargetLocation, float I
 	MarkProjectileFlightDataDirty();
 	DamageEffectSpecHandle = InDamageEffectSpecHandle;
 	ResetImpactState();
-	PdSkillProjectileHit::ApplyCollisionProfile(SphereCollision);
-	PdSkillProjectileHit::IgnoreSourceActors(SphereCollision, *this);
+	SkillProjectileHit::ApplyCollisionProfile(SphereCollision);
+	SkillProjectileHit::IgnoreSourceActors(SphereCollision, *this);
 	ApplyProjectileLoopVisual();
 
 	if (HasActorBegunPlay())
@@ -261,13 +261,13 @@ void ASkillProjectile::BeginPlay()
 	{
 		if (!bCosmeticOnly && Speed > 0.0f)
 		{
-			PdSkillProjectileHit::ApplyCollisionProfile(SphereCollision);
+			SkillProjectileHit::ApplyCollisionProfile(SphereCollision);
 		}
 		else
 		{
-			PdSkillProjectileHit::DisableCollision(SphereCollision);
+			SkillProjectileHit::DisableCollision(SphereCollision);
 		}
-		PdSkillProjectileHit::IgnoreSourceActors(SphereCollision, *this);
+		SkillProjectileHit::IgnoreSourceActors(SphereCollision, *this);
 		SphereCollision->OnComponentBeginOverlap.AddUniqueDynamic(this, &ThisClass::HandleSphereBeginOverlap);
 		SphereCollision->OnComponentHit.AddUniqueDynamic(this, &ThisClass::HandleSphereHit);
 	}
@@ -283,7 +283,7 @@ void ASkillProjectile::BeginPlay()
 			StartProjectileMovement();
 		}
 		ApplyProjectileLoopVisual();
-		PdSkillProjectilePresentation::ExecuteCue(*this, SpawnGameplayCueTag, GetActorLocation());
+		SkillProjectilePresentation::ExecuteCue(*this, SpawnGameplayCueTag, GetActorLocation());
 	}
 }
 
@@ -311,7 +311,7 @@ void ASkillProjectile::OnRep_ProjectileFlightData()
 
 	if (bCosmeticOnly)
 	{
-		PdSkillProjectileHit::DisableCollision(SphereCollision);
+		SkillProjectileHit::DisableCollision(SphereCollision);
 		if (Speed > 0.0f)
 		{
 			StartProjectileMovement();
@@ -322,12 +322,12 @@ void ASkillProjectile::OnRep_ProjectileFlightData()
 
 	if (Speed > 0.0f)
 	{
-		PdSkillProjectileHit::ApplyCollisionProfile(SphereCollision);
+		SkillProjectileHit::ApplyCollisionProfile(SphereCollision);
 		StartProjectileMovement();
 	}
 	else
 	{
-		PdSkillProjectileHit::DisableCollision(SphereCollision);
+		SkillProjectileHit::DisableCollision(SphereCollision);
 	}
 	ApplyProjectileLoopVisual();
 }
@@ -386,8 +386,8 @@ void ASkillProjectile::HandleProjectileStopped(const FHitResult& Hit)
 	AActor* OtherActor = Hit.GetActor();
 	UPrimitiveComponent* OtherComponent = Hit.GetComponent();
 	if (!bCosmeticOnly && !bHasImpacted && SphereCollision && IsValid(OtherComponent)
-		&& (PdSkillProjectileHit::IsIgnoredImpactActor(*this, OtherActor)
-		|| PdCharacterHitValidation::IsCharacterRelatedNonMeshHit(OtherActor, OtherComponent)))
+		&& (SkillProjectileHit::IsIgnoredImpactActor(*this, OtherActor)
+		|| CharacterHitValidation::IsCharacterRelatedNonMeshHit(OtherActor, OtherComponent)))
 	{
 		// 피해만 무시해서는 ProjectileMovement가 막는 물체에서 멈추는 것을 막을 수 없다.
 		SphereCollision->IgnoreComponentWhenMoving(OtherComponent, true);
@@ -402,20 +402,20 @@ void ASkillProjectile::HandleProjectileStopped(const FHitResult& Hit)
 
 void ASkillProjectile::HandleImpact(AActor* OtherActor, UPrimitiveComponent* OtherComp, const FHitResult& Hit)
 {
-	if (bCosmeticOnly || bHasImpacted || !OtherComp || PdSkillProjectileHit::IsIgnoredImpactActor(*this, OtherActor))
+	if (bCosmeticOnly || bHasImpacted || !OtherComp || SkillProjectileHit::IsIgnoredImpactActor(*this, OtherActor))
 	{
 		return;
 	}
 
 	// 캐릭터는 질의 프리미티브(캡슐, 상호작용 감지, 장비·표시 볼륨)를 여러 개 가질 수 있지만,
 	// 그중 무엇도 스킬 투사체를 소모하면 안 된다. 피해 형상은 캐릭터의 주 스켈레탈 메시뿐이다.
-	if (PdCharacterHitValidation::IsCharacterRelatedNonMeshHit(OtherActor, OtherComp))
+	if (CharacterHitValidation::IsCharacterRelatedNonMeshHit(OtherActor, OtherComp))
 	{
 		return;
 	}
 
-	AActor* DamageTargetActor = PdSkillProjectileHit::ResolveDamageTarget(OtherActor, OtherComp);
-	if (PdSkillProjectileHit::IsIgnoredImpactActor(*this, DamageTargetActor) || !HasAuthority())
+	AActor* DamageTargetActor = SkillProjectileHit::ResolveDamageTarget(OtherActor, OtherComp);
+	if (SkillProjectileHit::IsIgnoredImpactActor(*this, DamageTargetActor) || !HasAuthority())
 	{
 		return;
 	}
@@ -426,7 +426,7 @@ void ASkillProjectile::HandleImpact(AActor* OtherActor, UPrimitiveComponent* Oth
 	MarkImpactStateDirty();
 
 	const FVector ImpactLocation =
-		PdSkillProjectileHit::ResolveImpactLocation(Hit, bKeepProjectileAfterImpact, GetActorLocation());
+		SkillProjectileHit::ResolveImpactLocation(Hit, bKeepProjectileAfterImpact, GetActorLocation());
 	StopAtImpact(ImpactLocation);
 
 	FSkillProjectileDamage Damage;
@@ -435,27 +435,27 @@ void ASkillProjectile::HandleImpact(AActor* OtherActor, UPrimitiveComponent* Oth
 	Damage.StatusEffect = StatusEffectDefinition;
 	if (ImpactAreaDamageRadius > UE_SMALL_NUMBER)
 	{
-		PdSkillProjectileHit::ApplyDamageInArea(*this, ImpactLocation, ImpactAreaDamageRadius, Damage);
+		SkillProjectileHit::ApplyDamageInArea(*this, ImpactLocation, ImpactAreaDamageRadius, Damage);
 	}
 	else
 	{
-		PdSkillProjectileHit::ApplyDamageToTarget(*this, DamageTargetActor, Damage);
+		SkillProjectileHit::ApplyDamageToTarget(*this, DamageTargetActor, Damage);
 	}
 
 	ACharacterBase* StuckCharacter = nullptr;
 	FName StuckBoneName = NAME_None;
 	if (bKeepProjectileAfterImpact)
 	{
-		StuckCharacter = PdCharacterHitValidation::ResolveDirectMeshHit(OtherActor, OtherComp);
+		StuckCharacter = CharacterHitValidation::ResolveDirectMeshHit(OtherActor, OtherComp);
 		if (StuckCharacter && IsValid(StuckCharacter->GetMesh()))
 		{
 			// 캐릭터에 맞으면 항상 권위 있는 주 메시에 붙인다. Hit.BoneName은 보통 메시의 물리 애셋이 채우지만,
 			// 없을 때는 가장 가까운 본을 써서 애니메이션이 움직여도 고드름이 맞은 부위에 박혀 있게 한다.
-			StuckBoneName = PdSkillProjectileHit::ResolveImpactBoneName(StuckCharacter->GetMesh(), Hit, ImpactLocation);
+			StuckBoneName = SkillProjectileHit::ResolveImpactBoneName(StuckCharacter->GetMesh(), Hit, ImpactLocation);
 		}
 		else
 		{
-			AttachToImpactComponent(OtherComp, PdSkillProjectileHit::ResolveImpactBoneName(OtherComp, Hit, ImpactLocation));
+			AttachToImpactComponent(OtherComp, SkillProjectileHit::ResolveImpactBoneName(OtherComp, Hit, ImpactLocation));
 		}
 	}
 	else if (ProjectileEffect)
@@ -496,7 +496,7 @@ void ASkillProjectile::StartProjectileMovement() const
 		return;
 	}
 
-	PdSkillProjectileFlight::FLaunchParams Params;
+	SkillProjectileFlight::FLaunchParams Params;
 	Params.StartLocation = GetActorLocation();
 	Params.TargetLocation = FVector(TargetLocation);
 	Params.FallbackDirection = GetActorForwardVector();
@@ -508,12 +508,12 @@ void ASkillProjectile::StartProjectileMovement() const
 	{
 		Params.WorldGravityZ = World->GetGravityZ();
 	}
-	PdSkillProjectileFlight::Launch(*ProjectileMovement, SphereCollision, Params);
+	SkillProjectileFlight::Launch(*ProjectileMovement, SphereCollision, Params);
 }
 
 void ASkillProjectile::StopAtImpact(const FVector& ImpactLocation)
 {
-	PdSkillProjectileHit::DisableCollision(SphereCollision);
+	SkillProjectileHit::DisableCollision(SphereCollision);
 	if (ProjectileMovement)
 	{
 		ProjectileMovement->StopMovementImmediately();
@@ -550,7 +550,7 @@ void ASkillProjectile::ExecuteImpactGameplayCueAtLocation(const FVector& CueLoca
 	}
 
 	bImpactCueExecuted = true;
-	PdSkillProjectilePresentation::ExecuteCue(*this, ImpactGameplayCueTag, CueLocation);
+	SkillProjectilePresentation::ExecuteCue(*this, ImpactGameplayCueTag, CueLocation);
 }
 
 // 날아가는 동안은 비행 이펙트, 대기 중에는 총구 이펙트를 쓰고, 맞은 뒤에는 박힌 투사체만 이펙트를 유지한다.
@@ -562,7 +562,7 @@ void ASkillProjectile::ApplyProjectileLoopVisual() const
 		DesiredSystem = Speed > 0.0f ? ProjectileFX.Get() : MuzzleFX.Get();
 	}
 
-	PdSkillProjectilePresentation::ApplyLoopEffect(ProjectileEffect, DesiredSystem);
+	SkillProjectilePresentation::ApplyLoopEffect(ProjectileEffect, DesiredSystem);
 }
 
 void ASkillProjectile::ExecuteImpactNiagaraAtLocation(const FVector& CueLocation)
@@ -573,7 +573,7 @@ void ASkillProjectile::ExecuteImpactNiagaraAtLocation(const FVector& CueLocation
 	}
 
 	bImpactNiagaraExecuted = true;
-	PdSkillProjectilePresentation::SpawnImpactEffect(*this, HitFX.Get(), CueLocation, bSpawnHitNiagaraOnGround);
+	SkillProjectilePresentation::SpawnImpactEffect(*this, HitFX.Get(), CueLocation, bSpawnHitNiagaraOnGround);
 }
 
 void ASkillProjectile::StopReadiedScaleGrowth()
@@ -628,7 +628,7 @@ float ASkillProjectile::GetSyncedWorldTimeSeconds() const
 void ASkillProjectile::ApplyReadiedGrowthValue(const float Alpha)
 {
 	SetActorScale3D(ReadiedGrowth.GetScale(Alpha));
-	PdSkillProjectilePresentation::SetNiagaraVector2D(
+	SkillProjectilePresentation::SetNiagaraVector2D(
 		*this,
 		ReadiedGrowth.GetNiagaraParameterName(),
 		ReadiedGrowth.GetNiagaraSize(Alpha));

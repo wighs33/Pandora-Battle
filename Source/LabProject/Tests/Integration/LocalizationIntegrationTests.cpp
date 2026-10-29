@@ -16,7 +16,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPdLanguageSwitchTest, "LabProject.Integration.
 // 게임은 [Internationalization] Culture=ko로 시작하고, 언어를 고르면 Culture가 바뀌어 메뉴 문구와 애셋 텍스트가 함께 바뀐다.
 bool FPdLanguageSwitchTest::RunTest(const FString& Parameters)
 {
-	const UWorld* World = PdIntegrationTest::GetGameWorld();
+	const UWorld* World = IntegrationTest::GetGameWorld();
 	UMenuLocalizationSubsystem* Localization = World && World->GetGameInstance()
 		? World->GetGameInstance()->GetSubsystem<UMenuLocalizationSubsystem>() : nullptr;
 	const TStrongObjectPtr<const UPandoraDefinition> Angel(

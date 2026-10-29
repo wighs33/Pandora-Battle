@@ -243,7 +243,7 @@ void UGameLiftServerSubsystem::NotifyServerReadyForSessions(const UWorld* World)
 		{
 			const FString SessionId = ToFString(GameSession.GetGameSessionId());
 			const int32 MaxPlayers = GameSession.GetMaximumPlayerSessionCount();
-			const FString SessionMode = FindGameProperty(GameSession, LabGameSession::SessionModeProperty);
+			const FString SessionMode = FindGameProperty(GameSession, PdGameSession::SessionModeProperty);
 			AsyncTask(ENamedThreads::GameThread, [WeakThis, SessionId, MaxPlayers, SessionMode]()
 			{
 				if (UGameLiftServerSubsystem* This = WeakThis.Get())
@@ -293,7 +293,7 @@ void UGameLiftServerSubsystem::HandleGameSessionStarted(const FString& InGameSes
 		return;
 	}
 
-	bBossRaidSession = SessionMode.Equals(LabGameSession::BossRaidSessionMode, ESearchCase::IgnoreCase);
+	bBossRaidSession = SessionMode.Equals(PdGameSession::BossRaidSessionMode, ESearchCase::IgnoreCase);
 	if (!bBossRaidSession)
 	{
 		ActivateSession(InGameSessionId, MaxPlayerSessionCount);
@@ -334,7 +334,7 @@ bool UGameLiftServerSubsystem::TravelToBossRaidWorld()
 	}
 
 	UE_LOG(LogGameLiftServer, Log, TEXT("Boss raid game session %s: opening %s before activation."), *PendingGameSessionId, *MapName);
-	return World->ServerTravel(FString::Printf(TEXT("%s?%s=1"), *MapName, LabGameSession::BossRaidOption));
+	return World->ServerTravel(FString::Printf(TEXT("%s?%s=1"), *MapName, PdGameSession::BossRaidOption));
 }
 
 void UGameLiftServerSubsystem::ActivateSession(const FString& InGameSessionId, const int32 MaxPlayerSessionCount)
@@ -352,7 +352,7 @@ void UGameLiftServerSubsystem::ActivateSession(const FString& InGameSessionId, c
 		return;
 	}
 	UE_LOG(LogGameLiftServer, Log, TEXT("GameLift game session activated: %s (%s, max %d players)"),
-		*GameSessionId, bBossRaidSession ? LabGameSession::BossRaidSessionMode : LabGameSession::MatchSessionMode,
+		*GameSessionId, bBossRaidSession ? PdGameSession::BossRaidSessionMode : PdGameSession::MatchSessionMode,
 		MaxPlayerSessionCount);
 #endif
 }

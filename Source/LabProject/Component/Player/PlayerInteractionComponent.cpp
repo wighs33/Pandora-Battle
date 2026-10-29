@@ -15,9 +15,9 @@ namespace
 	{
 		InteractionSensor.SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 		// 상호작용 센서가 피격 메시보다 먼저 투사체·스킬 검사를 막지 않도록 전용 채널을 쓴다.
-		InteractionSensor.SetCollisionObjectType(LabCollisionChannels::OverlapBox());
+		InteractionSensor.SetCollisionObjectType(CollisionChannels::OverlapBox());
 		InteractionSensor.SetCollisionResponseToAllChannels(ECR_Overlap);
-		InteractionSensor.SetCollisionResponseToChannel(LabCollisionChannels::Projectile(), ECR_Ignore);
+		InteractionSensor.SetCollisionResponseToChannel(CollisionChannels::Projectile(), ECR_Ignore);
 		InteractionSensor.SetGenerateOverlapEvents(true);
 		InteractionSensor.SetCanEverAffectNavigation(false);
 	}

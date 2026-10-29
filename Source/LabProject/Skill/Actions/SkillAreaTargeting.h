@@ -12,7 +12,7 @@ struct FSkillAreaSettings;
  * 범위 스킬이 떨어질 지면 위치를 정한다.
  * 캐릭터·맵 경계 볼륨·가파른 면은 지면으로 보지 않고, 지면을 못 찾으면 대상의 발밑이나 조준 지점을 그대로 쓴다.
  */
-namespace PdSkillAreaTargeting
+namespace SkillAreaTargeting
 {
 	/** SourceLocation 위아래로 선을 그어 처음 만나는 지면. */
 	LABPROJECT_API bool TryResolveGroundLocation(

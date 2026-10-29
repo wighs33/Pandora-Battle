@@ -23,7 +23,7 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(FOnProjectileSkillImpact, AActor*, const FH
 
 /**
  * 스킬 투사체의 비행·충돌·연출 상태를 복제하고 순서를 조율한다.
- * 비행 계산은 PdSkillProjectileFlight, 충돌 판정과 피해는 PdSkillProjectileHit,
+ * 비행 계산은 SkillProjectileFlight, 충돌 판정과 피해는 SkillProjectileHit,
  * 이펙트와 대기 성장 연출은 PdSkillProjectilePresentation이 맡는다.
  */
 UCLASS(BlueprintType, Blueprintable)

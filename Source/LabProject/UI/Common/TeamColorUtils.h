@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 
-namespace LabTeamColorUtils
+namespace TeamColorUtils
 {
 	inline constexpr int32 TeamColorCount = 6;
 

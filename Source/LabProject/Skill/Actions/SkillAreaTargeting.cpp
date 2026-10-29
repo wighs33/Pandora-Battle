@@ -34,13 +34,13 @@ namespace
 			ActorsToIgnore.Add(Avatar);
 		}
 
-		return PdSkillAreaTargeting::TryResolveGroundLocation(Target.GetWorld(), Target.GetActorLocation(),
+		return SkillAreaTargeting::TryResolveGroundLocation(Target.GetWorld(), Target.GetActorLocation(),
 			ActorsToIgnore, Settings.TargetGroundTraceChannel, static_cast<float>(Settings.TargetGroundTraceDepth),
 			OutGroundLocation);
 	}
 }
 
-bool PdSkillAreaTargeting::TryResolveGroundLocation(UWorld* World, const FVector& SourceLocation,
+bool SkillAreaTargeting::TryResolveGroundLocation(UWorld* World, const FVector& SourceLocation,
 	const TArray<AActor*>& ActorsToIgnore, const TEnumAsByte<ETraceTypeQuery> TraceType, const float TraceDepth,
 	FVector& OutGroundLocation)
 {
@@ -100,15 +100,15 @@ bool PdSkillAreaTargeting::TryResolveGroundLocation(UWorld* World, const FVector
 	return false;
 }
 
-FVector PdSkillAreaTargeting::ResolveTargetLocation(AActor& Target, AActor* Avatar, const FSkillAreaSettings& Settings)
+FVector SkillAreaTargeting::ResolveTargetLocation(AActor& Target, AActor* Avatar, const FSkillAreaSettings& Settings)
 {
 	FVector GroundLocation = FVector::ZeroVector;
 	return TryResolveGroundUnderTarget(Target, Avatar, Settings, GroundLocation)
 		? GroundLocation
-		: PdSkillGroundProjection::ResolveActorFeetLocation(&Target);
+		: SkillGroundProjection::ResolveActorFeetLocation(&Target);
 }
 
-FVector PdSkillAreaTargeting::ResolveForwardLocation(AActor& Avatar, const FSkillAreaSettings& Settings)
+FVector SkillAreaTargeting::ResolveForwardLocation(AActor& Avatar, const FSkillAreaSettings& Settings)
 {
 	const float MaxRange = static_cast<float>(Settings.TargetingMaxRange);
 	const float ForwardDistance = FMath::Clamp(MaxRange > 0.0f ? MaxRange * 0.65f : 800.0f, 300.0f, 1200.0f);
@@ -128,7 +128,7 @@ FVector PdSkillAreaTargeting::ResolveForwardLocation(AActor& Avatar, const FSkil
 		: CandidateLocation;
 }
 
-FVector PdSkillAreaTargeting::ResolveAimedLocation(const FHitResult& HitResult, const FVector& TargetDataEndPoint,
+FVector SkillAreaTargeting::ResolveAimedLocation(const FHitResult& HitResult, const FVector& TargetDataEndPoint,
 	AActor* Avatar, const FSkillAreaSettings& Settings)
 {
 	const FVector AimedLocation = HitResult.Location.IsNearlyZero() ? TargetDataEndPoint : HitResult.Location;

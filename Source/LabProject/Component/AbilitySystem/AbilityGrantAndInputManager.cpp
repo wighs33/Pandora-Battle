@@ -2,7 +2,7 @@
 
 #include "Abilities/GameplayAbility.h"
 #include "AbilitySystem/Ability/PdGameplayAbility.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "TimerManager.h"
 #include "Misc/ScopeExit.h"
@@ -105,7 +105,7 @@ void UAbilityGrantAndInputManager::RemoveAbilities(
 // 살아 있는 서버 캐릭터의 비활성 자동 실행 능력을 모아 다시 활성화하도록 예약한다.
 void UAbilityGrantAndInputManager::ReactivateAutoActivatedAbilities(UPdAbilitySystemComponent& AbilitySystemComponent) const
 {
-	if (!AbilitySystemComponent.IsOwnerActorAuthoritative() || AbilitySystemComponent.HasMatchingGameplayTag(LabGameplayTags::State_Dead))
+	if (!AbilitySystemComponent.IsOwnerActorAuthoritative() || AbilitySystemComponent.HasMatchingGameplayTag(PdGameplayTags::State_Dead))
 	{
 		return;
 	}

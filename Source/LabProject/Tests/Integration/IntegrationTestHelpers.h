@@ -20,7 +20,7 @@
  * 게임 테스트는 -game 프로세스의 게임 월드 하나를 대상으로 하고, 테스트마다 맵을 새로 열어 앞 테스트의 상태를 넘겨받지 않는다.
  * 기다림은 고정 시간 대신 조건으로 걸고, 제한 시간이 지나면 무엇을 기다렸는지 오류로 남긴다.
  */
-namespace PdIntegrationTest
+namespace IntegrationTest
 {
 	inline UWorld* GetGameWorld()
 	{

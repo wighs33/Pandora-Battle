@@ -1,6 +1,6 @@
 #include "Definition/Player/StatUpgradeDefinition.h"
 
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Definition/Mode/PdGameInstanceDefinition.h"
 
 #if WITH_EDITOR
@@ -252,28 +252,28 @@ float UStatUpgradeDefinition::GetMaxInvestedLevel() const
 TConstArrayView<FStatUpgradeBinding> UStatUpgradeDefinition::GetStatBindings()
 {
 	static const FStatUpgradeBinding Bindings[] = {
-		{ LabGameplayTags::Status_Offense_Strength, LabGameplayTags::Status_Offense_StrengthLevel },
-		{ LabGameplayTags::Status_Offense_Intelligence, LabGameplayTags::Status_Offense_IntelligenceLevel },
-		{ LabGameplayTags::Status_Offense_Critical, LabGameplayTags::Status_Offense_CriticalLevel },
-		{ LabGameplayTags::Status_Defense_Armor, LabGameplayTags::Status_Defense_ArmorLevel },
-		{ LabGameplayTags::Status_Defense_Recovery, LabGameplayTags::Status_Defense_RecoveryLevel },
-		{ LabGameplayTags::Status_Resistance_Frostbite, LabGameplayTags::Status_Resistance_FrostbiteLevel },
-		{ LabGameplayTags::Status_Resistance_Burn, LabGameplayTags::Status_Resistance_BurnLevel },
-		{ LabGameplayTags::Status_Resistance_ElectricShock, LabGameplayTags::Status_Resistance_ElectricShockLevel },
-		{ LabGameplayTags::Status_Agility_AttackSpeed, LabGameplayTags::Status_Agility_AttackSpeedLevel },
-		{ LabGameplayTags::Status_Agility_MovementSpeed, LabGameplayTags::Status_Agility_MovementSpeedLevel },
-		{ LabGameplayTags::Status_Agility_Arcane, LabGameplayTags::Status_Agility_ArcaneLevel },
-		{ LabGameplayTags::Status_PandoraForce_FirstPandora, LabGameplayTags::Status_PandoraForce_FirstPandoraLevel, {}, {}, true },
-		{ LabGameplayTags::Status_PandoraForce_SecondPandora, LabGameplayTags::Status_PandoraForce_SecondPandoraLevel, {}, {}, true },
-		{ LabGameplayTags::Status_PandoraForce_ThirdPandora, LabGameplayTags::Status_PandoraForce_ThirdPandoraLevel, {}, {}, true },
-		{ LabGameplayTags::Status_Defense_MaxShield, LabGameplayTags::Status_Defense_MaxShieldLevel,
-			LabGameplayTags::Status_Defense_MaxShieldIncreasePercent, LabGameplayTags::Status_Defense_Shield, true },
-		{ LabGameplayTags::Status_Resource_MaxHealth, LabGameplayTags::Status_Resource_MaxHealthLevel,
-			LabGameplayTags::Status_Resource_MaxHealthIncreasePercent, LabGameplayTags::Status_Resource_Health, true },
-		{ LabGameplayTags::Status_Resource_MaxMana, LabGameplayTags::Status_Resource_MaxManaLevel,
-			LabGameplayTags::Status_Resource_MaxManaIncreasePercent, LabGameplayTags::Status_Resource_Mana, true },
-		{ LabGameplayTags::Status_Resource_MaxStamina, LabGameplayTags::Status_Resource_MaxStaminaLevel,
-			LabGameplayTags::Status_Resource_MaxStaminaIncreasePercent, LabGameplayTags::Status_Resource_Stamina, true },
+		{ PdGameplayTags::Status_Offense_Strength, PdGameplayTags::Status_Offense_StrengthLevel },
+		{ PdGameplayTags::Status_Offense_Intelligence, PdGameplayTags::Status_Offense_IntelligenceLevel },
+		{ PdGameplayTags::Status_Offense_Critical, PdGameplayTags::Status_Offense_CriticalLevel },
+		{ PdGameplayTags::Status_Defense_Armor, PdGameplayTags::Status_Defense_ArmorLevel },
+		{ PdGameplayTags::Status_Defense_Recovery, PdGameplayTags::Status_Defense_RecoveryLevel },
+		{ PdGameplayTags::Status_Resistance_Frostbite, PdGameplayTags::Status_Resistance_FrostbiteLevel },
+		{ PdGameplayTags::Status_Resistance_Burn, PdGameplayTags::Status_Resistance_BurnLevel },
+		{ PdGameplayTags::Status_Resistance_ElectricShock, PdGameplayTags::Status_Resistance_ElectricShockLevel },
+		{ PdGameplayTags::Status_Agility_AttackSpeed, PdGameplayTags::Status_Agility_AttackSpeedLevel },
+		{ PdGameplayTags::Status_Agility_MovementSpeed, PdGameplayTags::Status_Agility_MovementSpeedLevel },
+		{ PdGameplayTags::Status_Agility_Arcane, PdGameplayTags::Status_Agility_ArcaneLevel },
+		{ PdGameplayTags::Status_PandoraForce_FirstPandora, PdGameplayTags::Status_PandoraForce_FirstPandoraLevel, {}, {}, true },
+		{ PdGameplayTags::Status_PandoraForce_SecondPandora, PdGameplayTags::Status_PandoraForce_SecondPandoraLevel, {}, {}, true },
+		{ PdGameplayTags::Status_PandoraForce_ThirdPandora, PdGameplayTags::Status_PandoraForce_ThirdPandoraLevel, {}, {}, true },
+		{ PdGameplayTags::Status_Defense_MaxShield, PdGameplayTags::Status_Defense_MaxShieldLevel,
+			PdGameplayTags::Status_Defense_MaxShieldIncreasePercent, PdGameplayTags::Status_Defense_Shield, true },
+		{ PdGameplayTags::Status_Resource_MaxHealth, PdGameplayTags::Status_Resource_MaxHealthLevel,
+			PdGameplayTags::Status_Resource_MaxHealthIncreasePercent, PdGameplayTags::Status_Resource_Health, true },
+		{ PdGameplayTags::Status_Resource_MaxMana, PdGameplayTags::Status_Resource_MaxManaLevel,
+			PdGameplayTags::Status_Resource_MaxManaIncreasePercent, PdGameplayTags::Status_Resource_Mana, true },
+		{ PdGameplayTags::Status_Resource_MaxStamina, PdGameplayTags::Status_Resource_MaxStaminaLevel,
+			PdGameplayTags::Status_Resource_MaxStaminaIncreasePercent, PdGameplayTags::Status_Resource_Stamina, true },
 	};
 	return MakeArrayView(Bindings);
 }

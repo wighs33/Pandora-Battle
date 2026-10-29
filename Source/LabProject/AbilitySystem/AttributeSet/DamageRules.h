@@ -5,7 +5,7 @@
 struct FGameplayEffectSpec;
 
 // 피해 공식. 공격자가 내보낼 피해를 정할 때와 속성 세트가 들어온 피해를 줄일 때 같은 규칙을 쓰도록 상태 없이 모은다.
-namespace PdDamageRules
+namespace DamageRules
 {
 	/** 피해 GE Spec이 어떤 상태 이상 피해인지. 상태 이상 피해는 맞는 쪽 저항으로 줄고 피격 반응이 없다. */
 	enum class EStatusDamage : uint8

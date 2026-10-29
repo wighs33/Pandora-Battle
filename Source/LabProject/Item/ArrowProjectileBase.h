@@ -32,7 +32,7 @@ public:
 	bool LaunchArrowActor(const FVector& Direction);
 
 	/** 발사할 때 정한 피해를 담는다. 명중할 때 무기가 바뀌었거나 해제됐어도 이 값으로 피해를 준다. */
-	void SetLaunchDamage(const PdDamageRules::FOutgoingDamage& Damage) { LaunchDamage = Damage; }
+	void SetLaunchDamage(const DamageRules::FOutgoingDamage& Damage) { LaunchDamage = Damage; }
 
 protected:
 	// Event Handlers --------------------------------------------------------------------------------------------------
@@ -107,7 +107,7 @@ protected:
 	UPROPERTY(Transient)
 	FVector PreviousImpactTraceLocation = FVector::ZeroVector;
 
-	PdDamageRules::FOutgoingDamage LaunchDamage;
+	DamageRules::FOutgoingDamage LaunchDamage;
 
 	/** 이 화면에서 연출을 이미 재생했는지. 같은 연출이 두 번 나오지 않게 한다. */
 	bool bLaunchEffectsPlayed = false;

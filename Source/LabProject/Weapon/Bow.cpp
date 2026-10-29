@@ -4,7 +4,7 @@
 #include "Animation/AnimMontage.h"
 #include "Character/CharacterBase.h"
 #include "Character/PdPlayer.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Weapon/WeaponAnimNotifyNames.h"
 #include "Component/Player/CombatComponent.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -141,7 +141,7 @@ void ABow::BindServerDrawInvalidation(UPdAbilitySystemComponent* AbilitySystemCo
 	UnbindServerDrawInvalidation();
 	ServerDrawBoundAbilitySystemComponent = AbilitySystemComponent;
 	OwnerDeadTagChangedDelegateHandle = AbilitySystemComponent
-		->RegisterGameplayTagEvent(LabGameplayTags::State_Dead, EGameplayTagEventType::NewOrRemoved)
+		->RegisterGameplayTagEvent(PdGameplayTags::State_Dead, EGameplayTagEventType::NewOrRemoved)
 		.AddUObject(this, &ThisClass::HandleOwnerDeadTagChanged);
 }
 
@@ -152,7 +152,7 @@ void ABow::UnbindServerDrawInvalidation()
 		if (OwnerDeadTagChangedDelegateHandle.IsValid())
 		{
 			AbilitySystemComponent
-				->RegisterGameplayTagEvent(LabGameplayTags::State_Dead, EGameplayTagEventType::NewOrRemoved)
+				->RegisterGameplayTagEvent(PdGameplayTags::State_Dead, EGameplayTagEventType::NewOrRemoved)
 				.Remove(OwnerDeadTagChangedDelegateHandle);
 		}
 	}
@@ -465,7 +465,7 @@ void ABow::DestroyDrawnArrow()
 // 쏘는 순간의 무기 피해를 화살에 담는다. 날아가는 동안 무기를 바꾸거나 해제해도 이 값으로 맞힌다.
 bool ABow::LaunchArrowWithDamage(AArrowProjectileBase& Arrow, ACharacterBase* Character, const FVector& Direction)
 {
-	PdDamageRules::FOutgoingDamage LaunchDamage;
+	DamageRules::FOutgoingDamage LaunchDamage;
 	const UCombatComponent* CombatComponent = Character ? Character->GetCombatComponent() : nullptr;
 	if (CombatComponent && CombatComponent->BuildWeaponDamage(*this, LaunchDamage))
 	{

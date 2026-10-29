@@ -1,6 +1,6 @@
 #include "UI/Info/Skin/SkinEquipSlotWidget.h"
 
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Components/Button.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
@@ -47,7 +47,7 @@ void USkinEquipSlotWidget::OnMenuLanguageChanged()
 
 FGameplayTag USkinEquipSlotWidget::GetAcceptedEquipTypeTag() const
 {
-	if (ResolvedEquipTypeTag.MatchesTag(LabGameplayTags::Skin_Gesture))
+	if (ResolvedEquipTypeTag.MatchesTag(PdGameplayTags::Skin_Gesture))
 	{
 		return ResolvedEquipTypeTag;
 	}
@@ -176,8 +176,8 @@ void USkinEquipSlotWidget::ApplyButtonBackgroundStyle()
 bool USkinEquipSlotWidget::CanAcceptDroppedSkin(const USkinDefinition* DroppedSkin) const
 {
 	const FGameplayTag AcceptedTag = GetAcceptedEquipTypeTag();
-	const FGameplayTag RequiredSkinTag = AcceptedTag.MatchesTag(LabGameplayTags::Skin_Gesture)
-		? LabGameplayTags::Skin_Gesture
+	const FGameplayTag RequiredSkinTag = AcceptedTag.MatchesTag(PdGameplayTags::Skin_Gesture)
+		? PdGameplayTags::Skin_Gesture
 		: AcceptedTag;
 	return IsValid(DroppedSkin) && DroppedSkin->IdTag.IsValid() && RequiredSkinTag.IsValid() && DroppedSkin->IdTag.MatchesTag(RequiredSkinTag);
 }

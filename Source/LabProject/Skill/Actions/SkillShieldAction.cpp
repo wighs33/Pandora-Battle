@@ -3,7 +3,7 @@
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "Animation/AnimMontage.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "GameplayEffect.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SkillShieldAction)
@@ -64,7 +64,7 @@ FGameplayTag USkillShieldAction::GetResolvedMontageTriggerEventTag() const
 	const USkillDefinition* ShieldConfig = GetAbility()->GetSourceSkillDataAsset();
 	return ShieldConfig && ShieldConfig->Animation.PrimaryEventTag.IsValid()
 		? ShieldConfig->Animation.PrimaryEventTag
-		: LabGameplayTags::Event_Montage_Trigger;
+		: PdGameplayTags::Event_Montage_Trigger;
 }
 
 void USkillShieldAction::StartWaitMontageTriggerTask()

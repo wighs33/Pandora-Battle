@@ -71,9 +71,9 @@ namespace
 		return TArray<uint8>(reinterpret_cast<const uint8*>(Converted.Get()), Converted.Length());
 	}
 
-	PdAwsSigV4::FDigest HmacSha256Text(const PdAwsSigV4::FDigest& Key, const FString& Message)
+	AwsSigV4::FDigest HmacSha256Text(const AwsSigV4::FDigest& Key, const FString& Message)
 	{
-		return PdAwsSigV4::HmacSha256(MakeArrayView(Key.GetData(), Key.Num()), ToUtf8(Message));
+		return AwsSigV4::HmacSha256(MakeArrayView(Key.GetData(), Key.Num()), ToUtf8(Message));
 	}
 
 	bool IsUnreserved(const uint8 Character)
@@ -124,7 +124,7 @@ namespace
 	}
 }
 
-namespace PdAwsSigV4
+namespace AwsSigV4
 {
 	FDigest Sha256(const TConstArrayView<uint8> Data)
 	{

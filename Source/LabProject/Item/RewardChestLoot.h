@@ -43,7 +43,7 @@ struct FRewardChestItemCountRule
 };
 
 // 보상 상자의 뽑기 규칙. 무기는 언제나 하나만 고르고, 나머지는 무기가 아닌 아이템으로 채운다.
-namespace PdRewardChestLoot
+namespace RewardChestLoot
 {
 	// 가중치 비율로 하나를 고른다. 후보가 없거나 가중치 합이 0 이하면 INDEX_NONE이다.
 	int32 SelectWeightedIndex(TConstArrayView<float> Weights, float TotalWeight);

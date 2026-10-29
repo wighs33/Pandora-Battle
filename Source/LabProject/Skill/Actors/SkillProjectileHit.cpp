@@ -32,7 +32,7 @@ namespace
 	}
 }
 
-void PdSkillProjectileHit::ApplyCollisionProfile(UPrimitiveComponent* Collision)
+void SkillProjectileHit::ApplyCollisionProfile(UPrimitiveComponent* Collision)
 {
 	if (!Collision)
 	{
@@ -40,19 +40,19 @@ void PdSkillProjectileHit::ApplyCollisionProfile(UPrimitiveComponent* Collision)
 	}
 
 	Collision->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-	Collision->SetCollisionObjectType(LabCollisionChannels::Projectile());
+	Collision->SetCollisionObjectType(CollisionChannels::Projectile());
 	Collision->SetCollisionResponseToAllChannels(ECR_Ignore);
 	Collision->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);
 	Collision->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Block);
 	Collision->SetCollisionResponseToChannel(ECC_PhysicsBody, ECR_Block);
 	Collision->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
-	Collision->SetCollisionResponseToChannel(LabCollisionChannels::HitableBody(), ECR_Block);
-	Collision->SetCollisionResponseToChannel(LabCollisionChannels::OverlapBox(), ECR_Ignore);
+	Collision->SetCollisionResponseToChannel(CollisionChannels::HitableBody(), ECR_Block);
+	Collision->SetCollisionResponseToChannel(CollisionChannels::OverlapBox(), ECR_Ignore);
 	Collision->SetGenerateOverlapEvents(true);
 	Collision->SetNotifyRigidBodyCollision(true);
 }
 
-void PdSkillProjectileHit::DisableCollision(UPrimitiveComponent* Collision)
+void SkillProjectileHit::DisableCollision(UPrimitiveComponent* Collision)
 {
 	if (!Collision)
 	{
@@ -64,7 +64,7 @@ void PdSkillProjectileHit::DisableCollision(UPrimitiveComponent* Collision)
 	Collision->SetNotifyRigidBodyCollision(false);
 }
 
-void PdSkillProjectileHit::IgnoreSourceActors(UPrimitiveComponent* Collision, AActor& Projectile)
+void SkillProjectileHit::IgnoreSourceActors(UPrimitiveComponent* Collision, AActor& Projectile)
 {
 	if (!Collision)
 	{
@@ -85,7 +85,7 @@ void PdSkillProjectileHit::IgnoreSourceActors(UPrimitiveComponent* Collision, AA
 	}
 }
 
-bool PdSkillProjectileHit::IsIgnoredImpactActor(const AActor& Projectile, const AActor* OtherActor)
+bool SkillProjectileHit::IsIgnoredImpactActor(const AActor& Projectile, const AActor* OtherActor)
 {
 	if (!IsValid(OtherActor))
 	{
@@ -135,22 +135,22 @@ bool PdSkillProjectileHit::IsIgnoredImpactActor(const AActor& Projectile, const 
 	return false;
 }
 
-AActor* PdSkillProjectileHit::ResolveDamageTarget(AActor* OtherActor, const UPrimitiveComponent* OtherComponent)
+AActor* SkillProjectileHit::ResolveDamageTarget(AActor* OtherActor, const UPrimitiveComponent* OtherComponent)
 {
 	if (!IsValid(OtherActor))
 	{
 		return nullptr;
 	}
 
-	if (PdCharacterHitValidation::ResolveRelatedCharacter(OtherActor, OtherComponent))
+	if (CharacterHitValidation::ResolveRelatedCharacter(OtherActor, OtherComponent))
 	{
-		return PdCharacterHitValidation::ResolveDirectMeshHit(OtherActor, OtherComponent);
+		return CharacterHitValidation::ResolveDirectMeshHit(OtherActor, OtherComponent);
 	}
 
 	return OtherActor;
 }
 
-FVector PdSkillProjectileHit::ResolveImpactLocation(const FHitResult& Hit, const bool bUseSurfacePoint,
+FVector SkillProjectileHit::ResolveImpactLocation(const FHitResult& Hit, const bool bUseSurfacePoint,
 	const FVector& FallbackLocation)
 {
 	const bool bHasReportedHit = Hit.GetActor() != nullptr || Hit.GetComponent() != nullptr;
@@ -162,7 +162,7 @@ FVector PdSkillProjectileHit::ResolveImpactLocation(const FHitResult& Hit, const
 	return bHasReportedHit && !Hit.Location.ContainsNaN() ? FVector(Hit.Location) : FallbackLocation;
 }
 
-FName PdSkillProjectileHit::ResolveImpactBoneName(const UPrimitiveComponent* ImpactComponent, const FHitResult& Hit,
+FName SkillProjectileHit::ResolveImpactBoneName(const UPrimitiveComponent* ImpactComponent, const FHitResult& Hit,
 	const FVector& ImpactLocation)
 {
 	if (!IsValid(ImpactComponent))
@@ -187,7 +187,7 @@ FName PdSkillProjectileHit::ResolveImpactBoneName(const UPrimitiveComponent* Imp
 	return NAME_None;
 }
 
-bool PdSkillProjectileHit::ApplyDamageToTarget(const AActor& Projectile, AActor* TargetActor,
+bool SkillProjectileHit::ApplyDamageToTarget(const AActor& Projectile, AActor* TargetActor,
 	const FSkillProjectileDamage& Damage)
 {
 	if (!Projectile.HasAuthority() || !IsValid(TargetActor) || !Damage.DamageSpec.IsValid())
@@ -225,7 +225,7 @@ bool PdSkillProjectileHit::ApplyDamageToTarget(const AActor& Projectile, AActor*
 	return AppliedHandle.WasSuccessfullyApplied();
 }
 
-bool PdSkillProjectileHit::ApplyDamageInArea(const AActor& Projectile, const FVector& Center, const float Radius,
+bool SkillProjectileHit::ApplyDamageInArea(const AActor& Projectile, const FVector& Center, const float Radius,
 	const FSkillProjectileDamage& Damage)
 {
 	UWorld* World = Projectile.GetWorld();
@@ -237,7 +237,7 @@ bool PdSkillProjectileHit::ApplyDamageInArea(const AActor& Projectile, const FVe
 
 	FCollisionObjectQueryParams ObjectQueryParams;
 	ObjectQueryParams.AddObjectTypesToQuery(ECC_Pawn);
-	ObjectQueryParams.AddObjectTypesToQuery(LabCollisionChannels::HitableBody());
+	ObjectQueryParams.AddObjectTypesToQuery(CollisionChannels::HitableBody());
 
 	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(ProjectileImpactAreaDamage), false);
 	if (AActor* OwningActor = Projectile.GetOwner())

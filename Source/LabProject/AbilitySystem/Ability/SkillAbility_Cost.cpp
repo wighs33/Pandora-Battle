@@ -3,7 +3,7 @@
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "GameFramework/Pawn.h"
 #include "Pandora/PandoraSkillSource.h"
 
@@ -17,7 +17,7 @@ const FGameplayTagContainer* USkillAbility::GetCooldownTags() const
 	}
 
 	const float BaseDuration = static_cast<float>(FMath::Max(SkillDefinition->Time.CooldownDuration, 0.0));
-	static const FGameplayTagContainer SkillCooldownTags(LabGameplayTags::Cooldown);
+	static const FGameplayTagContainer SkillCooldownTags(PdGameplayTags::Cooldown);
 	return BaseDuration > 0.0f ? &SkillCooldownTags : nullptr;
 }
 
@@ -51,7 +51,7 @@ void USkillAbility::GetCooldownTimeRemainingAndDuration(
 		{
 			FGameplayTagContainer GrantedTags;
 			Effect.Spec.GetAllGrantedTags(GrantedTags);
-			return GrantedTags.HasTag(LabGameplayTags::Cooldown);
+			return GrantedTags.HasTag(PdGameplayTags::Cooldown);
 		});
 		for (const TPair<float, float>& Time : ASC->GetActiveEffectsTimeRemainingAndDuration(Query))
 		{
@@ -64,7 +64,7 @@ void USkillAbility::GetCooldownTimeRemainingAndDuration(
 
 		return;
 	}
-	if (Spec && Spec->GetDynamicSpecSourceTags().HasTagExact(LabGameplayTags::Ability_Source_Pandora))
+	if (Spec && Spec->GetDynamicSpecSourceTags().HasTagExact(PdGameplayTags::Ability_Source_Pandora))
 	{
 		TimeRemaining = 0.0f;
 		CooldownDuration = 0.0f;
@@ -91,7 +91,7 @@ bool USkillAbility::CheckCooldown(const FGameplayAbilitySpecHandle Handle,
 	{
 		return true;
 	}
-	const FGameplayTag DefaultCooldownTag = LabGameplayTags::Cooldown;
+	const FGameplayTag DefaultCooldownTag = PdGameplayTags::Cooldown;
 	const UPandoraSkillSource* Source = AbilitySpec ? Cast<UPandoraSkillSource>(AbilitySpec->SourceObject.Get()) : nullptr;
 	bool bOnCooldown = false;
 	if (Source)
@@ -158,7 +158,7 @@ void USkillAbility::ApplySkillCooldown(const FGameplayAbilitySpecHandle Handle, 
 		return;
 	}
 
-	const FGameplayTagContainer DynamicCooldownTags(LabGameplayTags::Cooldown);
+	const FGameplayTagContainer DynamicCooldownTags(PdGameplayTags::Cooldown);
 	ApplySharedCooldownEffect(Handle, ActorInfo, ActivationInfo, EffectiveDuration, DynamicCooldownTags);
 	return;
 }

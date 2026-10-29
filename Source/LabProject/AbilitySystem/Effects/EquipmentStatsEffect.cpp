@@ -2,7 +2,7 @@
 
 #include "AbilitySystemComponent.h"
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(EquipmentStatsEffect)
 
@@ -30,21 +30,21 @@ UEquipmentStatsEffect::UEquipmentStatsEffect()
 TConstArrayView<FGameplayTag> UEquipmentStatsEffect::GetStatTags()
 {
 	static const FGameplayTag StatTags[] = {
-		LabGameplayTags::Status_Offense_Strength,
-		LabGameplayTags::Status_Offense_Intelligence,
-		LabGameplayTags::Status_Offense_Critical,
-		LabGameplayTags::Status_Defense_Armor,
-		LabGameplayTags::Status_Defense_Recovery,
-		LabGameplayTags::Status_Defense_MaxShield,
-		LabGameplayTags::Status_Resistance_Frostbite,
-		LabGameplayTags::Status_Resistance_Burn,
-		LabGameplayTags::Status_Resistance_ElectricShock,
-		LabGameplayTags::Status_Resource_MaxHealth,
-		LabGameplayTags::Status_Resource_MaxMana,
-		LabGameplayTags::Status_Resource_MaxStamina,
-		LabGameplayTags::Status_Agility_AttackSpeed,
-		LabGameplayTags::Status_Agility_MovementSpeed,
-		LabGameplayTags::Status_Agility_Arcane,
+		PdGameplayTags::Status_Offense_Strength,
+		PdGameplayTags::Status_Offense_Intelligence,
+		PdGameplayTags::Status_Offense_Critical,
+		PdGameplayTags::Status_Defense_Armor,
+		PdGameplayTags::Status_Defense_Recovery,
+		PdGameplayTags::Status_Defense_MaxShield,
+		PdGameplayTags::Status_Resistance_Frostbite,
+		PdGameplayTags::Status_Resistance_Burn,
+		PdGameplayTags::Status_Resistance_ElectricShock,
+		PdGameplayTags::Status_Resource_MaxHealth,
+		PdGameplayTags::Status_Resource_MaxMana,
+		PdGameplayTags::Status_Resource_MaxStamina,
+		PdGameplayTags::Status_Agility_AttackSpeed,
+		PdGameplayTags::Status_Agility_MovementSpeed,
+		PdGameplayTags::Status_Agility_Arcane,
 	};
 	return StatTags;
 }

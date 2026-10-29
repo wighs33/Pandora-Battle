@@ -54,7 +54,7 @@ protected:
 	FString DefaultRoomName = TEXT("New Room");
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Room|Session", meta = (ClampMin = "1"))
-	int32 MaxPublicConnections = LabGameSession::MaxPlayerCount;
+	int32 MaxPublicConnections = PdGameSession::MaxPlayerCount;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Room|Session")
 	bool bCreateLAN = false;

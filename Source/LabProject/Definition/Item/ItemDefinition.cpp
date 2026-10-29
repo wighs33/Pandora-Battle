@@ -1,6 +1,6 @@
 #include "Definition/Item/ItemDefinition.h"
 
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Definition/Common/ProjectTagDefinition.h"
 #include "GameplayEffect.h"
 
@@ -159,7 +159,7 @@ namespace
 		const UProjectTagDefinition* ProjectTagConfig = UProjectTagDefinition::GetDefaultDefinition();
 		const FGameplayTag ConsumableTypeTag = ProjectTagConfig
 			? ProjectTagConfig->GetItemConsumableTypeTag()
-			: LabGameplayTags::Item_Consumable;
+			: PdGameplayTags::Item_Consumable;
 		const bool bConsumableByTag = ItemDefinition.IsConsumableDefinition(ConsumableTypeTag);
 		const bool bHasConsumableEffect = ItemDefinition.ConsumeGameplayEffectClass != nullptr;
 
@@ -229,7 +229,7 @@ namespace
 		const UProjectTagDefinition* ProjectTagConfig = UProjectTagDefinition::GetDefaultDefinition();
 		const FGameplayTag WeaponTypeTag = ProjectTagConfig
 			? ProjectTagConfig->GetItemWeaponTypeTag()
-			: LabGameplayTags::Item_Weapon;
+			: PdGameplayTags::Item_Weapon;
 		const bool bWeaponByTag = ItemDefinition.MatchesItemType(WeaponTypeTag);
 		const bool bHasWeaponData = ItemDefinition.HasWeaponData();
 

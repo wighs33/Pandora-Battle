@@ -227,7 +227,7 @@ void UTitleWidget::NativeConstruct()
 	AudioVolumeControl = NewObject<UAudioVolumeControl>(this);
 	AudioVolumeControl->Initialize(this, AudioVolumeSlider_, Btn_Sound);
 
-	PdButtonClick::Bind(this, GetMenuButtonBindings());
+	ButtonClick::Bind(this, GetMenuButtonBindings());
 
 	if (UOnlineSessionsSubsystem* OnlineSessionsSubsystem = GetGameInstance()
 		? GetGameInstance()->GetSubsystem<UOnlineSessionsSubsystem>()
@@ -249,7 +249,7 @@ void UTitleWidget::NativeDestruct()
 		AudioVolumeControl = nullptr;
 	}
 
-	PdButtonClick::Unbind(this, GetMenuButtonBindings());
+	ButtonClick::Unbind(this, GetMenuButtonBindings());
 
 	ClearQuickMatchDelegates();
 	if (ShopWidget)
@@ -566,7 +566,7 @@ void UTitleWidget::OpenRoomList()
 		return;
 	}
 
-	PdEditorTransaction::ResetIfContainsPieObjects();
+	EditorTransaction::ResetIfContainsPieObjects();
 	UGameplayStatics::OpenLevel(this, FName(*RoomMapName));
 }
 
@@ -585,14 +585,14 @@ void UTitleWidget::OpenTrainingRoom()
 			LobbyRuntimeSubsystem->BeginGameEntryContentPreload();
 		}
 	}
-	PdEditorTransaction::ResetIfContainsPieObjects();
+	EditorTransaction::ResetIfContainsPieObjects();
 	UGameplayStatics::OpenLevel(this, FName(*TrainingRoomMapName));
 }
 
 void UTitleWidget::OpenShop()
 {
 	LoadLocalProfile();
-	PdEditorTransaction::ResetIfContainsPieObjects();
+	EditorTransaction::ResetIfContainsPieObjects();
 
 	const TSubclassOf<UShopWidget> ResolvedShopWidgetClass = ResolveShopWidgetClass();
 	if (!ResolvedShopWidgetClass)
@@ -628,7 +628,7 @@ void UTitleWidget::OpenShop()
 
 void UTitleWidget::OpenGuide()
 {
-	PdEditorTransaction::ResetIfContainsPieObjects();
+	EditorTransaction::ResetIfContainsPieObjects();
 
 	APlayerController* PlayerController = GetOwningPlayer();
 	if (!PlayerController)
@@ -676,7 +676,7 @@ void UTitleWidget::OpenGuide()
 
 void UTitleWidget::OpenRecord()
 {
-	PdEditorTransaction::ResetIfContainsPieObjects();
+	EditorTransaction::ResetIfContainsPieObjects();
 
 	APlayerController* PlayerController = GetOwningPlayer();
 	if (!PlayerController)
@@ -816,7 +816,7 @@ void UTitleWidget::OpenLobbyAsListenServer() const
 		return;
 	}
 
-	PdEditorTransaction::ResetIfContainsPieObjects();
+	EditorTransaction::ResetIfContainsPieObjects();
 	if (const UOnlineSessionsSubsystem* OnlineSessionsSubsystem = GetGameInstance()
 		? GetGameInstance()->GetSubsystem<UOnlineSessionsSubsystem>()
 		: nullptr)

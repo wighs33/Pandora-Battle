@@ -49,7 +49,7 @@ void UGameResultPlayerStatEntryWidget::RefreshUI()
 	if (Txt_TeamName)
 	{
 		// 서버가 보낸 팀 이름은 서버 쪽 언어라, 팀 번호로 이 화면의 언어에서 다시 찾는다.
-		const FName TeamKey = LabTeamColorUtils::GetTeamTextKey(PlayerStat.TeamColorIndex);
+		const FName TeamKey = TeamColorUtils::GetTeamTextKey(PlayerStat.TeamColorIndex);
 		Txt_TeamName->SetText(TeamKey.IsNone()
 			? MenuText(TEXT("Result.NoTeam"))
 			: MenuText(TeamKey));
@@ -85,6 +85,6 @@ void UGameResultPlayerStatEntryWidget::RefreshUI()
 
 	if (ColorBorder)
 	{
-		ColorBorder->SetBrushColor(LabTeamColorUtils::GetTeamColorTint(PlayerStat.TeamColorIndex));
+		ColorBorder->SetBrushColor(TeamColorUtils::GetTeamColorTint(PlayerStat.TeamColorIndex));
 	}
 }

@@ -7,19 +7,19 @@
 #include "Definition/Item/ItemDefinition.h"
 #include "Definition/Player/CharacterActionDefinition.h"
 #include "Character/CharacterBase.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(EquipAbility)
 
 UEquipAbility::UEquipAbility(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	ActivationBlockedTags.AddTag(LabGameplayTags::GameplayAbility_Active);
+	ActivationBlockedTags.AddTag(PdGameplayTags::GameplayAbility_Active);
 }
 
 const FGameplayTagContainer* UEquipAbility::GetCooldownTags() const
 {
 	EquipCooldownTags.Reset();
-	EquipCooldownTags.AddTag(LabGameplayTags::Cooldown_EquipWeapon);
+	EquipCooldownTags.AddTag(PdGameplayTags::Cooldown_EquipWeapon);
 	return &EquipCooldownTags;
 }
 
@@ -36,7 +36,7 @@ void UEquipAbility::ApplyCooldown(const FGameplayAbilitySpecHandle Handle, const
 		: 0.0f;
 
 	FGameplayTagContainer CooldownTags;
-	CooldownTags.AddTag(LabGameplayTags::Cooldown_EquipWeapon);
+	CooldownTags.AddTag(PdGameplayTags::Cooldown_EquipWeapon);
 	ApplySharedCooldownEffect(Handle, ActorInfo, ActivationInfo, CooldownDuration, CooldownTags);
 }
 

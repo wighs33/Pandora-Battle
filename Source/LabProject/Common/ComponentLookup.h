@@ -4,7 +4,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 
-namespace PdComponentLookup
+namespace ComponentLookup
 {
 	// 설정에 적은 이름이 컴포넌트 이름이나 컴포넌트 태그와 정확히 같은지 본다.
 	inline bool MatchesNameOrTag(const UActorComponent& Component, const FName Name)

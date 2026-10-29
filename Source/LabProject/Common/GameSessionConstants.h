@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 
-namespace LabGameSession
+namespace PdGameSession
 {
 	inline constexpr int32 MaxPlayerCount = 6;
 	inline constexpr const TCHAR* NoMatchTimerOption = TEXT("NoMatchTimer");

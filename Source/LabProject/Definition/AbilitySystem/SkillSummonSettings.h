@@ -16,7 +16,7 @@ struct LABPROJECT_API FSkillSummonSettings
 public:
 	// Public API ------------------------------------------------------------------------------------------------------
 	FSkillSummonSettings()
-		: GroundTraceChannel(LabCollisionChannels::VisibilityTrace())
+		: GroundTraceChannel(CollisionChannels::VisibilityTrace())
 	{
 	}
 

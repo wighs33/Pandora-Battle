@@ -9,7 +9,7 @@
 #include "BrainComponent.h"
 #include "Character/CharacterBase.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Definition/Character/EnemyBaseDefinition.h"
 #include "EngineUtils.h"
 #include "GameplayEffect.h"
@@ -26,12 +26,12 @@ namespace
 
 	AWorldBossRaid* GetWorldBossRaid()
 	{
-		return AWorldBossRaid::Find(PdIntegrationTest::GetGameWorld());
+		return AWorldBossRaid::Find(IntegrationTest::GetGameWorld());
 	}
 
 	AMonsterCharacter* GetLivingWorldBoss()
 	{
-		UWorld* World = PdIntegrationTest::GetGameWorld();
+		UWorld* World = IntegrationTest::GetGameWorld();
 		if (!World)
 		{
 			return nullptr;
@@ -49,7 +49,7 @@ namespace
 	const FWorldBossAttempt* GetPlayerAttempt()
 	{
 		const AWorldBossRaid* Raid = GetWorldBossRaid();
-		const APlayerController* Controller = PdIntegrationTest::GetPlayerController();
+		const APlayerController* Controller = IntegrationTest::GetPlayerController();
 		return Raid && Controller ? Raid->FindAttempt(Controller->PlayerState) : nullptr;
 	}
 
@@ -68,7 +68,7 @@ namespace
 	void DamageBossAsPlayer(const float Damage)
 	{
 		AMonsterCharacter* Boss = GetLivingWorldBoss();
-		const APlayerController* Controller = PdIntegrationTest::GetPlayerController();
+		const APlayerController* Controller = IntegrationTest::GetPlayerController();
 		const ACharacterBase* Player = Controller ? Cast<ACharacterBase>(Controller->GetPawn()) : nullptr;
 		UAbilitySystemComponent* PlayerAbilities = Player ? Player->GetPdAbilitySystemComponent() : nullptr;
 		const UEnemyBaseDefinition* Definition = Boss ? Boss->GetMonsterDefinition() : nullptr;
@@ -79,7 +79,7 @@ namespace
 			return;
 		}
 		const FGameplayEffectSpecHandle Spec = PlayerAbilities->MakeOutgoingSpec(DamageEffect, 1.f, PlayerAbilities->MakeEffectContext());
-		Spec.Data->SetSetByCallerMagnitude(LabGameplayTags::Data_Damage, Damage);
+		Spec.Data->SetSetByCallerMagnitude(PdGameplayTags::Data_Damage, Damage);
 		PlayerAbilities->ApplyGameplayEffectSpecToTarget(*Spec.Data, Boss->GetAbilitySystemComponent());
 	}
 }
@@ -96,9 +96,9 @@ bool FPdWorldBossDamageTest::RunTest(const FString& Parameters)
 	};
 	TSharedRef<FHealth> Health = MakeShared<FHealth>();
 
-	PdIntegrationTest::OpenMap(this, ColosseumMap, 0.f, TEXT("BossRaid=1"));
-	PdIntegrationTest::WaitUntil(this, TEXT("월드 보스 등장"), 60.f, []() { return GetLivingWorldBoss() && GetPlayerAttempt(); });
-	PdIntegrationTest::Step(0.f, [this, Health]()
+	IntegrationTest::OpenMap(this, ColosseumMap, 0.f, TEXT("BossRaid=1"));
+	IntegrationTest::WaitUntil(this, TEXT("월드 보스 등장"), 60.f, []() { return GetLivingWorldBoss() && GetPlayerAttempt(); });
+	IntegrationTest::Step(0.f, [this, Health]()
 	{
 		AMonsterCharacter* Boss = GetLivingWorldBoss();
 		const AWorldBossRaid* Raid = GetWorldBossRaid();
@@ -122,12 +122,12 @@ bool FPdWorldBossDamageTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("플레이어 HUD에 월드 보스 체력바가 있다"), bBarVisible);
 		DamageBossAsPlayer(100.f);
 	});
-	PdIntegrationTest::WaitUntil(this, TEXT("첫 피해 집계"), 5.f, []()
+	IntegrationTest::WaitUntil(this, TEXT("첫 피해 집계"), 5.f, []()
 	{
 		const FWorldBossAttempt* Attempt = GetPlayerAttempt();
 		return Attempt && Attempt->Damage > 0.0;
 	});
-	PdIntegrationTest::Step(0.f, [this, Health]()
+	IntegrationTest::Step(0.f, [this, Health]()
 	{
 		const AWorldBossRaid* Raid = GetWorldBossRaid();
 		const FWorldBossAttempt* Attempt = GetPlayerAttempt();
@@ -140,12 +140,12 @@ bool FPdWorldBossDamageTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("방어력을 거친 딜은 건 피해 이하"), Attempt->Damage <= 100.0);
 		DamageBossAsPlayer(1.0e6f);
 	});
-	PdIntegrationTest::WaitUntil(this, TEXT("마지막 일격 집계"), 5.f, []()
+	IntegrationTest::WaitUntil(this, TEXT("마지막 일격 집계"), 5.f, []()
 	{
 		const AWorldBossRaid* Raid = GetWorldBossRaid();
 		return Raid && Raid->GetBossHealth() <= 0.f;
 	});
-	PdIntegrationTest::Step(0.f, [this, Health]()
+	IntegrationTest::Step(0.f, [this, Health]()
 	{
 		const FWorldBossAttempt* Attempt = GetPlayerAttempt();
 		if (TestNotNull(TEXT("플레이어 도전"), Attempt))

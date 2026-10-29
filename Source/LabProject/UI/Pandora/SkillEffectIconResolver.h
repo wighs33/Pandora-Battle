@@ -5,7 +5,7 @@
 class UImage;
 class USkillDefinition;
 
-namespace PdSkillEffectIconResolver
+namespace SkillEffectIconResolver
 {
 	void ApplySkillEffectIcon(
 		const UObject* WorldContextObject,

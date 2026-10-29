@@ -3,7 +3,7 @@
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "Character/CharacterBase.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Definition/AbilitySystem/SkillDefinition.h"
@@ -181,7 +181,7 @@ void USkillAbility::ApplyActiveMovementSpeedBonus(FActiveGameplayEffectHandle& I
 		return;
 	}
 
-	MovementSpeedSpec.Data->SetSetByCallerMagnitude(LabGameplayTags::Data_MovementSpeed,
+	MovementSpeedSpec.Data->SetSetByCallerMagnitude(PdGameplayTags::Data_MovementSpeed,
 		static_cast<float>(SkillDataAsset->Movement.MovementSpeedBonusPercent));
 	InOutEffectHandle = ApplyGameplayEffectSpecToOwner(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(),
 		GetCurrentActivationInfo(), MovementSpeedSpec);

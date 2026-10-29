@@ -3,7 +3,7 @@
 #include "AbilitySystemComponent.h"
 #include "Character/LagCompensationSubsystem.h"
 #include "Common/CollisionChannels.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Component/AbilitySystem/StatusEffectReplicationComponent.h"
 #include "Component/Character/AbilityStateComponent.h"
@@ -454,14 +454,14 @@ void ACharacterBase::ApplySkillDamageCollisionToCharacterComponents() const
 {
 	if (UCapsuleComponent* Capsule = GetCapsuleComponent())
 	{
-		Capsule->SetCollisionResponseToChannel(LabCollisionChannels::Projectile(), ECR_Ignore);
+		Capsule->SetCollisionResponseToChannel(CollisionChannels::Projectile(), ECR_Ignore);
 	}
 
 	if (USkeletalMeshComponent* CharacterMesh = GetMesh())
 	{
-		CharacterMesh->SetCollisionObjectType(LabCollisionChannels::HitableBody());
+		CharacterMesh->SetCollisionObjectType(CollisionChannels::HitableBody());
 		CharacterMesh->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
-		CharacterMesh->SetCollisionResponseToChannel(LabCollisionChannels::Projectile(), ECR_Block);
+		CharacterMesh->SetCollisionResponseToChannel(CollisionChannels::Projectile(), ECR_Block);
 		if (CharacterMesh->GetCollisionEnabled() == ECollisionEnabled::NoCollision)
 		{
 			CharacterMesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
@@ -624,7 +624,7 @@ void ACharacterBase::ClearBodyAuraNiagaraIfMatching(const FName ComponentName, c
 void ACharacterBase::HandleGameplayCue(
 	AActor* Self, const FGameplayTag GameplayCueTag, const EGameplayCueEvent::Type EventType, const FGameplayCueParameters& Parameters)
 {
-	if (GameplayCueTag.MatchesTagExact(LabGameplayTags::GameplayCue_Dash_Active) && CharacterPresentationComponent)
+	if (GameplayCueTag.MatchesTagExact(PdGameplayTags::GameplayCue_Dash_Active) && CharacterPresentationComponent)
 	{
 		CharacterPresentationComponent->HandleDashGameplayCue(EventType, Parameters);
 	}
@@ -672,7 +672,7 @@ int32 ACharacterBase::GetFactionId() const
 bool ACharacterBase::IsDead() const
 {
 	const UAbilitySystemComponent* AbilitySystemComponent = GetAbilitySystemComponent();
-	return AbilitySystemComponent && AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::State_Dead);
+	return AbilitySystemComponent && AbilitySystemComponent->HasMatchingGameplayTag(PdGameplayTags::State_Dead);
 }
 
 // 이 캐릭터의 사망 처리가 이미 시작되었는지 확인해 외형이나 체력바 등의 후속 판단에 제공한다.

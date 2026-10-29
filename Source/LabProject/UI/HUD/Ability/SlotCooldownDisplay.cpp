@@ -3,7 +3,7 @@
 #include "Components/ProgressBar.h"
 #include "Components/TextBlock.h"
 
-float PdSlotCooldownDisplay::CalculatePercent(const float TimeRemaining, const double CooldownDuration)
+float SlotCooldownDisplay::CalculatePercent(const float TimeRemaining, const double CooldownDuration)
 {
 	if (CooldownDuration <= UE_SMALL_NUMBER)
 	{
@@ -13,7 +13,7 @@ float PdSlotCooldownDisplay::CalculatePercent(const float TimeRemaining, const d
 	return FMath::Clamp(1.0f - static_cast<float>(TimeRemaining / CooldownDuration), 0.0f, 1.0f);
 }
 
-void PdSlotCooldownDisplay::ShowReady(UWidget* TimerContainer, UProgressBar* Progress, UTextBlock* TimerText)
+void SlotCooldownDisplay::ShowReady(UWidget* TimerContainer, UProgressBar* Progress, UTextBlock* TimerText)
 {
 	if (TimerContainer)
 	{
@@ -31,7 +31,7 @@ void PdSlotCooldownDisplay::ShowReady(UWidget* TimerContainer, UProgressBar* Pro
 	}
 }
 
-void PdSlotCooldownDisplay::ShowRemaining(UProgressBar* Progress, UTextBlock* TimerText, const float TimeRemaining,
+void SlotCooldownDisplay::ShowRemaining(UProgressBar* Progress, UTextBlock* TimerText, const float TimeRemaining,
 	const double CooldownDuration, const bool bShowTimeRemaining)
 {
 	if (Progress)

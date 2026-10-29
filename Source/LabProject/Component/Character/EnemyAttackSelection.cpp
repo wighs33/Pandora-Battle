@@ -5,10 +5,10 @@
 #include "AbilitySystem/Ability/PunchAbility.h"
 #include "AbilitySystem/Ability/RangedAttackAbility.h"
 #include "Algo/RandomShuffle.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 
-namespace PdEnemyAttackSelection
+namespace EnemyAttackSelection
 {
 	namespace
 	{
@@ -16,10 +16,10 @@ namespace PdEnemyAttackSelection
 		{
 			if (bUsingRangedWeapon)
 			{
-				return LabGameplayTags::Action_RangedAttack;
+				return PdGameplayTags::Action_RangedAttack;
 			}
 
-			return bHasEquippedWeapon ? LabGameplayTags::Action_Attack : LabGameplayTags::Action_Punch;
+			return bHasEquippedWeapon ? PdGameplayTags::Action_Attack : PdGameplayTags::Action_Punch;
 		}
 
 		bool IsAbilityClassCompatibleWithAttackMode(const UClass* AbilityClass, const bool bUsingRangedWeapon,

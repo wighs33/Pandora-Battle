@@ -5,7 +5,7 @@
 class UMVVMViewModelBase;
 class UUserWidget;
 
-namespace PdViewModelBinding
+namespace ViewModelBinding
 {
 	/**
 	 * 위젯 MVVM 뷰에서 ViewModelClass를 받을 수 있는 런타임 설정 소스 이름.

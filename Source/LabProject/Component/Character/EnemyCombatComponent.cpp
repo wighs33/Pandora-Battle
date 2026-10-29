@@ -4,7 +4,7 @@
 #include "AIController.h"
 #include "Character/CharacterBase.h"
 #include "Character/EnemyBase.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Component/Character/EnemyAttackSelection.h"
 #include "Component/Character/EnemyTrainingBotComponent.h"
@@ -492,7 +492,7 @@ bool UEnemyCombatComponent::IsAttackAbilityActive() const
 {
 	const AEnemyBase* Enemy = GetEnemyOwnerConst();
 	const UPdAbilitySystemComponent* AbilitySystemComponent = Enemy ? Enemy->GetEnemyAbilitySystemComponent() : nullptr;
-	return AbilitySystemComponent && PdEnemyAttackSelection::IsAnyAttackActive(*AbilitySystemComponent);
+	return AbilitySystemComponent && EnemyAttackSelection::IsAnyAttackActive(*AbilitySystemComponent);
 }
 
 bool UEnemyCombatComponent::IsAttackInProgress() const
@@ -583,7 +583,7 @@ bool UEnemyCombatComponent::ValidateAttackRequest()
 		return false;
 	}
 
-	if (AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::State_Dead))
+	if (AbilitySystemComponent->HasMatchingGameplayTag(PdGameplayTags::State_Dead))
 	{
 		Enemy->GetWorldTimerManager().ClearTimer(AttackTimerHandle);
 		StopAttackMovement();
@@ -659,17 +659,17 @@ void UEnemyCombatComponent::Attack()
 		&& (Equipment->GetCurrentWeaponActor() || Equipment->GetCurrentWeaponDefinition());
 
 	TArray<FGameplayAbilitySpecHandle> AbilityHandles;
-	PdEnemyAttackSelection::GatherAttackAbilityHandles(
+	EnemyAttackSelection::GatherAttackAbilityHandles(
 		*AbilitySystemComponent,
 		bUsingRangedWeapon,
 		bHasEquippedWeapon,
 		AbilityHandles);
-	if (!PdEnemyAttackSelection::TryContinueActiveAttack(
+	if (!EnemyAttackSelection::TryContinueActiveAttack(
 			*AbilitySystemComponent,
 			AbilityHandles,
 			Settings.bRequestComboWhenAttackIsActive))
 	{
-		PdEnemyAttackSelection::TryActivateAnyAttack(*AbilitySystemComponent, AbilityHandles);
+		EnemyAttackSelection::TryActivateAnyAttack(*AbilitySystemComponent, AbilityHandles);
 	}
 }
 
@@ -693,9 +693,9 @@ void UEnemyCombatComponent::SetAttackEnabled(const bool bInAttackEnabled)
 		if (UPdAbilitySystemComponent* AbilitySystemComponent = Enemy->GetEnemyAbilitySystemComponent())
 		{
 			FGameplayTagContainer AttackTags;
-			AttackTags.AddTag(LabGameplayTags::Action_Attack);
-			AttackTags.AddTag(LabGameplayTags::Action_Punch);
-			AttackTags.AddTag(LabGameplayTags::Action_RangedAttack);
+			AttackTags.AddTag(PdGameplayTags::Action_Attack);
+			AttackTags.AddTag(PdGameplayTags::Action_Punch);
+			AttackTags.AddTag(PdGameplayTags::Action_RangedAttack);
 			AbilitySystemComponent->CancelAbilities(&AttackTags);
 		}
 	}

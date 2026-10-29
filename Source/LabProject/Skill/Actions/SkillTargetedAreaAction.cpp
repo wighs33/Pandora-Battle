@@ -74,7 +74,7 @@ void USkillTargetedAreaAction::OnStart()
 
 	if (AActor* AttackTarget = GetAbility()->GetAttackTargetFromAvatar(); IsValid(AttackTarget))
 	{
-		ConfirmedAOELocation = PdSkillAreaTargeting::ResolveTargetLocation(
+		ConfirmedAOELocation = SkillAreaTargeting::ResolveTargetLocation(
 			*AttackTarget, GetAbility()->GetAvatarActorFromActorInfo(), Settings);
 		ConfirmStrike();
 		return;
@@ -517,7 +517,7 @@ bool USkillTargetedAreaAction::ResolveFallbackAOELocation(FVector& OutGroundLoca
 	AActor* AvatarActor = GetAbility()->GetAvatarActorFromActorInfo();
 	if (AActor* AttackTarget = GetAbility()->GetAttackTargetFromAvatar(); IsValid(AttackTarget))
 	{
-		OutGroundLocation = PdSkillAreaTargeting::ResolveTargetLocation(*AttackTarget, AvatarActor, Settings);
+		OutGroundLocation = SkillAreaTargeting::ResolveTargetLocation(*AttackTarget, AvatarActor, Settings);
 		return true;
 	}
 
@@ -526,7 +526,7 @@ bool USkillTargetedAreaAction::ResolveFallbackAOELocation(FVector& OutGroundLoca
 		return false;
 	}
 
-	OutGroundLocation = PdSkillAreaTargeting::ResolveForwardLocation(*AvatarActor, Settings);
+	OutGroundLocation = SkillAreaTargeting::ResolveForwardLocation(*AvatarActor, Settings);
 	return true;
 }
 
@@ -535,7 +535,7 @@ bool USkillTargetedAreaAction::TryValidateServerAOELocation(const FHitResult& Cl
 {
 	AActor* AvatarActor = GetAbility()->GetAvatarActorFromActorInfo();
 	FVector RequestedLocation = FVector::ZeroVector;
-	if (!PdTargetValidator::TryResolveAuthorityTargetRequest(AvatarActor, ClientHitResult, TargetDataEndPoint, RequestedLocation))
+	if (!TargetValidator::TryResolveAuthorityTargetRequest(AvatarActor, ClientHitResult, TargetDataEndPoint, RequestedLocation))
 	{
 		return false;
 	}
@@ -545,14 +545,14 @@ bool USkillTargetedAreaAction::TryValidateServerAOELocation(const FHitResult& Cl
 	const FGameplayAbilityTargetingLocationInfo TargetStartLocation = MakeTargetStartLocation();
 	const FVector AuthoritySourceLocation = TargetStartLocation.GetTargetingTransform().GetLocation();
 
-	PdTargetValidator::FGroundTargetValidationParams ValidationParams;
+	TargetValidator::FGroundTargetValidationParams ValidationParams;
 	ValidationParams.MaxRange = static_cast<float>(Settings.TargetingMaxRange);
 	ValidationParams.GroundTraceDepth = static_cast<float>(Settings.TargetGroundTraceDepth);
 	ValidationParams.GroundTraceType = Settings.TargetGroundTraceChannel;
 	ValidationParams.LineOfSightProfileName = Settings.TargetingTraceProfileName;
 
-	PdTargetValidator::FValidatedGroundTarget ValidatedTarget;
-	if (!PdTargetValidator::ValidateGroundTarget(World, AvatarActor, AuthoritySourceLocation, RequestedLocation,
+	TargetValidator::FValidatedGroundTarget ValidatedTarget;
+	if (!TargetValidator::ValidateGroundTarget(World, AvatarActor, AuthoritySourceLocation, RequestedLocation,
 		ValidationParams, ValidatedTarget))
 	{
 		return false;
@@ -634,7 +634,7 @@ double USkillTargetedAreaAction::GetConfiguredTargetingDecalSize() const
 
 bool USkillTargetedAreaAction::GetConfiguredDebugTargeting() const
 {
-	return LabSkillDebug::IsDrawingEnabled() && Settings.bDebugTargeting;
+	return SkillDebug::IsDrawingEnabled() && Settings.bDebugTargeting;
 }
 
 FGameplayTag USkillTargetedAreaAction::GetConfiguredMontageTriggerEventTag() const
@@ -645,7 +645,7 @@ FGameplayTag USkillTargetedAreaAction::GetConfiguredMontageTriggerEventTag() con
 
 bool USkillTargetedAreaAction::ShouldDrawDebugDamageRadius() const
 {
-	return LabSkillDebug::IsDrawingEnabled() && Settings.bDrawDebugDamageRadius;
+	return SkillDebug::IsDrawingEnabled() && Settings.bDrawDebugDamageRadius;
 }
 
 void USkillTargetedAreaAction::DrawDebugDamageRadius(const FColor& CircleColor, const FColor& SphereColor) const
@@ -656,7 +656,7 @@ void USkillTargetedAreaAction::DrawDebugDamageRadius(const FColor& CircleColor, 
 	}
 
 	const AActor* AvatarActor = GetAbility()->GetAvatarActorFromActorInfo();
-	LabSkillDebug::DrawAreaRadius(AvatarActor ? AvatarActor->GetWorld() : nullptr, ConfirmedAOELocation,
+	SkillDebug::DrawAreaRadius(AvatarActor ? AvatarActor->GetWorld() : nullptr, ConfirmedAOELocation,
 		static_cast<float>(CachedAOERadius), CircleColor, SphereColor,
 		static_cast<float>(FMath::Max(Settings.DebugDamageRadiusDrawTime, 0.0)));
 }
@@ -711,7 +711,7 @@ void USkillTargetedAreaAction::HandleTargetDataValid(const FGameplayAbilityTarge
 	}
 	else
 	{
-		ConfirmedAOELocation = PdSkillAreaTargeting::ResolveAimedLocation(
+		ConfirmedAOELocation = SkillAreaTargeting::ResolveAimedLocation(
 			*ClientHitResult, TargetDataEndPoint, GetAbility()->GetAvatarActorFromActorInfo(), Settings);
 	}
 

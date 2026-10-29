@@ -5,7 +5,7 @@
 #include "Components/PrimitiveComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 
-namespace PdCharacterHitValidation
+namespace CharacterHitValidation
 {
 	ACharacterBase* ResolveRelatedCharacter(AActor* HitActor, const UPrimitiveComponent* HitComponent)
 	{

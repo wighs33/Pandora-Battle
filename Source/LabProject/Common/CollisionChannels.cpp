@@ -4,7 +4,7 @@
 
 namespace
 {
-	DEFINE_LOG_CATEGORY_STATIC(LogLabCollisionChannels, Log, All);
+	DEFINE_LOG_CATEGORY_STATIC(LogCollisionChannels, Log, All);
 
 	ECollisionChannel ResolveRequiredChannel(const TCHAR* ChannelName)
 	{
@@ -18,32 +18,32 @@ namespace
 			}
 		}
 
-		UE_LOG(LogLabCollisionChannels, Fatal,
+		UE_LOG(LogCollisionChannels, Fatal,
 			TEXT("Required collision channel '%s' is missing. Configure it in Project Settings > Engine > Collision."),
 			ChannelName);
 		return ECC_MAX;
 	}
 }
 
-ECollisionChannel LabCollisionChannels::HitableBody()
+ECollisionChannel CollisionChannels::HitableBody()
 {
 	static const ECollisionChannel Channel = ResolveRequiredChannel(TEXT("HitableBody"));
 	return Channel;
 }
 
-ECollisionChannel LabCollisionChannels::Projectile()
+ECollisionChannel CollisionChannels::Projectile()
 {
 	static const ECollisionChannel Channel = ResolveRequiredChannel(TEXT("ArrowProjectile"));
 	return Channel;
 }
 
-ECollisionChannel LabCollisionChannels::OverlapBox()
+ECollisionChannel CollisionChannels::OverlapBox()
 {
 	static const ECollisionChannel Channel = ResolveRequiredChannel(TEXT("OverlapBox"));
 	return Channel;
 }
 
-ETraceTypeQuery LabCollisionChannels::VisibilityTrace()
+ETraceTypeQuery CollisionChannels::VisibilityTrace()
 {
 	return UEngineTypes::ConvertToTraceType(ECC_Visibility);
 }

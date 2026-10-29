@@ -27,12 +27,12 @@ void ConfigureArrowCollision(UPrimitiveComponent* CollisionComponent)
 		return;
 	}
 
-	CollisionComponent->SetCollisionObjectType(LabCollisionChannels::Projectile());
+	CollisionComponent->SetCollisionObjectType(CollisionChannels::Projectile());
 	CollisionComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
 	CollisionComponent->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);
 	CollisionComponent->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Block);
 	CollisionComponent->SetCollisionResponseToChannel(ECC_PhysicsBody, ECR_Block);
-	CollisionComponent->SetCollisionResponseToChannel(LabCollisionChannels::HitableBody(), ECR_Overlap);
+	CollisionComponent->SetCollisionResponseToChannel(CollisionChannels::HitableBody(), ECR_Overlap);
 	CollisionComponent->SetGenerateOverlapEvents(false);
 	CollisionComponent->SetNotifyRigidBodyCollision(true);
 	CollisionComponent->SetCanEverAffectNavigation(false);
@@ -50,7 +50,7 @@ TArray<TEnumAsByte<EObjectTypeQuery>> MakeArrowImpactTraceObjectTypes()
 	ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_WorldStatic));
 	ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_WorldDynamic));
 	ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_PhysicsBody));
-	ObjectTypes.Add(UEngineTypes::ConvertToObjectType(LabCollisionChannels::HitableBody()));
+	ObjectTypes.Add(UEngineTypes::ConvertToObjectType(CollisionChannels::HitableBody()));
 	return ObjectTypes;
 }
 }
@@ -395,12 +395,12 @@ bool AArrowProjectileBase::TryHandleImpact(AActor* OtherActor, UPrimitiveCompone
 		return false;
 	}
 
-	if (PdCharacterHitValidation::IsCharacterRelatedNonWeaponDamageHit(OtherActor, OtherComp))
+	if (CharacterHitValidation::IsCharacterRelatedNonWeaponDamageHit(OtherActor, OtherComp))
 	{
 		return false;
 	}
 
-	ACharacterBase* DamageTargetCharacter = PdCharacterHitValidation::ResolveWeaponDamageHit(OtherActor, OtherComp);
+	ACharacterBase* DamageTargetCharacter = CharacterHitValidation::ResolveWeaponDamageHit(OtherActor, OtherComp);
 	bHasImpacted = true;
 	MARK_PROPERTY_DIRTY_FROM_NAME(AArrowProjectileBase, bHasImpacted, this);
 

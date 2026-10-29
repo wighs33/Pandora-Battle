@@ -132,7 +132,7 @@ float USkillProjectileCastAction::GetConfiguredMinimumTargetDistanceFromSpawn() 
 
 bool USkillProjectileCastAction::GetConfiguredDrawTargetTraceDebug() const
 {
-	return LabSkillDebug::IsDrawingEnabled() && Settings.bDrawTargetTraceDebug;
+	return SkillDebug::IsDrawingEnabled() && Settings.bDrawTargetTraceDebug;
 }
 
 FName USkillProjectileCastAction::GetConfiguredSpawnSocketName() const
@@ -240,7 +240,7 @@ float USkillProjectileCastAction::GetConfiguredGroundTargetingCollisionHeight() 
 
 bool USkillProjectileCastAction::GetConfiguredDrawGroundTargetingDebug() const
 {
-	return LabSkillDebug::IsDrawingEnabled() && Settings.bDrawGroundTargetingDebug;
+	return SkillDebug::IsDrawingEnabled() && Settings.bDrawGroundTargetingDebug;
 }
 
 float USkillProjectileCastAction::GetConfiguredGroundTargetingDecalSize() const

@@ -50,7 +50,7 @@ struct LABPROJECT_API FSkillProjectileGrowth
 };
 
 /** 투사체의 Niagara·GameplayCue 표현. 언제 무엇을 보일지는 투사체가 정하고, 여기서는 그리기만 한다. */
-namespace PdSkillProjectilePresentation
+namespace SkillProjectilePresentation
 {
 	/** 루프 이펙트를 원하는 시스템으로 바꾸거나 끈다. 같은 시스템이 이미 돌고 있으면 처음부터 다시 틀지 않는다. */
 	LABPROJECT_API void ApplyLoopEffect(UNiagaraComponent* Effect, UNiagaraSystem* DesiredSystem);

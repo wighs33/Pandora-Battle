@@ -2,7 +2,7 @@
 
 #include "GameFramework/ProjectileMovementComponent.h"
 
-FVector PdSkillProjectileFlight::CalculateArcLaunchVelocity(const FLaunchParams& Params)
+FVector SkillProjectileFlight::CalculateArcLaunchVelocity(const FLaunchParams& Params)
 {
 	const float GravityScale = FMath::Max(Params.ArcGravityScale, UE_SMALL_NUMBER);
 	const float GravityZ = Params.WorldGravityZ * GravityScale;
@@ -38,7 +38,7 @@ FVector PdSkillProjectileFlight::CalculateArcLaunchVelocity(const FLaunchParams&
 	return HorizontalVelocity + FVector::UpVector * VerticalVelocity;
 }
 
-void PdSkillProjectileFlight::Launch(UProjectileMovementComponent& Movement, USceneComponent* UpdatedComponent,
+void SkillProjectileFlight::Launch(UProjectileMovementComponent& Movement, USceneComponent* UpdatedComponent,
 	const FLaunchParams& Params)
 {
 	if (Params.Speed <= 0.0f)

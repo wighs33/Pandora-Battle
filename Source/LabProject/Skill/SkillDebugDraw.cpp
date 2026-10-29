@@ -2,7 +2,7 @@
 
 #include "DrawDebugHelpers.h"
 
-void LabSkillDebug::DrawAreaRadius(const UWorld* World, const FVector& Center, const float Radius,
+void SkillDebug::DrawAreaRadius(const UWorld* World, const FVector& Center, const float Radius,
 	const FColor& CircleColor, const FColor& SphereColor, const float DrawTime)
 {
 	if (!World)

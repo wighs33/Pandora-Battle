@@ -78,7 +78,7 @@ namespace
 	}
 
 	bool TryResolveGroundHit(const TArray<FHitResult>& Hits, const TArray<AActor*>& ActorsToIgnore,
-		PdSkillGroundProjection::FGroundProjectionResult& OutResult)
+		SkillGroundProjection::FGroundProjectionResult& OutResult)
 	{
 		for (const FHitResult& Hit : Hits)
 		{
@@ -98,7 +98,7 @@ namespace
 
 	bool TryTraceWorldSurfaceToGround(UWorld* World, const FVector& TraceStart, const FVector& TraceEnd,
 		const FCollisionQueryParams& QueryParams, const TArray<AActor*>& ActorsToIgnore,
-		PdSkillGroundProjection::FGroundProjectionResult& OutResult)
+		SkillGroundProjection::FGroundProjectionResult& OutResult)
 	{
 		FCollisionObjectQueryParams ObjectParams;
 		ObjectParams.AddObjectTypesToQuery(ECC_WorldStatic);
@@ -110,7 +110,7 @@ namespace
 	}
 }
 
-void PdSkillGroundProjection::AddIgnoredActorAndAttachments(TArray<AActor*>& ActorsToIgnore, AActor* Actor)
+void SkillGroundProjection::AddIgnoredActorAndAttachments(TArray<AActor*>& ActorsToIgnore, AActor* Actor)
 {
 	if (!IsValid(Actor))
 	{
@@ -130,7 +130,7 @@ void PdSkillGroundProjection::AddIgnoredActorAndAttachments(TArray<AActor*>& Act
 	}
 }
 
-FVector PdSkillGroundProjection::ResolveActorFeetLocation(const AActor* Actor)
+FVector SkillGroundProjection::ResolveActorFeetLocation(const AActor* Actor)
 {
 	if (!Actor)
 	{
@@ -149,7 +149,7 @@ FVector PdSkillGroundProjection::ResolveActorFeetLocation(const AActor* Actor)
 	return FeetLocation;
 }
 
-bool PdSkillGroundProjection::TryProjectToGround(UWorld* World, const FVector& SourceLocation,
+bool SkillGroundProjection::TryProjectToGround(UWorld* World, const FVector& SourceLocation,
 	const TEnumAsByte<ETraceTypeQuery> TraceType, const double TraceStartHeight, const double TraceDepth,
 	const TArray<AActor*>& ActorsToIgnore, FGroundProjectionResult& OutResult)
 {

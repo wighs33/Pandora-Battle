@@ -12,7 +12,7 @@
 #include "Animation/AnimMontage.h"
 #include "Character/CharacterBase.h"
 #include "Common/CollisionChannels.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Components/PrimitiveComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
@@ -36,10 +36,10 @@ bool HasConfiguredFieldTriggerDamage(const USkillDefinition* SkillDataAsset)
 	{
 		TriggerComponent.SetCollisionProfileName(TEXT("Custom"));
 		TriggerComponent.SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-		TriggerComponent.SetCollisionObjectType(LabCollisionChannels::OverlapBox());
+		TriggerComponent.SetCollisionObjectType(CollisionChannels::OverlapBox());
 		TriggerComponent.SetCollisionResponseToAllChannels(ECR_Ignore);
 		TriggerComponent.SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
-		TriggerComponent.SetCollisionResponseToChannel(LabCollisionChannels::HitableBody(), ECR_Overlap);
+		TriggerComponent.SetCollisionResponseToChannel(CollisionChannels::HitableBody(), ECR_Overlap);
 
 		// 게임플레이 충돌 프리미티브만 숨긴다. 루트 트리거에서 이 상태를 전파하면
 		// 붙어 있는 파티클·Niagara 컴포넌트까지 숨는다.
@@ -206,7 +206,7 @@ FGameplayTag USkillActorFieldAction::GetResolvedFieldTriggerEventTag() const
 	const USkillDefinition* SkillDataAsset = GetAbility()->GetSourceSkillDataAsset();
 	return SkillDataAsset && SkillDataAsset->Animation.PrimaryEventTag.IsValid()
 		? SkillDataAsset->Animation.PrimaryEventTag
-		: LabGameplayTags::Event_Montage_Trigger;
+		: PdGameplayTags::Event_Montage_Trigger;
 }
 
 bool USkillActorFieldAction::StartFieldMontageTask()
@@ -303,7 +303,7 @@ bool USkillActorFieldAction::ShouldSkipFieldDurationMovementLock() const
 
 void USkillActorFieldAction::StartFieldSpawnSequence()
 {
-	PendingFieldSocketNames = PdSkillFieldPlacement::GetSpawnSocketNames(Settings);
+	PendingFieldSocketNames = SkillFieldPlacement::GetSpawnSocketNames(Settings);
 	NextFieldSocketIndex = 0;
 
 	if (PendingFieldSocketNames.IsEmpty())
@@ -385,7 +385,7 @@ AActor* USkillActorFieldAction::SpawnFieldActorForSocket(const FName SocketName)
 		return nullptr;
 	}
 
-	const FTransform SpawnTransform = PdSkillFieldPlacement::ResolveSpawnTransform(*AvatarActor, Settings, SocketName);
+	const FTransform SpawnTransform = SkillFieldPlacement::ResolveSpawnTransform(*AvatarActor, Settings, SocketName);
 	AActor* SpawnedActor = BeginDeferredFieldSpawn(*World, *AvatarActor, SpawnTransform);
 	if (!SpawnedActor)
 	{
@@ -404,7 +404,7 @@ AActor* USkillActorFieldAction::SpawnFieldActorForSocket(const FName SocketName)
 		SpawnedActor->SetReplicateMovement(true);
 	}
 
-	PdSkillFieldPlacement::AttachToSpawnSocket(*SpawnedActor, *AvatarActor, Settings, SocketName);
+	SkillFieldPlacement::AttachToSpawnSocket(*SpawnedActor, *AvatarActor, Settings, SocketName);
 	if (bShouldReplicateSpawnedActor)
 	{
 		SpawnedActor->ForceNetUpdate();
@@ -437,7 +437,7 @@ void USkillActorFieldAction::ConfigureSpawnedFieldActor(AActor& SpawnedActor, AA
 	{
 		const USkillDefinition* SkillDataAsset = GetAbility()->GetSourceSkillDataAsset();
 		FSkillGameplayEffectConfig FinishDamageConfig;
-		FinishDamageConfig.MagnitudeDataTag = LabGameplayTags::Data_Damage;
+		FinishDamageConfig.MagnitudeDataTag = PdGameplayTags::Data_Damage;
 		if (SkillDataAsset)
 		{
 			FinishDamageConfig = SkillDataAsset->GetResolvedDamageConfig();

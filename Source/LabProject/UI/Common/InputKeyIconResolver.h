@@ -9,7 +9,7 @@ class UTextBlock;
 class UUserWidget;
 class UWidget;
 
-namespace PdInputKeyIconResolver
+namespace InputKeyIconResolver
 {
 	FText ResolveInputDefinitionKeyText(
 		APlayerController* PlayerController,

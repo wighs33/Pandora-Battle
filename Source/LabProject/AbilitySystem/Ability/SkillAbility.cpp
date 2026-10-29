@@ -5,7 +5,7 @@
 #include "AbilitySystemGlobals.h"
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
 #include "Character/CharacterBase.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Component/Pandora/PandoraComponent.h"
 #include "Mode/PdPlayerState.h"
@@ -22,7 +22,7 @@ USkillAbility::USkillAbility(const FObjectInitializer& ObjectInitializer)
 	bReplicateInputDirectly = true;
 
 	FGameplayTagContainer Tags;
-	Tags.AddTag(LabGameplayTags::GameplayAbility);
+	Tags.AddTag(PdGameplayTags::GameplayAbility);
 	SetAssetTags(Tags);
 }
 
@@ -55,7 +55,7 @@ bool USkillAbility::CanActivateAbility(const FGameplayAbilitySpecHandle Handle,
 	const FGameplayAbilitySpec* Spec = ASC ? ASC->FindAbilitySpecFromHandle(Handle) : nullptr;
 
 	// Pandora 스킬은 출처 데이터가 준비되어 있고 현재 선택된 Pandora에 속한 스킬만 실행한다.
-	if (Spec && Spec->GetDynamicSpecSourceTags().HasTagExact(LabGameplayTags::Ability_Source_Pandora))
+	if (Spec && Spec->GetDynamicSpecSourceTags().HasTagExact(PdGameplayTags::Ability_Source_Pandora))
 	{
 		const UPandoraSkillSource* PandoraSource = Cast<UPandoraSkillSource>(Spec->SourceObject.Get());
 		if (!PandoraSource || !PandoraSource->GetSkillDataAsset())
@@ -63,7 +63,7 @@ bool USkillAbility::CanActivateAbility(const FGameplayAbilitySpecHandle Handle,
 			return false;
 		}
 
-		if (!Spec->GetDynamicSpecSourceTags().HasTagExact(LabGameplayTags::Ability_Pandora_Selected))
+		if (!Spec->GetDynamicSpecSourceTags().HasTagExact(PdGameplayTags::Ability_Pandora_Selected))
 		{
 			return false;
 		}
@@ -104,7 +104,7 @@ void USkillAbility::PreActivate(const FGameplayAbilitySpecHandle Handle, const F
 	if (const USkillDefinition* Skill = ResolveSkill(Handle, ActorInfo))
 	{
 		ActivationOwnedTags = Skill->Activation.OwnedTags;
-		ActivationOwnedTags.AddTag(LabGameplayTags::GameplayAbility_Active);
+		ActivationOwnedTags.AddTag(PdGameplayTags::GameplayAbility_Active);
 		CancelAbilitiesWithTag = Skill->Activation.CancelAbilityTags;
 		BlockAbilitiesWithTag = Skill->Activation.BlockAbilityTags;
 		CooldownRemovalPolicyTags = Skill->Activation.CooldownRemovalTags;

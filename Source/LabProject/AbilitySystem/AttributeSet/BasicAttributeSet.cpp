@@ -6,7 +6,7 @@
 #include "AbilitySystem/AttributeSet/DamageRules.h"
 #include "Character/CharacterBase.h"
 #include "Common/Enum_Direction.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Mode/PlayerEliminationSubsystem.h"
 #include "Net/Core/PushModel/PushModel.h"
@@ -111,15 +111,15 @@ namespace
 	}
 
 	float ResolveStatusResistance(const UBasicAttributeSet& AttributeSet,
-		const PdDamageRules::EStatusDamage StatusDamage)
+		const DamageRules::EStatusDamage StatusDamage)
 	{
 		switch (StatusDamage)
 		{
-		case PdDamageRules::EStatusDamage::Burning:
+		case DamageRules::EStatusDamage::Burning:
 			return AttributeSet.GetBurnLevel();
-		case PdDamageRules::EStatusDamage::Frozen:
+		case DamageRules::EStatusDamage::Frozen:
 			return AttributeSet.GetFrostbiteLevel();
-		case PdDamageRules::EStatusDamage::ElectricShock:
+		case DamageRules::EStatusDamage::ElectricShock:
 			return AttributeSet.GetElectricShockLevel();
 		default:
 			return 0.f;
@@ -140,12 +140,12 @@ namespace
 
 	void TryActivateHitReactionAbility(UAbilitySystemComponent* ASC)
 	{
-		if (TryActivateAbilityByTag(ASC, LabGameplayTags::GameplayAbility_HitReaction))
+		if (TryActivateAbilityByTag(ASC, PdGameplayTags::GameplayAbility_HitReaction))
 		{
 			return;
 		}
 
-		TryActivateAbilityByTag(ASC, LabGameplayTags::Action_HitReact);
+		TryActivateAbilityByTag(ASC, PdGameplayTags::Action_HitReact);
 	}
 
 	void TryActivateDeathAbility(UAbilitySystemComponent* ASC)
@@ -155,14 +155,14 @@ namespace
 			return;
 		}
 
-		const int32 DeadTagCount = ASC->GetTagCount(LabGameplayTags::State_Dead);
+		const int32 DeadTagCount = ASC->GetTagCount(PdGameplayTags::State_Dead);
 		if (DeadTagCount > 0)
 		{
 			return;
 		}
 
 		FGameplayTagContainer DeathAbilityTags;
-		DeathAbilityTags.AddTag(LabGameplayTags::GameplayAbility_Death);
+		DeathAbilityTags.AddTag(PdGameplayTags::GameplayAbility_Death);
 
 		TArray<FGameplayAbilitySpec*> DeathAbilitySpecs;
 		ASC->GetActivatableGameplayAbilitySpecsByAllMatchingTags(DeathAbilityTags, DeathAbilitySpecs, false);
@@ -220,60 +220,60 @@ UBasicAttributeSet::UBasicAttributeSet()
 bool UBasicAttributeSet::ResolveAttributeFromStatTag(const FGameplayTag& StatTag, FGameplayAttribute& OutAttribute)
 {
 	static const TMap<FGameplayTag, FGameplayAttribute> AttributeMappings = {
-		{ LabGameplayTags::Status_Level, GetLevelAttribute() },
-		{ LabGameplayTags::Status_Experience, GetExperienceAttribute() },
-		{ LabGameplayTags::Status_MaxExperience, GetMaxExperienceAttribute() },
-		{ LabGameplayTags::Status_Point_Offense, GetOffensePointAttribute() },
-		{ LabGameplayTags::Status_Point_Defense, GetDefensePointAttribute() },
-		{ LabGameplayTags::Status_Point_Resistance, GetResistancePointAttribute() },
-		{ LabGameplayTags::Status_Point_PandoraForce, GetPandoraForcePointAttribute() },
-		{ LabGameplayTags::Status_Point_Resource, GetResourcePointAttribute() },
-		{ LabGameplayTags::Status_Point_Agility, GetAgilityPointAttribute() },
-		{ LabGameplayTags::Status_Offense_Strength, GetStrengthAttribute() },
-		{ LabGameplayTags::Status_Offense_Intelligence, GetIntelligenceAttribute() },
-		{ LabGameplayTags::Status_Offense_Critical, GetCriticalAttribute() },
-		{ LabGameplayTags::Status_Offense_StrengthLevel, GetStrengthLevelAttribute() },
-		{ LabGameplayTags::Status_Offense_IntelligenceLevel, GetIntelligenceLevelAttribute() },
-		{ LabGameplayTags::Status_Offense_CriticalLevel, GetCriticalLevelAttribute() },
-		{ LabGameplayTags::Status_Defense_Armor, GetArmorAttribute() },
-		{ LabGameplayTags::Status_Defense_Recovery, GetRecoveryAttribute() },
-		{ LabGameplayTags::Status_Defense_Shield, GetShieldAttribute() },
-		{ LabGameplayTags::Status_Defense_MaxShield, GetMaxShieldAttribute() },
-		{ LabGameplayTags::Status_Defense_MaxShieldIncreasePercent, GetMaxShieldIncreasePercentAttribute() },
-		{ LabGameplayTags::Status_Defense_ArmorLevel, GetArmorLevelAttribute() },
-		{ LabGameplayTags::Status_Defense_RecoveryLevel, GetRecoveryLevelAttribute() },
-		{ LabGameplayTags::Status_Defense_MaxShieldLevel, GetMaxShieldLevelAttribute() },
-		{ LabGameplayTags::Status_Resistance_Frostbite, GetFrostbiteAttribute() },
-		{ LabGameplayTags::Status_Resistance_Burn, GetBurnAttribute() },
-		{ LabGameplayTags::Status_Resistance_ElectricShock, GetElectricShockAttribute() },
-		{ LabGameplayTags::Status_Resistance_FrostbiteLevel, GetFrostbiteLevelAttribute() },
-		{ LabGameplayTags::Status_Resistance_BurnLevel, GetBurnLevelAttribute() },
-		{ LabGameplayTags::Status_Resistance_ElectricShockLevel, GetElectricShockLevelAttribute() },
-		{ LabGameplayTags::Status_PandoraForce_FirstPandora, GetFirstPandoraAttribute() },
-		{ LabGameplayTags::Status_PandoraForce_SecondPandora, GetSecondPandoraAttribute() },
-		{ LabGameplayTags::Status_PandoraForce_ThirdPandora, GetThirdPandoraAttribute() },
-		{ LabGameplayTags::Status_PandoraForce_FirstPandoraLevel, GetFirstPandoraLevelAttribute() },
-		{ LabGameplayTags::Status_PandoraForce_SecondPandoraLevel, GetSecondPandoraLevelAttribute() },
-		{ LabGameplayTags::Status_PandoraForce_ThirdPandoraLevel, GetThirdPandoraLevelAttribute() },
-		{ LabGameplayTags::Status_Resource_Health, GetHealthAttribute() },
-		{ LabGameplayTags::Status_Resource_Mana, GetManaAttribute() },
-		{ LabGameplayTags::Status_Resource_Stamina, GetStaminaAttribute() },
-		{ LabGameplayTags::Status_Resource_MaxHealth, GetMaxHealthAttribute() },
-		{ LabGameplayTags::Status_Resource_MaxMana, GetMaxManaAttribute() },
-		{ LabGameplayTags::Status_Resource_MaxStamina, GetMaxStaminaAttribute() },
-		{ LabGameplayTags::Status_Resource_MaxHealthIncreasePercent, GetMaxHealthIncreasePercentAttribute() },
-		{ LabGameplayTags::Status_Resource_MaxManaIncreasePercent, GetMaxManaIncreasePercentAttribute() },
-		{ LabGameplayTags::Status_Resource_MaxStaminaIncreasePercent, GetMaxStaminaIncreasePercentAttribute() },
-		{ LabGameplayTags::Status_Resource_MaxHealthLevel, GetMaxHealthLevelAttribute() },
-		{ LabGameplayTags::Status_Resource_MaxManaLevel, GetMaxManaLevelAttribute() },
-		{ LabGameplayTags::Status_Resource_MaxStaminaLevel, GetMaxStaminaLevelAttribute() },
-		{ LabGameplayTags::Status_Agility_AttackSpeed, GetAttackSpeedAttribute() },
-		{ LabGameplayTags::Status_Agility_MovementSpeed, GetMovementSpeedAttribute() },
-		{ LabGameplayTags::Status_Agility_Arcane, GetArcaneAttribute() },
-		{ LabGameplayTags::Status_Agility_CriticalDamageMultiplier, GetCriticalDamageMultiplierAttribute() },
-		{ LabGameplayTags::Status_Agility_AttackSpeedLevel, GetAttackSpeedLevelAttribute() },
-		{ LabGameplayTags::Status_Agility_MovementSpeedLevel, GetMovementSpeedLevelAttribute() },
-		{ LabGameplayTags::Status_Agility_ArcaneLevel, GetArcaneLevelAttribute() }
+		{ PdGameplayTags::Status_Level, GetLevelAttribute() },
+		{ PdGameplayTags::Status_Experience, GetExperienceAttribute() },
+		{ PdGameplayTags::Status_MaxExperience, GetMaxExperienceAttribute() },
+		{ PdGameplayTags::Status_Point_Offense, GetOffensePointAttribute() },
+		{ PdGameplayTags::Status_Point_Defense, GetDefensePointAttribute() },
+		{ PdGameplayTags::Status_Point_Resistance, GetResistancePointAttribute() },
+		{ PdGameplayTags::Status_Point_PandoraForce, GetPandoraForcePointAttribute() },
+		{ PdGameplayTags::Status_Point_Resource, GetResourcePointAttribute() },
+		{ PdGameplayTags::Status_Point_Agility, GetAgilityPointAttribute() },
+		{ PdGameplayTags::Status_Offense_Strength, GetStrengthAttribute() },
+		{ PdGameplayTags::Status_Offense_Intelligence, GetIntelligenceAttribute() },
+		{ PdGameplayTags::Status_Offense_Critical, GetCriticalAttribute() },
+		{ PdGameplayTags::Status_Offense_StrengthLevel, GetStrengthLevelAttribute() },
+		{ PdGameplayTags::Status_Offense_IntelligenceLevel, GetIntelligenceLevelAttribute() },
+		{ PdGameplayTags::Status_Offense_CriticalLevel, GetCriticalLevelAttribute() },
+		{ PdGameplayTags::Status_Defense_Armor, GetArmorAttribute() },
+		{ PdGameplayTags::Status_Defense_Recovery, GetRecoveryAttribute() },
+		{ PdGameplayTags::Status_Defense_Shield, GetShieldAttribute() },
+		{ PdGameplayTags::Status_Defense_MaxShield, GetMaxShieldAttribute() },
+		{ PdGameplayTags::Status_Defense_MaxShieldIncreasePercent, GetMaxShieldIncreasePercentAttribute() },
+		{ PdGameplayTags::Status_Defense_ArmorLevel, GetArmorLevelAttribute() },
+		{ PdGameplayTags::Status_Defense_RecoveryLevel, GetRecoveryLevelAttribute() },
+		{ PdGameplayTags::Status_Defense_MaxShieldLevel, GetMaxShieldLevelAttribute() },
+		{ PdGameplayTags::Status_Resistance_Frostbite, GetFrostbiteAttribute() },
+		{ PdGameplayTags::Status_Resistance_Burn, GetBurnAttribute() },
+		{ PdGameplayTags::Status_Resistance_ElectricShock, GetElectricShockAttribute() },
+		{ PdGameplayTags::Status_Resistance_FrostbiteLevel, GetFrostbiteLevelAttribute() },
+		{ PdGameplayTags::Status_Resistance_BurnLevel, GetBurnLevelAttribute() },
+		{ PdGameplayTags::Status_Resistance_ElectricShockLevel, GetElectricShockLevelAttribute() },
+		{ PdGameplayTags::Status_PandoraForce_FirstPandora, GetFirstPandoraAttribute() },
+		{ PdGameplayTags::Status_PandoraForce_SecondPandora, GetSecondPandoraAttribute() },
+		{ PdGameplayTags::Status_PandoraForce_ThirdPandora, GetThirdPandoraAttribute() },
+		{ PdGameplayTags::Status_PandoraForce_FirstPandoraLevel, GetFirstPandoraLevelAttribute() },
+		{ PdGameplayTags::Status_PandoraForce_SecondPandoraLevel, GetSecondPandoraLevelAttribute() },
+		{ PdGameplayTags::Status_PandoraForce_ThirdPandoraLevel, GetThirdPandoraLevelAttribute() },
+		{ PdGameplayTags::Status_Resource_Health, GetHealthAttribute() },
+		{ PdGameplayTags::Status_Resource_Mana, GetManaAttribute() },
+		{ PdGameplayTags::Status_Resource_Stamina, GetStaminaAttribute() },
+		{ PdGameplayTags::Status_Resource_MaxHealth, GetMaxHealthAttribute() },
+		{ PdGameplayTags::Status_Resource_MaxMana, GetMaxManaAttribute() },
+		{ PdGameplayTags::Status_Resource_MaxStamina, GetMaxStaminaAttribute() },
+		{ PdGameplayTags::Status_Resource_MaxHealthIncreasePercent, GetMaxHealthIncreasePercentAttribute() },
+		{ PdGameplayTags::Status_Resource_MaxManaIncreasePercent, GetMaxManaIncreasePercentAttribute() },
+		{ PdGameplayTags::Status_Resource_MaxStaminaIncreasePercent, GetMaxStaminaIncreasePercentAttribute() },
+		{ PdGameplayTags::Status_Resource_MaxHealthLevel, GetMaxHealthLevelAttribute() },
+		{ PdGameplayTags::Status_Resource_MaxManaLevel, GetMaxManaLevelAttribute() },
+		{ PdGameplayTags::Status_Resource_MaxStaminaLevel, GetMaxStaminaLevelAttribute() },
+		{ PdGameplayTags::Status_Agility_AttackSpeed, GetAttackSpeedAttribute() },
+		{ PdGameplayTags::Status_Agility_MovementSpeed, GetMovementSpeedAttribute() },
+		{ PdGameplayTags::Status_Agility_Arcane, GetArcaneAttribute() },
+		{ PdGameplayTags::Status_Agility_CriticalDamageMultiplier, GetCriticalDamageMultiplierAttribute() },
+		{ PdGameplayTags::Status_Agility_AttackSpeedLevel, GetAttackSpeedLevelAttribute() },
+		{ PdGameplayTags::Status_Agility_MovementSpeedLevel, GetMovementSpeedLevelAttribute() },
+		{ PdGameplayTags::Status_Agility_ArcaneLevel, GetArcaneLevelAttribute() }
 	};
 
 	const FGameplayAttribute* Attribute = AttributeMappings.Find(StatTag);
@@ -346,8 +346,8 @@ void UBasicAttributeSet::HandleIncomingDamageExecuted(const FGameplayEffectSpec&
 	const float AppliedIncomingDamage = GetIncomingDamage();
 	// 공격자가 이 피해 Spec에 붙인 표시. 태그가 없는 피해(스킬·상태 이상)는 일반 피해로 처리한다.
 	const FGameplayTagContainer& DamageSpecTags = EffectSpec.GetDynamicAssetTags();
-	const bool bCriticalHit = DamageSpecTags.HasTagExact(LabGameplayTags::Effect_Damage_Critical);
-	const bool bAllowHitReact = !DamageSpecTags.HasTagExact(LabGameplayTags::Effect_Damage_NoHitReaction);
+	const bool bCriticalHit = DamageSpecTags.HasTagExact(PdGameplayTags::Effect_Damage_Critical);
+	const bool bAllowHitReact = !DamageSpecTags.HasTagExact(PdGameplayTags::Effect_Damage_NoHitReaction);
 	const FGameplayEffectContextHandle& EffectContext = EffectSpec.GetContext();
 	AActor* DamageInstigator = EffectContext.GetOriginalInstigator();
 	if (!DamageInstigator)
@@ -355,23 +355,23 @@ void UBasicAttributeSet::HandleIncomingDamageExecuted(const FGameplayEffectSpec&
 		DamageInstigator = EffectContext.GetInstigator();
 	}
 	AActor* DamageCauser = EffectContext.GetEffectCauser();
-	const PdDamageRules::EStatusDamage StatusDamage = PdDamageRules::ClassifyStatusDamage(EffectSpec);
-	const bool bStatusDamage = StatusDamage != PdDamageRules::EStatusDamage::None;
+	const DamageRules::EStatusDamage StatusDamage = DamageRules::ClassifyStatusDamage(EffectSpec);
+	const bool bStatusDamage = StatusDamage != DamageRules::EStatusDamage::None;
 	const float StatusMitigatedIncomingDamage = bStatusDamage
-		? PdDamageRules::MitigateByStatusResistance(AppliedIncomingDamage, ResolveStatusResistance(*this, StatusDamage))
+		? DamageRules::MitigateByStatusResistance(AppliedIncomingDamage, ResolveStatusResistance(*this, StatusDamage))
 		: AppliedIncomingDamage;
 	const float TargetArmor = GetArmor();
 	// 방어력은 맞는 쪽 자신의 근력 반영 무기 피해에 비례한다. 그 값은 전투 컴포넌트가 ASC에 등록해 둔 계산으로 얻는다.
 	const UPdAbilitySystemComponent* OwningAbilitySystem = Cast<UPdAbilitySystemComponent>(GetOwningAbilitySystemComponent());
 	const float TargetFinalStrength = OwningAbilitySystem ? OwningAbilitySystem->GetFinalStrengthDamage(GetStrength()) : 0.f;
-	const float MitigatedIncomingDamage = PdDamageRules::MitigateByArmor(StatusMitigatedIncomingDamage, TargetArmor, TargetFinalStrength);
+	const float MitigatedIncomingDamage = DamageRules::MitigateByArmor(StatusMitigatedIncomingDamage, TargetArmor, TargetFinalStrength);
 
 	SetIncomingDamage(0.f);
 	const bool bAllowDamageHitReact = bAllowHitReact && !bStatusDamage;
 	const float HealthDamage = ApplyIncomingDamage(MitigatedIncomingDamage, bCriticalHit, DamageInstigator,
 		DamageCauser, bAllowDamageHitReact, !bStatusDamage);
 	const bool bShouldHitReact = bAllowHitReact && !FMath::IsNearlyZero(HealthDamage) && !bStatusDamage
-		&& EffectSpecHasAssetTag(EffectSpec, LabGameplayTags::Effect_HitReaction);
+		&& EffectSpecHasAssetTag(EffectSpec, PdGameplayTags::Effect_HitReaction);
 
 	if (bShouldHitReact && GetHealth() > 0.f)
 	{
@@ -382,11 +382,11 @@ void UBasicAttributeSet::HandleIncomingDamageExecuted(const FGameplayEffectSpec&
 // 체력을 직접 바꾸는 GE. 회복 GE에 실린 마나도 함께 채우고, 상태 이상이 아닌 피해면 피격 반응을 켠다.
 void UBasicAttributeSet::HandleHealthExecuted(const FGameplayEffectModCallbackData& Data)
 {
-	const bool bStatusDamage = PdDamageRules::ClassifyStatusDamage(Data.EffectSpec) != PdDamageRules::EStatusDamage::None;
+	const bool bStatusDamage = DamageRules::ClassifyStatusDamage(Data.EffectSpec) != DamageRules::EStatusDamage::None;
 	const bool bShouldHitReact = Data.EvaluatedData.Magnitude < 0.f && !bStatusDamage
-		&& EffectSpecHasAssetTag(Data.EffectSpec, LabGameplayTags::Effect_HitReaction);
+		&& EffectSpecHasAssetTag(Data.EffectSpec, PdGameplayTags::Effect_HitReaction);
 	const float RecoveryManaMagnitude = Data.EvaluatedData.Magnitude > 0.f
-		? Data.EffectSpec.GetSetByCallerMagnitude(LabGameplayTags::Data_Mana, false, 0.f)
+		? Data.EffectSpec.GetSetByCallerMagnitude(PdGameplayTags::Data_Mana, false, 0.f)
 		: 0.f;
 	if (RecoveryManaMagnitude > 0.f)
 	{
@@ -476,12 +476,12 @@ void UBasicAttributeSet::PostAttributeChange(const FGameplayAttribute& Attribute
 			{
 				if (OldValue <= 0.f && NewValue > 0.f)
 				{
-					ASC->AddGameplayCue(LabGameplayTags::GameplayCue_ShieldUp);
+					ASC->AddGameplayCue(PdGameplayTags::GameplayCue_ShieldUp);
 				}
 				else if (OldValue > 0.f && NewValue <= 0.f)
 				{
-					ASC->RemoveGameplayCue(LabGameplayTags::GameplayCue_ShieldUp);
-					ASC->ExecuteGameplayCue(LabGameplayTags::GameplayCue_ShieldDown);
+					ASC->RemoveGameplayCue(PdGameplayTags::GameplayCue_ShieldUp);
+					ASC->ExecuteGameplayCue(PdGameplayTags::GameplayCue_ShieldDown);
 				}
 			}
 		}
@@ -521,17 +521,17 @@ float UBasicAttributeSet::GetStatusEffectDamageBonusPercent(const FGameplayTag& 
 		return 0.0f;
 	}
 
-	if (StatusTag.MatchesTag(LabGameplayTags::Status_Burning))
+	if (StatusTag.MatchesTag(PdGameplayTags::Status_Burning))
 	{
 		return FMath::Max(GetBurn(), 0.0f);
 	}
 
-	if (StatusTag.MatchesTag(LabGameplayTags::Status_Frostbite))
+	if (StatusTag.MatchesTag(PdGameplayTags::Status_Frostbite))
 	{
 		return FMath::Max(GetFrostbite(), 0.0f);
 	}
 
-	if (StatusTag.MatchesTag(LabGameplayTags::Status_ElectricShock))
+	if (StatusTag.MatchesTag(PdGameplayTags::Status_ElectricShock))
 	{
 		return FMath::Max(GetElectricShock(), 0.0f);
 	}
@@ -542,7 +542,7 @@ float UBasicAttributeSet::GetStatusEffectDamageBonusPercent(const FGameplayTag& 
 float UBasicAttributeSet::CalculateStatusEffectDamage(const FGameplayTag& StatusTag,
 	const float SkillScaledDamageMagnitude, const float DamageScale) const
 {
-	return PdDamageRules::CalculateStatusEffectDamage(SkillScaledDamageMagnitude,
+	return DamageRules::CalculateStatusEffectDamage(SkillScaledDamageMagnitude,
 		GetStatusEffectDamageBonusPercent(StatusTag), DamageScale);
 }
 
@@ -555,20 +555,20 @@ bool UBasicAttributeSet::SetStatusEffectDamageOnSpec(FGameplayEffectSpecHandle& 
 		return false;
 	}
 
-	const float CalculatedDamageMagnitude = PdDamageRules::CalculateStatusEffectDamage(SkillScaledDamageMagnitude,
+	const float CalculatedDamageMagnitude = DamageRules::CalculateStatusEffectDamage(SkillScaledDamageMagnitude,
 		SourceAttributes ? SourceAttributes->GetStatusEffectDamageBonusPercent(StatusTag) : 0.0f, DamageScale);
 	if (CalculatedDamageMagnitude <= 0.0f)
 	{
 		return false;
 	}
 
-	SpecHandle.Data->SetSetByCallerMagnitude(LabGameplayTags::Data_Damage, CalculatedDamageMagnitude);
+	SpecHandle.Data->SetSetByCallerMagnitude(PdGameplayTags::Data_Damage, CalculatedDamageMagnitude);
 	return true;
 }
 
 float UBasicAttributeSet::CalculateOutgoingDamage(const float BaseDamage, bool& bOutCriticalHit) const
 {
-	return PdDamageRules::CalculateCriticalDamage(BaseDamage, GetCritical(), FMath::FRand() * 100.f, bOutCriticalHit);
+	return DamageRules::CalculateCriticalDamage(BaseDamage, GetCritical(), FMath::FRand() * 100.f, bOutCriticalHit);
 }
 
 float UBasicAttributeSet::ApplyIncomingDamage(const float IncomingDamageAmount, const bool bCriticalHit,
@@ -587,7 +587,7 @@ float UBasicAttributeSet::ApplyIncomingDamage(const float IncomingDamageAmount, 
 		return 0.f;
 	}
 
-	if (ASC && ASC->HasMatchingGameplayTag(LabGameplayTags::State_DefenseField_Invulnerable))
+	if (ASC && ASC->HasMatchingGameplayTag(PdGameplayTags::State_DefenseField_Invulnerable))
 	{
 		if (DamageTargetCharacter)
 		{
@@ -596,7 +596,7 @@ float UBasicAttributeSet::ApplyIncomingDamage(const float IncomingDamageAmount, 
 		return 0.f;
 	}
 
-	const PdDamageRules::FShieldAbsorption Absorption = PdDamageRules::AbsorbByShield(FinalDamage, GetShield());
+	const DamageRules::FShieldAbsorption Absorption = DamageRules::AbsorbByShield(FinalDamage, GetShield());
 	if (Absorption.ShieldDamage > 0.f)
 	{
 		SetShield(Absorption.RemainingShield);

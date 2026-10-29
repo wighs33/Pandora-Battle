@@ -145,7 +145,7 @@ protected:
 	TSubclassOf<ULobbyUserWidget> LobbyUserWidgetClass;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Lobby|UI", meta = (ClampMin = "1"))
-	int32 MaxLobbySlots = LabGameSession::MaxPlayerCount;
+	int32 MaxLobbySlots = PdGameSession::MaxPlayerCount;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Lobby|Countdown", meta = (ClampMin = "0.01"))
 	float GameStartCountdownTickInterval = 0.1f;

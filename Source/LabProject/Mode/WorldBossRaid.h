@@ -11,7 +11,7 @@ class APlayerController;
 class APlayerState;
 struct FOnAttributeChangeData;
 
-namespace PdBackendHttp
+namespace BackendHttp
 {
 	struct FResponse;
 }
@@ -92,7 +92,7 @@ private:
 
 	UFUNCTION()
 	void OnRep_Attempts();
-	void HandleReportResponse(const PdBackendHttp::FResponse& Response);
+	void HandleReportResponse(const BackendHttp::FResponse& Response);
 	void TickRaid();
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------

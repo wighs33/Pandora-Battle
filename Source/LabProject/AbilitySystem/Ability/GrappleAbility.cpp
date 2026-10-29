@@ -4,7 +4,7 @@
 #include "Abilities/Tasks/AbilityTask_WaitTargetData.h"
 #include "AbilitySystem/TargetingActors/GrappleTargetActor.h"
 #include "Character/PdPlayer.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "GameFramework/PlayerController.h"
 #include "Mode/PdPlayerController.h"
 #include "Definition/Player/CharacterActionDefinition.h"
@@ -23,16 +23,16 @@ UGrappleAbility::UGrappleAbility(const FObjectInitializer& ObjectInitializer)
 	ReplicationPolicy = EGameplayAbilityReplicationPolicy::ReplicateNo;
 
 	FGameplayTagContainer AssetTags;
-	AssetTags.AddTag(LabGameplayTags::GameplayAbility_Movement_Grapple);
+	AssetTags.AddTag(PdGameplayTags::GameplayAbility_Movement_Grapple);
 	SetAssetTags(AssetTags);
 
-	ActivationOwnedTags.AddTag(LabGameplayTags::GameplayAbility_Movement_Grapple_Active);
-	ActivationBlockedTags.AddTag(LabGameplayTags::Status_Frostbite);
+	ActivationOwnedTags.AddTag(PdGameplayTags::GameplayAbility_Movement_Grapple_Active);
+	ActivationBlockedTags.AddTag(PdGameplayTags::Status_Frostbite);
 }
 
 FGameplayTag UGrappleAbility::GetDefaultInputTag() const
 {
-	return LabGameplayTags::Input_Ability_Movement_Grapple;
+	return PdGameplayTags::Input_Ability_Movement_Grapple;
 }
 
 void UGrappleAbility::OnAvatarSet(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec)
@@ -131,7 +131,7 @@ void UGrappleAbility::OnAbilityEnding()
 const FGameplayTagContainer* UGrappleAbility::GetCooldownTags() const
 {
 	GrappleCooldownTags.Reset();
-	GrappleCooldownTags.AddTag(LabGameplayTags::Cooldown_Grapple);
+	GrappleCooldownTags.AddTag(PdGameplayTags::Cooldown_Grapple);
 	return &GrappleCooldownTags;
 }
 
@@ -139,7 +139,7 @@ void UGrappleAbility::ApplyCooldown(const FGameplayAbilitySpecHandle Handle, con
 	const FGameplayAbilityActivationInfo ActivationInfo) const
 {
 	FGameplayTagContainer CooldownTags;
-	CooldownTags.AddTag(LabGameplayTags::Cooldown_Grapple);
+	CooldownTags.AddTag(PdGameplayTags::Cooldown_Grapple);
 	ApplySharedCooldownEffect(Handle, ActorInfo, ActivationInfo,
 		static_cast<float>(FMath::Max(GetConfiguredCooldownDuration(), 0.0)), CooldownTags);
 }
@@ -200,7 +200,7 @@ void UGrappleAbility::SetLocalAimPresentation(const bool bEnabled) const
 	{
 		if (bEnabled)
 		{
-			PlayerController->ShowAimCrosshair(LabGameplayTags::UI_Widget_AimCrosshair);
+			PlayerController->ShowAimCrosshair(PdGameplayTags::UI_Widget_AimCrosshair);
 		}
 		else
 		{

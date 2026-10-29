@@ -4,7 +4,7 @@
 #include "AI/Monster/MonsterAIController.h"
 #include "AI/Monster/MonsterCharacter.h"
 #include "Character/CharacterBase.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Components/CapsuleComponent.h"
 #include "Definition/Character/EnemyBaseDefinition.h"
 #include "DynamicRHI.h"
@@ -209,7 +209,7 @@ void UBossRaidBenchmarkSubsystem::KillMinions()
 			continue;
 		}
 		const FGameplayEffectSpecHandle Spec = AbilitySystem->MakeOutgoingSpec(DamageEffect, 1.0f, AbilitySystem->MakeEffectContext());
-		Spec.Data->SetSetByCallerMagnitude(LabGameplayTags::Data_Damage, 1.0e6f);
+		Spec.Data->SetSetByCallerMagnitude(PdGameplayTags::Data_Damage, 1.0e6f);
 		AbilitySystem->ApplyGameplayEffectSpecToSelf(*Spec.Data);
 	}
 }
@@ -293,7 +293,7 @@ bool UBossRaidBenchmarkSubsystem::TryPlacePlayerBeforeBoss()
 		{
 			continue;
 		}
-		AbilitySystem->AddLooseGameplayTag(LabGameplayTags::State_DefenseField_Invulnerable);
+		AbilitySystem->AddLooseGameplayTag(PdGameplayTags::State_DefenseField_Invulnerable);
 		const FVector Forward = BossCharacter->GetActorForwardVector().GetSafeNormal2D();
 		FVector Location = BossCharacter->GetActorLocation()
 			+ Forward * (BossCharacter->GetCapsuleComponent()->GetScaledCapsuleRadius() + PlayerDistanceFromBoss);

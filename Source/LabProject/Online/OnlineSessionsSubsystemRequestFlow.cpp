@@ -1,6 +1,6 @@
 #include "Online/OnlineSessionsSubsystem.h"
 #include "Engine/LocalPlayer.h"
-#include "Common/PdTicker.h"
+#include "Common/Ticker.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "Online/OnlineSessionNames.h"
@@ -48,7 +48,7 @@ bool UOnlineSessionsSubsystem::StartCreateRoomPhase(const uint64 RequestId)
 	const FOnCreateSessionCompleteDelegate CreateSessionCompleteDelegate =
 		FOnCreateSessionCompleteDelegate::CreateWeakLambda(this, [this, RequestId](FName SessionName, bool bSuccess)
 			{
-				PdTicker::RunNextTick(this, [this, RequestId, SessionName, bSuccess]() { OnCreateSessionCompleted(SessionName, bSuccess, RequestId); });
+				Ticker::RunNextTick(this, [this, RequestId, SessionName, bSuccess]() { OnCreateSessionCompleted(SessionName, bSuccess, RequestId); });
 			});
 	CreateSessionCompleteDelegateHandle = SessionInterface->AddOnCreateSessionCompleteDelegate_Handle(CreateSessionCompleteDelegate);
 
@@ -126,7 +126,7 @@ bool UOnlineSessionsSubsystem::StartFindRoomsPhase(const uint64 RequestId)
 	const FOnFindSessionsCompleteDelegate FindSessionsCompleteDelegate =
 		FOnFindSessionsCompleteDelegate::CreateWeakLambda(this, [this, RequestId](bool bSuccess)
 			{
-				PdTicker::RunNextTick(this, [this, RequestId, bSuccess]() { OnFindSessionsCompleted(bSuccess, RequestId); });
+				Ticker::RunNextTick(this, [this, RequestId, bSuccess]() { OnFindSessionsCompleted(bSuccess, RequestId); });
 			});
 	FindSessionsCompleteDelegateHandle = SessionInterface->AddOnFindSessionsCompleteDelegate_Handle(FindSessionsCompleteDelegate);
 
@@ -241,7 +241,7 @@ bool UOnlineSessionsSubsystem::StartJoinRoomPhase(const uint64 RequestId)
 		FOnJoinSessionCompleteDelegate::CreateWeakLambda(this,
 		[this, RequestId](FName SessionName, EOnJoinSessionCompleteResult::Type Result)
 			{
-				PdTicker::RunNextTick(this, [this, RequestId, SessionName, Result]() { OnJoinSessionCompleted(SessionName, Result, RequestId); });
+				Ticker::RunNextTick(this, [this, RequestId, SessionName, Result]() { OnJoinSessionCompleted(SessionName, Result, RequestId); });
 			});
 	JoinSessionCompleteDelegateHandle = SessionInterface->AddOnJoinSessionCompleteDelegate_Handle(JoinSessionCompleteDelegate);
 
@@ -324,7 +324,7 @@ bool UOnlineSessionsSubsystem::StartDestroySessionPhase(const uint64 RequestId, 
 	const FOnDestroySessionCompleteDelegate DestroySessionCompleteDelegate =
 		FOnDestroySessionCompleteDelegate::CreateWeakLambda(this, [this, RequestId](FName SessionName, bool bSuccess)
 			{
-				PdTicker::RunNextTick(this, [this, RequestId, SessionName, bSuccess]() { OnDestroySessionCompleted(SessionName, bSuccess, RequestId); });
+				Ticker::RunNextTick(this, [this, RequestId, SessionName, bSuccess]() { OnDestroySessionCompleted(SessionName, bSuccess, RequestId); });
 			});
 	DestroySessionCompleteDelegateHandle = SessionInterface->AddOnDestroySessionCompleteDelegate_Handle(DestroySessionCompleteDelegate);
 	if (!SessionInterface->DestroySession(NAME_GameSession))

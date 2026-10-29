@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "SkillTypes.generated.h"
 
-namespace LabSkillDebug
+namespace SkillDebug
 {
 	/** 개발 빌드에서 lab.Skill.DebugDraw가 활성화된 경우에만 디버그 그리기를 허용한다. */
 	LABPROJECT_API bool IsDrawingEnabled();

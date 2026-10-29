@@ -2,7 +2,7 @@
 
 #include "NativeGameplayTags.h"
 
-namespace LabGameplayTags
+namespace PdGameplayTags
 {
 	LABPROJECT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Action_Attack);
 	LABPROJECT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Action_Punch);

@@ -4,7 +4,7 @@
 
 // 연결된 두 포털 사이의 좌표 변환. 원본 포털 앞의 값을 대상 포털 뒤쪽의 같은 상대 값으로 옮긴다.
 // 기준 변환은 포털 평면 위치와 앞 방향이며, 평면 기준으로 앞뒤·좌우를 뒤집는다.
-namespace PdPortalSpace
+namespace PortalSpace
 {
 	FVector TransformLocation(const FTransform& SourcePortal, const FTransform& TargetPortal, const FVector& WorldLocation);
 

@@ -280,7 +280,7 @@ void AMeleeWeapon::MulticastSpawnSkillSlashNiagara_Implementation(UNiagaraSystem
 
 bool AMeleeWeapon::CanDamageMeleeTracedHit(const FHitResult& HitResult) const
 {
-	const ACharacterBase* TargetCharacter = PdCharacterHitValidation::ResolveMeleeWeaponDamageHit(HitResult.GetActor(),
+	const ACharacterBase* TargetCharacter = CharacterHitValidation::ResolveMeleeWeaponDamageHit(HitResult.GetActor(),
 		HitResult.GetComponent());
 	const ACharacterBase* SourceCharacter = GetOwningCharacter();
 	if (!TargetCharacter || !SourceCharacter || TargetCharacter == SourceCharacter)
@@ -394,7 +394,7 @@ void AMeleeWeapon::TraceAttackSegment(const FVector& LineStart, const FVector& L
 	FAttackTraceDebugData& DebugData)
 {
 	static const TArray<TEnumAsByte<EObjectTypeQuery>> BodyObjectTypes = {
-		UEngineTypes::ConvertToObjectType(LabCollisionChannels::HitableBody())};
+		UEngineTypes::ConvertToObjectType(CollisionChannels::HitableBody())};
 	static const TArray<TEnumAsByte<EObjectTypeQuery>> CapsuleObjectTypes = {UEngineTypes::ConvertToObjectType(ECC_Pawn)};
 
 	const float TraceRadius = FMath::Clamp(AttackTraceRadius, 0.0f, 20.0f);
@@ -410,7 +410,7 @@ void AMeleeWeapon::TraceAttackSegment(const FVector& LineStart, const FVector& L
 
 	for (const FHitResult& HitResult : HitResults)
 	{
-		ACharacterBase* TargetCharacter = PdCharacterHitValidation::ResolveMeleeWeaponDamageHit(HitResult.GetActor(), HitResult.GetComponent());
+		ACharacterBase* TargetCharacter = CharacterHitValidation::ResolveMeleeWeaponDamageHit(HitResult.GetActor(), HitResult.GetComponent());
 		if (!TargetCharacter || !CanDamageMeleeTracedHit(HitResult))
 		{
 			continue;
@@ -686,7 +686,7 @@ bool AMeleeWeapon::ApplyDamageFromAuthoritativeMeleeTrace(const FHitResult& HitR
 		return false;
 	}
 
-	ACharacterBase* TargetCharacter = PdCharacterHitValidation::ResolveMeleeWeaponDamageHit(HitResult.GetActor(),
+	ACharacterBase* TargetCharacter = CharacterHitValidation::ResolveMeleeWeaponDamageHit(HitResult.GetActor(),
 		HitResult.GetComponent());
 	return TargetCharacter && ApplyDamageToTarget(TargetCharacter);
 }

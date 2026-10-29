@@ -5,7 +5,7 @@
 #include "Character/CharacterHitValidation.h"
 #include "Character/LagCompensationSubsystem.h"
 #include "Character/PdPlayer.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Common/CollisionChannels.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Definition/Item/ItemDefinition.h"
@@ -31,11 +31,11 @@ bool ARangedWeaponBase::CanUseRangedWeapon(const ACharacterBase* AttackingCharac
 	const UPdAbilitySystemComponent* AbilitySystemComponent = AttackingCharacter->GetPdAbilitySystemComponent();
 	if (!AbilitySystemComponent
 		|| AbilitySystemComponent->GetNumericAttribute(UBasicAttributeSet::GetHealthAttribute()) <= 0.0f
-		|| AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::State_Dead)
-		|| AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::Status_Frostbite)
-		|| AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::State_Movement_Airborne)
-		|| AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::GameplayAbility_AOEAttack_Active)
-		|| AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::GameplayAbility_ShootProjectile_Active))
+		|| AbilitySystemComponent->HasMatchingGameplayTag(PdGameplayTags::State_Dead)
+		|| AbilitySystemComponent->HasMatchingGameplayTag(PdGameplayTags::Status_Frostbite)
+		|| AbilitySystemComponent->HasMatchingGameplayTag(PdGameplayTags::State_Movement_Airborne)
+		|| AbilitySystemComponent->HasMatchingGameplayTag(PdGameplayTags::GameplayAbility_AOEAttack_Active)
+		|| AbilitySystemComponent->HasMatchingGameplayTag(PdGameplayTags::GameplayAbility_ShootProjectile_Active))
 	{
 		return false;
 	}
@@ -163,7 +163,7 @@ bool ARangedWeaponBase::ResolveAimTargetBeyondLaunchPoint(const FVector& ViewLoc
 		const FVector HitLocation = HitResult.Location;
 		const float HitForwardDistanceFromLaunch = FVector::DotProduct(HitLocation - LaunchStartLocation, SafeViewDirection);
 		const bool bHitIsBehindLaunchPlane = HitForwardDistanceFromLaunch <= AimTraceAdvanceDistance;
-		const bool bCharacterNonMeshHit = PdCharacterHitValidation::IsCharacterRelatedNonMeshHit(HitResult.GetActor(),
+		const bool bCharacterNonMeshHit = CharacterHitValidation::IsCharacterRelatedNonMeshHit(HitResult.GetActor(),
 			HitResult.GetComponent());
 
 		if (!bHitIsBehindLaunchPlane && !bCharacterNonMeshHit)
@@ -253,7 +253,7 @@ bool ARangedWeaponBase::ApplyDamageFromAuthoritativeRangedTrace(const FHitResult
 		return false;
 	}
 
-	ACharacterBase* TargetCharacter = PdCharacterHitValidation::ResolveWeaponDamageHit(HitResult.GetActor(),
+	ACharacterBase* TargetCharacter = CharacterHitValidation::ResolveWeaponDamageHit(HitResult.GetActor(),
 		HitResult.GetComponent());
 	return TargetCharacter && ApplyDamageToTarget(TargetCharacter);
 }
@@ -265,6 +265,6 @@ TArray<TEnumAsByte<EObjectTypeQuery>> ARangedWeaponBase::MakeRangedTraceObjectTy
 		return UEngineTypes::ConvertToCollisionChannel(ObjectType) == ECC_Pawn;
 	});
 	ObjectTypes.AddUnique(UEngineTypes::ConvertToObjectType(ECC_WorldStatic));
-	ObjectTypes.AddUnique(UEngineTypes::ConvertToObjectType(LabCollisionChannels::HitableBody()));
+	ObjectTypes.AddUnique(UEngineTypes::ConvertToObjectType(CollisionChannels::HitableBody()));
 	return ObjectTypes;
 }

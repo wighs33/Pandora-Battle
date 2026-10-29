@@ -85,7 +85,7 @@ namespace
 				MarkLevelDefinitionInvalid(Context, Result, FText::Format(
 					NSLOCTEXT("LevelDefinition", "MissingThumbnail", "{0} Thumbnail is required."), LevelLabel));
 			}
-			if (Level.MaxPlayerCount < 1 || Level.MaxPlayerCount > LabGameSession::MaxPlayerCount)
+			if (Level.MaxPlayerCount < 1 || Level.MaxPlayerCount > PdGameSession::MaxPlayerCount)
 			{
 				MarkLevelDefinitionInvalid(Context, Result, FText::Format(
 					NSLOCTEXT("LevelDefinition", "InvalidMaxPlayerCount", "{0} MaxPlayerCount must be between 1 and the session limit."),

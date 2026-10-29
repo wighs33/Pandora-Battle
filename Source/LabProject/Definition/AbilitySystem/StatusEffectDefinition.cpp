@@ -1,7 +1,7 @@
 #include "Definition/AbilitySystem/StatusEffectDefinition.h"
 
 #include "AbilitySystemComponent.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "GameplayEffect.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StatusEffectDefinition)

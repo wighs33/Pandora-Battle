@@ -30,7 +30,7 @@ struct LABPROJECT_API FLobbyMatchMapOption
 	TSoftObjectPtr<UWorld> Map;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Ingame Level", meta = (ClampMin = "1"))
-	int32 MaxPlayerCount = LabGameSession::MaxPlayerCount;
+	int32 MaxPlayerCount = PdGameSession::MaxPlayerCount;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Ingame Level")
 	TObjectPtr<UTexture2D> Thumbnail = nullptr;

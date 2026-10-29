@@ -272,7 +272,7 @@ void ASkillVisualActor::StartDefaultFX()
 	}
 
 	if (UNiagaraComponent* ExistingComponent =
-		PdComponentLookup::FindByNameOrTag<UNiagaraComponent>(Character, NiagaraSettings.SocketNiagaraComponentName))
+		ComponentLookup::FindByNameOrTag<UNiagaraComponent>(Character, NiagaraSettings.SocketNiagaraComponentName))
 	{
 		LocalBorrowedSocketNiagaraComponent = ExistingComponent;
 		BorrowedSocketPreviousAsset = ExistingComponent->GetAsset();
@@ -607,10 +607,10 @@ FVector ASkillVisualActor::ResolveCharacterFloorLocation(ACharacterBase* Charact
 	}
 
 	TArray<AActor*> ActorsToIgnore;
-	PdSkillGroundProjection::AddIgnoredActorAndAttachments(ActorsToIgnore, Character);
-	PdSkillGroundProjection::FGroundProjectionResult GroundProjection;
-	if (PdSkillGroundProjection::TryProjectToGround(Character->GetWorld(), Character->GetActorLocation(),
-		LabCollisionChannels::VisibilityTrace(), DefaultFXGroundTraceStartHeight, DefaultFXGroundTraceDepth,
+	SkillGroundProjection::AddIgnoredActorAndAttachments(ActorsToIgnore, Character);
+	SkillGroundProjection::FGroundProjectionResult GroundProjection;
+	if (SkillGroundProjection::TryProjectToGround(Character->GetWorld(), Character->GetActorLocation(),
+		CollisionChannels::VisibilityTrace(), DefaultFXGroundTraceStartHeight, DefaultFXGroundTraceDepth,
 		ActorsToIgnore, GroundProjection))
 	{
 		return GroundProjection.Location;

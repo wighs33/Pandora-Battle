@@ -2,7 +2,7 @@
 
 #include "Animation/WidgetAnimation.h"
 #include "Blueprint/WidgetTree.h"
-#include "Common/PdTicker.h"
+#include "Common/Ticker.h"
 #include "Definition/Common/ProjectTagDefinition.h"
 #include "Components/Button.h"
 #include "Components/CanvasPanel.h"
@@ -108,7 +108,7 @@ void UInfoWidget::NativeConstruct()
 
 	SetPaintCanvasWidgetVisible(false);
 
-	PdButtonClick::Bind(this, GetButtonBindings());
+	ButtonClick::Bind(this, GetButtonBindings());
 	BindLeftSkinPaintCanvasEvents();
 	SetCanvasExportButtonVisible(false);
 	SetPandoraUpgradeButtonVisible(FocusedSection == EInfoUiSection::Pandora);
@@ -137,7 +137,7 @@ void UInfoWidget::NativeDestruct()
 		PaintCanvas->Shutdown();
 	}
 
-	PdButtonClick::Unbind(this, GetButtonBindings());
+	ButtonClick::Unbind(this, GetButtonBindings());
 	UnbindLeftSkinPaintCanvasEvents();
 	SetCanvasExportButtonVisible(false);
 
@@ -506,7 +506,7 @@ void UInfoWidget::OnPandoraUpgradeButtonClicked()
 	{
 		if (APdHUD* Hud = PlayerController->GetHUD<APdHUD>())
 		{
-			PdTicker::RunNextTick(Hud, [Hud]() { Hud->TogglePandoraTreeUi(); });
+			Ticker::RunNextTick(Hud, [Hud]() { Hud->TogglePandoraTreeUi(); });
 		}
 	}
 }

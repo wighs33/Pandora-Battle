@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "Engine/EngineTypes.h"
 
-namespace LabCollisionChannels
+namespace CollisionChannels
 {
 	/** 프로젝트 설정의 이름으로 찾은 오브젝트 채널 */
 	LABPROJECT_API ECollisionChannel HitableBody();

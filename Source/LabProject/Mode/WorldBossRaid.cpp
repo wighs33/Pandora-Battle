@@ -361,19 +361,19 @@ void AWorldBossRaid::SendReport()
 	}
 	Body->SetArrayField(TEXT("players"), Players);
 
-	const TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = PdBackendHttp::CreateJsonRequest(
+	const TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = BackendHttp::CreateJsonRequest(
 		TEXT("POST"), Url, Body, Settings->GetServerReportTimeoutSeconds());
-	if (!PdBackendHttp::SignWithSigV4(*Request, Credentials, Settings->GetAwsRegion(), TEXT("execute-api")))
+	if (!BackendHttp::SignWithSigV4(*Request, Credentials, Settings->GetAwsRegion(), TEXT("execute-api")))
 	{
 		UE_LOG(LogWorldBossRaid, Warning, TEXT("Could not sign the raid damage report for %s."), *Url);
 		return;
 	}
 	bReportInFlight = true;
 	LastReportServerTime = GetServerTime();
-	PdBackendHttp::Send(Request, PdBackendHttp::FOnResponse::CreateUObject(this, &ThisClass::HandleReportResponse));
+	BackendHttp::Send(Request, BackendHttp::FOnResponse::CreateUObject(this, &ThisClass::HandleReportResponse));
 }
 
-void AWorldBossRaid::HandleReportResponse(const PdBackendHttp::FResponse& Response)
+void AWorldBossRaid::HandleReportResponse(const BackendHttp::FResponse& Response)
 {
 	bReportInFlight = false;
 	if (!Response.bSucceeded || !Response.Json.IsValid())

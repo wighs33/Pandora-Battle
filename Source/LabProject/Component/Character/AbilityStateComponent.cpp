@@ -6,7 +6,7 @@
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
 #include "AbilitySystemComponent.h"
 #include "Character/CharacterBase.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Common/ComponentLookup.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Component/Character/CharacterDeathComponent.h"
@@ -161,7 +161,7 @@ void UAbilityStateComponent::ClearAbilitySystemActorInfo()
 
 	if (ASC && Character && ASC->GetAvatarActor() == Character)
 	{
-		ASC->SetLooseGameplayTagCount(LabGameplayTags::State_Movement_Airborne, 0,
+		ASC->SetLooseGameplayTagCount(PdGameplayTags::State_Movement_Airborne, 0,
 			Character->HasAuthority() ? EGameplayTagReplicationState::CountToOwner : EGameplayTagReplicationState::None);
 		ASC->CancelAbility(UReactiveRecoveryAbility::StaticClass()->GetDefaultObject<UGameplayAbility>());
 		if (ASC->GetAvatarActor() == Character)
@@ -314,7 +314,7 @@ UActorComponent* UAbilityStateComponent::ResolveLowStaminaEffectComponent(const 
 	}
 
 	CachedLowStaminaEffectComponentName = ComponentName;
-	UActorComponent* EffectComponent = PdComponentLookup::FindByNameOrTag<UActorComponent>(Character, ComponentName);
+	UActorComponent* EffectComponent = ComponentLookup::FindByNameOrTag<UActorComponent>(Character, ComponentName);
 	LowStaminaEffectComponent = EffectComponent;
 	return EffectComponent;
 }
@@ -368,14 +368,14 @@ void UAbilityStateComponent::RefreshAirborneGameplayTag()
 	const bool bAirborne = MovementComponent && MovementComponent->IsFalling();
 	const EGameplayTagReplicationState ReplicationState =
 		Character->HasAuthority() ? EGameplayTagReplicationState::CountToOwner : EGameplayTagReplicationState::None;
-	ASC->SetLooseGameplayTagCount(LabGameplayTags::State_Movement_Airborne, bAirborne ? 1 : 0, ReplicationState);
+	ASC->SetLooseGameplayTagCount(PdGameplayTags::State_Movement_Airborne, bAirborne ? 1 : 0, ReplicationState);
 
 	if (bAirborne && Character->HasAuthority())
 	{
 		FGameplayTagContainer AttackAbilityTags;
-		AttackAbilityTags.AddTag(LabGameplayTags::Action_Attack);
-		AttackAbilityTags.AddTag(LabGameplayTags::Action_Punch);
-		AttackAbilityTags.AddTag(LabGameplayTags::Action_RangedAttack);
+		AttackAbilityTags.AddTag(PdGameplayTags::Action_Attack);
+		AttackAbilityTags.AddTag(PdGameplayTags::Action_Punch);
+		AttackAbilityTags.AddTag(PdGameplayTags::Action_RangedAttack);
 		ASC->CancelAbilities(&AttackAbilityTags);
 	}
 }
@@ -396,13 +396,13 @@ void UAbilityStateComponent::BindDeadTagEvent(UAbilitySystemComponent* AbilitySy
 
 	DeadTagBoundAbilitySystemComponent = AbilitySystemComponent;
 	DeadTagChangedDelegateHandle =
-		AbilitySystemComponent->RegisterGameplayTagEvent(LabGameplayTags::State_Dead, EGameplayTagEventType::NewOrRemoved)
+		AbilitySystemComponent->RegisterGameplayTagEvent(PdGameplayTags::State_Dead, EGameplayTagEventType::NewOrRemoved)
 			.AddUObject(this, &ThisClass::OnDeadTagChanged);
 
-	const int32 CurrentDeadTagCount = AbilitySystemComponent->GetTagCount(LabGameplayTags::State_Dead);
+	const int32 CurrentDeadTagCount = AbilitySystemComponent->GetTagCount(PdGameplayTags::State_Dead);
 	if (CurrentDeadTagCount > 0)
 	{
-		OnDeadTagChanged(LabGameplayTags::State_Dead, CurrentDeadTagCount);
+		OnDeadTagChanged(PdGameplayTags::State_Dead, CurrentDeadTagCount);
 	}
 }
 
@@ -424,7 +424,7 @@ void UAbilityStateComponent::UnbindDeadTagEvent()
 	{
 		if (DeadTagChangedDelegateHandle.IsValid())
 		{
-			ASC->RegisterGameplayTagEvent(LabGameplayTags::State_Dead, EGameplayTagEventType::NewOrRemoved)
+			ASC->RegisterGameplayTagEvent(PdGameplayTags::State_Dead, EGameplayTagEventType::NewOrRemoved)
 				.Remove(DeadTagChangedDelegateHandle);
 		}
 	}
@@ -437,8 +437,8 @@ void UAbilityStateComponent::BindFrozenTagEvent(UAbilitySystemComponent* Ability
 {
 	if (FrozenTagBoundAbilitySystemComponent.Get() == AbilitySystemComponent && FrozenTagChangedDelegateHandle.IsValid())
 	{
-		OnFrozenTagChanged(LabGameplayTags::Status_Frostbite,
-			AbilitySystemComponent ? AbilitySystemComponent->GetTagCount(LabGameplayTags::Status_Frostbite) : 0);
+		OnFrozenTagChanged(PdGameplayTags::Status_Frostbite,
+			AbilitySystemComponent ? AbilitySystemComponent->GetTagCount(PdGameplayTags::Status_Frostbite) : 0);
 		return;
 	}
 
@@ -450,9 +450,9 @@ void UAbilityStateComponent::BindFrozenTagEvent(UAbilitySystemComponent* Ability
 
 	FrozenTagBoundAbilitySystemComponent = AbilitySystemComponent;
 	FrozenTagChangedDelegateHandle =
-		AbilitySystemComponent->RegisterGameplayTagEvent(LabGameplayTags::Status_Frostbite, EGameplayTagEventType::NewOrRemoved)
+		AbilitySystemComponent->RegisterGameplayTagEvent(PdGameplayTags::Status_Frostbite, EGameplayTagEventType::NewOrRemoved)
 			.AddUObject(this, &ThisClass::OnFrozenTagChanged);
-	OnFrozenTagChanged(LabGameplayTags::Status_Frostbite, AbilitySystemComponent->GetTagCount(LabGameplayTags::Status_Frostbite));
+	OnFrozenTagChanged(PdGameplayTags::Status_Frostbite, AbilitySystemComponent->GetTagCount(PdGameplayTags::Status_Frostbite));
 }
 
 // 빙결 시 공격·조준·그래플·AI 이동을 중단하고 회전과 입력을 잠근다. 해제 시 살아 있는 캐릭터의 회전 정책과 속도를 복구한다.
@@ -466,7 +466,7 @@ void UAbilityStateComponent::OnFrozenTagChanged(FGameplayTag, const int32 NewCou
 	}
 
 	UAbilitySystemComponent* ASC = Character->GetAbilitySystemComponent();
-	const bool bIsDead = ASC && ASC->HasMatchingGameplayTag(LabGameplayTags::State_Dead);
+	const bool bIsDead = ASC && ASC->HasMatchingGameplayTag(PdGameplayTags::State_Dead);
 	if (NewCount > 0)
 	{
 		if (bIsDead)
@@ -483,7 +483,7 @@ void UAbilityStateComponent::OnFrozenTagChanged(FGameplayTag, const int32 NewCou
 		if (ASC)
 		{
 			FGameplayTagContainer GrappleAbilityTags;
-			GrappleAbilityTags.AddTag(LabGameplayTags::GameplayAbility_Movement_Grapple);
+			GrappleAbilityTags.AddTag(PdGameplayTags::GameplayAbility_Movement_Grapple);
 			ASC->CancelAbilities(&GrappleAbilityTags);
 		}
 
@@ -556,7 +556,7 @@ void UAbilityStateComponent::MaintainFrozenRotationLock()
 	}
 
 	const UAbilitySystemComponent* ASC = Character->GetAbilitySystemComponent();
-	if (ASC && ASC->HasMatchingGameplayTag(LabGameplayTags::State_Dead))
+	if (ASC && ASC->HasMatchingGameplayTag(PdGameplayTags::State_Dead))
 	{
 		return;
 	}
@@ -614,7 +614,7 @@ void UAbilityStateComponent::RestoreCachedRotationSettings(UCharacterMovementCom
 // 재사용할 캐릭터의 빙결 입력 잠금과 저장 상태를 해제해 리스폰 복구를 준비한다.
 void UAbilityStateComponent::ClearFrozenStateForRespawn()
 {
-	OnFrozenTagChanged(LabGameplayTags::Status_Frostbite, 0);
+	OnFrozenTagChanged(PdGameplayTags::Status_Frostbite, 0);
 }
 
 // 빙결 상태와 자신이 걸었던 시선 입력 잠금을 먼저 해제한 뒤 이전 ASC의 빙결 태그 구독을 제거한다.
@@ -622,14 +622,14 @@ void UAbilityStateComponent::UnbindFrozenTagEvent()
 {
 	if (bFrozenMovementActive)
 	{
-		OnFrozenTagChanged(LabGameplayTags::Status_Frostbite, 0);
+		OnFrozenTagChanged(PdGameplayTags::Status_Frostbite, 0);
 	}
 
 	if (UAbilitySystemComponent* ASC = FrozenTagBoundAbilitySystemComponent.Get())
 	{
 		if (FrozenTagChangedDelegateHandle.IsValid())
 		{
-			ASC->RegisterGameplayTagEvent(LabGameplayTags::Status_Frostbite, EGameplayTagEventType::NewOrRemoved)
+			ASC->RegisterGameplayTagEvent(PdGameplayTags::Status_Frostbite, EGameplayTagEventType::NewOrRemoved)
 				.Remove(FrozenTagChangedDelegateHandle);
 		}
 	}
@@ -740,7 +740,7 @@ void UAbilityStateComponent::RemoveStaminaRegenEffects()
 	}
 
 	FGameplayTagContainer RegenTags;
-	RegenTags.AddTag(LabGameplayTags::Status_StaminaRegen);
+	RegenTags.AddTag(PdGameplayTags::Status_StaminaRegen);
 	ASC->RemoveActiveEffectsWithGrantedTags(RegenTags);
 }
 

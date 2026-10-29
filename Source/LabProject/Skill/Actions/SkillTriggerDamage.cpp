@@ -18,7 +18,7 @@ void USkillTriggerDamage::Configure(const FSkillTopLevelDamageConfig& DamageConf
 UPrimitiveComponent* USkillTriggerDamage::FindTriggerComponent(AActor* Actor, const FName ComponentName,
 	const bool bUseAnyPrimitiveAsFallback)
 {
-	if (UPrimitiveComponent* NamedComponent = PdComponentLookup::FindByNameOrTag<UPrimitiveComponent>(Actor, ComponentName))
+	if (UPrimitiveComponent* NamedComponent = ComponentLookup::FindByNameOrTag<UPrimitiveComponent>(Actor, ComponentName))
 	{
 		return NamedComponent;
 	}

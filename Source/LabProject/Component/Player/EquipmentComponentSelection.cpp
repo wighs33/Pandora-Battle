@@ -1,6 +1,6 @@
 #include "Component/Player/EquipmentComponent.h"
 
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Definition/Common/ProjectTagDefinition.h"
 #include "Definition/Item/ItemDefinition.h"
@@ -25,7 +25,7 @@ bool UEquipmentComponent::RequestWeaponSelectionForDirection(const EEnum_Directi
 	LatestRequestedWeaponDirection = Direction;
 	bHasLatestWeaponRequest = true;
 	const UPdAbilitySystemComponent* AbilitySystem = AbilitySystemSubscription.GetReadyAbilitySystem();
-	if (AbilitySystem && AbilitySystem->HasMatchingGameplayTag(LabGameplayTags::Cooldown_EquipWeapon))
+	if (AbilitySystem && AbilitySystem->HasMatchingGameplayTag(PdGameplayTags::Cooldown_EquipWeapon))
 	{
 		return false;
 	}
@@ -257,7 +257,7 @@ bool UEquipmentComponent::ApplyEquipAbilityCooldown()
 		return false;
 	}
 
-	if (AbilitySystem->HasMatchingGameplayTag(LabGameplayTags::Cooldown_EquipWeapon))
+	if (AbilitySystem->HasMatchingGameplayTag(PdGameplayTags::Cooldown_EquipWeapon))
 	{
 		return true;
 	}
@@ -290,17 +290,17 @@ bool UEquipmentComponent::ApplyEquipAbilityCooldown()
 
 	FGameplayEffectSpecHandle CooldownSpec = AbilitySystem->MakeOutgoingSpec(CooldownEffectClass, 1.0f, EffectContext);
 	FGameplayTagContainer CooldownTags;
-	CooldownTags.AddTag(LabGameplayTags::Cooldown_EquipWeapon);
+	CooldownTags.AddTag(PdGameplayTags::Cooldown_EquipWeapon);
 	if (!CooldownSpec.IsValid() || !CooldownSpec.Data.IsValid())
 	{
 		return false;
 	}
 
-	CooldownSpec.Data->SetSetByCallerMagnitude(LabGameplayTags::Data_Cooldown, CooldownDuration);
+	CooldownSpec.Data->SetSetByCallerMagnitude(PdGameplayTags::Data_Cooldown, CooldownDuration);
 	CooldownSpec.Data->DynamicGrantedTags.AppendTags(CooldownTags);
 	CooldownSpec.Data->AppendDynamicAssetTags(CooldownTags);
 
-	CooldownSpec.Data->AppendDynamicAssetTags(FGameplayTagContainer(LabGameplayTags::Effect_Policy_RemoveOnDeath));
+	CooldownSpec.Data->AppendDynamicAssetTags(FGameplayTagContainer(PdGameplayTags::Effect_Policy_RemoveOnDeath));
 	return AbilitySystem->ApplyGameplayEffectSpecToSelf(
 		*CooldownSpec.Data.Get()).WasSuccessfullyApplied();
 }

@@ -4,7 +4,7 @@
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
 #include "Character/CharacterBase.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Component/Item/InventoryComponent.h"
 #include "Component/Pandora/PandoraComponent.h"
@@ -81,7 +81,7 @@ void UEquipmentComponent::BindEquipCooldownTag(UPdAbilitySystemComponent* Abilit
 
 	if (UPdAbilitySystemComponent* PreviousAbilitySystem = CooldownTagAbilitySystem.Get())
 	{
-		PreviousAbilitySystem->RegisterGameplayTagEvent(LabGameplayTags::Cooldown_EquipWeapon,
+		PreviousAbilitySystem->RegisterGameplayTagEvent(PdGameplayTags::Cooldown_EquipWeapon,
 			EGameplayTagEventType::NewOrRemoved).Remove(EquipCooldownTagChangedDelegateHandle);
 	}
 	EquipCooldownTagChangedDelegateHandle.Reset();
@@ -89,7 +89,7 @@ void UEquipmentComponent::BindEquipCooldownTag(UPdAbilitySystemComponent* Abilit
 	CooldownTagAbilitySystem = AbilitySystem;
 	if (AbilitySystem)
 	{
-		EquipCooldownTagChangedDelegateHandle = AbilitySystem->RegisterGameplayTagEvent(LabGameplayTags::Cooldown_EquipWeapon,
+		EquipCooldownTagChangedDelegateHandle = AbilitySystem->RegisterGameplayTagEvent(PdGameplayTags::Cooldown_EquipWeapon,
 			EGameplayTagEventType::NewOrRemoved).AddUObject(this, &ThisClass::HandleEquipCooldownTagChanged);
 	}
 }
@@ -158,7 +158,7 @@ void UEquipmentComponent::NotifyCurrentWeaponStateChanged()
 
 void UEquipmentComponent::HandleEquipCooldownTagChanged(const FGameplayTag CallbackTag, const int32 NewCount)
 {
-	if (CallbackTag != LabGameplayTags::Cooldown_EquipWeapon || NewCount > 0 || !bHasLatestWeaponRequest || !HasEquipmentAuthority())
+	if (CallbackTag != PdGameplayTags::Cooldown_EquipWeapon || NewCount > 0 || !bHasLatestWeaponRequest || !HasEquipmentAuthority())
 	{
 		return;
 	}
@@ -452,7 +452,7 @@ bool UEquipmentComponent::HasActiveAbilityWithTags(const FGameplayTagContainer& 
 bool UEquipmentComponent::IsDeathTransitionActive() const
 {
 	const UPdAbilitySystemComponent* AbilitySystem = AbilitySystemSubscription.GetReadyAbilitySystem();
-	return AbilitySystem && (AbilitySystem->HasMatchingGameplayTag(LabGameplayTags::State_Dead)
+	return AbilitySystem && (AbilitySystem->HasMatchingGameplayTag(PdGameplayTags::State_Dead)
 		|| AbilitySystem->GetNumericAttribute(UBasicAttributeSet::GetHealthAttribute()) <= 0.0f);
 }
 

@@ -38,7 +38,7 @@ Parameters:
     Default: 6
     MinValue: 1
     MaxValue: 6
-    Description: Players per boss raid session. The game server accepts at most 6 (LabGameSession::MaxPlayerCount).
+    Description: Players per boss raid session. The game server accepts at most 6 (PdGameSession::MaxPlayerCount).
 
 Globals:
   Function:

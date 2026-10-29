@@ -1,13 +1,13 @@
 #include "Definition/AbilitySystem/SkillAreaSettings.h"
 
 #include "Common/CollisionChannels.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 
 FSkillAreaSettings::FSkillAreaSettings()
 {
-	TargetGroundTraceChannel = LabCollisionChannels::VisibilityTrace();
-	IndicatorCueTag = LabGameplayTags::GameplayCue_AOEIndicator;
-	ImpactCueTag = LabGameplayTags::GameplayCue_LightningBolt;
+	TargetGroundTraceChannel = CollisionChannels::VisibilityTrace();
+	IndicatorCueTag = PdGameplayTags::GameplayCue_AOEIndicator;
+	ImpactCueTag = PdGameplayTags::GameplayCue_LightningBolt;
 	TargetingMaxRange = 3000.0;
 	Radius = 256.0;
 	CameraSettings.TargetFOV = 70.0f;

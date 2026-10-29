@@ -114,7 +114,7 @@ namespace
 				return;
 			}
 
-			const UObject* ProductObject = PdShopCatalog::ResolveProductObject(ProductReference);
+			const UObject* ProductObject = ShopCatalog::ResolveProductObject(ProductReference);
 			if (!ProductObject)
 			{
 				return;
@@ -164,8 +164,8 @@ namespace
 					return static_cast<uint8>(Left.Product.ProductType) < static_cast<uint8>(Right.Product.ProductType);
 				}
 
-				return GetProductSortName(PdShopCatalog::ResolveProductObject(Left.Product))
-					< GetProductSortName(PdShopCatalog::ResolveProductObject(Right.Product));
+				return GetProductSortName(ShopCatalog::ResolveProductObject(Left.Product))
+					< GetProductSortName(ShopCatalog::ResolveProductObject(Right.Product));
 			});
 			return MoveTemp(Entries);
 		}
@@ -176,7 +176,7 @@ namespace
 	};
 }
 
-TArray<FShopCatalogEntry> PdShopCatalog::Build(const FShopCatalogSource& Source, const UContentDataSubsystem* ContentData)
+TArray<FShopCatalogEntry> ShopCatalog::Build(const FShopCatalogSource& Source, const UContentDataSubsystem* ContentData)
 {
 	FShopCatalogBuilder Builder;
 	for (const FShopCatalogProductReference& ProductReference : Source.ManualProducts)
@@ -201,7 +201,7 @@ TArray<FShopCatalogEntry> PdShopCatalog::Build(const FShopCatalogSource& Source,
 	return Builder.Finish();
 }
 
-UObject* PdShopCatalog::ResolveProductObject(const FShopCatalogProductReference& ProductReference)
+UObject* ShopCatalog::ResolveProductObject(const FShopCatalogProductReference& ProductReference)
 {
 	switch (ProductReference.ProductType)
 	{

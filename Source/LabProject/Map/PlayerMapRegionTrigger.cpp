@@ -56,9 +56,9 @@ void APlayerMapRegionTrigger::ConfigureTriggerCollision() const
 {
 	TriggerBox->SetCollisionProfileName(TEXT("Custom"));
 	TriggerBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-	TriggerBox->SetCollisionObjectType(LabCollisionChannels::OverlapBox());
+	TriggerBox->SetCollisionObjectType(CollisionChannels::OverlapBox());
 	TriggerBox->SetCollisionResponseToAllChannels(ECR_Ignore);
 	TriggerBox->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
-	TriggerBox->SetCollisionResponseToChannel(LabCollisionChannels::HitableBody(), ECR_Overlap);
+	TriggerBox->SetCollisionResponseToChannel(CollisionChannels::HitableBody(), ECR_Overlap);
 	TriggerBox->SetGenerateOverlapEvents(true);
 }

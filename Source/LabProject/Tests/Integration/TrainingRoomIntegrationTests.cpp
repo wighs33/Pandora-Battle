@@ -47,7 +47,7 @@ namespace
 
 	ACharacterBase* GetPlayerCharacter()
 	{
-		const APlayerController* Controller = PdIntegrationTest::GetPlayerController();
+		const APlayerController* Controller = IntegrationTest::GetPlayerController();
 		return Controller ? Cast<ACharacterBase>(Controller->GetPawn()) : nullptr;
 	}
 
@@ -59,13 +59,13 @@ namespace
 
 	APdHUD* GetHud()
 	{
-		const APlayerController* Controller = PdIntegrationTest::GetPlayerController();
+		const APlayerController* Controller = IntegrationTest::GetPlayerController();
 		return Controller ? Cast<APdHUD>(Controller->GetHUD()) : nullptr;
 	}
 
 	AEnemyBase* GetTrainingBot()
 	{
-		UWorld* World = PdIntegrationTest::GetGameWorld();
+		UWorld* World = IntegrationTest::GetGameWorld();
 		TActorIterator<AEnemyBase> It(World);
 		return World && It ? *It : nullptr;
 	}
@@ -111,8 +111,8 @@ namespace
 
 	void EquipAndWait(FAutomationTestBase* Test, const TCHAR* DefinitionPath)
 	{
-		PdIntegrationTest::Step(0.f, [DefinitionPath]() { EquipWeapon(DefinitionPath); });
-		PdIntegrationTest::WaitUntil(Test, FString::Printf(TEXT("%s 장착"), DefinitionPath), 10.f,
+		IntegrationTest::Step(0.f, [DefinitionPath]() { EquipWeapon(DefinitionPath); });
+		IntegrationTest::WaitUntil(Test, FString::Printf(TEXT("%s 장착"), DefinitionPath), 10.f,
 			[DefinitionPath]() { return IsWeaponEquipped(DefinitionPath); });
 	}
 
@@ -197,7 +197,7 @@ namespace
 	/** 지금 입력 매핑에서 Action에 연결된 첫 키. 키 설정을 바꿔도 테스트가 따라간다. */
 	FKey FindMappedKey(const UInputAction* Action)
 	{
-		const APlayerController* Controller = PdIntegrationTest::GetPlayerController();
+		const APlayerController* Controller = IntegrationTest::GetPlayerController();
 		const UEnhancedInputLocalPlayerSubsystem* Input = Controller && Controller->GetLocalPlayer()
 			? Controller->GetLocalPlayer()->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>() : nullptr;
 		const TArray<FKey> Keys = Input && Action ? Input->QueryKeysMappedToAction(Action) : TArray<FKey>();
@@ -210,7 +210,7 @@ namespace
 		const ACharacterBase* Player = GetPlayerCharacter();
 		const UEquipmentComponent* Equipment = GetPlayerEquipment();
 		const UCombatComponent* Combat = Player ? Player->GetCombatComponent() : nullptr;
-		PdDamageRules::FOutgoingDamage Damage;
+		DamageRules::FOutgoingDamage Damage;
 		return Combat && Equipment && Equipment->GetCurrentWeaponActor()
 			&& Combat->BuildWeaponDamage(*Equipment->GetCurrentWeaponActor(), Damage) ? Damage.Damage : 0.f;
 	}
@@ -226,7 +226,7 @@ namespace
 	/** Source의 전투 컴포넌트로 Target에게 큰 피해를 같은 프레임에 두 번 준다. 사망이 한 번만 처리되는지 볼 때 쓴다. */
 	void ApplyLethalDamageTwice(ACharacterBase& Source, ACharacterBase& Target)
 	{
-		PdDamageRules::FOutgoingDamage Lethal;
+		DamageRules::FOutgoingDamage Lethal;
 		Lethal.Damage = 100000.f;
 		Lethal.bAllowHitReact = false;
 		if (UCombatComponent* Combat = Source.GetCombatComponent())
@@ -253,7 +253,7 @@ namespace
 
 	int32 GetPlayerDeathCount()
 	{
-		const APlayerController* Controller = PdIntegrationTest::GetPlayerController();
+		const APlayerController* Controller = IntegrationTest::GetPlayerController();
 		const APdPlayerState* PlayerState = Controller ? Controller->GetPlayerState<APdPlayerState>() : nullptr;
 		const UPlayerMatchComponent* Match = PlayerState ? PlayerState->GetPlayerMatchComponent() : nullptr;
 		return Match ? Match->GetDeathCount() : -1;
@@ -261,7 +261,7 @@ namespace
 
 	UControllerInputDefinition* GetInputDefinition()
 	{
-		APlayerController* Controller = PdIntegrationTest::GetPlayerController();
+		APlayerController* Controller = IntegrationTest::GetPlayerController();
 		UControllerInputComponent* Input = Controller ? Controller->FindComponentByClass<UControllerInputComponent>() : nullptr;
 		return Input ? Input->GetLoadedInputDefinition() : nullptr;
 	}
@@ -269,13 +269,13 @@ namespace
 	void TapMappedKey(FAutomationTestBase* Test, const FString& What, TFunction<UInputAction*()> ResolveAction)
 	{
 		TSharedRef<FKey> Key = MakeShared<FKey>(EKeys::Invalid);
-		PdIntegrationTest::Step(0.2f, [Test, What, Key, ResolveAction]()
+		IntegrationTest::Step(0.2f, [Test, What, Key, ResolveAction]()
 		{
 			*Key = FindMappedKey(ResolveAction());
 			Test->TestTrue(What + TEXT(" 키가 입력 매핑에 있다"), Key->IsValid());
-			PdIntegrationTest::PressKey(*Key, true);
+			IntegrationTest::PressKey(*Key, true);
 		});
-		PdIntegrationTest::Step(0.1f, [Key]() { PdIntegrationTest::PressKey(*Key, false); });
+		IntegrationTest::Step(0.1f, [Key]() { IntegrationTest::PressKey(*Key, false); });
 	}
 }
 
@@ -285,8 +285,8 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPdInfoShortcutsTest, "LabProject.Integration.T
 // 정보창 다섯 탭의 단축키는 입력 매핑 → 입력 컴포넌트 → HUD로, ESC는 CommonUI 뒤로 가기 → HUD로 화면 열기까지 이어진다.
 bool FPdInfoShortcutsTest::RunTest(const FString& Parameters)
 {
-	PdIntegrationTest::OpenMap(this, TrainingRoomMap);
-	PdIntegrationTest::Step(0.f, []() { StopTrainingBot(); });
+	IntegrationTest::OpenMap(this, TrainingRoomMap);
+	IntegrationTest::Step(0.f, []() { StopTrainingBot(); });
 	for (const EInfoUiSection Section : {EInfoUiSection::Profile, EInfoUiSection::Item, EInfoUiSection::Skin, EInfoUiSection::Pandora,
 		EInfoUiSection::Map})
 	{
@@ -297,20 +297,20 @@ bool FPdInfoShortcutsTest::RunTest(const FString& Parameters)
 			return Definition ? GetInfoInputAction(*Definition, Section) : nullptr;
 		});
 		// 훈련장은 지도 탭을 끈 맵이라, 지도 단축키는 정보창이 열리는지만 본다.
-		PdIntegrationTest::WaitUntil(this, What + TEXT(" 열기"), 5.f, [Section]()
+		IntegrationTest::WaitUntil(this, What + TEXT(" 열기"), 5.f, [Section]()
 		{
 			const APdHUD* Hud = GetHud();
 			const UInfoWidget* Info = Hud ? Hud->GetInfoWidget() : nullptr;
 			return Info && Info->IsVisible() && (Section == EInfoUiSection::Map || Info->GetFocusedSection() == Section);
 		});
-		PdIntegrationTest::Step(0.2f, []()
+		IntegrationTest::Step(0.2f, []()
 		{
 			if (APdHUD* Hud = GetHud())
 			{
 				Hud->CloseInfoUi();
 			}
 		});
-		PdIntegrationTest::WaitUntil(this, What + TEXT(" 닫기"), 5.f, []()
+		IntegrationTest::WaitUntil(this, What + TEXT(" 닫기"), 5.f, []()
 		{
 			const APdHUD* Hud = GetHud();
 			return Hud && !Hud->GetInfoWidget();
@@ -318,15 +318,15 @@ bool FPdInfoShortcutsTest::RunTest(const FString& Parameters)
 	}
 
 	// ESC는 입력 매핑이 아니라 CommonUI 뒤로 가기다. 게임 중 기본 화면이 받아 메뉴를 열고, 열린 메뉴가 받아 닫는다.
-	PdIntegrationTest::Step(0.2f, []() { PdIntegrationTest::PressKey(EKeys::Escape, true); });
-	PdIntegrationTest::Step(0.1f, []() { PdIntegrationTest::PressKey(EKeys::Escape, false); });
-	PdIntegrationTest::WaitUntil(this, TEXT("ESC 메뉴 열기"), 5.f, []()
+	IntegrationTest::Step(0.2f, []() { IntegrationTest::PressKey(EKeys::Escape, true); });
+	IntegrationTest::Step(0.1f, []() { IntegrationTest::PressKey(EKeys::Escape, false); });
+	IntegrationTest::WaitUntil(this, TEXT("ESC 메뉴 열기"), 5.f, []()
 	{
 		const APdHUD* Hud = GetHud();
 		return Hud && !Hud->GetInfoWidget() && Hud->IsGameplayInputBlockedByUi();
 	});
-	PdIntegrationTest::Step(0.2f, []() { PdIntegrationTest::PressKey(EKeys::Escape, true); });
-	PdIntegrationTest::WaitUntil(this, TEXT("ESC 메뉴 닫기"), 5.f, []()
+	IntegrationTest::Step(0.2f, []() { IntegrationTest::PressKey(EKeys::Escape, true); });
+	IntegrationTest::WaitUntil(this, TEXT("ESC 메뉴 닫기"), 5.f, []()
 	{
 		const APdHUD* Hud = GetHud();
 		return Hud && !Hud->IsGameplayInputBlockedByUi();
@@ -334,13 +334,13 @@ bool FPdInfoShortcutsTest::RunTest(const FString& Parameters)
 	// 누른 채로 있으면 운영체제가 키 반복을 보낸다. 첫 반복이 새 입력으로 처리돼 메뉴가 다시 열리면 안 된다.
 	for (int32 RepeatIndex = 0; RepeatIndex < HeldKeyRepeatEvents; ++RepeatIndex)
 	{
-		PdIntegrationTest::Step(KeyRepeatIntervalSeconds, []() { PdIntegrationTest::SendKeyEvent(EKeys::Escape, IE_Repeat); });
+		IntegrationTest::Step(KeyRepeatIntervalSeconds, []() { IntegrationTest::SendKeyEvent(EKeys::Escape, IE_Repeat); });
 	}
-	PdIntegrationTest::Step(0.2f, [this]()
+	IntegrationTest::Step(0.2f, [this]()
 	{
 		const APdHUD* Hud = GetHud();
 		TestFalse(TEXT("ESC를 누른 채 메뉴를 닫아도 키 반복으로 다시 열리지 않는다"), Hud && Hud->IsGameplayInputBlockedByUi());
-		PdIntegrationTest::PressKey(EKeys::Escape, false);
+		IntegrationTest::PressKey(EKeys::Escape, false);
 	});
 	return true;
 }
@@ -360,13 +360,13 @@ bool FPdHeldKeyAcrossMenuTest::RunTest(const FString& Parameters)
 	};
 	TSharedRef<FSkillInputWatch> Watch = MakeShared<FSkillInputWatch>();
 
-	PdIntegrationTest::OpenMap(this, TrainingRoomMap);
-	PdIntegrationTest::Step(0.f, [this, Watch]()
+	IntegrationTest::OpenMap(this, TrainingRoomMap);
+	IntegrationTest::Step(0.f, [this, Watch]()
 	{
 		StopTrainingBot();
 		const UControllerInputDefinition* Definition = GetInputDefinition();
 		const UInputAction* SkillAction = Definition ? Definition->GetSkill1InputAction().Get() : nullptr;
-		const APlayerController* Controller = PdIntegrationTest::GetPlayerController();
+		const APlayerController* Controller = IntegrationTest::GetPlayerController();
 		UEnhancedInputComponent* Input = Controller ? Cast<UEnhancedInputComponent>(Controller->InputComponent) : nullptr;
 		Watch->Key = FindMappedKey(SkillAction);
 		TestTrue(TEXT("스킬 키가 입력 매핑에 있다"), Watch->Key.IsValid() && Input);
@@ -377,44 +377,44 @@ bool FPdHeldKeyAcrossMenuTest::RunTest(const FString& Parameters)
 		}
 	});
 
-	PdIntegrationTest::Step(0.2f, []() { PdIntegrationTest::PressKey(EKeys::Escape, true); });
-	PdIntegrationTest::Step(0.1f, []() { PdIntegrationTest::PressKey(EKeys::Escape, false); });
-	PdIntegrationTest::WaitUntil(this, TEXT("ESC 메뉴 열기"), 5.f, []()
+	IntegrationTest::Step(0.2f, []() { IntegrationTest::PressKey(EKeys::Escape, true); });
+	IntegrationTest::Step(0.1f, []() { IntegrationTest::PressKey(EKeys::Escape, false); });
+	IntegrationTest::WaitUntil(this, TEXT("ESC 메뉴 열기"), 5.f, []()
 	{
 		const APdHUD* Hud = GetHud();
 		return Hud && Hud->IsGameplayInputBlockedByUi();
 	});
 	// 메뉴가 입력을 막는 동안 스킬 키를 누르고, 누른 채로 마우스로 "계속하기"를 누른 것처럼 메뉴를 닫는다.
-	PdIntegrationTest::Step(0.2f, [Watch]() { PdIntegrationTest::PressKey(Watch->Key, true); });
-	PdIntegrationTest::Step(0.2f, []()
+	IntegrationTest::Step(0.2f, [Watch]() { IntegrationTest::PressKey(Watch->Key, true); });
+	IntegrationTest::Step(0.2f, []()
 	{
 		if (APdHUD* Hud = GetHud())
 		{
 			Hud->ToggleEscapeMenu();
 		}
 	});
-	PdIntegrationTest::WaitUntil(this, TEXT("ESC 메뉴 닫기"), 5.f, []()
+	IntegrationTest::WaitUntil(this, TEXT("ESC 메뉴 닫기"), 5.f, []()
 	{
 		const APdHUD* Hud = GetHud();
 		return Hud && !Hud->IsGameplayInputBlockedByUi();
 	});
 	for (int32 RepeatIndex = 0; RepeatIndex < HeldKeyRepeatEvents; ++RepeatIndex)
 	{
-		PdIntegrationTest::Step(KeyRepeatIntervalSeconds, [Watch]() { PdIntegrationTest::SendKeyEvent(Watch->Key, IE_Repeat); });
+		IntegrationTest::Step(KeyRepeatIntervalSeconds, [Watch]() { IntegrationTest::SendKeyEvent(Watch->Key, IE_Repeat); });
 	}
-	PdIntegrationTest::Step(0.2f, [this, Watch]()
+	IntegrationTest::Step(0.2f, [this, Watch]()
 	{
 		TestEqual(TEXT("메뉴를 닫을 때 누르고 있던 스킬 키는 반복돼도 게임 입력이 되지 않는다"), Watch->StartedCount, 0);
-		PdIntegrationTest::PressKey(Watch->Key, false);
+		IntegrationTest::PressKey(Watch->Key, false);
 	});
 
 	// 떼고 다시 누르면 평소처럼 들어온다. 막는 것이 그 한 번의 누름뿐인지 확인한다.
-	PdIntegrationTest::Step(0.2f, [Watch]() { PdIntegrationTest::PressKey(Watch->Key, true); });
-	PdIntegrationTest::Step(0.1f, [Watch]() { PdIntegrationTest::PressKey(Watch->Key, false); });
-	PdIntegrationTest::Step(0.2f, [this, Watch]()
+	IntegrationTest::Step(0.2f, [Watch]() { IntegrationTest::PressKey(Watch->Key, true); });
+	IntegrationTest::Step(0.1f, [Watch]() { IntegrationTest::PressKey(Watch->Key, false); });
+	IntegrationTest::Step(0.2f, [this, Watch]()
 	{
 		TestEqual(TEXT("뗀 뒤 다시 누른 스킬 키는 게임 입력이 된다"), Watch->StartedCount, 1);
-		const APlayerController* Controller = PdIntegrationTest::GetPlayerController();
+		const APlayerController* Controller = IntegrationTest::GetPlayerController();
 		if (UEnhancedInputComponent* Input = Controller ? Cast<UEnhancedInputComponent>(Controller->InputComponent) : nullptr)
 		{
 			Input->RemoveBindingByHandle(Watch->BindingHandle);
@@ -431,7 +431,7 @@ bool FPdOverlayScreensTest::RunTest(const FString& Parameters)
 {
 	const auto IsScoreboardActive = []()
 	{
-		const UWorld* World = PdIntegrationTest::GetGameWorld();
+		const UWorld* World = IntegrationTest::GetGameWorld();
 		for (TObjectIterator<UGameResultWidget> It; It; ++It)
 		{
 			if (It->GetWorld() == World && It->IsActivated())
@@ -443,7 +443,7 @@ bool FPdOverlayScreensTest::RunTest(const FString& Parameters)
 	};
 	const auto SetScoreboardShown = [](const bool bShown)
 	{
-		const APdPlayerController* Controller = Cast<APdPlayerController>(PdIntegrationTest::GetPlayerController());
+		const APdPlayerController* Controller = Cast<APdPlayerController>(IntegrationTest::GetPlayerController());
 		if (UControllerPresentationComponent* Presentation = Controller ? Controller->GetControllerPresentationComponent() : nullptr)
 		{
 			if (bShown)
@@ -457,40 +457,40 @@ bool FPdOverlayScreensTest::RunTest(const FString& Parameters)
 		}
 	};
 
-	PdIntegrationTest::OpenMap(this, TrainingRoomMap);
-	PdIntegrationTest::Step(0.f, []() { StopTrainingBot(); });
+	IntegrationTest::OpenMap(this, TrainingRoomMap);
+	IntegrationTest::Step(0.f, []() { StopTrainingBot(); });
 	for (int32 Round = 1; Round <= 2; ++Round)
 	{
 		const FString Suffix = FString::Printf(TEXT(" (%d번째)"), Round);
-		PdIntegrationTest::Step(0.2f, []()
+		IntegrationTest::Step(0.2f, []()
 		{
 			if (APdHUD* Hud = GetHud())
 			{
 				Hud->OpenSelectPandoraUi();
 			}
 		});
-		PdIntegrationTest::WaitUntil(this, TEXT("판도라 선택창 열기") + Suffix, 5.f, []()
+		IntegrationTest::WaitUntil(this, TEXT("판도라 선택창 열기") + Suffix, 5.f, []()
 		{
 			const APdHUD* Hud = GetHud();
 			return Hud && Hud->IsSelectPandoraUiOpen() && Hud->IsGameplayInputBlockedByUi();
 		});
-		PdIntegrationTest::Step(0.2f, []()
+		IntegrationTest::Step(0.2f, []()
 		{
 			if (APdHUD* Hud = GetHud())
 			{
 				Hud->CloseSelectPandoraUi();
 			}
 		});
-		PdIntegrationTest::WaitUntil(this, TEXT("판도라 선택창 닫기") + Suffix, 5.f, []()
+		IntegrationTest::WaitUntil(this, TEXT("판도라 선택창 닫기") + Suffix, 5.f, []()
 		{
 			const APdHUD* Hud = GetHud();
 			return Hud && !Hud->IsSelectPandoraUiOpen() && !Hud->IsGameplayInputBlockedByUi();
 		});
 
-		PdIntegrationTest::Step(0.2f, [SetScoreboardShown]() { SetScoreboardShown(true); });
-		PdIntegrationTest::WaitUntil(this, TEXT("점수판 열기") + Suffix, 5.f, [IsScoreboardActive]() { return IsScoreboardActive(); });
-		PdIntegrationTest::Step(0.2f, [SetScoreboardShown]() { SetScoreboardShown(false); });
-		PdIntegrationTest::WaitUntil(this, TEXT("점수판 닫기") + Suffix, 5.f, [IsScoreboardActive]() { return !IsScoreboardActive(); });
+		IntegrationTest::Step(0.2f, [SetScoreboardShown]() { SetScoreboardShown(true); });
+		IntegrationTest::WaitUntil(this, TEXT("점수판 열기") + Suffix, 5.f, [IsScoreboardActive]() { return IsScoreboardActive(); });
+		IntegrationTest::Step(0.2f, [SetScoreboardShown]() { SetScoreboardShown(false); });
+		IntegrationTest::WaitUntil(this, TEXT("점수판 닫기") + Suffix, 5.f, [IsScoreboardActive]() { return !IsScoreboardActive(); });
 	}
 	return true;
 }
@@ -508,18 +508,18 @@ bool FPdWeaponSwapAttributesTest::RunTest(const FString& Parameters)
 	};
 	TSharedRef<FSnapshots> Snapshots = MakeShared<FSnapshots>();
 
-	PdIntegrationTest::OpenMap(this, TrainingRoomMap);
-	PdIntegrationTest::Step(0.f, []() { StopTrainingBot(); });
+	IntegrationTest::OpenMap(this, TrainingRoomMap);
+	IntegrationTest::Step(0.f, []() { StopTrainingBot(); });
 	EquipAndWait(this, BowPath);
-	PdIntegrationTest::Step(1.f, [Snapshots]() { Snapshots->Bow = CaptureEquipmentState(); });
+	IntegrationTest::Step(1.f, [Snapshots]() { Snapshots->Bow = CaptureEquipmentState(); });
 	EquipAndWait(this, GreatswordPath);
-	PdIntegrationTest::Step(1.f, [this, Snapshots]()
+	IntegrationTest::Step(1.f, [this, Snapshots]()
 	{
 		Snapshots->Greatsword = CaptureEquipmentState();
 		TestFalse(TEXT("무기를 바꾸면 장비 보너스 합계가 바뀐다"), Snapshots->Greatsword.BonusStats.OrderIndependentCompareEqual(Snapshots->Bow.BonusStats));
 	});
 	EquipAndWait(this, BowPath);
-	PdIntegrationTest::Step(1.f, [this, Snapshots]()
+	IntegrationTest::Step(1.f, [this, Snapshots]()
 	{
 		ExpectSameEquipmentState(this, TEXT("대검 → 활"), Snapshots->Bow, CaptureEquipmentState());
 		if (UEquipmentComponent* Equipment = GetPlayerEquipment())
@@ -527,9 +527,9 @@ bool FPdWeaponSwapAttributesTest::RunTest(const FString& Parameters)
 			Equipment->UnequipCurrentWeapon();
 		}
 	});
-	PdIntegrationTest::WaitUntil(this, TEXT("무기 해제"), 10.f, []() { return IsWeaponEquipped(nullptr); });
+	IntegrationTest::WaitUntil(this, TEXT("무기 해제"), 10.f, []() { return IsWeaponEquipped(nullptr); });
 	EquipAndWait(this, GreatswordPath);
-	PdIntegrationTest::Step(1.f, [this, Snapshots]()
+	IntegrationTest::Step(1.f, [this, Snapshots]()
 	{
 		ExpectSameEquipmentState(this, TEXT("해제 → 대검"), Snapshots->Greatsword, CaptureEquipmentState());
 	});
@@ -559,7 +559,7 @@ bool FPdArrowDamageSnapshotTest::RunTest(const FString& Parameters)
 	// 쏜 같은 프레임에 무기를 바꾼다. 활이 쏠 수 있는 상태(발사 간격·착지)가 될 때까지 다시 시도한다.
 	auto FireWhenReady = [this, Shots](const int32 ShotNumber, TFunction<void(UEquipmentComponent&)> AfterLaunch)
 	{
-		PdIntegrationTest::WaitUntil(this, FString::Printf(TEXT("%d번째 화살 발사"), ShotNumber), 5.f, [Shots, AfterLaunch]()
+		IntegrationTest::WaitUntil(this, FString::Printf(TEXT("%d번째 화살 발사"), ShotNumber), 5.f, [Shots, AfterLaunch]()
 		{
 			ACharacterBase* Player = GetPlayerCharacter();
 			AEnemyBase* Bot = GetTrainingBot();
@@ -575,8 +575,8 @@ bool FPdArrowDamageSnapshotTest::RunTest(const FString& Parameters)
 		});
 	};
 
-	PdIntegrationTest::OpenMap(this, TrainingRoomMap);
-	PdIntegrationTest::Step(0.f, [this, Shots]()
+	IntegrationTest::OpenMap(this, TrainingRoomMap);
+	IntegrationTest::Step(0.f, [this, Shots]()
 	{
 		StopTrainingBot();
 		const ACharacterBase* Player = GetPlayerCharacter();
@@ -604,16 +604,16 @@ bool FPdArrowDamageSnapshotTest::RunTest(const FString& Parameters)
 	});
 	// 대검을 한 번 들어 표현 애셋을 불러 둬야 쏜 프레임 안에 바로 바뀐다.
 	EquipAndWait(this, GreatswordPath);
-	PdIntegrationTest::Step(0.5f, [Shots]() { Shots->GreatswordOutgoing = BuildCurrentWeaponDamage(); });
+	IntegrationTest::Step(0.5f, [Shots]() { Shots->GreatswordOutgoing = BuildCurrentWeaponDamage(); });
 	// 화살이 맞은 뒤에 다음 단계로 넘어가야, 맞는 순간의 무기가 테스트가 바꾼 무기 그대로다.
 	auto WaitForHit = [this, Shots](const int32 HitCount)
 	{
-		PdIntegrationTest::WaitUntil(this, FString::Printf(TEXT("%d번째 화살 명중"), HitCount), 5.f,
+		IntegrationTest::WaitUntil(this, FString::Printf(TEXT("%d번째 화살 명중"), HitCount), 5.f,
 			[Shots, HitCount]() { return Shots->Hits.Num() >= HitCount; });
 	};
 	EquipAndWait(this, BowPath);
 	// 화살이 몇 프레임 날아가도록 거리를 고정하고, 두 캐릭터가 바닥에 선 뒤에 쏜다.
-	PdIntegrationTest::Step(0.f, []()
+	IntegrationTest::Step(0.f, []()
 	{
 		AEnemyBase* Bot = GetTrainingBot();
 		ACharacterBase* Player = GetPlayerCharacter();
@@ -623,13 +623,13 @@ bool FPdArrowDamageSnapshotTest::RunTest(const FString& Parameters)
 			Player->SetActorLocation(FVector(912.f, 917.f, 218.15f), false, nullptr, ETeleportType::TeleportPhysics);
 		}
 	});
-	PdIntegrationTest::WaitUntil(this, TEXT("두 캐릭터 착지"), 5.f, []()
+	IntegrationTest::WaitUntil(this, TEXT("두 캐릭터 착지"), 5.f, []()
 	{
 		const ACharacterBase* Player = GetPlayerCharacter();
 		const AEnemyBase* Bot = GetTrainingBot();
 		return Player && Bot && !Player->GetCharacterMovement()->IsFalling() && !Bot->GetCharacterMovement()->IsFalling();
 	});
-	PdIntegrationTest::Step(0.5f, [Shots]() { Shots->BowOutgoing = BuildCurrentWeaponDamage(); });
+	IntegrationTest::Step(0.5f, [Shots]() { Shots->BowOutgoing = BuildCurrentWeaponDamage(); });
 	FireWhenReady(1, [](UEquipmentComponent&) {});
 	WaitForHit(1);
 	FireWhenReady(2, [](UEquipmentComponent& Equipment) { Equipment.UnequipCurrentWeapon(); });
@@ -640,7 +640,7 @@ bool FPdArrowDamageSnapshotTest::RunTest(const FString& Parameters)
 		Equipment.EquipWeaponDefinition(LoadObject<UItemDefinition>(nullptr, GreatswordPath));
 	});
 	WaitForHit(3);
-	PdIntegrationTest::Step(0.5f, [this, Shots]()
+	IntegrationTest::Step(0.5f, [this, Shots]()
 	{
 		TestEqual(TEXT("세 발 모두 쐈다"), Shots->Fired, 3);
 		if (!TestEqual(TEXT("세 발 모두 봇에 피해를 줬다"), Shots->Hits.Num(), 3))
@@ -675,13 +675,13 @@ bool FPdPlayerRespawnRebindTest::RunTest(const FString& Parameters)
 	};
 	TSharedRef<FRespawnState> State = MakeShared<FRespawnState>();
 
-	PdIntegrationTest::OpenMap(this, TrainingRoomMap);
-	PdIntegrationTest::Step(0.f, []() { StopTrainingBot(); });
+	IntegrationTest::OpenMap(this, TrainingRoomMap);
+	IntegrationTest::Step(0.f, []() { StopTrainingBot(); });
 	EquipAndWait(this, GreatswordPath);
-	PdIntegrationTest::Step(1.f, [this, State]()
+	IntegrationTest::Step(1.f, [this, State]()
 	{
 		State->BeforeDeath = CaptureEquipmentState();
-		AGameModeBase* GameMode = UGameplayStatics::GetGameMode(PdIntegrationTest::GetGameWorld());
+		AGameModeBase* GameMode = UGameplayStatics::GetGameMode(IntegrationTest::GetGameWorld());
 		UPlayerSpawnComponent* Spawn = GameMode ? GameMode->FindComponentByClass<UPlayerSpawnComponent>() : nullptr;
 		if (!TestNotNull(TEXT("리스폰 컴포넌트"), Spawn))
 		{
@@ -701,17 +701,17 @@ bool FPdPlayerRespawnRebindTest::RunTest(const FString& Parameters)
 			TestEqual(TEXT("치명상 두 번에도 사망은 한 번만 기록된다"), GetPlayerDeathCount() - State->DeathsBefore, 1);
 		}
 	});
-	PdIntegrationTest::WaitUntil(this, TEXT("플레이어 리스폰"), 20.f, [State]()
+	IntegrationTest::WaitUntil(this, TEXT("플레이어 리스폰"), 20.f, [State]()
 	{
 		const ACharacterBase* Player = GetPlayerCharacter();
 		return State->Respawns > 0 && Player && !Player->IsDead() && GetHealthAndShield(Player) > 0.f;
 	});
-	PdIntegrationTest::Step(1.f, [this, State]()
+	IntegrationTest::Step(1.f, [this, State]()
 	{
 		TestEqual(TEXT("리스폰은 한 번만 일어난다"), State->Respawns, 1);
 	});
 	EquipAndWait(this, GreatswordPath);
-	PdIntegrationTest::Step(1.f, [this, State]()
+	IntegrationTest::Step(1.f, [this, State]()
 	{
 		ExpectSameEquipmentState(this, TEXT("리스폰 뒤 대검"), State->BeforeDeath, CaptureEquipmentState());
 		PlaceFacingEachOther();
@@ -721,14 +721,14 @@ bool FPdPlayerRespawnRebindTest::RunTest(const FString& Parameters)
 			Combat->StartPrimaryAttack();
 		}
 	});
-	PdIntegrationTest::Step(0.3f, []()
+	IntegrationTest::Step(0.3f, []()
 	{
 		if (UCombatComponent* Combat = GetPlayerCharacter() ? GetPlayerCharacter()->GetCombatComponent() : nullptr)
 		{
 			Combat->StopPrimaryAttack();
 		}
 	});
-	PdIntegrationTest::WaitUntil(this, TEXT("리스폰 뒤 공격이 봇에 피해를 준다"), 5.f,
+	IntegrationTest::WaitUntil(this, TEXT("리스폰 뒤 공격이 봇에 피해를 준다"), 5.f,
 		[State]() { return GetHealthAndShield(GetTrainingBot()) < State->BotHealthBefore; });
 	return true;
 }
@@ -746,13 +746,13 @@ bool FPdAttackInterruptedByDeathTest::RunTest(const FString& Parameters)
 	};
 	TSharedRef<FAttackState> State = MakeShared<FAttackState>();
 
-	PdIntegrationTest::OpenMap(this, TrainingRoomMap);
-	PdIntegrationTest::Step(0.f, []()
+	IntegrationTest::OpenMap(this, TrainingRoomMap);
+	IntegrationTest::Step(0.f, []()
 	{
 		StopTrainingBot();
 		PlaceFacingEachOther();
 	});
-	PdIntegrationTest::Step(0.5f, [this, State]()
+	IntegrationTest::Step(0.5f, [this, State]()
 	{
 		ACharacterBase* Player = GetPlayerCharacter();
 		AEnemyBase* Bot = GetTrainingBot();
@@ -767,16 +767,16 @@ bool FPdAttackInterruptedByDeathTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("치명상을 받은 봇은 죽었다"), Bot->IsDead());
 		TestFalse(TEXT("죽은 봇의 공격은 바로 끊긴다"), Bot->IsAttackInProgress());
 	});
-	PdIntegrationTest::Step(2.f, [this, State]()
+	IntegrationTest::Step(2.f, [this, State]()
 	{
 		TestEqual(TEXT("끊긴 공격은 플레이어에게 피해를 주지 않는다"), GetHealthAndShield(GetPlayerCharacter()), State->PlayerHealthBefore);
 	});
-	PdIntegrationTest::WaitUntil(this, TEXT("훈련 봇 리스폰"), 20.f, []()
+	IntegrationTest::WaitUntil(this, TEXT("훈련 봇 리스폰"), 20.f, []()
 	{
 		const AEnemyBase* Bot = GetTrainingBot();
 		return Bot && !Bot->IsDead() && GetHealthAndShield(Bot) > 0.f;
 	});
-	PdIntegrationTest::Step(1.f, [State]()
+	IntegrationTest::Step(1.f, [State]()
 	{
 		StopTrainingBot();
 		PlaceFacingEachOther();
@@ -786,7 +786,7 @@ bool FPdAttackInterruptedByDeathTest::RunTest(const FString& Parameters)
 			CommandBotAttack(*Bot);
 		}
 	});
-	PdIntegrationTest::WaitUntil(this, TEXT("리스폰한 봇의 공격이 플레이어에게 피해를 준다"), 5.f,
+	IntegrationTest::WaitUntil(this, TEXT("리스폰한 봇의 공격이 플레이어에게 피해를 준다"), 5.f,
 		[State]() { return GetHealthAndShield(GetPlayerCharacter()) < State->PlayerHealthBefore; });
 	return true;
 }
@@ -810,8 +810,8 @@ bool FPdLagCompensationRewindTest::RunTest(const FString& Parameters)
 	const FVector Offset(150.0, 0.0, 0.0);
 
 	// bIsLanMatch: Steam 없이(-nosteam) 실행해도 리슨 서버가 IP 소켓으로 열린다.
-	PdIntegrationTest::OpenMap(this, TrainingRoomMap, 3.f, TEXT("listen?bIsLanMatch"));
-	PdIntegrationTest::Step(0.f, [Move, Offset]()
+	IntegrationTest::OpenMap(this, TrainingRoomMap, 3.f, TEXT("listen?bIsLanMatch"));
+	IntegrationTest::Step(0.f, [Move, Offset]()
 	{
 		StopTrainingBot();
 		AEnemyBase* Bot = GetTrainingBot();
@@ -825,7 +825,7 @@ bool FPdLagCompensationRewindTest::RunTest(const FString& Parameters)
 		Bot->SetActorLocation(Bot->GetActorLocation() + Offset, false, nullptr, ETeleportType::TeleportPhysics);
 	});
 	// 되감기 기록은 최대 되감기 폭(기본 200ms)만큼만 남으므로 그 안에서 확인한다.
-	PdIntegrationTest::Step(0.1f, [this, Move]()
+	IntegrationTest::Step(0.1f, [this, Move]()
 	{
 		AEnemyBase* Bot = GetTrainingBot();
 		const ULagCompensationSubsystem* LagCompensation = ULagCompensationSubsystem::Get(Bot);
@@ -834,7 +834,7 @@ bool FPdLagCompensationRewindTest::RunTest(const FString& Parameters)
 			return;
 		}
 		TestFalse(TEXT("호스트 자신의 사격은 되감지 않는다"),
-			LagCompensation->GetRewindTime(PdIntegrationTest::GetPlayerController()).IsSet());
+			LagCompensation->GetRewindTime(IntegrationTest::GetPlayerController()).IsSet());
 
 		const TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes = {
 			UEngineTypes::ConvertToObjectType(Bot->GetMesh()->GetCollisionObjectType())};

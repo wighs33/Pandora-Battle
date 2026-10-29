@@ -2,7 +2,7 @@
 
 #include "AbilitySystemBlueprintLibrary.h"
 #include "Animation/AnimSequenceBase.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Components/SkeletalMeshComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNotifyState_AttackDamageWindow)
@@ -33,8 +33,8 @@ void SendAttackDamageWindowEvent(USkeletalMeshComponent* MeshComp, const FGamepl
 
 UAnimNotifyState_AttackDamageWindow::UAnimNotifyState_AttackDamageWindow()
 {
-	StartEventTag = LabGameplayTags::Notifier_Attack_DamageWindowOpen;
-	EndEventTag = LabGameplayTags::Notifier_Attack_DamageWindowClose;
+	StartEventTag = PdGameplayTags::Notifier_Attack_DamageWindowOpen;
+	EndEventTag = PdGameplayTags::Notifier_Attack_DamageWindowClose;
 }
 
 void UAnimNotifyState_AttackDamageWindow::NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation,
@@ -46,7 +46,7 @@ void UAnimNotifyState_AttackDamageWindow::NotifyBegin(USkeletalMeshComponent* Me
 
 	const FGameplayTag EventTag = StartEventTag.IsValid()
 		? StartEventTag
-		: LabGameplayTags::Notifier_Attack_DamageWindowOpen;
+		: PdGameplayTags::Notifier_Attack_DamageWindowOpen;
 	SendAttackDamageWindowEvent(MeshComp, EventTag);
 }
 
@@ -58,7 +58,7 @@ void UAnimNotifyState_AttackDamageWindow::NotifyEnd(USkeletalMeshComponent* Mesh
 
 	const FGameplayTag EventTag = EndEventTag.IsValid()
 		? EndEventTag
-		: LabGameplayTags::Notifier_Attack_DamageWindowClose;
+		: PdGameplayTags::Notifier_Attack_DamageWindowClose;
 	SendAttackDamageWindowEvent(MeshComp, EventTag);
 }
 

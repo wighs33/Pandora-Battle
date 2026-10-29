@@ -1,6 +1,6 @@
 #include "AbilitySystem/Cues/DashGameplayCue.h"
 
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "GameFramework/Character.h"
 #include "Kismet/GameplayStatics.h"
 #include "Particles/ParticleSystem.h"
@@ -18,7 +18,7 @@ namespace
 
 UDashGameplayCue::UDashGameplayCue()
 {
-	GameplayCueTag = LabGameplayTags::GameplayCue_Dash_Active;
+	GameplayCueTag = PdGameplayTags::GameplayCue_Dash_Active;
 }
 
 bool UDashGameplayCue::OnActive_Implementation(AActor* MyTarget, const FGameplayCueParameters& Parameters) const

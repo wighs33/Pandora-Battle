@@ -20,7 +20,7 @@ namespace
 	}
 }
 
-TArray<FName> PdSkillFieldPlacement::GetSpawnSocketNames(const FSkillActorFieldSettings& Settings)
+TArray<FName> SkillFieldPlacement::GetSpawnSocketNames(const FSkillActorFieldSettings& Settings)
 {
 	TArray<FName> SocketNames;
 	if (Settings.bUseSpawnSockets)
@@ -42,7 +42,7 @@ TArray<FName> PdSkillFieldPlacement::GetSpawnSocketNames(const FSkillActorFieldS
 	return SocketNames;
 }
 
-FTransform PdSkillFieldPlacement::ResolveSpawnTransform(AActor& Avatar, const FSkillActorFieldSettings& Settings,
+FTransform SkillFieldPlacement::ResolveSpawnTransform(AActor& Avatar, const FSkillActorFieldSettings& Settings,
 	const FName SocketName)
 {
 	FTransform BaseTransform = Avatar.GetActorTransform();
@@ -55,7 +55,7 @@ FTransform PdSkillFieldPlacement::ResolveSpawnTransform(AActor& Avatar, const FS
 	}
 	else
 	{
-		BaseTransform.SetLocation(PdSkillGroundProjection::ResolveActorFeetLocation(&Avatar));
+		BaseTransform.SetLocation(SkillGroundProjection::ResolveActorFeetLocation(&Avatar));
 	}
 
 	// 소켓 기준이면 오프셋도 소켓 방향을 따라 돌린다.
@@ -71,10 +71,10 @@ FTransform PdSkillFieldPlacement::ResolveSpawnTransform(AActor& Avatar, const FS
 			Settings.bUseSpawnSockets ? BaseTransform.GetLocation() : Avatar.GetActorLocation();
 
 		TArray<AActor*> ActorsToIgnore;
-		PdSkillGroundProjection::AddIgnoredActorAndAttachments(ActorsToIgnore, &Avatar);
+		SkillGroundProjection::AddIgnoredActorAndAttachments(ActorsToIgnore, &Avatar);
 
-		PdSkillGroundProjection::FGroundProjectionResult GroundProjection;
-		if (PdSkillGroundProjection::TryProjectToGround(Avatar.GetWorld(), TraceBaseLocation,
+		SkillGroundProjection::FGroundProjectionResult GroundProjection;
+		if (SkillGroundProjection::TryProjectToGround(Avatar.GetWorld(), TraceBaseLocation,
 			Settings.GroundTraceChannel, Settings.GroundTraceStartHeight, Settings.GroundTraceDepth, ActorsToIgnore,
 			GroundProjection))
 		{
@@ -85,7 +85,7 @@ FTransform PdSkillFieldPlacement::ResolveSpawnTransform(AActor& Avatar, const FS
 	return FTransform(SpawnRotation, SpawnLocation, BaseTransform.GetScale3D());
 }
 
-bool PdSkillFieldPlacement::AttachToSpawnSocket(AActor& FieldActor, const AActor& Avatar,
+bool SkillFieldPlacement::AttachToSpawnSocket(AActor& FieldActor, const AActor& Avatar,
 	const FSkillActorFieldSettings& Settings, const FName SocketName)
 {
 	if (!Settings.bUseSpawnSockets || !Settings.bAttachSpawnedActorToSocket)

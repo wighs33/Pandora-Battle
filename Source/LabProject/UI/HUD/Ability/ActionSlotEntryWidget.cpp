@@ -3,7 +3,7 @@
 #include "Abilities/GameplayAbility.h"
 #include "AbilitySystemComponent.h"
 #include "Character/PdPlayer.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Components/Image.h"
 #include "Components/Overlay.h"
 #include "Components/ProgressBar.h"
@@ -127,7 +127,7 @@ void UActionSlotEntryWidget::ApplyInputKeyIcon()
 {
 	if (KeyText && InputKeyOverlay)
 	{
-		PdInputKeyIconResolver::ApplyInputKeyCaption(*this, *KeyText, *InputKeyOverlay, KeyIcon, ResolveInputAction(), bHideInputKeyIcon);
+		InputKeyIconResolver::ApplyInputKeyCaption(*this, *KeyText, *InputKeyOverlay, KeyIcon, ResolveInputAction(), bHideInputKeyIcon);
 		return;
 	}
 
@@ -157,7 +157,7 @@ void UActionSlotEntryWidget::ApplyInputKeyIcon()
 
 	InputKeyOverlay->SetVisibility(ESlateVisibility::Visible);
 	KeyIcon->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
-	KeyIcon->SetBrush(PdInputKeyIconResolver::MakeImageBrushFromExisting(KeyIcon->GetBrush(), IconObject,
+	KeyIcon->SetBrush(InputKeyIconResolver::MakeImageBrushFromExisting(KeyIcon->GetBrush(), IconObject,
 		InputKeyIconSize));
 }
 
@@ -207,7 +207,7 @@ void UActionSlotEntryWidget::UpdateCooldownProgress()
 		return;
 	}
 
-	PdSlotCooldownDisplay::ShowRemaining(CooldownProgress, TimerText, TimeRemaining, TotalCooldownTime, bShowCooldownTimeRemaining);
+	SlotCooldownDisplay::ShowRemaining(CooldownProgress, TimerText, TimeRemaining, TotalCooldownTime, bShowCooldownTimeRemaining);
 	if (TimerText)
 	{
 		TimerText->SetVisibility(bShowCooldownTimeRemaining ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
@@ -217,7 +217,7 @@ void UActionSlotEntryWidget::UpdateCooldownProgress()
 void UActionSlotEntryWidget::ShowCooldownReady()
 {
 	ClearCooldownTimer();
-	PdSlotCooldownDisplay::ShowReady(CooldownTimerContainer, CooldownProgress, TimerText);
+	SlotCooldownDisplay::ShowReady(CooldownTimerContainer, CooldownProgress, TimerText);
 	if (TimerText)
 	{
 		TimerText->SetVisibility(ESlateVisibility::Collapsed);
@@ -372,7 +372,7 @@ UInputAction* UActionSlotEntryWidget::ResolveInputAction() const
 
 UObject* UActionSlotEntryWidget::ResolveInputIconObject() const
 {
-	return PdInputKeyIconResolver::ResolveInputDefinitionIconObject(GetOwningPlayer(), ResolveInputAction());
+	return InputKeyIconResolver::ResolveInputDefinitionIconObject(GetOwningPlayer(), ResolveInputAction());
 }
 
 FGameplayTag UActionSlotEntryWidget::ResolveAbilityCooldownTag() const
@@ -380,9 +380,9 @@ FGameplayTag UActionSlotEntryWidget::ResolveAbilityCooldownTag() const
 	switch (ActionType)
 	{
 	case ECharacterActionType::PandoraWeaponSwap:
-		return LabGameplayTags::Cooldown_EquipWeapon;
+		return PdGameplayTags::Cooldown_EquipWeapon;
 	case ECharacterActionType::GrappleHook:
-		return LabGameplayTags::Cooldown_Grapple;
+		return PdGameplayTags::Cooldown_Grapple;
 	default:
 		return FGameplayTag();
 	}

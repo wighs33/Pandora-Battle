@@ -53,7 +53,7 @@ struct LABPROJECT_API FSkillActorFieldSettings
 public:
 	// Public API ------------------------------------------------------------------------------------------------------
 	FSkillActorFieldSettings()
-		: GroundTraceChannel(LabCollisionChannels::VisibilityTrace())
+		: GroundTraceChannel(CollisionChannels::VisibilityTrace())
 	{
 		SpawnSocketNames.SetNum(6);
 	}

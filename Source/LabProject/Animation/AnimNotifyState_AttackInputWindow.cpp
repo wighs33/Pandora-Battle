@@ -4,7 +4,7 @@
 #include "AbilitySystemBlueprintLibrary.h"
 #include "Animation/AnimSequenceBase.h"
 #include "Character/CharacterBase.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Components/SkeletalMeshComponent.h"
 
 namespace
@@ -62,8 +62,8 @@ namespace
 
 UAnimNotifyState_AttackInputWindow::UAnimNotifyState_AttackInputWindow()
 {
-	StartEventTag = LabGameplayTags::Notifier_Attack_ComboInputOpen;
-	EndEventTag = LabGameplayTags::Notifier_Attack_ComboInputClose;
+	StartEventTag = PdGameplayTags::Notifier_Attack_ComboInputOpen;
+	EndEventTag = PdGameplayTags::Notifier_Attack_ComboInputClose;
 }
 
 void UAnimNotifyState_AttackInputWindow::NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float TotalDuration,
@@ -73,7 +73,7 @@ void UAnimNotifyState_AttackInputWindow::NotifyBegin(USkeletalMeshComponent* Mes
 	static_cast<void>(TotalDuration);
 	static_cast<void>(EventReference);
 
-	const FGameplayTag EventTag = StartEventTag.IsValid() ? StartEventTag : LabGameplayTags::Notifier_Attack_ComboInputOpen;
+	const FGameplayTag EventTag = StartEventTag.IsValid() ? StartEventTag : PdGameplayTags::Notifier_Attack_ComboInputOpen;
 	SendAttackGameplayEvent(MeshComp, EventTag);
 }
 
@@ -83,7 +83,7 @@ void UAnimNotifyState_AttackInputWindow::NotifyEnd(USkeletalMeshComponent* MeshC
 	static_cast<void>(Animation);
 	static_cast<void>(EventReference);
 
-	const FGameplayTag EventTag = EndEventTag.IsValid() ? EndEventTag : LabGameplayTags::Notifier_Attack_ComboInputClose;
+	const FGameplayTag EventTag = EndEventTag.IsValid() ? EndEventTag : PdGameplayTags::Notifier_Attack_ComboInputClose;
 	SendAttackGameplayEvent(MeshComp, EventTag);
 }
 

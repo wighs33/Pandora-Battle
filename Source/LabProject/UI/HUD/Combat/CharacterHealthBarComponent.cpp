@@ -5,7 +5,7 @@
 #include "Blueprint/UserWidget.h"
 #include "Character/CharacterBase.h"
 #include "Character/EnemyBase.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/Engine.h"
 #include "UI/Core/WidgetClassDefinition.h"
@@ -207,7 +207,7 @@ void UCharacterHealthBarComponent::SetVisibleForLocalViewer(const bool bRequeste
 	{
 		const UAbilitySystemComponent* ASC = Character->GetAbilitySystemComponent();
 		bShouldBeVisible = !Character->IsDeathHandled()
-			&& !(ASC && ASC->HasMatchingGameplayTag(LabGameplayTags::State_Dead));
+			&& !(ASC && ASC->HasMatchingGameplayTag(PdGameplayTags::State_Dead));
 	}
 
 	if (IsVisible() != bShouldBeVisible)
@@ -233,7 +233,7 @@ void UCharacterHealthBarComponent::UpdateVisibilityForLocalViewer(APlayerControl
 	}
 
 	const UAbilitySystemComponent* ASC = Character->GetAbilitySystemComponent();
-	if (Character->IsDeathHandled() || (ASC && ASC->HasMatchingGameplayTag(LabGameplayTags::State_Dead)))
+	if (Character->IsDeathHandled() || (ASC && ASC->HasMatchingGameplayTag(PdGameplayTags::State_Dead)))
 	{
 		SetVisibleForLocalViewer(false);
 		return;

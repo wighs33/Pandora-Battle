@@ -9,7 +9,7 @@
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "Animation/AnimMontage.h"
 #include "Character/CharacterBase.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "DrawDebugHelpers.h"
 #include "Engine/OverlapResult.h"
@@ -136,7 +136,7 @@ FGameplayTag USkillMissileAction::GetResolvedMontageTriggerEventTag() const
 	const USkillDefinition* SkillDataAsset = GetAbility()->GetSourceSkillDataAsset();
 	return SkillDataAsset && SkillDataAsset->Animation.PrimaryEventTag.IsValid()
 		       ? SkillDataAsset->Animation.PrimaryEventTag
-		       : LabGameplayTags::Event_Montage_Trigger;
+		       : PdGameplayTags::Event_Montage_Trigger;
 }
 
 void USkillMissileAction::TryLaunchMissile()
@@ -227,7 +227,7 @@ void USkillMissileAction::HandleMissileDurationFinished()
 void USkillMissileAction::StartMissileTargetTracking()
 {
 	RefreshMissileTargets();
-	const bool bNeedsLocalDebugRefresh = LabSkillDebug::IsDrawingEnabled() && Settings.bDebugTargeting;
+	const bool bNeedsLocalDebugRefresh = SkillDebug::IsDrawingEnabled() && Settings.bDebugTargeting;
 	if (!GetAbility()->K2_HasAuthority() && !bNeedsLocalDebugRefresh)
 	{
 		return;
@@ -547,7 +547,7 @@ bool USkillMissileAction::IsEligibleMissileTargetActor(const AActor* TargetActor
 	}
 
 	const UAbilitySystemComponent* TargetASC = TargetCharacter->GetAbilitySystemComponent();
-	return TargetASC && !TargetASC->HasMatchingGameplayTag(LabGameplayTags::State_Dead)
+	return TargetASC && !TargetASC->HasMatchingGameplayTag(PdGameplayTags::State_Dead)
 		&& TargetASC->GetNumericAttribute(UBasicAttributeSet::GetHealthAttribute()) > 0.0f;
 }
 
@@ -618,7 +618,7 @@ float USkillMissileAction::CalculateDamageInterval() const
 
 void USkillMissileAction::DrawDebugTargetingRange() const
 {
-	if (!LabSkillDebug::IsDrawingEnabled() || !Settings.bDebugTargeting || Settings.TargetingMaxRange <= 0.0)
+	if (!SkillDebug::IsDrawingEnabled() || !Settings.bDebugTargeting || Settings.TargetingMaxRange <= 0.0)
 	{
 		return;
 	}

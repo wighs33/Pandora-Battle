@@ -1,6 +1,6 @@
 #include "Data/ContentLease.h"
 
-#include "Common/PdTicker.h"
+#include "Common/Ticker.h"
 #include "Data/ContentDataSubsystem.h"
 #include "Engine/StreamableManager.h"
 
@@ -112,7 +112,7 @@ void FContentLease::QueueCompletion()
 	}
 	// 시작하는 도중에 끝났거나 실패로 표시된 lease도 호출자가 저장한 다음에 완료 콜백을 받도록 지연한다.
 	bCompletionQueued = true;
-	PdTicker::RunNextTick(AsShared(), [this]() { DispatchCompletion(); });
+	Ticker::RunNextTick(AsShared(), [this]() { DispatchCompletion(); });
 }
 
 void FContentLease::DispatchCompletion()

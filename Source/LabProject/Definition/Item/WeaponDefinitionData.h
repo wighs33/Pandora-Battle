@@ -29,7 +29,7 @@ enum class EWeaponSocketName : uint8
 	Socket_Rifle UMETA(DisplayName = "Socket_Rifle")
 };
 
-namespace PdWeaponSockets
+namespace WeaponSockets
 {
 	inline FName ToName(EWeaponSocketName SocketName)
 	{
@@ -154,7 +154,7 @@ public:
 
 	FName GetResolvedAttachSocketName() const
 	{
-		return PdWeaponSockets::ToName(AttachSocketName);
+		return WeaponSockets::ToName(AttachSocketName);
 	}
 };
 
@@ -264,7 +264,7 @@ public:
 		ArrowAttachSocketName = GetDefaultArrowAttachSocket();
 		TraceObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_WorldStatic));
 		TraceObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_Pawn));
-		TraceObjectTypes.Add(UEngineTypes::ConvertToObjectType(LabCollisionChannels::HitableBody()));
+		TraceObjectTypes.Add(UEngineTypes::ConvertToObjectType(CollisionChannels::HitableBody()));
 	}
 
 	static EWeaponSocketName GetDefaultArrowAttachSocket()
@@ -274,7 +274,7 @@ public:
 
 	FName GetResolvedArrowAttachSocketName() const
 	{
-		return PdWeaponSockets::ToName(ArrowAttachSocketName);
+		return WeaponSockets::ToName(ArrowAttachSocketName);
 	}
 
 	bool HasAnyData() const
@@ -327,7 +327,7 @@ public:
 	{
 		TraceObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_WorldStatic));
 		TraceObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_Pawn));
-		TraceObjectTypes.Add(UEngineTypes::ConvertToObjectType(LabCollisionChannels::HitableBody()));
+		TraceObjectTypes.Add(UEngineTypes::ConvertToObjectType(CollisionChannels::HitableBody()));
 		ImpactDecalObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_WorldStatic));
 	}
 
@@ -341,7 +341,7 @@ public:
 
 	FName GetResolvedMuzzleSocketName() const
 	{
-		return PdWeaponSockets::ToName(MuzzleSocketName);
+		return WeaponSockets::ToName(MuzzleSocketName);
 	}
 
 public:

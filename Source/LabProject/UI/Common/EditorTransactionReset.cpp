@@ -5,7 +5,7 @@
 #include "Editor/TransBuffer.h"
 #endif
 
-void PdEditorTransaction::ResetIfContainsPieObjects()
+void EditorTransaction::ResetIfContainsPieObjects()
 {
 #if WITH_EDITOR
 	if (GEditor && GEditor->Trans && GEditor->Trans->ContainsPieObjects())

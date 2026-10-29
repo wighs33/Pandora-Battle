@@ -101,7 +101,7 @@ void UPlayerHudWidget::NativeDestruct()
 {
 	AchievementSubscription.Reset();
 	ClearKillBoxWidgets();
-	PdEditorTransaction::ResetIfContainsPieObjects();
+	EditorTransaction::ResetIfContainsPieObjects();
 	Super::NativeDestruct();
 }
 
@@ -111,7 +111,7 @@ void UPlayerHudWidget::OnMenuLanguageChanged()
 	{
 		if (Pair.Value)
 		{
-			Pair.Value->SetTeamInfo(Pair.Key, ResolveTeamName(Pair.Key), LabTeamColorUtils::GetTeamColor(Pair.Key));
+			Pair.Value->SetTeamInfo(Pair.Key, ResolveTeamName(Pair.Key), TeamColorUtils::GetTeamColor(Pair.Key));
 		}
 	}
 }
@@ -346,7 +346,7 @@ void UPlayerHudWidget::BuildKillBoxWidgetsForTeams(const TArray<int32>& TeamColo
 		ClearTransactionalFlagsForRuntimeWidget(KillBoxWidget);
 
 		KillBoxWidget->SetTeamInfo(TeamColorIndex, ResolveTeamName(TeamColorIndex),
-			LabTeamColorUtils::GetTeamColor(TeamColorIndex));
+			TeamColorUtils::GetTeamColor(TeamColorIndex));
 		KillBoxWidget->SetKillCount(0);
 
 		if (UHorizontalBoxSlot* KillBoxSlot = HorizontalBox_KillBox->AddChildToHorizontalBox(KillBoxWidget))

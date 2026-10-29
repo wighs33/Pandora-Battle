@@ -2,7 +2,7 @@
 
 #include "AbilitySystemComponent.h"
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "GameplayEffect.h"
 #include "TimerManager.h"
 
@@ -126,7 +126,7 @@ void UReactiveStaminaRegenAbility::RemoveStaminaRegenEffects()
 	}
 
 	FGameplayTagContainer RegenTags;
-	RegenTags.AddTag(LabGameplayTags::Status_StaminaRegen);
+	RegenTags.AddTag(PdGameplayTags::Status_StaminaRegen);
 	ASC->RemoveActiveEffectsWithGrantedTags(RegenTags);
 }
 

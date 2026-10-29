@@ -16,7 +16,7 @@
 #include "AbilitySystem/TargetingActors/GroundTargetActor.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "Character/PdPlayer.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Engine/World.h"
 #include "Kismet/KismetSystemLibrary.h"
 
@@ -26,7 +26,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogProjectileAbility, Log, All);
 
 USkillProjectileCastAction::USkillProjectileCastAction()
 {
-	Settings.FireEventTag = LabGameplayTags::Event_ShootProjectile;
+	Settings.FireEventTag = PdGameplayTags::Event_ShootProjectile;
 	Settings.ProjectileActorClass = ASkillProjectile::StaticClass();
 	Settings.ProjectileSpeed = 2000.0;
 	Settings.ProjectileRadius = 50.0;
@@ -380,7 +380,7 @@ void USkillProjectileCastAction::HandleTargetDataValid(const FGameplayAbilityTar
 			return;
 		}
 	}
-	else if (!PdTargetValidator::TryResolveTargetDataLocation(
+	else if (!TargetValidator::TryResolveTargetDataLocation(
 		*ClientHitResult,
 		TargetDataEndPoint,
 		TargetLocation))
@@ -425,7 +425,7 @@ bool USkillProjectileCastAction::TryValidateServerProjectileTargetLocation(const
 {
 	AActor* AvatarActor = GetAbility()->GetAvatarActorFromActorInfo();
 	FVector RequestedLocation = FVector::ZeroVector;
-	if (!PdTargetValidator::TryResolveAuthorityTargetRequest(AvatarActor, ClientHitResult, TargetDataEndPoint, RequestedLocation))
+	if (!TargetValidator::TryResolveAuthorityTargetRequest(AvatarActor, ClientHitResult, TargetDataEndPoint, RequestedLocation))
 	{
 		return false;
 	}
@@ -435,14 +435,14 @@ bool USkillProjectileCastAction::TryValidateServerProjectileTargetLocation(const
 	const FVector CharacterLocation = AvatarActor->GetActorLocation();
 	if (bUsingGroundTargeting)
 	{
-		PdTargetValidator::FGroundTargetValidationParams ValidationParams;
+		TargetValidator::FGroundTargetValidationParams ValidationParams;
 		ValidationParams.MaxRange = GetConfiguredGroundTargetingMaxRange();
 		ValidationParams.GroundTraceStartHeight = GetConfiguredGroundTargetingTraceStartHeight();
 		ValidationParams.GroundTraceDepth = GetConfiguredGroundTargetingTraceDepth();
 		ValidationParams.LineOfSightProfileName = Settings.GroundTargetingTraceProfile.Name;
 
-		PdTargetValidator::FValidatedGroundTarget ValidatedTarget;
-		if (!PdTargetValidator::ValidateGroundTarget(World, AvatarActor, CharacterLocation, RequestedLocation,
+		TargetValidator::FValidatedGroundTarget ValidatedTarget;
+		if (!TargetValidator::ValidateGroundTarget(World, AvatarActor, CharacterLocation, RequestedLocation,
 			ValidationParams, ValidatedTarget))
 		{
 			return false;
@@ -455,12 +455,12 @@ bool USkillProjectileCastAction::TryValidateServerProjectileTargetLocation(const
 		return true;
 	}
 
-	PdTargetValidator::FPointTargetValidationParams ValidationParams;
+	TargetValidator::FPointTargetValidationParams ValidationParams;
 	ValidationParams.MaxRange = GetConfiguredTargetTraceMaxRange();
 	ValidationParams.LineOfSightProfileName = Settings.TargetTraceProfile.Name;
 
-	PdTargetValidator::FValidatedPointTarget ValidatedTarget;
-	if (!PdTargetValidator::ValidatePointTarget(World, AvatarActor, CharacterLocation, GetSpawnLocation(),
+	TargetValidator::FValidatedPointTarget ValidatedTarget;
+	if (!TargetValidator::ValidatePointTarget(World, AvatarActor, CharacterLocation, GetSpawnLocation(),
 		RequestedLocation, ValidationParams, ValidatedTarget))
 	{
 		return false;

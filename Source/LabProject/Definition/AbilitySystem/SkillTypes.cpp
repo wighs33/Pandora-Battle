@@ -12,7 +12,7 @@ namespace
 #endif
 }
 
-bool LabSkillDebug::IsDrawingEnabled()
+bool SkillDebug::IsDrawingEnabled()
 {
 #if UE_BUILD_SHIPPING || UE_BUILD_TEST
 	return false;

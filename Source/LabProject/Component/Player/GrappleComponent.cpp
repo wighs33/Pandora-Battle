@@ -27,7 +27,7 @@ UGrappleComponent::UGrappleComponent(const FObjectInitializer& ObjectInitializer
 	PrimaryComponentTick.bStartWithTickEnabled = false;
 	PrimaryComponentTick.TickGroup = TG_PrePhysics;
 	SetIsReplicatedByDefault(true);
-	TraceChannel = LabCollisionChannels::VisibilityTrace();
+	TraceChannel = CollisionChannels::VisibilityTrace();
 }
 
 void UGrappleComponent::BeginPlay()
@@ -141,12 +141,12 @@ bool UGrappleComponent::ValidateTargetDataAndTrace(const FHitResult& ClientHitRe
 		return false;
 	}
 
-	PdTargetValidator::FTraceRequestValidationParams ValidationParams;
+	TargetValidator::FTraceRequestValidationParams ValidationParams;
 	ValidationParams.TraceStartOffset = TraceStartOffset;
 	ValidationParams.MaxTraceDistance = TraceDistance;
 
-	PdTargetValidator::FValidatedTraceView ValidatedView;
-	if (!PdTargetValidator::ValidateClientTraceRequest(PlayerOwner, ClientHitResult, ValidationParams, ValidatedView))
+	TargetValidator::FValidatedTraceView ValidatedView;
+	if (!TargetValidator::ValidateClientTraceRequest(PlayerOwner, ClientHitResult, ValidationParams, ValidatedView))
 	{
 		return false;
 	}

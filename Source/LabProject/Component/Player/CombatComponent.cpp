@@ -8,7 +8,7 @@
 #include "AbilitySystemComponent.h"
 #include "Character/CharacterBase.h"
 #include "Character/PdPlayer.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Interface/ComboAttackInterface.h"
 #include "AbilitySystem/Ability/EquipmentAbilityData.h"
 #include "Definition/Common/ProjectTagDefinition.h"
@@ -350,10 +350,10 @@ bool UCombatComponent::IsPrimaryAttackBlockedByAbilityTags() const
 	}
 
 	const UAbilitySystemComponent* AbilitySystemComponent = GetPlayerAbilitySystemComponent();
-	return AbilitySystemComponent && (AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::State_Dead)
-		|| AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::Status_Frostbite)
-		|| AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::GameplayAbility_AOEAttack_Active)
-		|| AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::GameplayAbility_ShootProjectile_Active));
+	return AbilitySystemComponent && (AbilitySystemComponent->HasMatchingGameplayTag(PdGameplayTags::State_Dead)
+		|| AbilitySystemComponent->HasMatchingGameplayTag(PdGameplayTags::Status_Frostbite)
+		|| AbilitySystemComponent->HasMatchingGameplayTag(PdGameplayTags::GameplayAbility_AOEAttack_Active)
+		|| AbilitySystemComponent->HasMatchingGameplayTag(PdGameplayTags::GameplayAbility_ShootProjectile_Active));
 }
 
 bool UCombatComponent::TryProcessWeaponPrimaryAttack(APdPlayer* PlayerCharacter, AWeaponBase* WeaponActor) const
@@ -616,12 +616,12 @@ void UCombatComponent::SetActiveComboDamageMultiplier(const float DamageMultipli
 bool UCombatComponent::ApplyWeaponDamageToTarget(AActor* TargetActor)
 {
 	AWeaponBase* Weapon = GetCurrentWeaponActor();
-	PdDamageRules::FOutgoingDamage Damage;
+	DamageRules::FOutgoingDamage Damage;
 	return Weapon && BuildWeaponDamage(*Weapon, Damage)
 		&& ApplyOutgoingDamageToTarget(TargetActor, Damage, Weapon, Weapon);
 }
 
-bool UCombatComponent::BuildWeaponDamage(const AWeaponBase& Weapon, PdDamageRules::FOutgoingDamage& OutDamage) const
+bool UCombatComponent::BuildWeaponDamage(const AWeaponBase& Weapon, DamageRules::FOutgoingDamage& OutDamage) const
 {
 	// 무기 능력치와 무기 피해 보너스는 장착 중인 무기에서만 읽는다.
 	return GetCurrentWeaponActor() == &Weapon
@@ -634,16 +634,16 @@ bool UCombatComponent::BuildWeaponDamage(const AWeaponBase& Weapon, PdDamageRule
 bool UCombatComponent::ApplyAttackDamageToTarget(AActor* TargetActor, const float RawDamage,
 	UObject* SourceObject, AActor* DamageCauser, const bool bAllowHitReact)
 {
-	PdDamageRules::FOutgoingDamage Damage;
+	DamageRules::FOutgoingDamage Damage;
 	return BuildOutgoingDamage(RawDamage, bAllowHitReact, Damage)
 		&& ApplyOutgoingDamageToTarget(TargetActor, Damage, SourceObject, DamageCauser);
 }
 
 // 공격자 쪽 계산: 근력과 콤보 배율을 반영하고 치명타를 굴린다. 방어·저항은 맞는 쪽 AttributeSet이 계산한다.
 bool UCombatComponent::BuildOutgoingDamage(const float RawDamage, const bool bAllowHitReact,
-	PdDamageRules::FOutgoingDamage& OutDamage) const
+	DamageRules::FOutgoingDamage& OutDamage) const
 {
-	OutDamage = PdDamageRules::FOutgoingDamage();
+	OutDamage = DamageRules::FOutgoingDamage();
 	const ACharacterBase* Source = GetCharacter();
 	const UPdAbilitySystemComponent* SourceASC = IsValid(Source) ? Source->GetPdAbilitySystemComponent() : nullptr;
 	const UBasicAttributeSet* SourceAttributes = SourceASC ? SourceASC->GetSet<UBasicAttributeSet>() : nullptr;
@@ -657,7 +657,7 @@ bool UCombatComponent::BuildOutgoingDamage(const float RawDamage, const bool bAl
 	return OutDamage.IsValid();
 }
 
-bool UCombatComponent::ApplyOutgoingDamageToTarget(AActor* TargetActor, const PdDamageRules::FOutgoingDamage& Damage,
+bool UCombatComponent::ApplyOutgoingDamageToTarget(AActor* TargetActor, const DamageRules::FOutgoingDamage& Damage,
 	UObject* SourceObject, AActor* DamageCauser)
 {
 	ACharacterBase* Source = GetCharacter();
@@ -674,11 +674,11 @@ bool UCombatComponent::ApplyOutgoingDamageToTarget(AActor* TargetActor, const Pd
 	FGameplayTagContainer DamageSpecTags;
 	if (Damage.bCriticalHit)
 	{
-		DamageSpecTags.AddTag(LabGameplayTags::Effect_Damage_Critical);
+		DamageSpecTags.AddTag(PdGameplayTags::Effect_Damage_Critical);
 	}
 	if (!Damage.bAllowHitReact)
 	{
-		DamageSpecTags.AddTag(LabGameplayTags::Effect_Damage_NoHitReaction);
+		DamageSpecTags.AddTag(PdGameplayTags::Effect_Damage_NoHitReaction);
 	}
 	return ApplyDamageEffect(SourceASC, TargetASC, CombatDamageSettings.IncomingDamageEffectClass,
 		Damage.Damage, SourceObject, Source, DamageCauser, DamageSpecTags);

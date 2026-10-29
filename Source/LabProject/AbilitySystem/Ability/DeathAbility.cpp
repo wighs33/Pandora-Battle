@@ -2,7 +2,7 @@
 
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
 #include "AbilitySystemComponent.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "GameplayEffect.h"
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -15,23 +15,23 @@ UDeathAbility::UDeathAbility(const FObjectInitializer& ObjectInitializer)
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 
 	FGameplayTagContainer AbilityAssetTags;
-	AbilityAssetTags.AddTag(LabGameplayTags::GameplayAbility_Death);
+	AbilityAssetTags.AddTag(PdGameplayTags::GameplayAbility_Death);
 	SetAssetTags(AbilityAssetTags);
 
-	CancelAbilitiesWithTag.AddTag(LabGameplayTags::GameplayAbility);
-	CancelAbilitiesWithTag.AddTag(LabGameplayTags::Action_Attack);
-	CancelAbilitiesWithTag.AddTag(LabGameplayTags::Action_Punch);
-	CancelAbilitiesWithTag.AddTag(LabGameplayTags::Action_RangedAttack);
-	CancelAbilitiesWithTag.AddTag(LabGameplayTags::Action_HitReact);
-	CancelAbilitiesWithTag.AddTag(LabGameplayTags::Action_Equip);
-	CancelAbilitiesWithTag.AddTag(LabGameplayTags::Action_Unequip);
-	BlockAbilitiesWithTag.AddTag(LabGameplayTags::GameplayAbility);
-	BlockAbilitiesWithTag.AddTag(LabGameplayTags::Action_Attack);
-	BlockAbilitiesWithTag.AddTag(LabGameplayTags::Action_Punch);
-	BlockAbilitiesWithTag.AddTag(LabGameplayTags::Action_RangedAttack);
-	BlockAbilitiesWithTag.AddTag(LabGameplayTags::Action_HitReact);
-	BlockAbilitiesWithTag.AddTag(LabGameplayTags::Action_Equip);
-	BlockAbilitiesWithTag.AddTag(LabGameplayTags::Action_Unequip);
+	CancelAbilitiesWithTag.AddTag(PdGameplayTags::GameplayAbility);
+	CancelAbilitiesWithTag.AddTag(PdGameplayTags::Action_Attack);
+	CancelAbilitiesWithTag.AddTag(PdGameplayTags::Action_Punch);
+	CancelAbilitiesWithTag.AddTag(PdGameplayTags::Action_RangedAttack);
+	CancelAbilitiesWithTag.AddTag(PdGameplayTags::Action_HitReact);
+	CancelAbilitiesWithTag.AddTag(PdGameplayTags::Action_Equip);
+	CancelAbilitiesWithTag.AddTag(PdGameplayTags::Action_Unequip);
+	BlockAbilitiesWithTag.AddTag(PdGameplayTags::GameplayAbility);
+	BlockAbilitiesWithTag.AddTag(PdGameplayTags::Action_Attack);
+	BlockAbilitiesWithTag.AddTag(PdGameplayTags::Action_Punch);
+	BlockAbilitiesWithTag.AddTag(PdGameplayTags::Action_RangedAttack);
+	BlockAbilitiesWithTag.AddTag(PdGameplayTags::Action_HitReact);
+	BlockAbilitiesWithTag.AddTag(PdGameplayTags::Action_Equip);
+	BlockAbilitiesWithTag.AddTag(PdGameplayTags::Action_Unequip);
 }
 
 #if WITH_EDITOR
@@ -63,7 +63,7 @@ bool UDeathAbility::CanActivateAbility(const FGameplayAbilitySpecHandle Handle,
 		ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr;
 	return AbilitySystemComponent
 		&& AbilitySystemComponent->GetNumericAttribute(UBasicAttributeSet::GetHealthAttribute()) <= 0.0f
-		&& !AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::State_Dead);
+		&& !AbilitySystemComponent->HasMatchingGameplayTag(PdGameplayTags::State_Dead);
 }
 
 void UDeathAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,

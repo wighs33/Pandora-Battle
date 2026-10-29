@@ -2,7 +2,7 @@
 
 #include "Skill/Actors/SkillVisualActor.h"
 #include "Character/CharacterBase.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Components/CapsuleComponent.h"
 #include "Engine/World.h"
 
@@ -138,7 +138,7 @@ void USkillAbility::SpawnConfiguredCharacterDecal()
 	DecalCueParameters.NormalizedMagnitude = FinalSize;
 	DecalCueParameters.GameplayEffectLevel = FMath::Max(FMath::RoundToInt(LifeSpan * 1000.0f), 0);
 	DecalCueParameters.AbilityLevel = FMath::Max(FMath::RoundToInt(GrowthDuration * 1000.0f), 0);
-	K2_ExecuteGameplayCueWithParams(LabGameplayTags::GameplayCue_AOEIndicator, DecalCueParameters);
+	K2_ExecuteGameplayCueWithParams(PdGameplayTags::GameplayCue_AOEIndicator, DecalCueParameters);
 }
 
 FVector USkillAbility::ResolveConfiguredCharacterDecalLocation(const ACharacterBase* Character) const

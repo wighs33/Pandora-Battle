@@ -20,7 +20,7 @@ struct FSkillProjectileDamage
  * 투사체 충돌 규칙. 무엇에 맞았다고 볼지, 피해를 누구에게 줄지, 어디에 박힐지를 정한다.
  * 투사체의 비행·충돌 상태는 바꾸지 않고 판정과 피해 적용만 맡는다.
  */
-namespace PdSkillProjectileHit
+namespace SkillProjectileHit
 {
 	/** 지형·물리 물체·피격 몸체에만 막히고 Pawn 캡슐은 통과하는 충돌 설정. */
 	LABPROJECT_API void ApplyCollisionProfile(UPrimitiveComponent* Collision);

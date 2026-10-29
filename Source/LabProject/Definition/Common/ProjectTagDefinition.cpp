@@ -114,77 +114,77 @@ namespace
 
 UProjectTagDefinition::UProjectTagDefinition()
 {
-	ItemWeaponTypeTag = LabGameplayTags::Item_Weapon;
-	ItemEquipmentTypeTag = LabGameplayTags::Item_Equipment;
-	ItemConsumableTypeTag = LabGameplayTags::Item_Consumable;
-	ItemValuableTypeTag = LabGameplayTags::Item_Valuable;
-	ItemHatEquipTypeTag = LabGameplayTags::Item_Equipment_Hat;
-	ItemTopEquipTypeTag = LabGameplayTags::Item_Equipment_Top;
-	ItemBottomEquipTypeTag = LabGameplayTags::Item_Equipment_Bottom;
-	ItemShoesEquipTypeTag = LabGameplayTags::Item_Equipment_Shoes;
-	ItemEarringEquipTypeTag = LabGameplayTags::Item_Equipment_Earring;
-	ItemNecklaceEquipTypeTag = LabGameplayTags::Item_Equipment_Necklace;
-	ItemRingEquipTypeTag = LabGameplayTags::Item_Equipment_Ring;
-	ItemRuneEquipTypeTag = LabGameplayTags::Item_Equipment_Rune;
+	ItemWeaponTypeTag = PdGameplayTags::Item_Weapon;
+	ItemEquipmentTypeTag = PdGameplayTags::Item_Equipment;
+	ItemConsumableTypeTag = PdGameplayTags::Item_Consumable;
+	ItemValuableTypeTag = PdGameplayTags::Item_Valuable;
+	ItemHatEquipTypeTag = PdGameplayTags::Item_Equipment_Hat;
+	ItemTopEquipTypeTag = PdGameplayTags::Item_Equipment_Top;
+	ItemBottomEquipTypeTag = PdGameplayTags::Item_Equipment_Bottom;
+	ItemShoesEquipTypeTag = PdGameplayTags::Item_Equipment_Shoes;
+	ItemEarringEquipTypeTag = PdGameplayTags::Item_Equipment_Earring;
+	ItemNecklaceEquipTypeTag = PdGameplayTags::Item_Equipment_Necklace;
+	ItemRingEquipTypeTag = PdGameplayTags::Item_Equipment_Ring;
+	ItemRuneEquipTypeTag = PdGameplayTags::Item_Equipment_Rune;
 
-	PandoraOffensiveTypeTag = LabGameplayTags::Pandora_Offensive;
-	PandoraDefensiveTypeTag = LabGameplayTags::Pandora_Defensive;
-	PandoraSupportTypeTag = LabGameplayTags::Pandora_Support;
-	PandoraSpecialTypeTag = LabGameplayTags::Pandora_Special;
+	PandoraOffensiveTypeTag = PdGameplayTags::Pandora_Offensive;
+	PandoraDefensiveTypeTag = PdGameplayTags::Pandora_Defensive;
+	PandoraSupportTypeTag = PdGameplayTags::Pandora_Support;
+	PandoraSpecialTypeTag = PdGameplayTags::Pandora_Special;
 
-	SkinPandoraTypeTag = LabGameplayTags::Skin_Pandora;
-	SkinCosmeticsTypeTag = LabGameplayTags::Skin_Cosmetics;
-	SkinGestureTypeTag = LabGameplayTags::Skin_Gesture;
-	SkinRidingTypeTag = LabGameplayTags::Skin_Riding;
-	SkinPetTypeTag = LabGameplayTags::Skin_Pet;
-	SkinHatEquipTypeTag = LabGameplayTags::Skin_Cosmetics_Hat;
-	SkinTopEquipTypeTag = LabGameplayTags::Skin_Cosmetics_Top;
-	SkinBottomEquipTypeTag = LabGameplayTags::Skin_Cosmetics_Bottom;
-	SkinShoesEquipTypeTag = LabGameplayTags::Skin_Cosmetics_Shoes;
-	SkinHeadEquipTypeTag = LabGameplayTags::Skin_Cosmetics_Head;
-	SkinColorEquipTypeTag = LabGameplayTags::Skin_Cosmetics_SkinColor;
-	SkinBackEquipTypeTag = LabGameplayTags::Skin_Cosmetics_Back;
-	SkinAuraEquipTypeTag = LabGameplayTags::Skin_Cosmetics_Aura;
+	SkinPandoraTypeTag = PdGameplayTags::Skin_Pandora;
+	SkinCosmeticsTypeTag = PdGameplayTags::Skin_Cosmetics;
+	SkinGestureTypeTag = PdGameplayTags::Skin_Gesture;
+	SkinRidingTypeTag = PdGameplayTags::Skin_Riding;
+	SkinPetTypeTag = PdGameplayTags::Skin_Pet;
+	SkinHatEquipTypeTag = PdGameplayTags::Skin_Cosmetics_Hat;
+	SkinTopEquipTypeTag = PdGameplayTags::Skin_Cosmetics_Top;
+	SkinBottomEquipTypeTag = PdGameplayTags::Skin_Cosmetics_Bottom;
+	SkinShoesEquipTypeTag = PdGameplayTags::Skin_Cosmetics_Shoes;
+	SkinHeadEquipTypeTag = PdGameplayTags::Skin_Cosmetics_Head;
+	SkinColorEquipTypeTag = PdGameplayTags::Skin_Cosmetics_SkinColor;
+	SkinBackEquipTypeTag = PdGameplayTags::Skin_Cosmetics_Back;
+	SkinAuraEquipTypeTag = PdGameplayTags::Skin_Cosmetics_Aura;
 
-	UiProfileLeftTag = LabGameplayTags::UI_Profile;
-	UiStatusRightTag = LabGameplayTags::UI_Status;
-	UiEquipmentLeftTag = LabGameplayTags::UI_Equipment;
-	UiInventoryRightTag = LabGameplayTags::UI_Inventory;
-	UiSkinEquipmentLeftTag = LabGameplayTags::UI_SkinEquipment;
-	UiSkinInventoryRightTag = LabGameplayTags::UI_SkinInventory;
-	UiPandoraEquipmentLeftTag = LabGameplayTags::UI_PandoraEquipment;
-	UiPandoraInventoryRightTag = LabGameplayTags::UI_PandoraInventory;
+	UiProfileLeftTag = PdGameplayTags::UI_Profile;
+	UiStatusRightTag = PdGameplayTags::UI_Status;
+	UiEquipmentLeftTag = PdGameplayTags::UI_Equipment;
+	UiInventoryRightTag = PdGameplayTags::UI_Inventory;
+	UiSkinEquipmentLeftTag = PdGameplayTags::UI_SkinEquipment;
+	UiSkinInventoryRightTag = PdGameplayTags::UI_SkinInventory;
+	UiPandoraEquipmentLeftTag = PdGameplayTags::UI_PandoraEquipment;
+	UiPandoraInventoryRightTag = PdGameplayTags::UI_PandoraInventory;
 
-	StatusStrengthTag = LabGameplayTags::Status_Offense_Strength;
-	StatusIntelligenceTag = LabGameplayTags::Status_Offense_Intelligence;
-	StatusArcaneTag = LabGameplayTags::Status_Agility_Arcane;
-	StatusArmorTag = LabGameplayTags::Status_Defense_Armor;
-	StatusRecoveryTag = LabGameplayTags::Status_Defense_Recovery;
-	StatusFrostbiteTag = LabGameplayTags::Status_Resistance_Frostbite;
-	StatusBurnTag = LabGameplayTags::Status_Resistance_Burn;
-	StatusElectricShockTag = LabGameplayTags::Status_Resistance_ElectricShock;
-	StatusFirstPandoraTag = LabGameplayTags::Status_PandoraForce_FirstPandora;
-	StatusSecondPandoraTag = LabGameplayTags::Status_PandoraForce_SecondPandora;
-	StatusThirdPandoraTag = LabGameplayTags::Status_PandoraForce_ThirdPandora;
-	StatusMaxHealthTag = LabGameplayTags::Status_Resource_MaxHealth;
-	StatusMaxShieldTag = LabGameplayTags::Status_Defense_MaxShield;
-	StatusMaxManaTag = LabGameplayTags::Status_Resource_MaxMana;
-	StatusMaxStaminaTag = LabGameplayTags::Status_Resource_MaxStamina;
-	StatusAttackSpeedTag = LabGameplayTags::Status_Agility_AttackSpeed;
-	StatusMovementSpeedTag = LabGameplayTags::Status_Agility_MovementSpeed;
-	StatusCriticalTag = LabGameplayTags::Status_Offense_Critical;
+	StatusStrengthTag = PdGameplayTags::Status_Offense_Strength;
+	StatusIntelligenceTag = PdGameplayTags::Status_Offense_Intelligence;
+	StatusArcaneTag = PdGameplayTags::Status_Agility_Arcane;
+	StatusArmorTag = PdGameplayTags::Status_Defense_Armor;
+	StatusRecoveryTag = PdGameplayTags::Status_Defense_Recovery;
+	StatusFrostbiteTag = PdGameplayTags::Status_Resistance_Frostbite;
+	StatusBurnTag = PdGameplayTags::Status_Resistance_Burn;
+	StatusElectricShockTag = PdGameplayTags::Status_Resistance_ElectricShock;
+	StatusFirstPandoraTag = PdGameplayTags::Status_PandoraForce_FirstPandora;
+	StatusSecondPandoraTag = PdGameplayTags::Status_PandoraForce_SecondPandora;
+	StatusThirdPandoraTag = PdGameplayTags::Status_PandoraForce_ThirdPandora;
+	StatusMaxHealthTag = PdGameplayTags::Status_Resource_MaxHealth;
+	StatusMaxShieldTag = PdGameplayTags::Status_Defense_MaxShield;
+	StatusMaxManaTag = PdGameplayTags::Status_Resource_MaxMana;
+	StatusMaxStaminaTag = PdGameplayTags::Status_Resource_MaxStamina;
+	StatusAttackSpeedTag = PdGameplayTags::Status_Agility_AttackSpeed;
+	StatusMovementSpeedTag = PdGameplayTags::Status_Agility_MovementSpeed;
+	StatusCriticalTag = PdGameplayTags::Status_Offense_Critical;
 
-	CombatAttackAbilityTag = LabGameplayTags::Action_Attack;
-	CombatPunchAbilityTag = LabGameplayTags::Action_Punch;
-	CombatRangedAttackAbilityTag = LabGameplayTags::Action_RangedAttack;
-	CombatWeaponDamageSourceTag = LabGameplayTags::Status_Offense_Strength;
-	CombatHitReactAbilityTag = LabGameplayTags::Action_HitReact;
+	CombatAttackAbilityTag = PdGameplayTags::Action_Attack;
+	CombatPunchAbilityTag = PdGameplayTags::Action_Punch;
+	CombatRangedAttackAbilityTag = PdGameplayTags::Action_RangedAttack;
+	CombatWeaponDamageSourceTag = PdGameplayTags::Status_Offense_Strength;
+	CombatHitReactAbilityTag = PdGameplayTags::Action_HitReact;
 
-	SetByCallerDamageMagnitudeTag = LabGameplayTags::Data_Damage;
-	SetByCallerStatUpOperationTag = LabGameplayTags::Data_StatUp;
+	SetByCallerDamageMagnitudeTag = PdGameplayTags::Data_Damage;
+	SetByCallerStatUpOperationTag = PdGameplayTags::Data_StatUp;
 
-	EquipmentEquipAbilityTag = LabGameplayTags::Action_Equip;
-	EquipmentUnequipAbilityTag = LabGameplayTags::Action_Unequip;
+	EquipmentEquipAbilityTag = PdGameplayTags::Action_Equip;
+	EquipmentUnequipAbilityTag = PdGameplayTags::Action_Unequip;
 }
 
 FPrimaryAssetId UProjectTagDefinition::GetPrimaryAssetId() const
@@ -287,10 +287,10 @@ void UProjectTagDefinition::GetSkinEquipmentSlotTags(TArray<FGameplayTag>& OutTa
 	AddValidTag(OutTags, GetSkinAuraEquipTypeTag());
 	AddValidTag(OutTags, GetSkinRidingTypeTag());
 	AddValidTag(OutTags, GetSkinPetTypeTag());
-	AddValidTag(OutTags, LabGameplayTags::Skin_Gesture_Slot1);
-	AddValidTag(OutTags, LabGameplayTags::Skin_Gesture_Slot2);
-	AddValidTag(OutTags, LabGameplayTags::Skin_Gesture_Slot3);
-	AddValidTag(OutTags, LabGameplayTags::Skin_Gesture_Slot4);
+	AddValidTag(OutTags, PdGameplayTags::Skin_Gesture_Slot1);
+	AddValidTag(OutTags, PdGameplayTags::Skin_Gesture_Slot2);
+	AddValidTag(OutTags, PdGameplayTags::Skin_Gesture_Slot3);
+	AddValidTag(OutTags, PdGameplayTags::Skin_Gesture_Slot4);
 }
 
 void UProjectTagDefinition::GetSkinFilterTypeTags(TArray<FGameplayTag>& OutTags) const

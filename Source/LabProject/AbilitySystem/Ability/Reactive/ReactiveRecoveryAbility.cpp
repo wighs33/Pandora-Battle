@@ -2,7 +2,7 @@
 
 #include "AbilitySystemComponent.h"
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Definition/Settings/GameSettingDefinition.h"
 #include "GameplayEffect.h"
 #include "Settings/GameSettingsSubsystem.h"
@@ -77,11 +77,11 @@ void UReactiveRecoveryAbility::RefreshRecoveryEffect()
 	}
 	TGuardValue<bool> RefreshingRecovery(bRefreshingRecovery, true);
 
-	const bool bAlive = Attributes->GetHealth() > 0.f && !ASC->HasMatchingGameplayTag(LabGameplayTags::State_Dead);
+	const bool bAlive = Attributes->GetHealth() > 0.f && !ASC->HasMatchingGameplayTag(PdGameplayTags::State_Dead);
 	const float Recovery = bAlive ? FMath::Max(Attributes->GetRecovery(), 0.f) * 0.01f : 0.f;
 	TMap<FGameplayTag, float> Magnitudes;
-	Magnitudes.Add(LabGameplayTags::Data_Heal, FMath::Max(Attributes->GetMaxHealth(), 0.f) * Recovery);
-	Magnitudes.Add(LabGameplayTags::Data_Mana, FMath::Max(Attributes->GetMaxMana(), 0.f) * Recovery);
+	Magnitudes.Add(PdGameplayTags::Data_Heal, FMath::Max(Attributes->GetMaxHealth(), 0.f) * Recovery);
+	Magnitudes.Add(PdGameplayTags::Data_Mana, FMath::Max(Attributes->GetMaxMana(), 0.f) * Recovery);
 	if (ASC->GetActiveGameplayEffect(RecoveryEffectHandle))
 	{
 		ASC->UpdateActiveGameplayEffectSetByCallerMagnitudes(RecoveryEffectHandle, Magnitudes);

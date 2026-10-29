@@ -5,7 +5,7 @@
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
 #include "Character/CharacterBase.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Definition/Player/PlayerPawnDefinition.h"
 
@@ -38,8 +38,8 @@ void UPlayerActionComponent::ApplyDefinition(const UPlayerPawnDefinition* Defini
 
 	if (HitReactCancelTags.IsEmpty())
 	{
-		HitReactCancelTags.AddTag(LabGameplayTags::Action_HitReact);
-		HitReactCancelTags.AddTag(LabGameplayTags::GameplayAbility_HitReaction);
+		HitReactCancelTags.AddTag(PdGameplayTags::Action_HitReact);
+		HitReactCancelTags.AddTag(PdGameplayTags::GameplayAbility_HitReaction);
 	}
 }
 
@@ -103,7 +103,7 @@ FGameplayTagContainer UPlayerActionComponent::ResolveHitReactCancelTags() const
 	}
 
 	FGameplayTagContainer FallbackTags;
-	FallbackTags.AddTag(LabGameplayTags::Action_HitReact);
-	FallbackTags.AddTag(LabGameplayTags::GameplayAbility_HitReaction);
+	FallbackTags.AddTag(PdGameplayTags::Action_HitReact);
+	FallbackTags.AddTag(PdGameplayTags::GameplayAbility_HitReaction);
 	return FallbackTags;
 }

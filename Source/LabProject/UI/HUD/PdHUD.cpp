@@ -685,7 +685,7 @@ bool APdHUD::ApplyStatusViewModelToPlayerHud()
 	}
 
 	bool bAppliedViewModel = false;
-	PdWidgetLookup::ForEachNestedWidgetOfType<UPlayerVitalsWidget>(CachedPlayerHUD,
+	WidgetLookup::ForEachNestedWidgetOfType<UPlayerVitalsWidget>(CachedPlayerHUD,
 		[UiSubsystem, &bAppliedViewModel](UPlayerVitalsWidget* PlayerVitalsWidget)
 		{
 			bAppliedViewModel |= UiSubsystem->ApplyStatusViewModelToWidget(PlayerVitalsWidget);
@@ -698,7 +698,7 @@ UDamageScreenEffectWidget* APdHUD::FindDamageScreenEffectWidget()
 {
 	if (!CachedDamageScreenEffectWidget)
 	{
-		CachedDamageScreenEffectWidget = PdWidgetLookup::FindFirstWidgetOfType<UDamageScreenEffectWidget>(CachedPlayerHUD);
+		CachedDamageScreenEffectWidget = WidgetLookup::FindFirstWidgetOfType<UDamageScreenEffectWidget>(CachedPlayerHUD);
 	}
 	return CachedDamageScreenEffectWidget;
 }
@@ -707,7 +707,7 @@ UGoldenKillAnnouncementWidget* APdHUD::FindGoldenKillAnnouncementWidget()
 {
 	if (!CachedGoldenKillAnnouncementWidget)
 	{
-		CachedGoldenKillAnnouncementWidget = PdWidgetLookup::FindFirstWidgetOfType<UGoldenKillAnnouncementWidget>(CachedPlayerHUD);
+		CachedGoldenKillAnnouncementWidget = WidgetLookup::FindFirstWidgetOfType<UGoldenKillAnnouncementWidget>(CachedPlayerHUD);
 	}
 	return CachedGoldenKillAnnouncementWidget;
 }
@@ -716,7 +716,7 @@ UKillLogWidget* APdHUD::FindKillLogWidget()
 {
 	if (!CachedKillLogWidget)
 	{
-		CachedKillLogWidget = PdWidgetLookup::FindFirstWidgetOfType<UKillLogWidget>(CachedPlayerHUD);
+		CachedKillLogWidget = WidgetLookup::FindFirstWidgetOfType<UKillLogWidget>(CachedPlayerHUD);
 	}
 	return CachedKillLogWidget;
 }
@@ -725,7 +725,7 @@ UHudTimerWidget* APdHUD::FindHudTimerWidget()
 {
 	if (!CachedHudTimerWidget)
 	{
-		CachedHudTimerWidget = PdWidgetLookup::FindFirstWidgetOfType<UHudTimerWidget>(CachedPlayerHUD);
+		CachedHudTimerWidget = WidgetLookup::FindFirstWidgetOfType<UHudTimerWidget>(CachedPlayerHUD);
 	}
 	return CachedHudTimerWidget;
 }
@@ -734,7 +734,7 @@ URespawnDelayWidget* APdHUD::FindRespawnDelayWidget()
 {
 	if (!CachedRespawnDelayWidget)
 	{
-		CachedRespawnDelayWidget = PdWidgetLookup::FindFirstWidgetOfType<URespawnDelayWidget>(CachedPlayerHUD);
+		CachedRespawnDelayWidget = WidgetLookup::FindFirstWidgetOfType<URespawnDelayWidget>(CachedPlayerHUD);
 	}
 	return CachedRespawnDelayWidget;
 }
@@ -841,7 +841,7 @@ void APdHUD::RefreshPlayerHudVisibility()
 
 void APdHUD::RemoveAllUiWidgets()
 {
-	PdEditorTransaction::ResetIfContainsPieObjects();
+	EditorTransaction::ResetIfContainsPieObjects();
 
 	HideAimCrosshair();
 	CachedDamageScreenEffectWidget = nullptr;
@@ -861,7 +861,7 @@ void APdHUD::RemoveAllUiWidgets()
 		CachedInfoUiPresenter = nullptr;
 	}
 
-	PdEditorTransaction::ResetIfContainsPieObjects();
+	EditorTransaction::ResetIfContainsPieObjects();
 }
 
 // 화면 입력 라우터가 게임플레이 입력을 막고 있는지 입력 컴포넌트에 알려 준다.

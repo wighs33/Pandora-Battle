@@ -5,7 +5,7 @@
 #include "AbilitySystemGlobals.h"
 #include "Abilities/GameplayAbility.h"
 #include "AssetRegistry/AssetBundleData.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Component/AbilitySystem/AbilityGrantAndInputManager.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
@@ -86,7 +86,7 @@ EDataValidationResult UGameFeatureAction_AddAbilities::IsDataValid(FDataValidati
 		}
 
 		const FGameplayTag& InputTag = Abilities[EntryIndex].InputTag;
-		const FGameplayTag& InputAbilityRoot = LabGameplayTags::Input_Ability;
+		const FGameplayTag& InputAbilityRoot = PdGameplayTags::Input_Ability;
 		if (InputTag.IsValid() && !InputTag.MatchesTag(InputAbilityRoot))
 		{
 			Result = EDataValidationResult::Invalid;

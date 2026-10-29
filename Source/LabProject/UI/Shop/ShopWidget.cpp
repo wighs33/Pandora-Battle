@@ -158,7 +158,7 @@ void UShopWidget::BeginCatalogPresentationPreload()
 	for (const FShopCatalogProductReference& ProductReference : ProductReferences)
 	{
 		if (const UItemDefinition* ItemDefinition =
-			Cast<UItemDefinition>(PdShopCatalog::ResolveProductObject(ProductReference)))
+			Cast<UItemDefinition>(ShopCatalog::ResolveProductObject(ProductReference)))
 		{
 			PresentationPaths.Add(ItemDefinition->IconTexture.ToSoftObjectPath());
 		}
@@ -489,7 +489,7 @@ void UShopWidget::RebuildEntryData()
 			continue;
 		}
 
-		UObject* ProductObject = PdShopCatalog::ResolveProductObject(CatalogEntry.Product);
+		UObject* ProductObject = ShopCatalog::ResolveProductObject(CatalogEntry.Product);
 		if (!ProductObject)
 		{
 			continue;
@@ -516,7 +516,7 @@ TArray<FShopCatalogEntry> UShopWidget::BuildEffectiveCatalog() const
 	Source.bIncludeAllSkins = ShopCatalogDefinition ? ShopCatalogDefinition->bAutoIncludeAllSkins : bAutoIncludeAllSkins;
 
 	const UGameInstance* GameInstance = GetGameInstance();
-	return PdShopCatalog::Build(Source, GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr);
+	return ShopCatalog::Build(Source, GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr);
 }
 
 int32 UShopWidget::GetCurrentGold() const

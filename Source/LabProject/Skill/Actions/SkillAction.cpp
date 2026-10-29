@@ -3,7 +3,7 @@
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
 #include "Character/CharacterBase.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 
 void USkillAction::Start(USkillAbility* InAbility, const FSkillActionContext& InContext)
 {
@@ -53,7 +53,7 @@ bool USkillAction::ResolveDamageableCharacterTarget(AActor* SourceActor, AActor*
 
 	OutSourceASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(SourceActor);
 	OutTargetASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(HitActor);
-	if (!OutSourceASC || !OutTargetASC || OutTargetASC->HasMatchingGameplayTag(LabGameplayTags::State_Dead))
+	if (!OutSourceASC || !OutTargetASC || OutTargetASC->HasMatchingGameplayTag(PdGameplayTags::State_Dead))
 	{
 		return false;
 	}

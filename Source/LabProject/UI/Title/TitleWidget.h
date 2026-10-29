@@ -192,7 +192,7 @@ private:
 	int32 QuickMatchMaxSearchResults = 50;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Lobby|QuickMatch", meta = (AllowPrivateAccess = "true", ClampMin = "1"))
-	int32 QuickMatchMaxPublicConnections = LabGameSession::MaxPlayerCount;
+	int32 QuickMatchMaxPublicConnections = PdGameSession::MaxPlayerCount;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Lobby|QuickMatch", meta = (AllowPrivateAccess = "true"))
 	FString QuickMatchRoomName = TEXT("Quick Match");

@@ -15,17 +15,17 @@
 #include "OnlineSubsystemUtils.h"
 #include "TimerManager.h"
 #include "Common/GameResultTypes.h"
-#include "Common/PdTicker.h"
+#include "Common/Ticker.h"
 #include "Component/Match/MatchOutcomeRules.h"
 #include "Component/Match/MatchResultReport.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(OnlineSessionsSubsystem)
 
-namespace LabOnlineSession
+namespace PdOnlineSession
 {
 const FName RoomNameSettingKey(TEXT("ROOM_NAME"));
 const FName MapNameSettingKey(TEXT("MAP_NAME"));
-} // namespace LabOnlineSession
+} // namespace PdOnlineSession
 
 // 게임 인스턴스가 시작될 때 현재 월드의 온라인 세션 인터페이스와 연결 끊김 알림을 연결한다.
 void UOnlineSessionsSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -272,7 +272,7 @@ void UOnlineSessionsSubsystem::UpdateSessionSettings(
 	FOnlineSessionSettings UpdatedSettings = ExistingSession->SessionSettings;
 	const bool bUseLobbySession = IsSteamSubsystemActive() && !UpdatedSettings.bIsDedicated;
 	UpdatedSettings.NumPublicConnections = FMath::Max(NumPublicConnections, 1);
-	UpdatedSettings.Set(LabOnlineSession::MapNameSettingKey, MapName, EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);
+	UpdatedSettings.Set(PdOnlineSession::MapNameSettingKey, MapName, EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);
 	UpdatedSettings.bShouldAdvertise = true;
 	UpdatedSettings.bAllowJoinInProgress = bAllowJoinInProgress;
 	UpdatedSettings.bAllowJoinViaPresence = bUseLobbySession;
@@ -366,13 +366,13 @@ bool UOnlineSessionsSubsystem::ShouldUseLobbySession(const bool bRequestedLobbie
 // 방 생성과 방 목록 UI가 같은 키로 공개 방 이름을 기록·조회하도록 한다.
 FName UOnlineSessionsSubsystem::GetRoomNameSettingKey()
 {
-	return LabOnlineSession::RoomNameSettingKey;
+	return PdOnlineSession::RoomNameSettingKey;
 }
 
 // 방 정보 갱신과 방 목록 UI가 같은 키로 맵 이름을 기록·조회하도록 한다.
 FName UOnlineSessionsSubsystem::GetMapNameSettingKey()
 {
-	return LabOnlineSession::MapNameSettingKey;
+	return PdOnlineSession::MapNameSettingKey;
 }
 
 // 종료 시 남아 있는 시작·종료 및 방 요청 콜백을 등록했던 인터페이스에서 해제한다.
@@ -463,7 +463,7 @@ void UOnlineSessionsSubsystem::HandleNetworkFailure(
 			{
 				const ULevelDefinition* Levels = ULevelDefinition::ResolveDefaultDefinition();
 				const FString TitleMapName = Levels ? Levels->GetTitleTravelMapName() : FString();
-				PdTicker::RunNextTick(World, [World, TitleMapName]()
+				Ticker::RunNextTick(World, [World, TitleMapName]()
 				{
 					if (!TitleMapName.IsEmpty())
 					{

@@ -1,9 +1,9 @@
 #include "AbilitySystem/AttributeSet/DamageRules.h"
 
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "GameplayEffect.h"
 
-namespace PdDamageRules
+namespace DamageRules
 {
 	namespace
 	{
@@ -29,17 +29,17 @@ namespace PdDamageRules
 
 	EStatusDamage ClassifyStatusDamage(const FGameplayEffectSpec& EffectSpec)
 	{
-		if (EffectSpecHasStatusTag(EffectSpec, LabGameplayTags::Status_Burning))
+		if (EffectSpecHasStatusTag(EffectSpec, PdGameplayTags::Status_Burning))
 		{
 			return EStatusDamage::Burning;
 		}
 
-		if (EffectSpecHasStatusTag(EffectSpec, LabGameplayTags::Status_Frostbite))
+		if (EffectSpecHasStatusTag(EffectSpec, PdGameplayTags::Status_Frostbite))
 		{
 			return EStatusDamage::Frozen;
 		}
 
-		if (EffectSpecHasStatusTag(EffectSpec, LabGameplayTags::Status_ElectricShock))
+		if (EffectSpecHasStatusTag(EffectSpec, PdGameplayTags::Status_ElectricShock))
 		{
 			return EStatusDamage::ElectricShock;
 		}

@@ -373,7 +373,7 @@ bool UUiSubsystem::ApplyStatusViewModelToWidgetTree(UUserWidget* RootWidget)
 
 bool UUiSubsystem::BindStatusViewModelToWidget(UUserWidget* InWidget)
 {
-	return PdViewModelBinding::SetViewModel(InWidget, StatusViewModel, UStatusViewModel::ViewModelName);
+	return ViewModelBinding::SetViewModel(InWidget, StatusViewModel, UStatusViewModel::ViewModelName);
 }
 
 UAbilitySystemComponent* UUiSubsystem::ResolveAbilitySystemComponent() const

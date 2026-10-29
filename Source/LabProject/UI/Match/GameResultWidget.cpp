@@ -136,7 +136,7 @@ void UGameResultWidget::RefreshUI()
 	{
 		Txt_WinnerInfo->SetText(MakeTitleText());
 		Txt_WinnerInfo->SetColorAndOpacity(IsTeamVictoryTitle()
-			? FSlateColor(LabTeamColorUtils::GetTeamColor(WinnerTeamColorIndex))
+			? FSlateColor(TeamColorUtils::GetTeamColor(WinnerTeamColorIndex))
 			: NeutralTitleColor);
 	}
 
@@ -206,14 +206,14 @@ FText UGameResultWidget::MakeTitleText() const
 	}
 	if (IsTeamVictoryTitle())
 	{
-		return FText::Format(MenuText(TEXT("Result.TeamWinsFormat")), MenuText(LabTeamColorUtils::GetTeamTextKey(WinnerTeamColorIndex)));
+		return FText::Format(MenuText(TEXT("Result.TeamWinsFormat")), MenuText(TeamColorUtils::GetTeamTextKey(WinnerTeamColorIndex)));
 	}
 	return WinnerTitle.IsEmpty() ? MenuText(TEXT("Result.UnknownPlayer")) : WinnerTitle;
 }
 
 bool UGameResultWidget::IsTeamVictoryTitle() const
 {
-	return !bInGameScoreboardMode && !bEndedByPlayerExit && !LabTeamColorUtils::GetTeamTextKey(WinnerTeamColorIndex).IsNone();
+	return !bInGameScoreboardMode && !bEndedByPlayerExit && !TeamColorUtils::GetTeamTextKey(WinnerTeamColorIndex).IsNone();
 }
 
 FString UGameResultWidget::GetResolvedLobbyTravelMapName() const

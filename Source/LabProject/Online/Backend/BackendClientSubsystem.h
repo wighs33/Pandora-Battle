@@ -8,7 +8,7 @@ class APlayerController;
 class FJsonObject;
 class IHttpRequest;
 
-namespace PdBackendHttp
+namespace BackendHttp
 {
 	struct FResponse;
 }
@@ -242,15 +242,15 @@ private:
 	void RunAfterLogin(TUniqueFunction<void(bool bLoggedIn, const FString& LoginError)> Request);
 	TSharedPtr<IHttpRequest, ESPMode::ThreadSafe> CreateAuthorizedRequest(const TCHAR* Verb, const TCHAR* Path) const;
 	void SendLoginRequest(const TCHAR* Path, const TSharedRef<FJsonObject>& Body);
-	void HandleLoginResponse(const PdBackendHttp::FResponse& Response);
+	void HandleLoginResponse(const BackendHttp::FResponse& Response);
 	void FinishLogin(bool bSucceeded, const FString& ErrorMessage);
 	void SendMatchJoinRequest();
-	void HandleMatchJoinResponse(const PdBackendHttp::FResponse& Response);
+	void HandleMatchJoinResponse(const BackendHttp::FResponse& Response);
 	void FinishMatchJoin(bool bSucceeded, const FString& ErrorMessage);
-	void HandleProfileResponse(const PdBackendHttp::FResponse& Response);
-	void HandleBossRaidStatusResponse(const PdBackendHttp::FResponse& Response);
-	void HandleBossRaidClaimResponse(const PdBackendHttp::FResponse& Response);
-	void HandleBossRaidStandingResponse(const PdBackendHttp::FResponse& Response);
+	void HandleProfileResponse(const BackendHttp::FResponse& Response);
+	void HandleBossRaidStatusResponse(const BackendHttp::FResponse& Response);
+	void HandleBossRaidClaimResponse(const BackendHttp::FResponse& Response);
+	void HandleBossRaidStandingResponse(const BackendHttp::FResponse& Response);
 	void ReadBossRaidStatus(const FJsonObject& Json);
 	void SetBossRaidOpen(bool bOpen);
 	void HandleUnauthorized();

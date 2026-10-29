@@ -1,7 +1,7 @@
 #include "AbilitySystem/Cues/ShieldUpGameplayCue.h"
 
 #include "Character/CharacterBase.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInterface.h"
@@ -11,7 +11,7 @@
 
 AShieldUpGameplayCue::AShieldUpGameplayCue()
 {
-	GameplayCueTag = LabGameplayTags::GameplayCue_ShieldUp;
+	GameplayCueTag = PdGameplayTags::GameplayCue_ShieldUp;
 	bAutoDestroyOnRemove = true;
 }
 

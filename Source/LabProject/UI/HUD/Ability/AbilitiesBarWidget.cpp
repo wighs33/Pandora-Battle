@@ -8,7 +8,7 @@
 #include "Definition/Player/ControllerInputDefinition.h"
 #include "Abilities/GameplayAbility.h"
 #include "Abilities/GameplayAbilityTypes.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/TextBlock.h"
@@ -320,7 +320,7 @@ bool UAbilitiesBarWidget::ShouldShowAbilityHandle(UAbilitySystemComponent* Abili
 	}
 	const USkillDefinition* SourceSkill = ResolveSourceSkillDataAsset(AbilitySpec);
 	// 판도라 스킬은 선택된 판도라의 전용 슬롯에서 표시한다.
-	return SourceSkill && !AbilitySpec->GetDynamicSpecSourceTags().HasTagExact(LabGameplayTags::Ability_Source_Pandora);
+	return SourceSkill && !AbilitySpec->GetDynamicSpecSourceTags().HasTagExact(PdGameplayTags::Ability_Source_Pandora);
 }
 
 UAbilitySystemComponent* UAbilitiesBarWidget::GetOwningAbilitySystemComponent() const
@@ -409,13 +409,13 @@ FGameplayAbilitySpecHandle UAbilitiesBarWidget::FindAbilitySpecHandleForSkill(
 	switch (SkillIndex)
 	{
 	case 0:
-		SkillInputTag = LabGameplayTags::Input_Ability_Skill1;
+		SkillInputTag = PdGameplayTags::Input_Ability_Skill1;
 		break;
 	case 1:
-		SkillInputTag = LabGameplayTags::Input_Ability_Skill2;
+		SkillInputTag = PdGameplayTags::Input_Ability_Skill2;
 		break;
 	case 2:
-		SkillInputTag = LabGameplayTags::Input_Ability_Skill3;
+		SkillInputTag = PdGameplayTags::Input_Ability_Skill3;
 		break;
 	default:
 		break;

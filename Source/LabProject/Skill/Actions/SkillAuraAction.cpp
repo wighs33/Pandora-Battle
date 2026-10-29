@@ -5,7 +5,7 @@
 #include "Definition/AbilitySystem/SkillDefinition.h"
 #include "AbilitySystemComponent.h"
 #include "Character/CharacterBase.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Common/ComponentLookup.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/PrimitiveComponent.h"
@@ -70,7 +70,7 @@ float ResolveGroundEffectZOffset(const FAuraSkillConfig& AuraConfig)
 
 USkillAuraAction::USkillAuraAction()
 {
-	Healing.TeamHealEffect.MagnitudeDataTag = LabGameplayTags::Data_Heal;
+	Healing.TeamHealEffect.MagnitudeDataTag = PdGameplayTags::Data_Heal;
 }
 
 void USkillAuraAction::OnStart()
@@ -371,7 +371,7 @@ float USkillAuraAction::ResolveHealFieldRadius(ACharacterBase* SourceCharacter, 
 
 	const FAuraSkillConfig* AuraConfig = &Settings;
 	UPrimitiveComponent* HealComponent = AuraConfig
-		? PdComponentLookup::FindByNameOrTag<UPrimitiveComponent>(SourceCharacter, Healing.HealingInteractionComponentName)
+		? ComponentLookup::FindByNameOrTag<UPrimitiveComponent>(SourceCharacter, Healing.HealingInteractionComponentName)
 		: nullptr;
 	return HealComponent ? FMath::Max(HealComponent->Bounds.SphereRadius, 0.0f) : 0.0f;
 }

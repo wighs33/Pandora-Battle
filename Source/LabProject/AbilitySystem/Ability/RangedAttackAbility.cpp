@@ -7,7 +7,7 @@
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
 #include "Character/CharacterBase.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
@@ -26,13 +26,13 @@ URangedAttackAbility::URangedAttackAbility(const FObjectInitializer& ObjectIniti
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
 
 	FGameplayTagContainer AbilityAssetTags;
-	AbilityAssetTags.AddTag(LabGameplayTags::Action_RangedAttack);
+	AbilityAssetTags.AddTag(PdGameplayTags::Action_RangedAttack);
 	SetAssetTags(AbilityAssetTags);
-	ActivationBlockedTags.AddTag(LabGameplayTags::State_Movement_Airborne);
+	ActivationBlockedTags.AddTag(PdGameplayTags::State_Movement_Airborne);
 	bRequiresGroundedAvatar = true;
 
-	AttackTraceStartEventTag = LabGameplayTags::Notifier_Attack_ComboInputOpen;
-	AttackTraceEndEventTag = LabGameplayTags::Notifier_Attack_ComboInputClose;
+	AttackTraceStartEventTag = PdGameplayTags::Notifier_Attack_ComboInputOpen;
+	AttackTraceEndEventTag = PdGameplayTags::Notifier_Attack_ComboInputClose;
 }
 
 // State helpers

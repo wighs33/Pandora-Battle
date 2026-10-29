@@ -1,7 +1,7 @@
 #include "Provision/DefaultPlayerProvisioner.h"
 
 #include "Character/CharacterBase.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Component/AbilitySystem/PandoraTreeComponent.h"
 #include "Component/Item/InventoryComponent.h"
 #include "Component/Pandora/PandoraComponent.h"
@@ -66,7 +66,7 @@ namespace
 		}
 		for (const FDefaultProvisionGestureSlotGrant& Grant : Definition.GetGestureGrants())
 		{
-			if (Grant.SkinDefinitionId.IsValid() && LabGameplayTags::GetGestureSlotTag(Grant.GestureSlotIndex).IsValid())
+			if (Grant.SkinDefinitionId.IsValid() && PdGameplayTags::GetGestureSlotTag(Grant.GestureSlotIndex).IsValid())
 			{
 				OutContentIds.AddUnique(Grant.SkinDefinitionId);
 			}
@@ -169,8 +169,8 @@ namespace
 		}
 
 		const UProjectTagDefinition* TagConfig = UProjectTagDefinition::GetDefaultDefinition();
-		const FGameplayTag WeaponTypeTag = TagConfig ? TagConfig->GetItemWeaponTypeTag() : LabGameplayTags::Item_Weapon;
-		const FGameplayTag EquipmentTypeTag = TagConfig ? TagConfig->GetItemEquipmentTypeTag() : LabGameplayTags::Item_Equipment;
+		const FGameplayTag WeaponTypeTag = TagConfig ? TagConfig->GetItemWeaponTypeTag() : PdGameplayTags::Item_Weapon;
+		const FGameplayTag EquipmentTypeTag = TagConfig ? TagConfig->GetItemEquipmentTypeTag() : PdGameplayTags::Item_Equipment;
 
 		UAssetManager& AssetManager = UAssetManager::Get();
 		TArray<FPrimaryAssetId> AllItemDefinitionIds;
@@ -603,7 +603,7 @@ UDefaultPlayerProvisioner::EProvisionStepResult UDefaultPlayerProvisioner::Apply
 	UAssetManager& AssetManager = UAssetManager::Get();
 	for (const FDefaultProvisionGestureSlotGrant& Grant : Definition->GetGestureGrants())
 	{
-		const FGameplayTag SlotTag = LabGameplayTags::GetGestureSlotTag(Grant.GestureSlotIndex);
+		const FGameplayTag SlotTag = PdGameplayTags::GetGestureSlotTag(Grant.GestureSlotIndex);
 		USkinDefinition* SkinDefinition = Grant.SkinDefinitionId.IsValid() && SlotTag.IsValid()
 			? Cast<USkinDefinition>(AssetManager.GetPrimaryAssetObject(Grant.SkinDefinitionId))
 			: nullptr;

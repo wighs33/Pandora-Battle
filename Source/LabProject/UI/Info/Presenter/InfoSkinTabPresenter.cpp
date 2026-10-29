@@ -1,7 +1,7 @@
 #include "UI/Info/Presenter/InfoSkinTabPresenter.h"
 
 #include "Character/PdPlayer.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Components/TileView.h"
 #include "Component/Skin/SkinComponent.h"
 #include "Component/Skin/SkinEquipmentComponent.h"
@@ -38,7 +38,7 @@ void AppendSkinListAsObjects(const FSkinList& SkinList, TArray<UObject*>& OutLis
 
 FGameplayTag ResolveSkinDefinitionMatchTag(const FGameplayTag SlotOrFilterTag)
 {
-	return SlotOrFilterTag.MatchesTag(LabGameplayTags::Skin_Gesture) ? LabGameplayTags::Skin_Gesture : SlotOrFilterTag;
+	return SlotOrFilterTag.MatchesTag(PdGameplayTags::Skin_Gesture) ? PdGameplayTags::Skin_Gesture : SlotOrFilterTag;
 }
 }
 

@@ -3,7 +3,7 @@
 #include "AbilitySystemComponent.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Character/PdPlayer.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Data/ContentDataSubsystem.h"
 #include "Data/ContentLease.h"
 #include "EnhancedInputComponent.h"
@@ -222,7 +222,7 @@ void UControllerInputComponent::RemoveAppliedInputDefinition()
 	{
 		if (UPdAbilitySystemComponent* AbilitySystemComponent = PlayerCharacter->GetPdAbilitySystemComponent())
 		{
-			AbilitySystemComponent->HandleAbilityInputReleased(LabGameplayTags::Input_Ability_Movement_Grapple);
+			AbilitySystemComponent->HandleAbilityInputReleased(PdGameplayTags::Input_Ability_Movement_Grapple);
 		}
 	}
 
@@ -291,7 +291,7 @@ bool UControllerInputComponent::CanSwapPandoraAndWeapon(APdPlayer* PlayerCharact
 
 	const UAbilitySystemComponent* AbilitySystemComponent = PlayerCharacter->GetAbilitySystemComponent();
 	return !AbilitySystemComponent
-		|| !AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::Cooldown_EquipWeapon);
+		|| !AbilitySystemComponent->HasMatchingGameplayTag(PdGameplayTags::Cooldown_EquipWeapon);
 }
 
 void UControllerInputComponent::BindNativeInputActions(UEnhancedInputComponent& EnhancedInputComponent,
@@ -344,7 +344,7 @@ void UControllerInputComponent::BindNativeInputActions(UEnhancedInputComponent& 
 	BindPressAndRelease(Action(Definition.GetAttackInputAction()), &ThisClass::HandleAttackInputStarted, &ThisClass::HandleAttackInputEnded);
 	BindPressAndRelease(Action(Definition.GetAimInputAction()), &ThisClass::HandleAimInputStarted, &ThisClass::HandleAimInputEnded);
 	BindPressAndRelease(Action(Definition.GetGrappleInputAction()),
-		&ThisClass::HandleAbilityInputStarted, &ThisClass::HandleAbilityInputEnded, LabGameplayTags::Input_Ability_Movement_Grapple);
+		&ThisClass::HandleAbilityInputStarted, &ThisClass::HandleAbilityInputEnded, PdGameplayTags::Input_Ability_Movement_Grapple);
 
 	Bind(ActionWhilePaused(Definition.GetOpenInfoProfileInputAction()), ETriggerEvent::Started, &ThisClass::HandleOpenInfoInputStarted, EInfoUiSection::Profile);
 	Bind(ActionWhilePaused(Definition.GetOpenInfoItemInputAction()), ETriggerEvent::Started, &ThisClass::HandleOpenInfoInputStarted, EInfoUiSection::Item);
@@ -362,13 +362,13 @@ void UControllerInputComponent::BindNativeInputActions(UEnhancedInputComponent& 
 	Bind(Action(Definition.GetChatScrollInputAction()), ETriggerEvent::Triggered, &ThisClass::HandleChatScrollInputTriggered);
 
 	BindPressAndRelease(Action(Definition.GetSkill1InputAction()),
-		&ThisClass::HandleAbilityInputStarted, &ThisClass::HandleAbilityInputEnded, LabGameplayTags::Input_Ability_Skill1);
+		&ThisClass::HandleAbilityInputStarted, &ThisClass::HandleAbilityInputEnded, PdGameplayTags::Input_Ability_Skill1);
 	BindPressAndRelease(Action(Definition.GetSkill2InputAction()),
-		&ThisClass::HandleAbilityInputStarted, &ThisClass::HandleAbilityInputEnded, LabGameplayTags::Input_Ability_Skill2);
+		&ThisClass::HandleAbilityInputStarted, &ThisClass::HandleAbilityInputEnded, PdGameplayTags::Input_Ability_Skill2);
 	BindPressAndRelease(Action(Definition.GetSkill3InputAction()),
-		&ThisClass::HandleAbilityInputStarted, &ThisClass::HandleAbilityInputEnded, LabGameplayTags::Input_Ability_Skill3);
+		&ThisClass::HandleAbilityInputStarted, &ThisClass::HandleAbilityInputEnded, PdGameplayTags::Input_Ability_Skill3);
 	BindPressAndRelease(Action(Definition.GetSkill4InputAction()),
-		&ThisClass::HandleAbilityInputStarted, &ThisClass::HandleAbilityInputEnded, LabGameplayTags::Input_Ability_Skill4);
+		&ThisClass::HandleAbilityInputStarted, &ThisClass::HandleAbilityInputEnded, PdGameplayTags::Input_Ability_Skill4);
 	Bind(Action(Definition.GetQuickSlot1InputAction()), ETriggerEvent::Started, &ThisClass::HandleQuickSlotInputStarted, 0);
 	Bind(Action(Definition.GetQuickSlot2InputAction()), ETriggerEvent::Started, &ThisClass::HandleQuickSlotInputStarted, 1);
 	Bind(Action(Definition.GetQuickSlot3InputAction()), ETriggerEvent::Started, &ThisClass::HandleQuickSlotInputStarted, 2);
@@ -754,9 +754,9 @@ void UControllerInputComponent::ReleaseGameplayInput()
 		Character->ConsumeMovementInputVector();
 		if (UPdAbilitySystemComponent* AbilitySystem = Character->GetPdAbilitySystemComponent())
 		{
-			const FGameplayTag InputTags[] = {LabGameplayTags::Input_Ability_Movement_Grapple,
-				LabGameplayTags::Input_Ability_Skill1, LabGameplayTags::Input_Ability_Skill2,
-				LabGameplayTags::Input_Ability_Skill3, LabGameplayTags::Input_Ability_Skill4};
+			const FGameplayTag InputTags[] = {PdGameplayTags::Input_Ability_Movement_Grapple,
+				PdGameplayTags::Input_Ability_Skill1, PdGameplayTags::Input_Ability_Skill2,
+				PdGameplayTags::Input_Ability_Skill3, PdGameplayTags::Input_Ability_Skill4};
 			for (const FGameplayTag Tag : InputTags)
 			{
 				AbilitySystem->HandleAbilityInputReleased(Tag);

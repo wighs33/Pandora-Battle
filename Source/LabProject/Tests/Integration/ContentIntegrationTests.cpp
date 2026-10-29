@@ -40,8 +40,8 @@ bool FPdContentLeaseLifecycleTest::RunTest(const FString& Parameters)
 	Counts->EmptyLease = UContentDataSubsystem::AcquireContent({}, FSimpleDelegate::CreateLambda([Counts]() { ++Counts->Empty; }));
 	TestEqual(TEXT("빈 요청의 완료는 lease를 돌려받기 전에 오지 않는다"), Counts->Empty, 0);
 
-	PdIntegrationTest::WaitUntil(this, TEXT("lease 완료 콜백"), 15.f, [Counts]() { return Counts->Loaded > 0 && Counts->Empty > 0; });
-	PdIntegrationTest::Step(0.5f, [this, Counts]()
+	IntegrationTest::WaitUntil(this, TEXT("lease 완료 콜백"), 15.f, [Counts]() { return Counts->Loaded > 0 && Counts->Empty > 0; });
+	IntegrationTest::Step(0.5f, [this, Counts]()
 	{
 		TestTrue(TEXT("완료된 lease는 준비 상태다"), Counts->LoadedLease.IsValid() && Counts->LoadedLease->IsReady());
 		TestNotNull(TEXT("lease가 붙잡은 애셋이 메모리에 있다"), FSoftObjectPath(LeaseAssetPath).ResolveObject());
@@ -76,7 +76,7 @@ bool FPdPreviewWorldEnemyLoadTest::RunTest(const FString& Parameters)
 	}
 
 	// 정의 로딩은 비동기라, 완료 콜백이 돌 때까지 미리보기 월드를 살려 둔다.
-	PdIntegrationTest::Step(3.f, [Scene]() {});
+	IntegrationTest::Step(3.f, [Scene]() {});
 	return true;
 }
 

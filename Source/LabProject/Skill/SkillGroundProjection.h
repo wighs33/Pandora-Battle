@@ -6,7 +6,7 @@
 class AActor;
 class UWorld;
 
-namespace PdSkillGroundProjection
+namespace SkillGroundProjection
 {
 	struct FGroundProjectionResult
 	{

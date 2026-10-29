@@ -1,6 +1,6 @@
 #include "UI/Core/PdUIActionRouter.h"
 
-#include "Common/PdTicker.h"
+#include "Common/Ticker.h"
 #include "Component/Player/ControllerInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "UI/Core/GameplayScreen.h"
@@ -60,7 +60,7 @@ void UPdUIActionRouter::SetActiveRoot(FActivatableTreeRootPtr NewActiveRoot)
 	Super::SetActiveRoot(NewActiveRoot);
 	// UE 5.8은 Slate root 제거를 마친 뒤 ActiveInputConfig를 비운다.
 	// 그 정리가 끝난 다음 틱에 기본 정책을 복원한다. 게임 중 기본 화면으로 돌아온 때도 채팅 포커스를 되돌리려고 같은 길을 쓴다.
-	PdTicker::RunNextTick(this, [this]()
+	Ticker::RunNextTick(this, [this]()
 	{
 		if (IsDefaultScreenActive())
 		{

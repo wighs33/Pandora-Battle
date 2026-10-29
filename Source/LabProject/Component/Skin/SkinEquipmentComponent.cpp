@@ -6,7 +6,7 @@
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
 #include "Character/CharacterBase.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Data/ContentDataSubsystem.h"
@@ -116,7 +116,7 @@ bool USkinEquipmentComponent::RequestEquipSkinDefinition(const USkinDefinition* 
 // 서버가 장착한 제스처와 현재 행동 상태를 확인한 뒤 재생을 승인한다.
 bool USkinEquipmentComponent::RequestPlayGestureSlot(const int32 GestureSlotIndex)
 {
-	const FGameplayTag SlotTag = LabGameplayTags::GetGestureSlotTag(GestureSlotIndex);
+	const FGameplayTag SlotTag = PdGameplayTags::GetGestureSlotTag(GestureSlotIndex);
 	const USkinDefinition* Definition = GetEquippedSkinDefinition(SlotTag);
 	UAnimMontage* Montage = Definition ? Definition->GestureMontage.Get() : nullptr;
 	if (!SlotTag.IsValid() || !Montage || !CanPlayGesture() || !TryConsumeGesturePlayRequest())
@@ -261,7 +261,7 @@ bool USkinEquipmentComponent::CanEquipSkinDefinition(const USkinDefinition* Skin
 		return false;
 	}
 
-	const FGameplayTag RequiredSkinTag = SlotTag.MatchesTag(LabGameplayTags::Skin_Gesture)
+	const FGameplayTag RequiredSkinTag = SlotTag.MatchesTag(PdGameplayTags::Skin_Gesture)
 		? UProjectTagDefinition::Get(this)->GetSkinGestureTypeTag()
 		: SlotTag;
 	if (!SkinDefinition->IdTag.MatchesTag(RequiredSkinTag))
@@ -682,8 +682,8 @@ bool USkinEquipmentComponent::CanPlayGesture() const
 	const ACharacterBase* Character = GetCharacterOwner();
 	const UAbilitySystemComponent* ASC = Character ? Character->GetAbilitySystemComponent() : nullptr;
 	if (bEndingPlay || !Character || !ASC || Character->IsStatusFrozen()
-		|| ASC->HasMatchingGameplayTag(LabGameplayTags::State_Dead)
-		|| ASC->HasMatchingGameplayTag(LabGameplayTags::GameplayAbility_Active))
+		|| ASC->HasMatchingGameplayTag(PdGameplayTags::State_Dead)
+		|| ASC->HasMatchingGameplayTag(PdGameplayTags::GameplayAbility_Active))
 	{
 		return false;
 	}

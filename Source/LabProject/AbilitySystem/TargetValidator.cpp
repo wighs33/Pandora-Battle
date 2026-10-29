@@ -108,7 +108,7 @@ namespace
 	}
 }
 
-bool PdTargetValidator::TryResolveTargetDataLocation(const FHitResult& ClientHitResult,
+bool TargetValidator::TryResolveTargetDataLocation(const FHitResult& ClientHitResult,
 	const FVector& TargetDataEndPoint, FVector& OutRequestedLocation)
 {
 	if (ClientHitResult.bBlockingHit && IsFiniteVector(ClientHitResult.ImpactPoint))
@@ -132,7 +132,7 @@ bool PdTargetValidator::TryResolveTargetDataLocation(const FHitResult& ClientHit
 	return false;
 }
 
-bool PdTargetValidator::TryResolveAuthorityTargetRequest(const AActor* AvatarActor, const FHitResult& ClientHitResult,
+bool TargetValidator::TryResolveAuthorityTargetRequest(const AActor* AvatarActor, const FHitResult& ClientHitResult,
 	const FVector& TargetDataEndPoint, FVector& OutRequestedLocation)
 {
 	if (!AvatarActor || !AvatarActor->HasAuthority() || !AvatarActor->GetWorld())
@@ -143,7 +143,7 @@ bool PdTargetValidator::TryResolveAuthorityTargetRequest(const AActor* AvatarAct
 	return TryResolveTargetDataLocation(ClientHitResult, TargetDataEndPoint, OutRequestedLocation);
 }
 
-bool PdTargetValidator::ValidateClientTraceRequest(const AActor* AuthoritySourceActor,
+bool TargetValidator::ValidateClientTraceRequest(const AActor* AuthoritySourceActor,
 	const FHitResult& ClientHitResult, const FTraceRequestValidationParams& Params,
 	FValidatedTraceView& OutValidatedView)
 {
@@ -177,7 +177,7 @@ bool PdTargetValidator::ValidateClientTraceRequest(const AActor* AuthoritySource
 	return true;
 }
 
-bool PdTargetValidator::ValidateGroundTarget(UWorld* World, AActor* AuthoritySourceActor,
+bool TargetValidator::ValidateGroundTarget(UWorld* World, AActor* AuthoritySourceActor,
 	const FVector& AuthoritySourceLocation, const FVector& RequestedLocation,
 	const FGroundTargetValidationParams& Params, FValidatedGroundTarget& OutValidatedTarget)
 {
@@ -193,10 +193,10 @@ bool PdTargetValidator::ValidateGroundTarget(UWorld* World, AActor* AuthoritySou
 	}
 
 	TArray<AActor*> ActorsToIgnore;
-	PdSkillGroundProjection::AddIgnoredActorAndAttachments(ActorsToIgnore, AuthoritySourceActor);
+	SkillGroundProjection::AddIgnoredActorAndAttachments(ActorsToIgnore, AuthoritySourceActor);
 
-	PdSkillGroundProjection::FGroundProjectionResult GroundResult;
-	if (!PdSkillGroundProjection::TryProjectToGround(World, RequestedLocation, Params.GroundTraceType,
+	SkillGroundProjection::FGroundProjectionResult GroundResult;
+	if (!SkillGroundProjection::TryProjectToGround(World, RequestedLocation, Params.GroundTraceType,
 		Params.GroundTraceStartHeight, Params.GroundTraceDepth, ActorsToIgnore, GroundResult)
 		|| !IsFiniteVector(GroundResult.Location) || !IsFiniteVector(GroundResult.Normal)
 		|| !IsWithinRange(AuthoritySourceLocation, GroundResult.Location, Params.MaxRange, Params.RangeTolerance)
@@ -213,7 +213,7 @@ bool PdTargetValidator::ValidateGroundTarget(UWorld* World, AActor* AuthoritySou
 	return true;
 }
 
-bool PdTargetValidator::ValidatePointTarget(UWorld* World, AActor* AuthoritySourceActor,
+bool TargetValidator::ValidatePointTarget(UWorld* World, AActor* AuthoritySourceActor,
 	const FVector& AuthorityRangeOrigin, const FVector& AuthorityTraceStart, const FVector& RequestedLocation,
 	const FPointTargetValidationParams& Params, FValidatedPointTarget& OutValidatedTarget)
 {
@@ -229,7 +229,7 @@ bool PdTargetValidator::ValidatePointTarget(UWorld* World, AActor* AuthoritySour
 	}
 
 	TArray<AActor*> ActorsToIgnore;
-	PdSkillGroundProjection::AddIgnoredActorAndAttachments(ActorsToIgnore, AuthoritySourceActor);
+	SkillGroundProjection::AddIgnoredActorAndAttachments(ActorsToIgnore, AuthoritySourceActor);
 
 	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(ServerPointTargetLineOfSight), false);
 	for (AActor* ActorToIgnore : ActorsToIgnore)

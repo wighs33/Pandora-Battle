@@ -88,7 +88,7 @@ FName FSkillProjectileGrowth::GetNiagaraParameterName() const
 		: FName(*FString::Printf(TEXT("User.%s"), *RawName));
 }
 
-void PdSkillProjectilePresentation::ApplyLoopEffect(UNiagaraComponent* Effect, UNiagaraSystem* DesiredSystem)
+void SkillProjectilePresentation::ApplyLoopEffect(UNiagaraComponent* Effect, UNiagaraSystem* DesiredSystem)
 {
 	if (!Effect)
 	{
@@ -115,7 +115,7 @@ void PdSkillProjectilePresentation::ApplyLoopEffect(UNiagaraComponent* Effect, U
 	Effect->Activate(true);
 }
 
-void PdSkillProjectilePresentation::ExecuteCue(AActor& Projectile, const FGameplayTag CueTag, const FVector& Location)
+void SkillProjectilePresentation::ExecuteCue(AActor& Projectile, const FGameplayTag CueTag, const FVector& Location)
 {
 	if (!CueTag.IsValid())
 	{
@@ -129,7 +129,7 @@ void PdSkillProjectilePresentation::ExecuteCue(AActor& Projectile, const FGamepl
 	UGameplayCueFunctionLibrary::ExecuteGameplayCueOnActor(&Projectile, CueTag, Parameters);
 }
 
-void PdSkillProjectilePresentation::SpawnImpactEffect(AActor& Projectile, UNiagaraSystem* HitEffect,
+void SkillProjectilePresentation::SpawnImpactEffect(AActor& Projectile, UNiagaraSystem* HitEffect,
 	const FVector& Location, const bool bOnGround)
 {
 	if (!HitEffect)
@@ -142,7 +142,7 @@ void PdSkillProjectilePresentation::SpawnImpactEffect(AActor& Projectile, UNiaga
 		SpawnTransform.GetRotation().Rotator());
 }
 
-void PdSkillProjectilePresentation::SetNiagaraVector2D(const AActor& Projectile, const FName ParameterName, const FVector2D Value)
+void SkillProjectilePresentation::SetNiagaraVector2D(const AActor& Projectile, const FName ParameterName, const FVector2D Value)
 {
 	if (ParameterName.IsNone())
 	{

@@ -20,7 +20,7 @@ struct FAwsCredentials
  * 서명만 필요해 AWS C++ SDK를 넣지 않고 SHA-256·HMAC을 직접 구현했으며, 단위 테스트가
  * SHA-256 패딩 경계 벡터와 AWS 서명 예제로 검증한다(Tests/Unit/ProtocolTests.cpp).
  */
-namespace PdAwsSigV4
+namespace AwsSigV4
 {
 	using FDigest = TStaticArray<uint8, 32>;
 

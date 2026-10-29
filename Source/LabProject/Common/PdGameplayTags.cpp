@@ -1,6 +1,6 @@
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 
-namespace LabGameplayTags
+namespace PdGameplayTags
 {
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Source_Pandora, "Ability.Source.Pandora", "Ability granted by a Pandora; source identity must be available before execution.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Pandora_Selected, "Ability.Pandora.Selected", "The selected Pandora may start new casts; deselection does not end existing casts.");
@@ -218,7 +218,7 @@ namespace LabGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Agility_ArcaneLevel, "Status.Agility.ArcaneLevel", "Arcane investment level tag.");
 }
 
-FGameplayTag LabGameplayTags::GetGestureSlotTag(const int32 GestureSlotIndex)
+FGameplayTag PdGameplayTags::GetGestureSlotTag(const int32 GestureSlotIndex)
 {
 	switch (GestureSlotIndex)
 	{

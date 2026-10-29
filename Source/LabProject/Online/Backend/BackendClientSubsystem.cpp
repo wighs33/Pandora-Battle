@@ -95,7 +95,7 @@ namespace
 		TEXT("pd.Backend.JoinMatch [bossraid]: ask the backend for a GameLift game session (PvP match, or the boss raid) and travel to it."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
 		{
-			const bool bBossRaid = Args.Num() > 0 && Args[0].Equals(LabGameSession::BossRaidSessionMode, ESearchCase::IgnoreCase);
+			const bool bBossRaid = Args.Num() > 0 && Args[0].Equals(PdGameSession::BossRaidSessionMode, ESearchCase::IgnoreCase);
 			if (UBackendClientSubsystem* Backend = FindBackendClient(World))
 			{
 				Backend->JoinOnlineMatch(bBossRaid ? EOnlineMatchMode::BossRaid : EOnlineMatchMode::Match);
@@ -197,12 +197,12 @@ void UBackendClientSubsystem::SendLoginRequest(const TCHAR* Path, const TSharedR
 		return;
 	}
 
-	PdBackendHttp::Send(
-		PdBackendHttp::CreateJsonRequest(TEXT("POST"), Url, Body, Settings->GetClientRequestTimeoutSeconds()),
-		PdBackendHttp::FOnResponse::CreateUObject(this, &ThisClass::HandleLoginResponse));
+	BackendHttp::Send(
+		BackendHttp::CreateJsonRequest(TEXT("POST"), Url, Body, Settings->GetClientRequestTimeoutSeconds()),
+		BackendHttp::FOnResponse::CreateUObject(this, &ThisClass::HandleLoginResponse));
 }
 
-void UBackendClientSubsystem::HandleLoginResponse(const PdBackendHttp::FResponse& Response)
+void UBackendClientSubsystem::HandleLoginResponse(const BackendHttp::FResponse& Response)
 {
 	const FString Token = GetStringField(Response.Json, TEXT("token"));
 	if (!Response.bSucceeded || Token.IsEmpty())
@@ -265,7 +265,7 @@ TSharedPtr<IHttpRequest, ESPMode::ThreadSafe> UBackendClientSubsystem::CreateAut
 		return nullptr;
 	}
 	const TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request =
-		PdBackendHttp::CreateJsonRequest(Verb, Url, nullptr, Settings->GetClientRequestTimeoutSeconds());
+		BackendHttp::CreateJsonRequest(Verb, Url, nullptr, Settings->GetClientRequestTimeoutSeconds());
 	Request->SetHeader(TEXT("Authorization"), TEXT("Bearer ") + SessionToken);
 	return Request;
 }
@@ -307,21 +307,21 @@ void UBackendClientSubsystem::SendMatchJoinRequest()
 
 	const TSharedRef<FJsonObject> Body = MakeShared<FJsonObject>();
 	Body->SetStringField(TEXT("mode"), PendingMatchMode == EOnlineMatchMode::BossRaid
-		? LabGameSession::BossRaidSessionMode
-		: LabGameSession::MatchSessionMode);
-	const TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = PdBackendHttp::CreateJsonRequest(
+		? PdGameSession::BossRaidSessionMode
+		: PdGameSession::MatchSessionMode);
+	const TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = BackendHttp::CreateJsonRequest(
 		TEXT("POST"), Url, Body, Settings->GetClientRequestTimeoutSeconds());
 	Request->SetHeader(TEXT("Authorization"), TEXT("Bearer ") + SessionToken);
-	PdBackendHttp::Send(Request, PdBackendHttp::FOnResponse::CreateUObject(this, &ThisClass::HandleMatchJoinResponse));
+	BackendHttp::Send(Request, BackendHttp::FOnResponse::CreateUObject(this, &ThisClass::HandleMatchJoinResponse));
 }
 
-void UBackendClientSubsystem::HandleMatchJoinResponse(const PdBackendHttp::FResponse& Response)
+void UBackendClientSubsystem::HandleMatchJoinResponse(const BackendHttp::FResponse& Response)
 {
 	if (Response.StatusCode == 401)
 	{
 		HandleUnauthorized();
 	}
-	if (!Response.bSucceeded && Response.ErrorCode == PdBackendHttp::ErrorCodes::SessionTimeout
+	if (!Response.bSucceeded && Response.ErrorCode == BackendHttp::ErrorCodes::SessionTimeout
 		&& MatchJoinTimeoutRetries < MaxMatchJoinTimeoutRetries)
 	{
 		++MatchJoinTimeoutRetries;
@@ -333,12 +333,12 @@ void UBackendClientSubsystem::HandleMatchJoinResponse(const PdBackendHttp::FResp
 	if (!Response.bSucceeded)
 	{
 		LastMatchJoinErrorCode = Response.ErrorCode;
-		if (Response.ErrorCode == PdBackendHttp::ErrorCodes::BossRaidClosed)
+		if (Response.ErrorCode == BackendHttp::ErrorCodes::BossRaidClosed)
 		{
 			// 타이틀에서 개최 여부를 받은 뒤에 레이드가 닫혔다.
 			SetBossRaidOpen(false);
 		}
-		else if (Response.ErrorCode == PdBackendHttp::ErrorCodes::NoAttemptsLeft)
+		else if (Response.ErrorCode == BackendHttp::ErrorCodes::NoAttemptsLeft)
 		{
 			BossRaidStanding.bReceived = true;
 			BossRaidStanding.AttemptsLeft = 0;
@@ -364,7 +364,7 @@ void UBackendClientSubsystem::HandleMatchJoinResponse(const PdBackendHttp::FResp
 
 	const FString TravelUrl = FString::Printf(TEXT("%s:%d?PlayerSessionId=%s"), *Address, Port, *PlayerSessionId);
 	UE_LOG(LogBackendClient, Log, TEXT("Joining GameLift %s session at %s:%d"),
-		PendingMatchMode == EOnlineMatchMode::BossRaid ? LabGameSession::BossRaidSessionMode : LabGameSession::MatchSessionMode,
+		PendingMatchMode == EOnlineMatchMode::BossRaid ? PdGameSession::BossRaidSessionMode : PdGameSession::MatchSessionMode,
 		*Address, Port);
 	PlayerController->ClientTravel(TravelUrl, TRAVEL_Absolute);
 	if (PendingMatchMode == EOnlineMatchMode::BossRaid)
@@ -396,12 +396,12 @@ void UBackendClientSubsystem::RequestMyProfile()
 	}
 
 	const TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request =
-		PdBackendHttp::CreateJsonRequest(TEXT("GET"), Url, nullptr, Settings->GetClientRequestTimeoutSeconds());
+		BackendHttp::CreateJsonRequest(TEXT("GET"), Url, nullptr, Settings->GetClientRequestTimeoutSeconds());
 	Request->SetHeader(TEXT("Authorization"), TEXT("Bearer ") + SessionToken);
-	PdBackendHttp::Send(Request, PdBackendHttp::FOnResponse::CreateUObject(this, &ThisClass::HandleProfileResponse));
+	BackendHttp::Send(Request, BackendHttp::FOnResponse::CreateUObject(this, &ThisClass::HandleProfileResponse));
 }
 
-void UBackendClientSubsystem::HandleProfileResponse(const PdBackendHttp::FResponse& Response)
+void UBackendClientSubsystem::HandleProfileResponse(const BackendHttp::FResponse& Response)
 {
 	if (Response.StatusCode == 401)
 	{
@@ -466,13 +466,13 @@ void UBackendClientSubsystem::RequestBossRaidStatus()
 		return;
 	}
 
-	PdBackendHttp::Send(
-		PdBackendHttp::CreateJsonRequest(TEXT("GET"), Url, nullptr, Settings->GetClientRequestTimeoutSeconds()),
-		PdBackendHttp::FOnResponse::CreateUObject(this, &ThisClass::HandleBossRaidStatusResponse));
+	BackendHttp::Send(
+		BackendHttp::CreateJsonRequest(TEXT("GET"), Url, nullptr, Settings->GetClientRequestTimeoutSeconds()),
+		BackendHttp::FOnResponse::CreateUObject(this, &ThisClass::HandleBossRaidStatusResponse));
 }
 
 // 답을 받지 못하면 마지막 값을 그대로 둔다. 참가 요청은 백엔드가 다시 확인한다.
-void UBackendClientSubsystem::HandleBossRaidStatusResponse(const PdBackendHttp::FResponse& Response)
+void UBackendClientSubsystem::HandleBossRaidStatusResponse(const BackendHttp::FResponse& Response)
 {
 	if (!Response.bSucceeded || !Response.Json.IsValid() || !Response.Json->HasTypedField<EJson::Boolean>(TEXT("open")))
 	{
@@ -524,13 +524,13 @@ void UBackendClientSubsystem::RefreshBossRaidStanding()
 			bBossRaidStandingInProgress = false;
 			return;
 		}
-		PdBackendHttp::Send(Request.ToSharedRef(),
-			PdBackendHttp::FOnResponse::CreateUObject(this, &ThisClass::HandleBossRaidClaimResponse));
+		BackendHttp::Send(Request.ToSharedRef(),
+			BackendHttp::FOnResponse::CreateUObject(this, &ThisClass::HandleBossRaidClaimResponse));
 	});
 }
 
 // 백엔드는 받았다고 기록한 뒤에 골드를 돌려주므로 바로 로컬 프로필에 더한다. 요청이 실패하면 다음에 다시 받는다.
-void UBackendClientSubsystem::HandleBossRaidClaimResponse(const PdBackendHttp::FResponse& Response)
+void UBackendClientSubsystem::HandleBossRaidClaimResponse(const BackendHttp::FResponse& Response)
 {
 	if (Response.StatusCode == 401)
 	{
@@ -557,11 +557,11 @@ void UBackendClientSubsystem::HandleBossRaidClaimResponse(const PdBackendHttp::F
 		bBossRaidStandingInProgress = false;
 		return;
 	}
-	PdBackendHttp::Send(Request.ToSharedRef(),
-		PdBackendHttp::FOnResponse::CreateUObject(this, &ThisClass::HandleBossRaidStandingResponse));
+	BackendHttp::Send(Request.ToSharedRef(),
+		BackendHttp::FOnResponse::CreateUObject(this, &ThisClass::HandleBossRaidStandingResponse));
 }
 
-void UBackendClientSubsystem::HandleBossRaidStandingResponse(const PdBackendHttp::FResponse& Response)
+void UBackendClientSubsystem::HandleBossRaidStandingResponse(const BackendHttp::FResponse& Response)
 {
 	bBossRaidStandingInProgress = false;
 	if (Response.StatusCode == 401)

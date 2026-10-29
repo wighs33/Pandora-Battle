@@ -62,7 +62,7 @@ void ConfigurePlayerDetectionBox(UBoxComponent* BoxComponent)
 	}
 
 	BoxComponent->SetCollisionResponseToAllChannels(ECR_Overlap);
-	BoxComponent->SetCollisionResponseToChannel(LabCollisionChannels::OverlapBox(), ECR_Ignore);
+	BoxComponent->SetCollisionResponseToChannel(CollisionChannels::OverlapBox(), ECR_Ignore);
 }
 
 void ConfigurePortalTeleportBox(UBoxComponent* BoxComponent)
@@ -360,8 +360,8 @@ void APortalActor::NativeUpdateSceneCapture()
 	const FTransform SourcePortal = GetPortalReferenceTransform();
 	const FTransform TargetPortal = LinkedPortalActor->GetPortalReferenceTransform();
 	LinkedCapture->SetWorldLocationAndRotation(
-		PdPortalSpace::TransformLocation(SourcePortal, TargetPortal, CameraManager->GetCameraLocation()),
-		PdPortalSpace::TransformRotation(SourcePortal, TargetPortal, CameraManager->GetCameraRotation()), false,
+		PortalSpace::TransformLocation(SourcePortal, TargetPortal, CameraManager->GetCameraLocation()),
+		PortalSpace::TransformRotation(SourcePortal, TargetPortal, CameraManager->GetCameraRotation()), false,
 		nullptr, ETeleportType::TeleportPhysics);
 
 	if (bCopyPlayerCameraFov)
@@ -712,9 +712,9 @@ void APortalActor::TeleportActorThroughPortal(AActor* Actor)
 
 	const FTransform SourcePortal = GetPortalReferenceTransform();
 	const FTransform TargetPortal = LinkedPortalActor->GetPortalReferenceTransform();
-	const FVector TargetLocation = PdPortalSpace::TransformLocation(SourcePortal, TargetPortal, Actor->GetActorLocation())
+	const FVector TargetLocation = PortalSpace::TransformLocation(SourcePortal, TargetPortal, Actor->GetActorLocation())
 		+ LinkedPortalActor->GetPortalForward() * ExitOffset;
-	const FRotator TargetRotation = PdPortalSpace::TransformRotation(SourcePortal, TargetPortal, Actor->GetActorRotation());
+	const FRotator TargetRotation = PortalSpace::TransformRotation(SourcePortal, TargetPortal, Actor->GetActorRotation());
 
 	FVector TargetVelocity = FVector::ZeroVector;
 	UMovementComponent* MovementComponent = nullptr;
@@ -728,7 +728,7 @@ void APortalActor::TeleportActorThroughPortal(AActor* Actor)
 	}
 	if (MovementComponent)
 	{
-		TargetVelocity = PdPortalSpace::TransformVector(SourcePortal, TargetPortal, MovementComponent->Velocity);
+		TargetVelocity = PortalSpace::TransformVector(SourcePortal, TargetPortal, MovementComponent->Velocity);
 	}
 
 	if (ACharacter* Character = Cast<ACharacter>(Actor))
@@ -745,7 +745,7 @@ void APortalActor::TeleportActorThroughPortal(AActor* Actor)
 		if (AController* Controller = Pawn->GetController())
 		{
 			const FRotator TargetControlRotation =
-				PdPortalSpace::TransformRotation(SourcePortal, TargetPortal, Controller->GetControlRotation());
+				PortalSpace::TransformRotation(SourcePortal, TargetPortal, Controller->GetControlRotation());
 			Controller->SetControlRotation(TargetControlRotation);
 
 			if (APdPlayerController* PlayerController = Cast<APdPlayerController>(Controller);

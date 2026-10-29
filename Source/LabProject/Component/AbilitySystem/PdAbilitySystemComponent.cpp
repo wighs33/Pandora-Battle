@@ -2,7 +2,7 @@
 
 #include "AbilitySystem/Ability/PdGameplayAbility.h"
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Component/AbilitySystem/AbilityGrantAndInputManager.h"
 #include "Definition/Common/ProjectTagDefinition.h"
@@ -259,10 +259,10 @@ void UPdAbilitySystemComponent::ResetAbilityRuntimeStateForDeath()
 	AbilityGrantAndInputManager->ClearAllAbilityInputs();
 	CancelActiveAbilitiesForDeath();
 
-	FGameplayTagContainer EffectTags(LabGameplayTags::Effect_Policy_RemoveOnDeath);
-	EffectTags.AddTag(LabGameplayTags::Cooldown);
+	FGameplayTagContainer EffectTags(PdGameplayTags::Effect_Policy_RemoveOnDeath);
+	EffectTags.AddTag(PdGameplayTags::Cooldown);
 	const UGameSettingDefinition* Settings = UGameSettingsSubsystem::ResolveGameSettingDefinition(this);
-	RemoveRuntimeEffects(EffectTags, FGameplayTagContainer(LabGameplayTags::Cooldown), FGameplayTagContainer(),
+	RemoveRuntimeEffects(EffectTags, FGameplayTagContainer(PdGameplayTags::Cooldown), FGameplayTagContainer(),
 		Settings ? Settings->DeathGameplayCuesToRemove : FGameplayTagContainer());
 	OnAbilitiesChangedNative.Broadcast();
 }
@@ -280,7 +280,7 @@ void UPdAbilitySystemComponent::CancelActiveAbilitiesForDeath()
 			AbilitySpec.InputPressed = false;
 
 			if (!AbilitySpec.Ability || !AbilitySpec.IsActive()
-				|| AbilitySpec.Ability->GetAssetTags().HasTagExact(LabGameplayTags::GameplayAbility_Death))
+				|| AbilitySpec.Ability->GetAssetTags().HasTagExact(PdGameplayTags::GameplayAbility_Death))
 			{
 				continue;
 			}
@@ -306,12 +306,12 @@ void UPdAbilitySystemComponent::CancelActiveAbilitiesForDeath()
 // 부활 전 이전 목숨의 디버프와 상태 이상을 정리한다. 체력 회복과 능력 재시작은 호출자가 담당한다.
 int32 UPdAbilitySystemComponent::ClearStatusEffectsForRespawn()
 {
-	FGameplayTagContainer StatusTags(LabGameplayTags::Debuff);
-	StatusTags.AddTag(LabGameplayTags::Status_Burning);
-	StatusTags.AddTag(LabGameplayTags::Status_Frostbite);
-	StatusTags.AddTag(LabGameplayTags::Status_ElectricShock);
+	FGameplayTagContainer StatusTags(PdGameplayTags::Debuff);
+	StatusTags.AddTag(PdGameplayTags::Status_Burning);
+	StatusTags.AddTag(PdGameplayTags::Status_Frostbite);
+	StatusTags.AddTag(PdGameplayTags::Status_ElectricShock);
 	FGameplayTagContainer EffectTags = StatusTags;
-	EffectTags.AddTag(LabGameplayTags::Effect_Policy_RemoveOnRespawn);
+	EffectTags.AddTag(PdGameplayTags::Effect_Policy_RemoveOnRespawn);
 	const UGameSettingDefinition* Settings = UGameSettingsSubsystem::ResolveGameSettingDefinition(this);
 	return RemoveRuntimeEffects(EffectTags, StatusTags, StatusTags,
 		Settings ? Settings->RespawnGameplayCuesToRemove : FGameplayTagContainer());
@@ -389,7 +389,7 @@ void UPdAbilitySystemComponent::ResetRuntimeStateForRespawn()
 	ClearStatusEffectsForRespawn();
 
 	FGameplayTagContainer DeadTags;
-	DeadTags.AddTag(LabGameplayTags::State_Dead);
+	DeadTags.AddTag(PdGameplayTags::State_Dead);
 	RemoveActiveEffectsWithGrantedTags(DeadTags);
 	RemoveActiveEffects(FGameplayEffectQuery::MakeQuery_MatchAnyOwningTags(DeadTags));
 
@@ -425,7 +425,7 @@ void UPdAbilitySystemComponent::ResetResourcesForEnemyRespawn()
 	const float RespawnMaxMana = FMath::Max(GetNumericAttribute(UBasicAttributeSet::GetMaxManaAttribute()), 0.0f);
 
 	FGameplayTagContainer DeadTags;
-	DeadTags.AddTag(LabGameplayTags::State_Dead);
+	DeadTags.AddTag(PdGameplayTags::State_Dead);
 	RemoveActiveEffectsWithGrantedTags(DeadTags);
 	RemoveActiveEffects(FGameplayEffectQuery::MakeQuery_MatchAnyOwningTags(DeadTags));
 
@@ -445,9 +445,9 @@ void UPdAbilitySystemComponent::ResetResourcesForEnemyRespawn()
 
 	RemoveActiveEffectsWithGrantedTags(DeadTags);
 	RemoveActiveEffects(FGameplayEffectQuery::MakeQuery_MatchAnyOwningTags(DeadTags));
-	if (GetTagCount(LabGameplayTags::State_Dead) > 0)
+	if (GetTagCount(PdGameplayTags::State_Dead) > 0)
 	{
-		SetLooseGameplayTagCount(LabGameplayTags::State_Dead, 0, EGameplayTagReplicationState::CountToOwner);
+		SetLooseGameplayTagCount(PdGameplayTags::State_Dead, 0, EGameplayTagReplicationState::CountToOwner);
 	}
 
 	ForceReplication();

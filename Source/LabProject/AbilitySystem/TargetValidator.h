@@ -7,7 +7,7 @@
 class AActor;
 class UWorld;
 
-namespace PdTargetValidator
+namespace TargetValidator
 {
 	struct FTraceRequestValidationParams
 	{
@@ -32,7 +32,7 @@ namespace PdTargetValidator
 		double LineOfSightSurfaceOffset = 10.0;
 		double LineOfSightSurfaceTolerance = 30.0;
 		int32 MaxIgnoredPawnCount = 8;
-		TEnumAsByte<ETraceTypeQuery> GroundTraceType = LabCollisionChannels::VisibilityTrace();
+		TEnumAsByte<ETraceTypeQuery> GroundTraceType = CollisionChannels::VisibilityTrace();
 		FName LineOfSightProfileName = NAME_None;
 	};
 

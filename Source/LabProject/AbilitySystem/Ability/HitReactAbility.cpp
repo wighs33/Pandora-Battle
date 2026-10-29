@@ -5,7 +5,7 @@
 #include "AbilitySystemComponent.h"
 #include "Animation/AnimMontage.h"
 #include "Character/CharacterBase.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Data/ContentDataSubsystem.h"
 #include "Data/ContentLease.h"
 #include "Definition/Item/ItemDefinition.h"
@@ -71,12 +71,12 @@ void CancelDefaultActionsForHitReact(UAbilitySystemComponent* AbilitySystemCompo
 	}
 
 	FGameplayTagContainer TagsToCancel;
-	TagsToCancel.AddTag(LabGameplayTags::Action_Attack);
-	TagsToCancel.AddTag(LabGameplayTags::Action_Punch);
-	TagsToCancel.AddTag(LabGameplayTags::Action_RangedAttack);
-	TagsToCancel.AddTag(LabGameplayTags::Action_Equip);
-	TagsToCancel.AddTag(LabGameplayTags::Action_Unequip);
-	TagsToCancel.AddTag(LabGameplayTags::GameplayAbility_Movement_Grapple);
+	TagsToCancel.AddTag(PdGameplayTags::Action_Attack);
+	TagsToCancel.AddTag(PdGameplayTags::Action_Punch);
+	TagsToCancel.AddTag(PdGameplayTags::Action_RangedAttack);
+	TagsToCancel.AddTag(PdGameplayTags::Action_Equip);
+	TagsToCancel.AddTag(PdGameplayTags::Action_Unequip);
+	TagsToCancel.AddTag(PdGameplayTags::GameplayAbility_Movement_Grapple);
 	AbilitySystemComponent->CancelAbilities(&TagsToCancel);
 }
 
@@ -123,12 +123,12 @@ UHitReactAbility::UHitReactAbility(const FObjectInitializer& ObjectInitializer)
 	bRetriggerInstancedAbility = true;
 
 	FGameplayTagContainer AbilityAssetTags;
-	AbilityAssetTags.AddTag(LabGameplayTags::GameplayAbility_HitReaction);
-	AbilityAssetTags.AddTag(LabGameplayTags::Action_HitReact);
+	AbilityAssetTags.AddTag(PdGameplayTags::GameplayAbility_HitReaction);
+	AbilityAssetTags.AddTag(PdGameplayTags::Action_HitReact);
 	SetAssetTags(AbilityAssetTags);
 
-	ActivationOwnedTags.AddTag(LabGameplayTags::GameplayAbility_HitReaction);
-	ActivationOwnedTags.AddTag(LabGameplayTags::Action_HitReact);
+	ActivationOwnedTags.AddTag(PdGameplayTags::GameplayAbility_HitReaction);
+	ActivationOwnedTags.AddTag(PdGameplayTags::Action_HitReact);
 }
 
 void UHitReactAbility::PostLoad()

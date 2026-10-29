@@ -6,13 +6,13 @@
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Definition/Item/ItemDefinition.h"
 #include "Character/CharacterBase.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(UnequipAbility)
 
 UUnequipAbility::UUnequipAbility(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	ActivationBlockedTags.AddTag(LabGameplayTags::GameplayAbility_Active);
+	ActivationBlockedTags.AddTag(PdGameplayTags::GameplayAbility_Active);
 }
 
 // State helpers

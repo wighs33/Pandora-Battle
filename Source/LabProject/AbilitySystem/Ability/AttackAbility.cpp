@@ -9,7 +9,7 @@
 #include "Animation/AnimMontage.h"
 #include "Character/CharacterBase.h"
 #include "Character/EnemyBase.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -33,16 +33,16 @@ UAttackAbility::UAttackAbility(const FObjectInitializer& ObjectInitializer)
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
 
 	FGameplayTagContainer AbilityAssetTags;
-	AbilityAssetTags.AddTag(LabGameplayTags::Action_Attack);
+	AbilityAssetTags.AddTag(PdGameplayTags::Action_Attack);
 	SetAssetTags(AbilityAssetTags);
-	ActivationBlockedTags.AddTag(LabGameplayTags::State_Movement_Airborne);
+	ActivationBlockedTags.AddTag(PdGameplayTags::State_Movement_Airborne);
 	bRequiresGroundedAvatar = true;
 
-	AttackInputWindowStartEventTag = LabGameplayTags::Notifier_Attack_ComboInputOpen;
-	AttackInputWindowEndEventTag = LabGameplayTags::Notifier_Attack_ComboInputClose;
-	AttackDamageWindowStartEventTag = LabGameplayTags::Notifier_Attack_DamageWindowOpen;
-	AttackDamageWindowEndEventTag = LabGameplayTags::Notifier_Attack_DamageWindowClose;
-	JumpSectionEventTag = LabGameplayTags::Notifier_Attack_NextCombo;
+	AttackInputWindowStartEventTag = PdGameplayTags::Notifier_Attack_ComboInputOpen;
+	AttackInputWindowEndEventTag = PdGameplayTags::Notifier_Attack_ComboInputClose;
+	AttackDamageWindowStartEventTag = PdGameplayTags::Notifier_Attack_DamageWindowOpen;
+	AttackDamageWindowEndEventTag = PdGameplayTags::Notifier_Attack_DamageWindowClose;
+	JumpSectionEventTag = PdGameplayTags::Notifier_Attack_NextCombo;
 }
 
 // State helpers

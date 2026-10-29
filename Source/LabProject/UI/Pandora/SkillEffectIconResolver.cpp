@@ -68,7 +68,7 @@ namespace
 	}
 }
 
-void PdSkillEffectIconResolver::ApplySkillEffectIcon(const UObject* WorldContextObject, const USkillDefinition* Skill,
+void SkillEffectIconResolver::ApplySkillEffectIcon(const UObject* WorldContextObject, const USkillDefinition* Skill,
 	UImage* ImageWidget)
 {
 	if (!ImageWidget)

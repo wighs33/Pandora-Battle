@@ -6,7 +6,7 @@
 class UPdAbilitySystemComponent;
 
 // 적이 지금 무기로 쓸 공격 능력을 고르고 실행한다. 무기 상태와 능력 목록만 보고 판단하므로 상태를 갖지 않는다.
-namespace PdEnemyAttackSelection
+namespace EnemyAttackSelection
 {
 	/** 무기 상태에 맞는 공격 능력 핸들을 모은다. 공격 태그가 없는 예전 블루프린트 능력은 클래스로 고른다. */
 	LABPROJECT_API void GatherAttackAbilityHandles(

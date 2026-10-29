@@ -1,7 +1,7 @@
 #include "UI/Info/Skin/LeftSkinWidget.h"
 
 #include "Character/PdPlayer.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Component/Player/PaintCanvas/PaintCanvasComponent.h"
 #include "Definition/Common/ProjectTagDefinition.h"
 #include "Components/Button.h"
@@ -127,8 +127,8 @@ USkinEquipSlotWidget* ULeftSkinWidget::FindFirstCompatibleSkinEquipSlot(const US
 		}
 
 		const FGameplayTag SlotTag = ResolveSkinEquipTypeTagForSlot(SkinEquipSlot);
-		const FGameplayTag RequiredSkinTag = SlotTag.MatchesTag(LabGameplayTags::Skin_Gesture)
-			? LabGameplayTags::Skin_Gesture
+		const FGameplayTag RequiredSkinTag = SlotTag.MatchesTag(PdGameplayTags::Skin_Gesture)
+			? PdGameplayTags::Skin_Gesture
 			: SlotTag;
 		if (!RequiredSkinTag.IsValid() || !SkinDefinition->IdTag.MatchesTag(RequiredSkinTag))
 		{
@@ -291,22 +291,22 @@ FGameplayTag ULeftSkinWidget::ResolveSkinEquipTypeTagForSlot(const USkinEquipSlo
 {
 	if (SkinEquipSlot == GestureSlot1)
 	{
-		return LabGameplayTags::Skin_Gesture_Slot1;
+		return PdGameplayTags::Skin_Gesture_Slot1;
 	}
 
 	if (SkinEquipSlot == GestureSlot2)
 	{
-		return LabGameplayTags::Skin_Gesture_Slot2;
+		return PdGameplayTags::Skin_Gesture_Slot2;
 	}
 
 	if (SkinEquipSlot == GestureSlot3)
 	{
-		return LabGameplayTags::Skin_Gesture_Slot3;
+		return PdGameplayTags::Skin_Gesture_Slot3;
 	}
 
 	if (SkinEquipSlot == GestureSlot4)
 	{
-		return LabGameplayTags::Skin_Gesture_Slot4;
+		return PdGameplayTags::Skin_Gesture_Slot4;
 	}
 
 	if (SkinEquipSlot && SkinEquipSlot->GetEquipTypeTag().IsValid())

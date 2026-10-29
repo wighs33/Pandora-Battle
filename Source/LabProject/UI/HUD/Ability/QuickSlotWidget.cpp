@@ -4,7 +4,7 @@
 #include "Components/UniformGridPanel.h"
 #include "Components/UniformGridSlot.h"
 #include "Character/CharacterBase.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Data/ContentDataSubsystem.h"
 #include "Data/ContentLease.h"
 #include "Definition/Item/ItemDefinition.h"
@@ -318,7 +318,7 @@ USkinEquipmentComponent* UQuickSlotWidget::ResolveOwningSkinEquipmentComponent()
 const USkinDefinition* UQuickSlotWidget::ResolveGestureSlotSkinDefinition(
 	const USkinEquipmentComponent* SkinEquipmentComponent, const int32 QuickSlotIndex) const
 {
-	const FGameplayTag SlotTag = LabGameplayTags::GetGestureSlotTag(QuickSlotIndex - ConsumableQuickSlotCount);
+	const FGameplayTag SlotTag = PdGameplayTags::GetGestureSlotTag(QuickSlotIndex - ConsumableQuickSlotCount);
 	return SkinEquipmentComponent && SlotTag.IsValid()
 		? SkinEquipmentComponent->GetEquippedSkinDefinition(SlotTag)
 		: nullptr;

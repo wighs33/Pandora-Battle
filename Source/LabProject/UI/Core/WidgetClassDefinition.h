@@ -338,7 +338,7 @@ struct LABPROJECT_API FTitleAuxiliaryWidgetSettings
 	int32 QuickMatchMaxSearchResults = 50;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Title|QuickMatch", meta = (ClampMin = "1"))
-	int32 QuickMatchMaxPublicConnections = LabGameSession::MaxPlayerCount;
+	int32 QuickMatchMaxPublicConnections = PdGameSession::MaxPlayerCount;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Title|QuickMatch")
 	FString QuickMatchRoomName = TEXT("Quick Match");
@@ -530,7 +530,7 @@ struct LABPROJECT_API FRoomListWidgetSettings
 	FString DefaultRoomName = TEXT("New Room");
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|RoomList|Create Room", meta = (ClampMin = "1"))
-	int32 MaxPublicConnections = LabGameSession::MaxPlayerCount;
+	int32 MaxPublicConnections = PdGameSession::MaxPlayerCount;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|RoomList|Create Room")
 	bool bCreateLAN = false;
@@ -545,7 +545,7 @@ struct LABPROJECT_API FLobbyWidgetSettings
 	TSubclassOf<ULobbyUserWidget> LobbyUserWidgetClass;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Lobby|UI", meta = (ClampMin = "1"))
-	int32 MaxLobbySlots = LabGameSession::MaxPlayerCount;
+	int32 MaxLobbySlots = PdGameSession::MaxPlayerCount;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Lobby|Countdown", meta = (ClampMin = "0.01"))
 	float GameStartCountdownTickInterval = 0.1f;

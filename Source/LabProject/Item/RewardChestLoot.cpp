@@ -26,12 +26,12 @@ namespace
 
 		int32 Pick() const
 		{
-			return PdRewardChestLoot::SelectWeightedIndex(Weights, TotalWeight);
+			return RewardChestLoot::SelectWeightedIndex(Weights, TotalWeight);
 		}
 	};
 }
 
-int32 PdRewardChestLoot::SelectWeightedIndex(const TConstArrayView<float> Weights, const float TotalWeight)
+int32 RewardChestLoot::SelectWeightedIndex(const TConstArrayView<float> Weights, const float TotalWeight)
 {
 	if (Weights.IsEmpty() || TotalWeight <= 0.0f)
 	{
@@ -51,7 +51,7 @@ int32 PdRewardChestLoot::SelectWeightedIndex(const TConstArrayView<float> Weight
 	return Weights.Num() - 1;
 }
 
-int32 PdRewardChestLoot::RollItemCount(const FRewardChestItemCountRule& Rule)
+int32 RewardChestLoot::RollItemCount(const FRewardChestItemCountRule& Rule)
 {
 	const int32 FallbackCount = FMath::Max(1, Rule.FallbackCount);
 	if (!Rule.bUseChances)
@@ -80,7 +80,7 @@ int32 PdRewardChestLoot::RollItemCount(const FRewardChestItemCountRule& Rule)
 	return CandidateCounts.IsValidIndex(SelectedIndex) ? CandidateCounts[SelectedIndex] : FallbackCount;
 }
 
-void PdRewardChestLoot::RollRandomItems(const TConstArrayView<FRewardChestLootCandidate> Candidates,
+void RewardChestLoot::RollRandomItems(const TConstArrayView<FRewardChestLootCandidate> Candidates,
 	const FRewardChestItemCountRule& CountRule, const bool bAllowDuplicates, TArray<FPrimaryAssetId>& OutItemIds)
 {
 	FWeightedItemIds Weapons;
@@ -117,7 +117,7 @@ void PdRewardChestLoot::RollRandomItems(const TConstArrayView<FRewardChestLootCa
 	}
 }
 
-void PdRewardChestLoot::PickConfiguredItems(const TConstArrayView<FRewardChestLootCandidate> Candidates,
+void RewardChestLoot::PickConfiguredItems(const TConstArrayView<FRewardChestLootCandidate> Candidates,
 	TArray<FPrimaryAssetId>& OutItemIds)
 {
 	FWeightedItemIds Weapons;

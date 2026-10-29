@@ -32,7 +32,7 @@ namespace
 // 문자열 테이블 문구는 키째로 복제되므로, 서버가 만든 이름도 받는 쪽 언어로 보인다.
 FText MatchResultReport::ResolveTeamName(const int32 TeamColorIndex)
 {
-	const FName TeamKey = LabTeamColorUtils::GetTeamTextKey(TeamColorIndex);
+	const FName TeamKey = TeamColorUtils::GetTeamTextKey(TeamColorIndex);
 	return UMenuLocalizationSubsystem::GetText(TeamKey.IsNone() ? FName(TEXT("Result.NoTeam")) : TeamKey);
 }
 

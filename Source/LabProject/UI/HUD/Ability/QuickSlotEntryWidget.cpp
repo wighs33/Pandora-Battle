@@ -73,7 +73,7 @@ void UQuickSlotEntryWidget::ApplyInputKeyIcon()
 {
 	if (KeyText && InputKeyOverlay)
 	{
-		PdInputKeyIconResolver::ApplyInputKeyCaption(*this, *KeyText, *InputKeyOverlay, KeyIcon, ResolveInputAction(), bHideInputKeyIcon);
+		InputKeyIconResolver::ApplyInputKeyCaption(*this, *KeyText, *InputKeyOverlay, KeyIcon, ResolveInputAction(), bHideInputKeyIcon);
 		return;
 	}
 
@@ -88,7 +88,7 @@ void UQuickSlotEntryWidget::ApplyInputKeyIcon()
 		return;
 	}
 
-	UObject* IconObject = PdInputKeyIconResolver::ResolveInputDefinitionIconObject(GetOwningPlayer(),
+	UObject* IconObject = InputKeyIconResolver::ResolveInputDefinitionIconObject(GetOwningPlayer(),
 		ResolveInputAction());
 
 	if (!IconObject)
@@ -98,7 +98,7 @@ void UQuickSlotEntryWidget::ApplyInputKeyIcon()
 	}
 
 	KeyIcon->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
-	KeyIcon->SetBrush(PdInputKeyIconResolver::MakeImageBrushFromExisting(KeyIcon->GetBrush(), IconObject,
+	KeyIcon->SetBrush(InputKeyIconResolver::MakeImageBrushFromExisting(KeyIcon->GetBrush(), IconObject,
 		InputKeyIconSize));
 }
 

@@ -301,7 +301,7 @@ void ATitleHUD::HandleBossRaidJoinFinished(const bool bSucceeded, const FString&
 	}
 	// 그사이 레이드가 닫혔거나 오늘 도전을 다 썼으면 다시 시도해 보라는 대신 그 이유를 알린다.
 	const UBackendClientSubsystem* Backend = UGameInstance::GetSubsystem<UBackendClientSubsystem>(GetGameInstance());
-	if (Backend && Backend->GetLastMatchJoinErrorCode() == PdBackendHttp::ErrorCodes::NoAttemptsLeft)
+	if (Backend && Backend->GetLastMatchJoinErrorCode() == BackendHttp::ErrorCodes::NoAttemptsLeft)
 	{
 		SayLunaLine(UMenuLocalizationSubsystem::GetText(BossRaidNoAttemptsLineKey));
 		return;

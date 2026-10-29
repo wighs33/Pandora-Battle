@@ -9,7 +9,7 @@
 #include "Animation/AnimNotifyState_AttackDamageWindow.h"
 #include "Character/PdPlayer.h"
 #include "AbilitySystem/Ability/EquipmentAbilityData.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Component/Player/PlayerRewardComponent.h"
 #include "Abilities/GameplayAbilityTypes.h"
@@ -112,7 +112,7 @@ AMonsterCharacter::AMonsterCharacter(const FObjectInitializer& ObjectInitializer
 	bReplicates = true;
 	SetReplicateMovement(true);
 	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
-	ContactDamageDataTag = LabGameplayTags::Data_Damage;
+	ContactDamageDataTag = PdGameplayTags::Data_Damage;
 	// 공격 예고 장판 데칼이 몬스터 몸에 묻지 않게 한다. 장판 안에 선 플레이어에게는 묻어 위험을 알린다.
 	GetMesh()->bReceivesDecals = false;
 }
@@ -153,10 +153,10 @@ void AMonsterCharacter::HandleCharacterRuntimeInitialized()
 	if (HasAuthority() && AbilitySystemComponent)
 	{
 		FrozenTagChangedHandle = AbilitySystemComponent->RegisterGameplayTagEvent(
-			LabGameplayTags::Status_Frostbite, EGameplayTagEventType::NewOrRemoved).AddUObject(this, &ThisClass::HandleFrozenTagChanged);
+			PdGameplayTags::Status_Frostbite, EGameplayTagEventType::NewOrRemoved).AddUObject(this, &ThisClass::HandleFrozenTagChanged);
 		BindAttackDamageWindowEvents();
 		// 피격 모션은 몬스터 스켈레톤용 몽타주로 직접 재생한다. 사람 스켈레톤용 공용 피격 능력은 몬스터 몸을 기본 자세로 튀게 하므로 막는다.
-		AbilitySystemComponent->BlockAbilitiesWithTags(FGameplayTagContainer(LabGameplayTags::Action_HitReact));
+		AbilitySystemComponent->BlockAbilitiesWithTags(FGameplayTagContainer(PdGameplayTags::Action_HitReact));
 		if (PhaseSummon.HealthRatio > 0.0f && !HealthChangedHandle.IsValid())
 		{
 			HealthChangedHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetHealthAttribute())
@@ -243,7 +243,7 @@ void AMonsterCharacter::Attack()
 {
 	if (!HasAuthority() || !IsMonsterReadyForAI() || !IsAttackEnabled() || IsAttackInProgress()
 		|| IsStatusFrozen() || IsTrainingHitStunned() || !AbilitySystemComponent
-		|| AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::State_Dead))
+		|| AbilitySystemComponent->HasMatchingGameplayTag(PdGameplayTags::State_Dead))
 	{
 		return;
 	}
@@ -370,7 +370,7 @@ void AMonsterCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	if (AbilitySystemComponent && FrozenTagChangedHandle.IsValid())
 	{
 		AbilitySystemComponent->RegisterGameplayTagEvent(
-			LabGameplayTags::Status_Frostbite, EGameplayTagEventType::NewOrRemoved).Remove(FrozenTagChangedHandle);
+			PdGameplayTags::Status_Frostbite, EGameplayTagEventType::NewOrRemoved).Remove(FrozenTagChangedHandle);
 		FrozenTagChangedHandle.Reset();
 	}
 	if (UAnimInstance* AnimInstance = AttackAnimInstance.Get())
@@ -878,12 +878,12 @@ void AMonsterCharacter::BindAttackDamageWindowEvents()
 	if (!DamageWindowOpenHandle.IsValid())
 	{
 		DamageWindowOpenHandle = AbilitySystemComponent->GenericGameplayEventCallbacks
-			.FindOrAdd(LabGameplayTags::Notifier_Attack_DamageWindowOpen).AddUObject(this, &ThisClass::HandleAttackDamageWindowEvent);
+			.FindOrAdd(PdGameplayTags::Notifier_Attack_DamageWindowOpen).AddUObject(this, &ThisClass::HandleAttackDamageWindowEvent);
 	}
 	if (!DamageWindowCloseHandle.IsValid())
 	{
 		DamageWindowCloseHandle = AbilitySystemComponent->GenericGameplayEventCallbacks
-			.FindOrAdd(LabGameplayTags::Notifier_Attack_DamageWindowClose).AddUObject(this, &ThisClass::HandleAttackDamageWindowEvent);
+			.FindOrAdd(PdGameplayTags::Notifier_Attack_DamageWindowClose).AddUObject(this, &ThisClass::HandleAttackDamageWindowEvent);
 	}
 }
 
@@ -893,11 +893,11 @@ void AMonsterCharacter::UnbindAttackDamageWindowEvents()
 	{
 		return;
 	}
-	if (FGameplayEventMulticastDelegate* OpenEvent = AbilitySystemComponent->GenericGameplayEventCallbacks.Find(LabGameplayTags::Notifier_Attack_DamageWindowOpen))
+	if (FGameplayEventMulticastDelegate* OpenEvent = AbilitySystemComponent->GenericGameplayEventCallbacks.Find(PdGameplayTags::Notifier_Attack_DamageWindowOpen))
 	{
 		OpenEvent->Remove(DamageWindowOpenHandle);
 	}
-	if (FGameplayEventMulticastDelegate* CloseEvent = AbilitySystemComponent->GenericGameplayEventCallbacks.Find(LabGameplayTags::Notifier_Attack_DamageWindowClose))
+	if (FGameplayEventMulticastDelegate* CloseEvent = AbilitySystemComponent->GenericGameplayEventCallbacks.Find(PdGameplayTags::Notifier_Attack_DamageWindowClose))
 	{
 		CloseEvent->Remove(DamageWindowCloseHandle);
 	}
@@ -911,7 +911,7 @@ void AMonsterCharacter::HandleAttackDamageWindowEvent(const FGameplayEventData* 
 	{
 		return;
 	}
-	if (Payload->EventTag == LabGameplayTags::Notifier_Attack_DamageWindowOpen)
+	if (Payload->EventTag == PdGameplayTags::Notifier_Attack_DamageWindowOpen)
 	{
 		const FMonsterAttackPattern* Attack = FindAttackPattern(CurrentAttackMontage.Get());
 		if (Attack && Attack->Telegraph.Shape == EAttackTelegraphShape::FrontCone)
@@ -934,7 +934,7 @@ void AMonsterCharacter::HandleAttackDamageWindowEvent(const FGameplayEventData* 
 void AMonsterCharacter::TryPlayMonsterHitReactMontage(float DamageAmount, bool bAllowHitReact)
 {
 	if (!HasAuthority() || bDying || !bAllowHitReact || DamageAmount <= 0.0f || !AbilitySystemComponent
-		|| AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::State_Dead))
+		|| AbilitySystemComponent->HasMatchingGameplayTag(PdGameplayTags::State_Dead))
 	{
 		return;
 	}
@@ -1002,7 +1002,7 @@ bool AMonsterCharacter::IsValidMonsterDamageTarget(const AActor* OtherActor) con
 		return false;
 	}
 	const UAbilitySystemComponent* ASC = Character->GetAbilitySystemComponent();
-	return ASC && !ASC->HasMatchingGameplayTag(LabGameplayTags::State_Dead);
+	return ASC && !ASC->HasMatchingGameplayTag(PdGameplayTags::State_Dead);
 }
 
 // 한 번의 공격에서 같은 캐릭터에게 중복 피해를 주지 않으며, 중단된 공격의 늦은 오버랩을 무시한다.
@@ -1045,7 +1045,7 @@ bool AMonsterCharacter::ApplyMonsterDamageToCharacter(ACharacterBase* TargetChar
 	}
 	if (TargetCharacter->IsA<APdPlayer>())
 	{
-		Spec.Data->AddDynamicAssetTag(LabGameplayTags::Effect_Damage_NoHitReaction);
+		Spec.Data->AddDynamicAssetTag(PdGameplayTags::Effect_Damage_NoHitReaction);
 	}
 	Spec.Data->SetSetByCallerMagnitude(DamageTag, AttackDamageMagnitude);
 	return SourceASC->ApplyGameplayEffectSpecToTarget(*Spec.Data.Get(), TargetASC).WasSuccessfullyApplied();

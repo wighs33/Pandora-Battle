@@ -39,7 +39,7 @@ namespace
 	}
 }
 
-namespace PdBackendHttp
+namespace BackendHttp
 {
 	FString SerializeJson(const TSharedRef<FJsonObject>& Object)
 	{
@@ -69,7 +69,7 @@ namespace PdBackendHttp
 	bool SignWithSigV4(
 		IHttpRequest& Request, const FAwsCredentials& Credentials, const FString& Region, const FString& Service)
 	{
-		PdAwsSigV4::FRequest SignRequest;
+		AwsSigV4::FRequest SignRequest;
 		if (!Credentials.IsValid()
 			|| !SplitUrl(Request.GetURL(), SignRequest.Host, SignRequest.Path, SignRequest.Query))
 		{
@@ -81,7 +81,7 @@ namespace PdBackendHttp
 		SignRequest.Region = Region;
 		SignRequest.Service = Service;
 		SignRequest.TimestampUtc = FDateTime::UtcNow();
-		const PdAwsSigV4::FSignature Signature = PdAwsSigV4::Sign(SignRequest, Credentials);
+		const AwsSigV4::FSignature Signature = AwsSigV4::Sign(SignRequest, Credentials);
 
 		Request.SetHeader(TEXT("X-Amz-Date"), Signature.AmzDate);
 		if (!Credentials.SessionToken.IsEmpty())

@@ -4,7 +4,7 @@
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
 #include "Character/CharacterBase.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Components/SphereComponent.h"
 #include "GameFramework/Pawn.h"
 #include "GameplayEffect.h"
@@ -26,7 +26,7 @@ ASkillEffectArea::ASkillEffectArea(const FObjectInitializer& ObjectInitializer)
 	AreaCollision->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
 	AreaCollision->SetGenerateOverlapEvents(true);
 
-	EffectMagnitudeDataTag = LabGameplayTags::Data_Damage;
+	EffectMagnitudeDataTag = PdGameplayTags::Data_Damage;
 }
 
 void ASkillEffectArea::SetSourceActor(AActor* InSourceActor)
@@ -159,10 +159,10 @@ void ASkillEffectArea::ApplyEffectToActor(AActor* TargetActor)
 		const UBasicAttributeSet* SourceAttributeSet = SourceAbilitySystemComponent
 			? SourceAbilitySystemComponent->GetSet<UBasicAttributeSet>()
 			: nullptr;
-		const float IntelligenceDamagePercent = EffectMagnitudeDataTag.MatchesTag(LabGameplayTags::Data_Damage) && SourceAttributeSet
+		const float IntelligenceDamagePercent = EffectMagnitudeDataTag.MatchesTag(PdGameplayTags::Data_Damage) && SourceAttributeSet
 			? FMath::Max(SourceAttributeSet->GetIntelligence(), 0.0f)
 			: 0.0f;
-		const float LoadoutDamagePercent = EffectMagnitudeDataTag.MatchesTag(LabGameplayTags::Data_Damage) && SourceAttributeSet
+		const float LoadoutDamagePercent = EffectMagnitudeDataTag.MatchesTag(PdGameplayTags::Data_Damage) && SourceAttributeSet
 			? SourceAttributeSet->GetPandoraLoadoutDamageBonusPercent(SourcePandoraLoadoutDirection)
 			: 0.0f;
 		const float AttackDamageBonusPercent = IntelligenceDamagePercent + LoadoutDamagePercent;

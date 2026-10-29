@@ -1,7 +1,7 @@
 #include "UI/Pandora/PandoraWidgetViewData.h"
 
 #include "Blueprint/UserWidget.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Common/Enum_Direction.h"
 #include "Component/Pandora/PandoraComponent.h"
 #include "GameFramework/Pawn.h"
@@ -22,7 +22,7 @@ namespace
 	FText MakeWeaponTagDisplayName(const FGameplayTag& WeaponTag)
 	{
 		FString TagText = WeaponTag.ToString();
-		const FGameplayTag& WeaponTypeRoot = LabGameplayTags::Item_Weapon;
+		const FGameplayTag& WeaponTypeRoot = PdGameplayTags::Item_Weapon;
 		if (WeaponTag.MatchesTag(WeaponTypeRoot))
 		{
 			const FString WeaponTypePrefix = WeaponTypeRoot.ToString() + TEXT(".");

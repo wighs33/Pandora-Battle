@@ -536,7 +536,7 @@ bool AGun::TraceGunShot(APdPlayer* PlayerCharacter, const FVector& RequestedView
 	// 그 물리 바디를 아슬아슬하게 비껴갈 수 있다. 총구 trace가 유효한 월드·캐릭터 충돌에 막히지 않은
 	// 것을 확인한 뒤에만 그 주 메시 조준 맞음을 다시 쓴다. 캡슐과 상호작용 컴포넌트는 여전히 피해 대상이 아니다.
 	const ACharacterBase* AimDamageCharacter =
-		PdCharacterHitValidation::ResolveWeaponDamageHit(AimHitResult.GetActor(), AimHitResult.GetComponent());
+		CharacterHitValidation::ResolveWeaponDamageHit(AimHitResult.GetActor(), AimHitResult.GetComponent());
 	if (!AimDamageCharacter)
 	{
 		return false;
@@ -577,10 +577,10 @@ bool AGun::SelectFirstValidGunImpact(const TArray<FHitResult>& HitResults, FHitR
 {
 	for (const FHitResult& HitResult : HitResults)
 	{
-		const bool bRelatedToCharacter = PdCharacterHitValidation::ResolveRelatedCharacter(HitResult.GetActor(),
+		const bool bRelatedToCharacter = CharacterHitValidation::ResolveRelatedCharacter(HitResult.GetActor(),
 			HitResult.GetComponent()) != nullptr;
 		if (bRelatedToCharacter
-			&& !PdCharacterHitValidation::ResolveWeaponDamageHit(HitResult.GetActor(), HitResult.GetComponent()))
+			&& !CharacterHitValidation::ResolveWeaponDamageHit(HitResult.GetActor(), HitResult.GetComponent()))
 		{
 			continue;
 		}
@@ -601,7 +601,7 @@ bool AGun::IsFriendlyDamageTargetActor(AActor* HitActor, const UPrimitiveCompone
 		return false;
 	}
 
-	const ACharacterBase* TargetCharacter = PdCharacterHitValidation::ResolveWeaponDamageHit(HitActor, HitComponent);
+	const ACharacterBase* TargetCharacter = CharacterHitValidation::ResolveWeaponDamageHit(HitActor, HitComponent);
 	if (!TargetCharacter)
 	{
 		return false;
@@ -617,7 +617,7 @@ AActor* AGun::ResolveDamageTargetActor(AActor* HitActor, const UPrimitiveCompone
 		return nullptr;
 	}
 
-	ACharacterBase* TargetCharacter = PdCharacterHitValidation::ResolveWeaponDamageHit(HitActor, HitComponent);
+	ACharacterBase* TargetCharacter = CharacterHitValidation::ResolveWeaponDamageHit(HitActor, HitComponent);
 	const ACharacterBase* SourceCharacter = GetOwningCharacter();
 	return TargetCharacter
 		&& (!SourceCharacter || SourceCharacter->CanDamageCharacterByTeam(TargetCharacter))

@@ -13,19 +13,19 @@ namespace
 	}
 }
 
-FVector PdPortalSpace::TransformLocation(const FTransform& SourcePortal, const FTransform& TargetPortal, const FVector& WorldLocation)
+FVector PortalSpace::TransformLocation(const FTransform& SourcePortal, const FTransform& TargetPortal, const FVector& WorldLocation)
 {
 	const FVector PortalLocal = SourcePortal.InverseTransformPositionNoScale(WorldLocation);
 	return TargetPortal.TransformPositionNoScale(TurnAroundPortalUp(PortalLocal));
 }
 
-FVector PdPortalSpace::TransformVector(const FTransform& SourcePortal, const FTransform& TargetPortal, const FVector& WorldVector)
+FVector PortalSpace::TransformVector(const FTransform& SourcePortal, const FTransform& TargetPortal, const FVector& WorldVector)
 {
 	const FVector PortalLocal = SourcePortal.InverseTransformVectorNoScale(WorldVector);
 	return TargetPortal.TransformVectorNoScale(TurnAroundPortalUp(PortalLocal));
 }
 
-FRotator PdPortalSpace::TransformRotation(const FTransform& SourcePortal, const FTransform& TargetPortal, const FRotator& WorldRotation)
+FRotator PortalSpace::TransformRotation(const FTransform& SourcePortal, const FTransform& TargetPortal, const FRotator& WorldRotation)
 {
 	const FRotationMatrix RotationMatrix(WorldRotation);
 	const FVector Forward = TransformVector(SourcePortal, TargetPortal, RotationMatrix.GetUnitAxis(EAxis::X));

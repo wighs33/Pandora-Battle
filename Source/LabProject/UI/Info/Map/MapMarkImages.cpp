@@ -88,7 +88,7 @@ bool FMapMarkImages::ApplyTeamMark(UImage* MarkWidget, const int32 TeamColorInde
 
 	MarkWidget->SetColorAndOpacity(
 		bUseTeamColorTint
-			? LabTeamColorUtils::GetTeamColor(
+			? TeamColorUtils::GetTeamColor(
 				NormalizedTeamColorIndex)
 			: FLinearColor::White);
 	return ApplyImage(MarkWidget, ResourceObject, DesiredImageSize);

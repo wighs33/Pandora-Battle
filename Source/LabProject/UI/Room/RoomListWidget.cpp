@@ -9,7 +9,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Engine/GameInstance.h"
 #include "Audio/BgmSubsystem.h"
-#include "Common/PdTicker.h"
+#include "Common/Ticker.h"
 #include "Online/OnlineSessionsSubsystem.h"
 #include "UI/Room/CreateRoomPopupWidget.h"
 #include "UI/Room/RoomItemWidget.h"
@@ -350,7 +350,7 @@ void URoomListWidget::OpenTitleMap() const
 	const FString TitleMapName = GetResolvedTitleTravelMapName();
 	if (!TitleMapName.IsEmpty())
 	{
-		PdTicker::RunNextTick(this, [this, TitleMapName]()
+		Ticker::RunNextTick(this, [this, TitleMapName]()
 		{
 			UGameplayStatics::OpenLevel(this, FName(*TitleMapName));
 		});

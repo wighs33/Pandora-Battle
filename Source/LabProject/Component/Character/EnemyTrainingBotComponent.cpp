@@ -8,7 +8,7 @@
 #include "Animation/AnimMontage.h"
 #include "Character/EnemyBase.h"
 #include "AbilitySystem/Ability/EquipmentAbilityData.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Component/Character/EnemyCombatComponent.h"
 #include "Component/Player/EquipmentComponent.h"
@@ -129,7 +129,7 @@ void UEnemyTrainingBotComponent::HandleDamageTaken(const float DamageAmount, con
 	}
 
 	UPdAbilitySystemComponent* AbilitySystemComponent = Enemy->GetEnemyAbilitySystemComponent();
-	if (!AbilitySystemComponent || AbilitySystemComponent->HasMatchingGameplayTag(LabGameplayTags::State_Dead))
+	if (!AbilitySystemComponent || AbilitySystemComponent->HasMatchingGameplayTag(PdGameplayTags::State_Dead))
 	{
 		return;
 	}
@@ -154,8 +154,8 @@ void UEnemyTrainingBotComponent::TriggerHitReaction()
 	StartHitStun();
 
 	FGameplayTagContainer CancelTags;
-	CancelTags.AddTag(LabGameplayTags::Action_Attack);
-	CancelTags.AddTag(LabGameplayTags::Action_RangedAttack);
+	CancelTags.AddTag(PdGameplayTags::Action_Attack);
+	CancelTags.AddTag(PdGameplayTags::Action_RangedAttack);
 	if (UPdAbilitySystemComponent* AbilitySystemComponent = Enemy->GetEnemyAbilitySystemComponent())
 	{
 		AbilitySystemComponent->CancelAbilities(&CancelTags);
@@ -253,8 +253,8 @@ bool UEnemyTrainingBotComponent::TryActivateHitReactAbility()
 			return false;
 		};
 
-	return TryActivateByTag(LabGameplayTags::GameplayAbility_HitReaction)
-		|| TryActivateByTag(LabGameplayTags::Action_HitReact);
+	return TryActivateByTag(PdGameplayTags::GameplayAbility_HitReaction)
+		|| TryActivateByTag(PdGameplayTags::Action_HitReact);
 }
 
 UAnimMontage* UEnemyTrainingBotComponent::ResolveHitReactMontage() const
@@ -388,9 +388,9 @@ void UEnemyTrainingBotComponent::CancelWeaponChangeAttackState(const float Blend
 	if (UPdAbilitySystemComponent* AbilitySystemComponent = Enemy->GetEnemyAbilitySystemComponent())
 	{
 		FGameplayTagContainer CancelTags;
-		CancelTags.AddTag(LabGameplayTags::Action_Attack);
-		CancelTags.AddTag(LabGameplayTags::Action_Punch);
-		CancelTags.AddTag(LabGameplayTags::Action_RangedAttack);
+		CancelTags.AddTag(PdGameplayTags::Action_Attack);
+		CancelTags.AddTag(PdGameplayTags::Action_Punch);
+		CancelTags.AddTag(PdGameplayTags::Action_RangedAttack);
 		AbilitySystemComponent->CancelAbilities(&CancelTags);
 	}
 

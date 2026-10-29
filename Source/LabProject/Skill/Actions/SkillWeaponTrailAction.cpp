@@ -9,7 +9,7 @@
 #include "Definition/AbilitySystem/SkillDefinition.h"
 #include "Definition/AbilitySystem/StatusEffectDefinition.h"
 #include "Animation/AnimMontage.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "GameFramework/Actor.h"
 #include "GameplayEffectTypes.h"
 #include "NiagaraSystem.h"
@@ -98,14 +98,14 @@ void USkillWeaponTrailAction::PrepareSlash(AMeleeWeapon* MeleeWeapon, const USki
 
 void USkillWeaponTrailAction::ListenForSlashHitWindow()
 {
-	TrailAttackTraceStartTask = GetAbility()->CreateWaitGameplayEventTask(LabGameplayTags::Notifier_Attack_ComboInputOpen);
+	TrailAttackTraceStartTask = GetAbility()->CreateWaitGameplayEventTask(PdGameplayTags::Notifier_Attack_ComboInputOpen);
 	if (ensure(TrailAttackTraceStartTask))
 	{
 		TrailAttackTraceStartTask->EventReceived.AddDynamic(this, &ThisClass::HandleTrailAttackTraceStart);
 		TrailAttackTraceStartTask->ReadyForActivation();
 	}
 
-	TrailAttackTraceEndTask = GetAbility()->CreateWaitGameplayEventTask(LabGameplayTags::Notifier_Attack_ComboInputClose);
+	TrailAttackTraceEndTask = GetAbility()->CreateWaitGameplayEventTask(PdGameplayTags::Notifier_Attack_ComboInputClose);
 	if (ensure(TrailAttackTraceEndTask))
 	{
 		TrailAttackTraceEndTask->EventReceived.AddDynamic(this, &ThisClass::HandleTrailAttackTraceEnd);

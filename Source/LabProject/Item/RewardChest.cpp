@@ -51,7 +51,7 @@ ARewardChest::ARewardChest(const FObjectInitializer& ObjectInitializer)
 		ChestMesh->SetCollisionResponseToAllChannels(ECR_Block);
 		ChestMesh->SetCollisionResponseToChannel(ECC_Pawn, ECR_Block);
 		ChestMesh->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Overlap);
-		ChestMesh->SetCollisionResponseToChannel(LabCollisionChannels::OverlapBox(), ECR_Overlap);
+		ChestMesh->SetCollisionResponseToChannel(CollisionChannels::OverlapBox(), ECR_Overlap);
 		ChestMesh->SetGenerateOverlapEvents(true);
 		ChestMesh->SetCanEverAffectNavigation(false);
 		ChestMesh->OnComponentBeginOverlap.AddDynamic(this, &ThisClass::HandleChestBeginOverlap);
@@ -155,12 +155,12 @@ void ARewardChest::GetRewardItems_Implementation(TArray<FPrimaryAssetId>& OutIte
 		CountRule.bUseChances = bUseRandomRewardItemCountChances;
 		CountRule.FallbackCount = RandomRewardItemCount;
 		CountRule.Chances = RandomRewardItemCountChances;
-		PdRewardChestLoot::RollRandomItems(
+		RewardChestLoot::RollRandomItems(
 			GatherDroppableItemCandidates(), CountRule, bAllowDuplicateRandomItems, OutItemDefinitionList);
 	}
 	else
 	{
-		PdRewardChestLoot::PickConfiguredItems(GatherConfiguredItemCandidates(), OutItemDefinitionList);
+		RewardChestLoot::PickConfiguredItems(GatherConfiguredItemCandidates(), OutItemDefinitionList);
 	}
 }
 
@@ -414,7 +414,7 @@ void ARewardChest::ConfigureChestCollision(const bool bEnableInteraction) const
 	ChestMesh->SetCollisionResponseToAllChannels(ECR_Block);
 	ChestMesh->SetCollisionResponseToChannel(ECC_Pawn, ECR_Block);
 	ChestMesh->SetCollisionResponseToChannel(ECC_WorldDynamic, bEnableInteraction ? ECR_Overlap : ECR_Ignore);
-	ChestMesh->SetCollisionResponseToChannel(LabCollisionChannels::OverlapBox(),
+	ChestMesh->SetCollisionResponseToChannel(CollisionChannels::OverlapBox(),
 		bEnableInteraction ? ECR_Overlap : ECR_Ignore);
 	ChestMesh->SetGenerateOverlapEvents(bEnableInteraction);
 	ChestMesh->SetCanEverAffectNavigation(false);

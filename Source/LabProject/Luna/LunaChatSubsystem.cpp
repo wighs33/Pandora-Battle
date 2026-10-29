@@ -11,7 +11,7 @@
 #include "Internationalization/Culture.h"
 #include "Internationalization/Internationalization.h"
 #include "Localization/MenuLocalizationSubsystem.h"
-#include "Common/PdTicker.h"
+#include "Common/Ticker.h"
 #include "Common/UiLanguage.h"
 #include "Data/ContentDataSubsystem.h"
 #include "Definition/Mode/PdGameInstanceDefinition.h"
@@ -142,7 +142,7 @@ bool ULunaChatSubsystem::Ask(const FString& Question)
 	bWaitingForServer = true;
 	if (!LocalServer->Start())
 	{
-		PdTicker::RunNextTick(this, [this, RequestSerial]()
+		Ticker::RunNextTick(this, [this, RequestSerial]()
 		{
 			if (RequestSerial == ActiveRequestSerial && bWaitingForServer)
 			{
@@ -281,7 +281,7 @@ TSharedRef<IHttpRequest, ESPMode::ThreadSafe> ULunaChatSubsystem::CreateChatRequ
 	Request->SetVerb(TEXT("POST"));
 	Request->SetURL(Url + (UsesBundledServer() ? TEXT("/v1/chat/completions") : TEXT("/api/chat")));
 	Request->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
-	Request->SetContentAsString(PdBackendHttp::SerializeJson(Body));
+	Request->SetContentAsString(BackendHttp::SerializeJson(Body));
 	Request->SetTimeout(Settings->GetRequestTimeoutSeconds());
 	return Request;
 }

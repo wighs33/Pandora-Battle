@@ -28,7 +28,7 @@ THIRD_PARTY_INCLUDES_END
 namespace
 {
 	// 콤보 상자 항목 순서가 팀 색 번호다.
-	const TCHAR* LobbyTeamColorOptions[LabTeamColorUtils::TeamColorCount] = {
+	const TCHAR* LobbyTeamColorOptions[TeamColorUtils::TeamColorCount] = {
 		TEXT("Red"),
 		TEXT("Blue"),
 		TEXT("Yellow"),
@@ -46,12 +46,12 @@ namespace
 			{
 				if (ComboBox->GetOptionAtIndex(OptionIndex).Equals(OptionName, ESearchCase::IgnoreCase))
 				{
-					return FMath::Clamp(OptionIndex, 0, LabTeamColorUtils::TeamColorCount - 1);
+					return FMath::Clamp(OptionIndex, 0, TeamColorUtils::TeamColorCount - 1);
 				}
 			}
 		}
 
-		for (int32 OptionIndex = 0; OptionIndex < LabTeamColorUtils::TeamColorCount; ++OptionIndex)
+		for (int32 OptionIndex = 0; OptionIndex < TeamColorUtils::TeamColorCount; ++OptionIndex)
 		{
 			if (OptionName.Equals(LobbyTeamColorOptions[OptionIndex], ESearchCase::IgnoreCase))
 			{
@@ -389,7 +389,7 @@ void ULobbyUserWidget::RefreshTeamColorUI()
 		return;
 	}
 
-	const int32 TeamColorIndex = LabTeamColorUtils::NormalizeTeamColorIndex(PlayerState->GetPlayerMatchComponent()->GetMatchTeamColorIndex());
+	const int32 TeamColorIndex = TeamColorUtils::NormalizeTeamColorIndex(PlayerState->GetPlayerMatchComponent()->GetMatchTeamColorIndex());
 
 	if (Cbb_TeamColor)
 	{
@@ -410,7 +410,7 @@ void ULobbyUserWidget::SetColorBorderByTeamColorIndex(const int32 TeamColorIndex
 {
 	if (ColorBorder)
 	{
-		ColorBorder->SetBrushColor(LabTeamColorUtils::GetTeamColorTint(TeamColorIndex));
+		ColorBorder->SetBrushColor(TeamColorUtils::GetTeamColorTint(TeamColorIndex));
 	}
 }
 

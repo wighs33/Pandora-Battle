@@ -114,9 +114,9 @@ void AOutOfBoundsVolume::ConfigureBoundaryCollision() const
 {
 	BoundarySphere->SetCollisionProfileName(TEXT("Custom"));
 	BoundarySphere->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-	BoundarySphere->SetCollisionObjectType(LabCollisionChannels::OverlapBox());
+	BoundarySphere->SetCollisionObjectType(CollisionChannels::OverlapBox());
 	BoundarySphere->SetCollisionResponseToAllChannels(ECR_Ignore);
 	BoundarySphere->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
-	BoundarySphere->SetCollisionResponseToChannel(LabCollisionChannels::HitableBody(), ECR_Overlap);
+	BoundarySphere->SetCollisionResponseToChannel(CollisionChannels::HitableBody(), ECR_Overlap);
 	BoundarySphere->SetGenerateOverlapEvents(true);
 }

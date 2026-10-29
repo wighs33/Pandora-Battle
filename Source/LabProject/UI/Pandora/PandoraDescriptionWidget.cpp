@@ -16,7 +16,7 @@ void UPandoraDescriptionWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
-	PdViewModelBinding::SetViewModel(this, GetOrCreatePandoraDescriptionViewModel());
+	ViewModelBinding::SetViewModel(this, GetOrCreatePandoraDescriptionViewModel());
 	ResolvePandoraTreeComponent();
 	SetDetails();
 }
@@ -120,7 +120,7 @@ void UPandoraDescriptionWidget::ApplyEffectIconResources()
 	for (int32 SkillIndex = 0; SkillIndex < EffectIconResources.Num(); ++SkillIndex)
 	{
 		const USkillDefinition* Skill = PandoraDefinition ? PandoraDefinition->GetSkillDefinition(SkillIndex) : nullptr;
-		PdSkillEffectIconResolver::ApplySkillEffectIcon(this, Skill, EffectIconResources[SkillIndex]);
+		SkillEffectIconResolver::ApplySkillEffectIcon(this, Skill, EffectIconResources[SkillIndex]);
 	}
 }
 

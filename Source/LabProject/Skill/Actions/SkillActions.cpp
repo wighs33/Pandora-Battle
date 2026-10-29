@@ -301,9 +301,9 @@ void USkillSpawnActorAction::OnStart()
 	if (bProjectToGround)
 	{
 		TArray<AActor*> Ignore { Avatar };
-		PdSkillGroundProjection::FGroundProjectionResult Ground;
-		if (PdSkillGroundProjection::TryProjectToGround(GetWorld(), Transform.GetLocation(),
-			LabCollisionChannels::VisibilityTrace(), 100.0, 10000.0, Ignore, Ground))
+		SkillGroundProjection::FGroundProjectionResult Ground;
+		if (SkillGroundProjection::TryProjectToGround(GetWorld(), Transform.GetLocation(),
+			CollisionChannels::VisibilityTrace(), 100.0, 10000.0, Ignore, Ground))
 		{
 			Transform.SetLocation(Ground.Location);
 		}

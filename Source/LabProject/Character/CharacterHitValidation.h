@@ -6,7 +6,7 @@ class AActor;
 class ACharacterBase;
 class UPrimitiveComponent;
 
-namespace PdCharacterHitValidation
+namespace CharacterHitValidation
 {
 	/** 맞은 액터·컴포넌트와 직접 또는 간접으로 연결된 캐릭터를 찾는다. */
 	LABPROJECT_API ACharacterBase* ResolveRelatedCharacter(

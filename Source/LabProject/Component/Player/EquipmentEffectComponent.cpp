@@ -2,7 +2,7 @@
 
 #include "AbilitySystem/Effects/EquipmentStatsEffect.h"
 #include "Character/CharacterBase.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Component/Item/InventoryComponent.h"
 #include "Definition/Common/ProjectTagDefinition.h"
@@ -19,7 +19,7 @@ namespace
 	// 무기의 힘은 무기 피해량이라 전투 컴포넌트가 무기에서 직접 읽는다. 속성에는 더하지 않는다.
 	bool IsWeaponDamageStat(const FGameplayTag& StatTag)
 	{
-		return StatTag.MatchesTagExact(LabGameplayTags::Status_Offense_Strength);
+		return StatTag.MatchesTagExact(PdGameplayTags::Status_Offense_Strength);
 	}
 
 	bool AreStatMagnitudesEqual(const TMap<FGameplayTag, float>& Left, const TMap<FGameplayTag, float>& Right)

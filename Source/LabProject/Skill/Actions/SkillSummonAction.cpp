@@ -12,7 +12,7 @@
 #include "Animation/AnimMontage.h"
 #include "Character/CharacterBase.h"
 #include "Common/ComponentLookup.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/World.h"
@@ -132,7 +132,7 @@ FGameplayTag USkillSummonAction::GetResolvedMontageTriggerEventTag() const
 		return SkillDataAsset->Animation.PrimaryEventTag;
 	}
 
-	return LabGameplayTags::Event_Montage_Trigger;
+	return PdGameplayTags::Event_Montage_Trigger;
 }
 
 void USkillSummonAction::StartWaitSummonMontageTriggerTask()
@@ -323,10 +323,10 @@ FVector USkillSummonAction::ProjectSummonLocationToGround(const FVector& Candida
 	}
 
 	TArray<AActor*> ActorsToIgnore;
-	PdSkillGroundProjection::AddIgnoredActorAndAttachments(ActorsToIgnore, AvatarActor);
+	SkillGroundProjection::AddIgnoredActorAndAttachments(ActorsToIgnore, AvatarActor);
 
-	PdSkillGroundProjection::FGroundProjectionResult GroundProjection;
-	if (PdSkillGroundProjection::TryProjectToGround(World, CandidateLocation, SummonConfig->GroundTraceChannel,
+	SkillGroundProjection::FGroundProjectionResult GroundProjection;
+	if (SkillGroundProjection::TryProjectToGround(World, CandidateLocation, SummonConfig->GroundTraceChannel,
 		SummonConfig->GroundTraceStartHeight, SummonConfig->GroundTraceDepth, ActorsToIgnore, GroundProjection))
 	{
 		return GroundProjection.Location;
@@ -418,7 +418,7 @@ void USkillSummonAction::FindConfiguredNiagaraComponents(AActor* SummonedActor, 
 			continue;
 		}
 
-		if (PdComponentLookup::MatchesNameOrTag(*NiagaraComponent, SummonConfig->LaserNiagaraComponentName))
+		if (ComponentLookup::MatchesNameOrTag(*NiagaraComponent, SummonConfig->LaserNiagaraComponentName))
 		{
 			OutComponents.Add(NiagaraComponent);
 		}

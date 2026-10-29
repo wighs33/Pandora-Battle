@@ -354,7 +354,7 @@ UNiagaraComponent* UCharacterPresentationComponent::FindBodyAuraNiagaraComponent
 		return DefaultBodyAuraComponent.Get();
 	}
 
-	if (UNiagaraComponent* NamedComponent = PdComponentLookup::FindByNameOrTag<UNiagaraComponent>(Character, ComponentName))
+	if (UNiagaraComponent* NamedComponent = ComponentLookup::FindByNameOrTag<UNiagaraComponent>(Character, ComponentName))
 	{
 		return NamedComponent;
 	}

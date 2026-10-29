@@ -80,7 +80,7 @@ void ULobbyTravelCoordinator::PrepareMatchTravel(bool bSuppressMatchTimer)
 	PrepareLobbyTravelHandoffs();
 	if (bSuppressMatchTimer)
 	{
-		TravelUrl += FString::Printf(TEXT("?%s=1"), LabGameSession::NoMatchTimerOption);
+		TravelUrl += FString::Printf(TEXT("?%s=1"), PdGameSession::NoMatchTimerOption);
 	}
 	PreloadContentAndScheduleTravel(TravelUrl);
 }

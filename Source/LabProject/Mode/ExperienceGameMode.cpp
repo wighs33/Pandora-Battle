@@ -115,7 +115,7 @@ void AExperienceGameMode::PreLogin(const FString& Options, const FString& Addres
 	}
 
 	const int32 CurrentPlayerCount = GameState ? GameState->PlayerArray.Num() : 0;
-	if (CurrentPlayerCount >= LabGameSession::MaxPlayerCount)
+	if (CurrentPlayerCount >= PdGameSession::MaxPlayerCount)
 	{
 		ErrorMessage = TEXT("Server is full.");
 	}

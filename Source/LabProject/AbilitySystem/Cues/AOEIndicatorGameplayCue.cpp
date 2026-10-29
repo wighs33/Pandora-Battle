@@ -1,7 +1,7 @@
 #include "AbilitySystem/Cues/AOEIndicatorGameplayCue.h"
 
 #include "AbilitySystemBlueprintLibrary.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Components/DecalComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInterface.h"
@@ -36,7 +36,7 @@ namespace
 
 AAOEIndicatorGameplayCue::AAOEIndicatorGameplayCue()
 {
-	GameplayCueTag = LabGameplayTags::GameplayCue_AOEIndicator;
+	GameplayCueTag = PdGameplayTags::GameplayCue_AOEIndicator;
 	bAutoDestroyOnRemove = true;
 }
 

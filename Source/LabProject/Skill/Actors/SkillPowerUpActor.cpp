@@ -124,7 +124,7 @@ void ASkillPowerUpActor::StartSourcePlayerEffect()
 	ActiveSourceCharacter = SourceCharacter;
 	ActiveSourceMesh = SourceMesh;
 	CachedSourceMeshScale = SourceMesh->GetComponentScale();
-	StarterNiagaraComponent = PdComponentLookup::FindByNameOrTag<UNiagaraComponent>(this, StarterNiagaraComponentName);
+	StarterNiagaraComponent = ComponentLookup::FindByNameOrTag<UNiagaraComponent>(this, StarterNiagaraComponentName);
 
 	UAnimMontage* MontageToPlay = PresentationSettings.PowerUpMontage;
 	UMaterialInterface* OverlayToApply = PresentationSettings.OverlayMaterial;

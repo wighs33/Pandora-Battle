@@ -29,7 +29,7 @@ namespace
 
 	FString Sha256Hex(const TArray<uint8>& Bytes)
 	{
-		return PdAwsSigV4::ToLowerHex(PdAwsSigV4::Sha256(Bytes));
+		return AwsSigV4::ToLowerHex(AwsSigV4::Sha256(Bytes));
 	}
 
 	FString LunaChunkLine(const FString& Content, const bool bDone)
@@ -65,21 +65,21 @@ bool FPdAwsSigV4Test::RunTest(const FString& Parameters)
 	TestEqual(TEXT("sha256 1000 bytes"), Sha256Hex(RepeatedBytes('a', 1000)),
 		TEXT("41edece42d63e8d9bf515a9ba6932e1c20cbc9f5a5d134645adb5db1b9737ea3"));
 
-	PdAwsSigV4::FRequest Vanilla;
+	AwsSigV4::FRequest Vanilla;
 	Vanilla.Method = TEXT("GET");
 	Vanilla.Host = TEXT("example.amazonaws.com");
 	Vanilla.Path = TEXT("/");
 	Vanilla.Region = TEXT("us-east-1");
 	Vanilla.Service = TEXT("service");
 	Vanilla.TimestampUtc = FDateTime(2015, 8, 30, 12, 36, 0);
-	const PdAwsSigV4::FSignature VanillaSignature = PdAwsSigV4::Sign(Vanilla, ExampleCredentials);
+	const AwsSigV4::FSignature VanillaSignature = AwsSigV4::Sign(Vanilla, ExampleCredentials);
 	TestEqual(TEXT("get-vanilla authorization"), VanillaSignature.Authorization,
 		TEXT("AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20150830/us-east-1/service/aws4_request, ")
 		TEXT("SignedHeaders=host;x-amz-date, Signature=5fa00fa31553b73ebf1942676e86291e8372ff2a2260956d9b8aae1d763fbf31"));
 	TestEqual(TEXT("get-vanilla date"), VanillaSignature.AmzDate, TEXT("20150830T123600Z"));
 
 	// 기대값은 get-vanilla를 재현한 독립 구현으로 계산했다.
-	PdAwsSigV4::FRequest Report;
+	AwsSigV4::FRequest Report;
 	Report.Method = TEXT("POST");
 	Report.Host = TEXT("abc123.execute-api.ap-northeast-2.amazonaws.com");
 	Report.Path = TEXT("/server/match-result");
@@ -89,7 +89,7 @@ bool FPdAwsSigV4Test::RunTest(const FString& Parameters)
 	Report.TimestampUtc = FDateTime(2026, 9, 30, 12, 0, 0);
 	FAwsCredentials TemporaryCredentials = ExampleCredentials;
 	TemporaryCredentials.SessionToken = TEXT("token123");
-	const PdAwsSigV4::FSignature ReportSignature = PdAwsSigV4::Sign(Report, TemporaryCredentials);
+	const AwsSigV4::FSignature ReportSignature = AwsSigV4::Sign(Report, TemporaryCredentials);
 	TestEqual(TEXT("report authorization"), ReportSignature.Authorization,
 		TEXT("AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20260930/ap-northeast-2/execute-api/aws4_request, ")
 		TEXT("SignedHeaders=host;x-amz-date;x-amz-security-token, Signature=b0b799d7d25fa977a3ba388cc025be7e7e48cc05b032ac1b8b946ce0a0414a2c"));

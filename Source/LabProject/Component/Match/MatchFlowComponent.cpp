@@ -135,8 +135,8 @@ AExperienceGameMode* UMatchFlowComponent::GetExperienceGameMode() const
 
 void UMatchFlowComponent::InitializeTravelOptions(const FString& Options)
 {
-	bMatchTimerSuppressedByTravelOption = IsEnabledTravelOption(Options, LabGameSession::NoMatchTimerOption);
-	bBossRaid = IsEnabledTravelOption(Options, LabGameSession::BossRaidOption);
+	bMatchTimerSuppressedByTravelOption = IsEnabledTravelOption(Options, PdGameSession::NoMatchTimerOption);
+	bBossRaid = IsEnabledTravelOption(Options, PdGameSession::BossRaidOption);
 }
 
 void UMatchFlowComponent::InitializeGameState()

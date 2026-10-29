@@ -9,7 +9,7 @@
 #include "Camera/CameraComponent.h"
 #include "Components/Button.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "Common/PdTicker.h"
+#include "Common/Ticker.h"
 #include "EnhancedInputSubsystems.h"
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/Actor.h"
@@ -66,7 +66,7 @@ void UPandoraTreeWidget::NativePreConstruct()
 
 	ApplyWidgetDefinitionSettings();
 
-	PdViewModelBinding::SetViewModel(this, GetOrCreatePandoraTreeViewModel());
+	ViewModelBinding::SetViewModel(this, GetOrCreatePandoraTreeViewModel());
 	RefreshPandoraWidgets();
 }
 
@@ -78,7 +78,7 @@ void UPandoraTreeWidget::NativeConstruct()
 	ApplyWidgetDefinitionSettings();
 	ResolvePandoraTreeComponent();
 
-	PdViewModelBinding::SetViewModel(this, GetOrCreatePandoraTreeViewModel());
+	ViewModelBinding::SetViewModel(this, GetOrCreatePandoraTreeViewModel());
 	BindPandoraTreeEvents();
 	BindButtonEvents();
 	SetPandoraPointsText();
@@ -404,7 +404,7 @@ void UPandoraTreeWidget::HandleLoadoutClicked()
 	{
 		if (APdHUD* Hud = PlayerController->GetHUD<APdHUD>())
 		{
-			PdTicker::RunNextTick(Hud, [Hud]() { Hud->ClosePandoraTreeUi(); });
+			Ticker::RunNextTick(Hud, [Hud]() { Hud->ClosePandoraTreeUi(); });
 		}
 	}
 }

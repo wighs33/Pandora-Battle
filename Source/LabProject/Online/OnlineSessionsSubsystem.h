@@ -179,7 +179,7 @@ private:
 	// 요청 시작 시 복사해 비동기 단계 사이에 전달하는 방 설정
 	FString PendingRoomName;
 	FString PendingMapName;
-	int32 PendingNumPublicConnections = LabGameSession::MaxPlayerCount;
+	int32 PendingNumPublicConnections = PdGameSession::MaxPlayerCount;
 	bool bPendingIsLAN = true;
 	int32 PendingMaxSearchResults = 50;
 	bool bPendingUseLobbies = true;

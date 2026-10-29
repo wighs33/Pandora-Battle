@@ -4,7 +4,7 @@
 #include "AbilitySystemComponent.h"
 #include "Character/CharacterBase.h"
 #include "Common/CollisionChannels.h"
-#include "Common/LabGameplayTags.h"
+#include "Common/PdGameplayTags.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Component/Character/AbilityStateComponent.h"
 #include "Component/Character/CharacterPresentationComponent.h"
@@ -527,8 +527,8 @@ void UCharacterDeathComponent::ConfigureWeaponDamageMesh(USkeletalMeshComponent*
 		return;
 	}
 
-	CharacterMesh->SetCollisionObjectType(LabCollisionChannels::HitableBody());
-	CharacterMesh->SetCollisionResponseToChannel(LabCollisionChannels::Projectile(), ECR_Block);
+	CharacterMesh->SetCollisionObjectType(CollisionChannels::HitableBody());
+	CharacterMesh->SetCollisionResponseToChannel(CollisionChannels::Projectile(), ECR_Block);
 	if (CharacterMesh->GetCollisionEnabled() == ECollisionEnabled::NoCollision)
 	{
 		CharacterMesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);

@@ -13,7 +13,7 @@ struct FShopCatalogSource
 	bool bIncludeAllSkins = false;
 };
 
-namespace PdShopCatalog
+namespace ShopCatalog
 {
 	// 같은 상품은 처음 한 번만 넣고, 상점 정렬 순서·상품 종류·표시 이름 순으로 정렬한다.
 	// 정의가 아직 메모리에 없는 상품은 뺀다.
