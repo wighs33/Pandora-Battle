@@ -35,8 +35,6 @@ protected:
 
 public:
 	// Public API ------------------------------------------------------------------------------------------------------
-	ULeftEquipmentWidget(const FObjectInitializer& ObjectInitializer);
-
 	UFUNCTION(BlueprintCallable, Category = "!UI|Equipment")
 	void InitialzeEquipSlots();
 
@@ -170,23 +168,9 @@ protected:
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "!UI|Equipment", meta = (DisplayName = "IsSelectedAnyButton?"))
 	bool bIsSelectedAnyButton = false;
 
-	UPROPERTY(EditDefaultsOnly, Category = "!UI|Equipment|Pandora", meta = (AssetBundles = "Client"))
-	TSoftObjectPtr<UTexture2D> PandoraAxeIcon;
-
-	UPROPERTY(EditDefaultsOnly, Category = "!UI|Equipment|Pandora", meta = (AssetBundles = "Client"))
-	TSoftObjectPtr<UTexture2D> PandoraBowIcon;
-
-	UPROPERTY(EditDefaultsOnly, Category = "!UI|Equipment|Pandora", meta = (AssetBundles = "Client"))
-	TSoftObjectPtr<UTexture2D> PandoraDaggerIcon;
-
-	UPROPERTY(EditDefaultsOnly, Category = "!UI|Equipment|Pandora", meta = (AssetBundles = "Client"))
-	TSoftObjectPtr<UTexture2D> PandoraGreatswordIcon;
-
-	UPROPERTY(EditDefaultsOnly, Category = "!UI|Equipment|Pandora", meta = (AssetBundles = "Client"))
-	TSoftObjectPtr<UTexture2D> PandoraSwordIcon;
-
-	UPROPERTY(EditDefaultsOnly, Category = "!UI|Equipment|Pandora", meta = (AssetBundles = "Client"))
-	TSoftObjectPtr<UTexture2D> PandoraGunIcon;
+	/** 판도라가 요구하는 무기 종류별 아이콘. 요구 무기가 여럿이면 위에 적은 종류부터 고른다. */
+	UPROPERTY(EditDefaultsOnly, Category = "!UI|Equipment|Pandora", meta = (Categories = "Item.Weapon", AssetBundles = "Client"))
+	TMap<FGameplayTag, TSoftObjectPtr<UTexture2D>> PandoraWeaponIcons;
 
 	UPROPERTY(EditDefaultsOnly, Category = "!UI|Equipment|Pandora", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float PandoraWeaponRequirementOpacity = 0.3f;

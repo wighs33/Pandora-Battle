@@ -13,11 +13,6 @@
 
 namespace
 {
-	TSoftObjectPtr<UInputAction> MakeCharacterActionInputActionReference(const TCHAR* Path)
-	{
-		return TSoftObjectPtr<UInputAction>(FSoftObjectPath(Path));
-	}
-
 #if WITH_EDITOR
 	void MarkCharacterActionInvalid(FDataValidationContext& Context, EDataValidationResult& Result, const FText& Message)
 	{
@@ -150,10 +145,8 @@ UCharacterActionDefinition::UCharacterActionDefinition()
 {
 	PandoraWeaponSwap.DisplayName = NSLOCTEXT("CharacterActionDefinition", "PandoraWeaponSwapDisplayName", "Swap");
 	PandoraWeaponSwap.CooldownDuration = 3.0;
-	PandoraWeaponSwap.InputAction = MakeCharacterActionInputActionReference(TEXT("/Game/Input/Action/IA_SelectPandora.IA_SelectPandora"));
 
 	GrappleHook.DisplayName = NSLOCTEXT("CharacterActionDefinition", "GrappleHookDisplayName", "Hook");
-	GrappleHook.InputAction = MakeCharacterActionInputActionReference(TEXT("/Game/Input/Action/IA_Grapple.IA_Grapple"));
 }
 
 FPrimaryAssetId UCharacterActionDefinition::GetPrimaryAssetId() const

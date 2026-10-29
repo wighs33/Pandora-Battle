@@ -108,12 +108,6 @@ FMonsterDefeatRewardCategory::FMonsterDefeatRewardCategory()
 
 	PotionDrop.bGrantRandomPotion = true;
 	PotionDrop.PotionDropChance = 20.0f;
-	PotionDrop.PotionDefinitions = {
-		TSoftObjectPtr<UItemDefinition>(FSoftObjectPath(TEXT("/Game/Item/Consumable/DA_HealPotion.DA_HealPotion"))),
-		TSoftObjectPtr<UItemDefinition>(FSoftObjectPath(TEXT("/Game/Item/Consumable/DA_ManaPotion.DA_ManaPotion"))),
-		TSoftObjectPtr<UItemDefinition>(FSoftObjectPath(
-			TEXT("/Game/Item/Consumable/DA_StaminaPotion.DA_StaminaPotion")))
-	};
 }
 
 int32 FRewardChestSpawnCategory::ResolveActiveChestCount(const int32 TotalChestCount) const

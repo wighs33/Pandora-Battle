@@ -101,5 +101,5 @@ public:
 	 * 서버 쿡 목록(MapsToCook)에 있어야 한다.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Boss Raid Level")
-	TSoftObjectPtr<UWorld> BossRaidLevel = TSoftObjectPtr<UWorld>(FSoftObjectPath(TEXT("/Game/Map/LV_Colosseum.LV_Colosseum")));
+	TSoftObjectPtr<UWorld> BossRaidLevel;
 };

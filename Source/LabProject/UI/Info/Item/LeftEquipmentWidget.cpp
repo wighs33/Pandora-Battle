@@ -1,6 +1,5 @@
 #include "UI/Info/Item/LeftEquipmentWidget.h"
 
-#include "Common/LabGameplayTags.h"
 #include "Data/ContentDataSubsystem.h"
 #include "Data/ContentLease.h"
 #include "Definition/Common/ProjectTagDefinition.h"
@@ -11,23 +10,6 @@
 #include "Definition/Pandora/PandoraDefinition.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LeftEquipmentWidget)
-
-ULeftEquipmentWidget::ULeftEquipmentWidget(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
-	PandoraAxeIcon = TSoftObjectPtr<UTexture2D>(
-		FSoftObjectPath(TEXT("/Game/UI/Asset/Images/ItemIcons/weapon-axe.weapon-axe")));
-	PandoraBowIcon = TSoftObjectPtr<UTexture2D>(
-		FSoftObjectPath(TEXT("/Game/UI/Asset/Images/ItemIcons/weapon-bow.weapon-bow")));
-	PandoraDaggerIcon = TSoftObjectPtr<UTexture2D>(
-		FSoftObjectPath(TEXT("/Game/UI/Asset/Images/ItemIcons/weapon-dagger.weapon-dagger")));
-	PandoraGreatswordIcon = TSoftObjectPtr<UTexture2D>(
-		FSoftObjectPath(TEXT("/Game/UI/Asset/Images/ItemIcons/weapon-greatsword.weapon-greatsword")));
-	PandoraSwordIcon = TSoftObjectPtr<UTexture2D>(
-		FSoftObjectPath(TEXT("/Game/UI/Asset/Images/ItemIcons/weapon-sword.weapon-sword")));
-	PandoraGunIcon = TSoftObjectPtr<UTexture2D>(
-		FSoftObjectPath(TEXT("/Game/UI/Asset/Images/ItemIcons/weapoon-gun.weapoon-gun")));
-}
 
 void ULeftEquipmentWidget::NativePreConstruct()
 {
@@ -153,19 +135,11 @@ void ULeftEquipmentWidget::BeginPandoraWeaponIconPreload()
 	}
 
 	TArray<FSoftObjectPath> IconPaths;
-	const TSoftObjectPtr<UTexture2D> Icons[] = {
-		PandoraAxeIcon,
-		PandoraBowIcon,
-		PandoraDaggerIcon,
-		PandoraGreatswordIcon,
-		PandoraSwordIcon,
-		PandoraGunIcon
-	};
-	for (const TSoftObjectPtr<UTexture2D>& Icon : Icons)
+	for (const TPair<FGameplayTag, TSoftObjectPtr<UTexture2D>>& WeaponIcon : PandoraWeaponIcons)
 	{
-		if (!Icon.IsNull())
+		if (!WeaponIcon.Value.IsNull())
 		{
-			IconPaths.Add(Icon.ToSoftObjectPath());
+			IconPaths.Add(WeaponIcon.Value.ToSoftObjectPath());
 		}
 	}
 
@@ -475,29 +449,12 @@ UTexture2D* ULeftEquipmentWidget::ResolvePandoraWeaponRequirementIcon(const UPan
 		return false;
 	};
 
-	if (HasWeaponTag(LabGameplayTags::Item_Weapon_Axe))
+	for (const TPair<FGameplayTag, TSoftObjectPtr<UTexture2D>>& WeaponIcon : PandoraWeaponIcons)
 	{
-		return PandoraAxeIcon.Get();
-	}
-	if (HasWeaponTag(LabGameplayTags::Item_Weapon_Bow))
-	{
-		return PandoraBowIcon.Get();
-	}
-	if (HasWeaponTag(LabGameplayTags::Item_Weapon_Dagger))
-	{
-		return PandoraDaggerIcon.Get();
-	}
-	if (HasWeaponTag(LabGameplayTags::Item_Weapon_GreatSword))
-	{
-		return PandoraGreatswordIcon.Get();
-	}
-	if (HasWeaponTag(LabGameplayTags::Item_Weapon_Sword))
-	{
-		return PandoraSwordIcon.Get();
-	}
-	if (HasWeaponTag(LabGameplayTags::Item_Weapon_Gun))
-	{
-		return PandoraGunIcon.Get();
+		if (HasWeaponTag(WeaponIcon.Key))
+		{
+			return WeaponIcon.Value.Get();
+		}
 	}
 
 	return nullptr;
