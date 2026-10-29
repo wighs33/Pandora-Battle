@@ -6,6 +6,7 @@
 #include "AbilitySystemComponent.h"
 #include "Character/CharacterBase.h"
 #include "Common/LabGameplayTags.h"
+#include "Common/ComponentLookup.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/PrimitiveComponent.h"
 #include "Engine/OverlapResult.h"
@@ -361,39 +362,6 @@ void USkillAuraAction::ApplyHealFieldTeamHeal(const USkillDefinition* SkillDataA
 	}
 }
 
-UPrimitiveComponent* USkillAuraAction::FindInteractionHealComponent(ACharacterBase* Character, const FName ComponentName) const
-{
-	if (!Character)
-	{
-		return nullptr;
-	}
-
-	TArray<UPrimitiveComponent*> PrimitiveComponents;
-	Character->GetComponents<UPrimitiveComponent>(PrimitiveComponents);
-	if (PrimitiveComponents.IsEmpty())
-	{
-		return nullptr;
-	}
-
-	if (!ComponentName.IsNone())
-	{
-		for (UPrimitiveComponent* PrimitiveComponent : PrimitiveComponents)
-		{
-			if (!PrimitiveComponent)
-			{
-				continue;
-			}
-
-			if (PrimitiveComponent->GetFName() == ComponentName || PrimitiveComponent->ComponentHasTag(ComponentName))
-			{
-				return PrimitiveComponent;
-			}
-		}
-	}
-
-	return nullptr;
-}
-
 float USkillAuraAction::ResolveHealFieldRadius(ACharacterBase* SourceCharacter, const USkillDefinition* SkillDataAsset) const
 {
 	if (SkillDataAsset && Healing.HealRadius > 0.0)
@@ -403,7 +371,7 @@ float USkillAuraAction::ResolveHealFieldRadius(ACharacterBase* SourceCharacter, 
 
 	const FAuraSkillConfig* AuraConfig = &Settings;
 	UPrimitiveComponent* HealComponent = AuraConfig
-		? FindInteractionHealComponent(SourceCharacter, Healing.HealingInteractionComponentName)
+		? PdComponentLookup::FindByNameOrTag<UPrimitiveComponent>(SourceCharacter, Healing.HealingInteractionComponentName)
 		: nullptr;
 	return HealComponent ? FMath::Max(HealComponent->Bounds.SphereRadius, 0.0f) : 0.0f;
 }

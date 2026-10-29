@@ -1,6 +1,7 @@
 #include "Skill/Actions/SkillTriggerDamage.h"
 
 #include "Character/CharacterBase.h"
+#include "Common/ComponentLookup.h"
 #include "Components/PrimitiveComponent.h"
 #include "Definition/AbilitySystem/SkillEffectSettings.h"
 #include "Engine/World.h"
@@ -17,46 +18,18 @@ void USkillTriggerDamage::Configure(const FSkillTopLevelDamageConfig& DamageConf
 UPrimitiveComponent* USkillTriggerDamage::FindTriggerComponent(AActor* Actor, const FName ComponentName,
 	const bool bUseAnyPrimitiveAsFallback)
 {
-	if (!Actor)
+	if (UPrimitiveComponent* NamedComponent = PdComponentLookup::FindByNameOrTag<UPrimitiveComponent>(Actor, ComponentName))
+	{
+		return NamedComponent;
+	}
+
+	if (!Actor || !bUseAnyPrimitiveAsFallback)
 	{
 		return nullptr;
 	}
 
-	TArray<UPrimitiveComponent*> PrimitiveComponents;
-	Actor->GetComponents<UPrimitiveComponent>(PrimitiveComponents);
+	const TInlineComponentArray<UPrimitiveComponent*> PrimitiveComponents(Actor);
 	if (PrimitiveComponents.IsEmpty())
-	{
-		return nullptr;
-	}
-
-	if (!ComponentName.IsNone())
-	{
-		for (UPrimitiveComponent* PrimitiveComponent : PrimitiveComponents)
-		{
-			if (PrimitiveComponent && PrimitiveComponent->GetFName() == ComponentName)
-			{
-				return PrimitiveComponent;
-			}
-		}
-
-		for (UPrimitiveComponent* PrimitiveComponent : PrimitiveComponents)
-		{
-			if (PrimitiveComponent && PrimitiveComponent->ComponentHasTag(ComponentName))
-			{
-				return PrimitiveComponent;
-			}
-		}
-
-		for (UPrimitiveComponent* PrimitiveComponent : PrimitiveComponents)
-		{
-			if (PrimitiveComponent && PrimitiveComponent->GetName().Contains(ComponentName.ToString()))
-			{
-				return PrimitiveComponent;
-			}
-		}
-	}
-
-	if (!bUseAnyPrimitiveAsFallback)
 	{
 		return nullptr;
 	}

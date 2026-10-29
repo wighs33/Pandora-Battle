@@ -1,6 +1,7 @@
 #include "Component/Character/CharacterPresentationComponent.h"
 
 #include "Character/CharacterBase.h"
+#include "Common/ComponentLookup.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Definition/Match/MatchRuleDefinition.h"
 #include "Engine/GameInstance.h"
@@ -353,18 +354,9 @@ UNiagaraComponent* UCharacterPresentationComponent::FindBodyAuraNiagaraComponent
 		return DefaultBodyAuraComponent.Get();
 	}
 
-	TArray<UNiagaraComponent*> NiagaraComponents;
-	Character->GetComponents<UNiagaraComponent>(NiagaraComponents);
-	if (!ComponentName.IsNone())
+	if (UNiagaraComponent* NamedComponent = PdComponentLookup::FindByNameOrTag<UNiagaraComponent>(Character, ComponentName))
 	{
-		for (UNiagaraComponent* NiagaraComponent : NiagaraComponents)
-		{
-			if (NiagaraComponent
-				&& (NiagaraComponent->GetFName() == ComponentName || NiagaraComponent->ComponentHasTag(ComponentName)))
-			{
-				return NiagaraComponent;
-			}
-		}
+		return NamedComponent;
 	}
 	return DefaultBodyAuraComponent.Get();
 }

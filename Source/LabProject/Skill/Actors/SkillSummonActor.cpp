@@ -1,5 +1,6 @@
 #include "Skill/Actors/SkillSummonActor.h"
 
+#include "Common/ComponentLookup.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
 #include "NiagaraComponent.h"
@@ -107,7 +108,7 @@ void ASkillSummonActor::FindSummonNiagaraComponents(const FName ComponentName, c
 			continue;
 		}
 
-		if (NiagaraComponent->GetFName() == ComponentName || NiagaraComponent->ComponentHasTag(ComponentName))
+		if (PdComponentLookup::MatchesNameOrTag(*NiagaraComponent, ComponentName))
 		{
 			OutComponents.Add(NiagaraComponent);
 		}

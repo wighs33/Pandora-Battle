@@ -3,6 +3,7 @@
 #include "Skill/SkillGroundProjection.h"
 #include "Character/CharacterBase.h"
 #include "Common/CollisionChannels.h"
+#include "Common/ComponentLookup.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Definition/AbilitySystem/SkillDefinition.h"
@@ -37,27 +38,6 @@ namespace
 		return RawName.StartsWith(TEXT("User."))
 			? RawParameterName
 			: FName(*FString::Printf(TEXT("User.%s"), *RawName));
-	}
-
-	UNiagaraComponent* FindNiagaraComponentByNameOrTag(const AActor* Owner, const FName ComponentName)
-	{
-		if (!Owner || ComponentName.IsNone())
-		{
-			return nullptr;
-		}
-
-		TArray<UNiagaraComponent*> NiagaraComponents;
-		Owner->GetComponents<UNiagaraComponent>(NiagaraComponents);
-		for (UNiagaraComponent* NiagaraComponent : NiagaraComponents)
-		{
-			if (NiagaraComponent && (NiagaraComponent->GetFName() == ComponentName
-				|| NiagaraComponent->ComponentTags.Contains(ComponentName)))
-			{
-				return NiagaraComponent;
-			}
-		}
-
-		return nullptr;
 	}
 }
 
@@ -292,7 +272,7 @@ void ASkillVisualActor::StartDefaultFX()
 	}
 
 	if (UNiagaraComponent* ExistingComponent =
-		FindNiagaraComponentByNameOrTag(Character, NiagaraSettings.SocketNiagaraComponentName))
+		PdComponentLookup::FindByNameOrTag<UNiagaraComponent>(Character, NiagaraSettings.SocketNiagaraComponentName))
 	{
 		LocalBorrowedSocketNiagaraComponent = ExistingComponent;
 		BorrowedSocketPreviousAsset = ExistingComponent->GetAsset();

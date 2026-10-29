@@ -11,6 +11,7 @@
 #include "AbilitySystemComponent.h"
 #include "Animation/AnimMontage.h"
 #include "Character/CharacterBase.h"
+#include "Common/ComponentLookup.h"
 #include "Common/LabGameplayTags.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -417,8 +418,7 @@ void USkillSummonAction::FindConfiguredNiagaraComponents(AActor* SummonedActor, 
 			continue;
 		}
 
-		if (NiagaraComponent->GetFName() == SummonConfig->LaserNiagaraComponentName
-			|| NiagaraComponent->ComponentHasTag(SummonConfig->LaserNiagaraComponentName))
+		if (PdComponentLookup::MatchesNameOrTag(*NiagaraComponent, SummonConfig->LaserNiagaraComponentName))
 		{
 			OutComponents.Add(NiagaraComponent);
 		}

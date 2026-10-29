@@ -74,8 +74,6 @@ private:
 	bool IsPullPhaseActive() const;
 	bool ShouldPullCharacter(ACharacterBase* TargetCharacter) const;
 	AActor* ResolveSourceActor() const;
-	USceneComponent* FindSceneComponentByName(FName ComponentName) const;
-	UNiagaraComponent* FindNiagaraComponentByName(FName ComponentName) const;
 	float EvaluateCurveOrLinear(const UCurveFloat* Curve, float NormalizedTime) const;
 
 private:

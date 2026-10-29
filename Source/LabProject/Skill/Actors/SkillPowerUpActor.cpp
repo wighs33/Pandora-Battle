@@ -2,6 +2,7 @@
 
 #include "Animation/AnimMontage.h"
 #include "Character/CharacterBase.h"
+#include "Common/ComponentLookup.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Kismet/KismetMaterialLibrary.h"
 #include "Materials/MaterialInterface.h"
@@ -123,7 +124,7 @@ void ASkillPowerUpActor::StartSourcePlayerEffect()
 	ActiveSourceCharacter = SourceCharacter;
 	ActiveSourceMesh = SourceMesh;
 	CachedSourceMeshScale = SourceMesh->GetComponentScale();
-	StarterNiagaraComponent = FindNiagaraComponentByName(StarterNiagaraComponentName);
+	StarterNiagaraComponent = PdComponentLookup::FindByNameOrTag<UNiagaraComponent>(this, StarterNiagaraComponentName);
 
 	UAnimMontage* MontageToPlay = PresentationSettings.PowerUpMontage;
 	UMaterialInterface* OverlayToApply = PresentationSettings.OverlayMaterial;
@@ -209,31 +210,6 @@ ACharacterBase* ASkillPowerUpActor::ResolveSourceCharacter() const
 	if (ACharacterBase* InstigatorCharacter = Cast<ACharacterBase>(GetInstigator()))
 	{
 		return InstigatorCharacter;
-	}
-
-	return nullptr;
-}
-
-UNiagaraComponent* ASkillPowerUpActor::FindNiagaraComponentByName(const FName ComponentName) const
-{
-	if (ComponentName.IsNone())
-	{
-		return nullptr;
-	}
-
-	TArray<UNiagaraComponent*> NiagaraComponents;
-	GetComponents<UNiagaraComponent>(NiagaraComponents);
-	for (UNiagaraComponent* NiagaraComponent : NiagaraComponents)
-	{
-		if (!NiagaraComponent)
-		{
-			continue;
-		}
-
-		if (NiagaraComponent->GetFName() == ComponentName || NiagaraComponent->ComponentHasTag(ComponentName))
-		{
-			return NiagaraComponent;
-		}
 	}
 
 	return nullptr;

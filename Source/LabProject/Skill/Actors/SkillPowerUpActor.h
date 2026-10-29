@@ -44,7 +44,6 @@ private:
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	ACharacterBase* ResolveSourceCharacter() const;
-	UNiagaraComponent* FindNiagaraComponentByName(FName ComponentName) const;
 	AWeaponBase* ResolveCurrentWeapon(const ACharacterBase* Character) const;
 	void ApplyEffectAlpha(float Alpha);
 	void RestoreSourcePlayerState();

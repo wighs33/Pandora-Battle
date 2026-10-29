@@ -41,7 +41,6 @@ private:
 	void StartHealFieldTeamHealing(const USkillDefinition* SkillDataAsset);
 	void StopHealFieldTeamHealing();
 	void ApplyHealFieldTeamHeal(const USkillDefinition* SkillDataAsset);
-	UPrimitiveComponent* FindInteractionHealComponent(ACharacterBase* Character, FName ComponentName) const;
 	float ResolveHealFieldRadius(ACharacterBase* SourceCharacter, const USkillDefinition* SkillDataAsset) const;
 	FVector ResolveHealFieldOrigin(ACharacterBase* SourceCharacter) const;
 	bool IsCharacterInsideActiveHealField(const ACharacterBase* Character) const;

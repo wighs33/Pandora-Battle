@@ -7,6 +7,7 @@
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
 #include "Character/CharacterBase.h"
+#include "Common/ComponentLookup.h"
 #include "Common/LabGameplayTags.h"
 #include "Components/SceneComponent.h"
 #include "Curves/CurveFloat.h"
@@ -122,11 +123,11 @@ void ASkillBlackHoleActor::ConfigureFromFieldSettings(const FSkillActorFieldSett
 
 void ASkillBlackHoleActor::ResolveBlueprintComponents()
 {
-	OrbComponent = FindSceneComponentByName(OrbComponentName);
-	FloorComponent = FindSceneComponentByName(FloorComponentName);
-	BlackHoleNiagaraComponent = FindNiagaraComponentByName(BlackHoleNiagaraComponentName);
-	AreaNiagaraComponent = FindNiagaraComponentByName(AreaNiagaraComponentName);
-	SlashNiagaraComponent = FindNiagaraComponentByName(SlashNiagaraComponentName);
+	OrbComponent = PdComponentLookup::FindByNameOrTag<USceneComponent>(this, OrbComponentName);
+	FloorComponent = PdComponentLookup::FindByNameOrTag<USceneComponent>(this, FloorComponentName);
+	BlackHoleNiagaraComponent = PdComponentLookup::FindByNameOrTag<UNiagaraComponent>(this, BlackHoleNiagaraComponentName);
+	AreaNiagaraComponent = PdComponentLookup::FindByNameOrTag<UNiagaraComponent>(this, AreaNiagaraComponentName);
+	SlashNiagaraComponent = PdComponentLookup::FindByNameOrTag<UNiagaraComponent>(this, SlashNiagaraComponentName);
 }
 
 void ASkillBlackHoleActor::CacheInitialComponentScales()
@@ -572,44 +573,6 @@ AActor* ASkillBlackHoleActor::ResolveSourceActor() const
 	}
 
 	return GetInstigator();
-}
-
-USceneComponent* ASkillBlackHoleActor::FindSceneComponentByName(const FName ComponentName) const
-{
-	if (ComponentName.IsNone())
-	{
-		return nullptr;
-	}
-
-	TArray<USceneComponent*> SceneComponents;
-	GetComponents<USceneComponent>(SceneComponents);
-	for (USceneComponent* SceneComponent : SceneComponents)
-	{
-		if (!SceneComponent)
-		{
-			continue;
-		}
-
-		if (SceneComponent->GetFName() == ComponentName || SceneComponent->ComponentHasTag(ComponentName))
-		{
-			return SceneComponent;
-		}
-	}
-
-	for (USceneComponent* SceneComponent : SceneComponents)
-	{
-		if (SceneComponent && SceneComponent->GetName().Contains(ComponentName.ToString()))
-		{
-			return SceneComponent;
-		}
-	}
-
-	return nullptr;
-}
-
-UNiagaraComponent* ASkillBlackHoleActor::FindNiagaraComponentByName(const FName ComponentName) const
-{
-	return Cast<UNiagaraComponent>(FindSceneComponentByName(ComponentName));
 }
 
 float ASkillBlackHoleActor::EvaluateCurveOrLinear(const UCurveFloat* Curve, const float NormalizedTime) const

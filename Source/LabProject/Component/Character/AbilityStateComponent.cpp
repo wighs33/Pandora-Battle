@@ -7,6 +7,7 @@
 #include "AbilitySystemComponent.h"
 #include "Character/CharacterBase.h"
 #include "Common/LabGameplayTags.h"
+#include "Common/ComponentLookup.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Component/Character/CharacterDeathComponent.h"
 #include "Component/Player/CombatComponent.h"
@@ -312,19 +313,10 @@ UActorComponent* UAbilityStateComponent::ResolveLowStaminaEffectComponent(const 
 		return LowStaminaEffectComponent.Get();
 	}
 
-	LowStaminaEffectComponent.Reset();
 	CachedLowStaminaEffectComponentName = ComponentName;
-	TArray<UActorComponent*> ActorComponents;
-	Character->GetComponents<UActorComponent>(ActorComponents);
-	for (UActorComponent* ActorComponent : ActorComponents)
-	{
-		if (ActorComponent && (ActorComponent->GetFName() == ComponentName || ActorComponent->ComponentHasTag(ComponentName)))
-		{
-			LowStaminaEffectComponent = ActorComponent;
-			return ActorComponent;
-		}
-	}
-	return nullptr;
+	UActorComponent* EffectComponent = PdComponentLookup::FindByNameOrTag<UActorComponent>(Character, ComponentName);
+	LowStaminaEffectComponent = EffectComponent;
+	return EffectComponent;
 }
 
 // 이전 ASC의 이동 관련 속성 구독을 해제해, 교체 전 Pawn이 새 속도 변경을 받지 않게 한다.
