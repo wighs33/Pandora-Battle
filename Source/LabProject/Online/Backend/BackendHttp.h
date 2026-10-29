@@ -23,6 +23,14 @@ namespace PdBackendHttp
 		FString ErrorMessage;
 	};
 
+	/** 클라이언트가 따로 처리하는 백엔드 error 코드. 값은 Backend/src의 응답과 같다. */
+	namespace ErrorCodes
+	{
+		inline constexpr const TCHAR* SessionTimeout = TEXT("session_timeout");
+		inline constexpr const TCHAR* BossRaidClosed = TEXT("bossraid_closed");
+		inline constexpr const TCHAR* NoAttemptsLeft = TEXT("no_attempts_left");
+	}
+
 	DECLARE_DELEGATE_OneParam(FOnResponse, const FResponse&);
 
 	LABPROJECT_API FString SerializeJson(const TSharedRef<FJsonObject>& Object);

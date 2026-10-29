@@ -321,7 +321,8 @@ void UBackendClientSubsystem::HandleMatchJoinResponse(const PdBackendHttp::FResp
 	{
 		HandleUnauthorized();
 	}
-	if (!Response.bSucceeded && Response.ErrorCode == TEXT("session_timeout") && MatchJoinTimeoutRetries < MaxMatchJoinTimeoutRetries)
+	if (!Response.bSucceeded && Response.ErrorCode == PdBackendHttp::ErrorCodes::SessionTimeout
+		&& MatchJoinTimeoutRetries < MaxMatchJoinTimeoutRetries)
 	{
 		++MatchJoinTimeoutRetries;
 		UE_LOG(LogBackendClient, Log, TEXT("Game session is still starting; asking the backend again (%d/%d)."),
@@ -332,12 +333,12 @@ void UBackendClientSubsystem::HandleMatchJoinResponse(const PdBackendHttp::FResp
 	if (!Response.bSucceeded)
 	{
 		LastMatchJoinErrorCode = Response.ErrorCode;
-		if (Response.ErrorCode == TEXT("bossraid_closed"))
+		if (Response.ErrorCode == PdBackendHttp::ErrorCodes::BossRaidClosed)
 		{
 			// 타이틀에서 개최 여부를 받은 뒤에 레이드가 닫혔다.
 			SetBossRaidOpen(false);
 		}
-		else if (Response.ErrorCode == TEXT("no_attempts_left"))
+		else if (Response.ErrorCode == PdBackendHttp::ErrorCodes::NoAttemptsLeft)
 		{
 			BossRaidStanding.bReceived = true;
 			BossRaidStanding.AttemptsLeft = 0;

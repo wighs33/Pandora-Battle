@@ -20,6 +20,7 @@
 #include "Localization/MenuLocalizationSubsystem.h"
 #include "Luna/LunaChatSubsystem.h"
 #include "Online/Backend/BackendClientSubsystem.h"
+#include "Online/Backend/BackendHttp.h"
 #include "TimerManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(TitleHUD)
@@ -300,7 +301,7 @@ void ATitleHUD::HandleBossRaidJoinFinished(const bool bSucceeded, const FString&
 	}
 	// 그사이 레이드가 닫혔거나 오늘 도전을 다 썼으면 다시 시도해 보라는 대신 그 이유를 알린다.
 	const UBackendClientSubsystem* Backend = UGameInstance::GetSubsystem<UBackendClientSubsystem>(GetGameInstance());
-	if (Backend && Backend->GetLastMatchJoinErrorCode() == TEXT("no_attempts_left"))
+	if (Backend && Backend->GetLastMatchJoinErrorCode() == PdBackendHttp::ErrorCodes::NoAttemptsLeft)
 	{
 		SayLunaLine(UMenuLocalizationSubsystem::GetText(BossRaidNoAttemptsLineKey));
 		return;
