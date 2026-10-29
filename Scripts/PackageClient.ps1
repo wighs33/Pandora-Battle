@@ -3,15 +3,15 @@
     Windows 클라이언트를 패키징한다(기본 Shipping).
 
 .DESCRIPTION
-    런처 엔진의 UAT BuildCookRun으로 빌드 → 쿡 → 스테이징 → pak → 패키지 → 보관까지 한다.
+    프로젝트 엔진(소스 엔진)의 UAT BuildCookRun으로 빌드 → 쿡 → 스테이징 → pak → 패키지 → 보관까지 한다.
     결과는 -ArchiveDir에 남고, UAT 로그는 ArchiveDir\Logs로 복사한다.
     보스 레이드 버튼은 빌드 설정과 관계없이 백엔드의 개최 여부를 따른다(Backend/bossraid.ps1).
     Shipping은 배포용(-distribution)으로 만들어 pak을 더 높은 Oodle 레벨(PackageCompressionLevel_Distribution)로 압축한다.
     에디터 패키징처럼(IncludePrerequisites) VC++ 런타임 설치 파일을 넣어(-prereqs), 런타임이 없는 PC에서는 게임을 켤 때 그 설치를 먼저 띄운다.
 
 .EXAMPLE
-    powershell -ExecutionPolicy Bypass -File Scripts\PackageClient.ps1 -EngineRoot C:\UE\UE_5.8
-    powershell -ExecutionPolicy Bypass -File Scripts\PackageClient.ps1 -EngineRoot C:\UE\UE_5.8 -Configuration Development -ArchiveDir D:\CI\Builds\test
+    powershell -ExecutionPolicy Bypass -File Scripts\PackageClient.ps1 -EngineRoot D:\UE_5.8_Src
+    powershell -ExecutionPolicy Bypass -File Scripts\PackageClient.ps1 -EngineRoot D:\UE_5.8_Src -Configuration Development -ArchiveDir D:\CI\Builds\test
 #>
 param(
     [string]$EngineRoot = $env:UE_ROOT,
@@ -26,7 +26,7 @@ $ErrorActionPreference = "Stop"
 $StartTime = Get-Date
 
 if (-not $EngineRoot -or -not (Test-Path (Join-Path $EngineRoot "Engine"))) {
-    Write-Error "엔진 경로를 -EngineRoot 또는 UE_ROOT 환경 변수로 지정하세요. (예: C:\UE\UE_5.8)"
+    Write-Error "엔진 경로를 -EngineRoot 또는 UE_ROOT 환경 변수로 지정하세요. (예: D:\UE_5.8_Src)"
 }
 $Project = (Resolve-Path $Project).Path
 if (-not $ArchiveDir) {

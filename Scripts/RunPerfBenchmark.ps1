@@ -17,11 +17,11 @@
     트레이스는 그 자체로 부하가 있으므로, 수치 비교는 -Trace 없이 잰 결과로 한다.
 
 .EXAMPLE
-    powershell -ExecutionPolicy Bypass -File Scripts\RunPerfBenchmark.ps1 -EngineRoot C:\UE\UE_5.8
-    powershell -ExecutionPolicy Bypass -File Scripts\RunPerfBenchmark.ps1 -EngineRoot C:\UE\UE_5.8 -SummonCount 10 -Trace
-    powershell -ExecutionPolicy Bypass -File Scripts\RunPerfBenchmark.ps1 -EngineRoot C:\UE\UE_5.8 -RenderClient
+    powershell -ExecutionPolicy Bypass -File Scripts\RunPerfBenchmark.ps1 -EngineRoot D:\UE_5.8_Src
+    powershell -ExecutionPolicy Bypass -File Scripts\RunPerfBenchmark.ps1 -EngineRoot D:\UE_5.8_Src -SummonCount 10 -Trace
+    powershell -ExecutionPolicy Bypass -File Scripts\RunPerfBenchmark.ps1 -EngineRoot D:\UE_5.8_Src -RenderClient
     # 스테이징한 Development 서버로 잴 때
-    powershell -ExecutionPolicy Bypass -File Scripts\RunPerfBenchmark.ps1 -EngineRoot C:\UE\UE_5.8 -ServerExe D:\GL\Stage\WindowsServer\LabProject\Binaries\Win64\LabProjectServer.exe
+    powershell -ExecutionPolicy Bypass -File Scripts\RunPerfBenchmark.ps1 -EngineRoot D:\UE_5.8_Src -ServerExe D:\GL\Stage\WindowsServer\LabProject\Binaries\Win64\LabProjectServer.exe
 #>
 param(
     [string]$EngineRoot = $env:UE_ROOT,
@@ -31,8 +31,6 @@ param(
     [string]$Map = "/Game/Map/LV_Colosseum?BossRaid=1",
     # 비우면 에디터 실행 파일을 전용 서버로 띄운다.
     [string]$ServerExe = "",
-    # 소스 빌드 서버는 네트워크 호환 체인지리스트가 0이라 런처 엔진 클라이언트와 맞춘다. Backend/run-anywhere-server.ps1과 같은 값이다.
-    [int]$NetworkVersion = 55116800,
     [string]$OutDir = "",
     [int]$TimeoutSeconds = 420,
     [switch]$RenderClient,
@@ -43,7 +41,7 @@ $ErrorActionPreference = "Stop"
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 if (-not $EngineRoot -or -not (Test-Path (Join-Path $EngineRoot "Engine"))) {
-    Write-Error "엔진 경로를 -EngineRoot 또는 UE_ROOT 환경 변수로 지정하세요. (예: C:\UE\UE_5.8)"
+    Write-Error "엔진 경로를 -EngineRoot 또는 UE_ROOT 환경 변수로 지정하세요. (예: D:\UE_5.8_Src)"
 }
 $Project = (Resolve-Path $Project).Path
 if (-not $OutDir) {
@@ -61,7 +59,7 @@ if ($Trace) {
     $ServerArgs += " -trace=cpu,frame,bookmark,region,log -statnamedevents -tracefile=`"$(Join-Path $OutDir 'Server.utrace')`""
 }
 if ($ServerExe) {
-    $ServerArgs += " -log -networkversionoverride=$NetworkVersion"
+    $ServerArgs += " -log"
     $Server = Start-Process -FilePath $ServerExe -ArgumentList $ServerArgs -PassThru
 }
 else {

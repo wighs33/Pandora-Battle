@@ -19,8 +19,8 @@
     공개 저장소는 로직 애셋만 담으므로, 연결 테스트는 전체 Content가 있는 개발 PC에서 돌린다.
 
 .EXAMPLE
-    powershell -ExecutionPolicy Bypass -File Scripts\RunAutomationTests.ps1 -EngineRoot C:\UE\UE_5.8
-    powershell -ExecutionPolicy Bypass -File Scripts\RunAutomationTests.ps1 -EngineRoot C:\UE\UE_5.8 -Suite Unit -SkipBuild
+    powershell -ExecutionPolicy Bypass -File Scripts\RunAutomationTests.ps1 -EngineRoot D:\UE_5.8_Src
+    powershell -ExecutionPolicy Bypass -File Scripts\RunAutomationTests.ps1 -EngineRoot D:\UE_5.8_Src -Suite Unit -SkipBuild
 #>
 param(
     [string]$EngineRoot = $env:UE_ROOT,
@@ -36,7 +36,7 @@ $ErrorActionPreference = "Stop"
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 if (-not $EngineRoot -or -not (Test-Path (Join-Path $EngineRoot "Engine"))) {
-    Write-Error "엔진 경로를 -EngineRoot 또는 UE_ROOT 환경 변수로 지정하세요. (예: C:\UE\UE_5.8)"
+    Write-Error "엔진 경로를 -EngineRoot 또는 UE_ROOT 환경 변수로 지정하세요. (예: D:\UE_5.8_Src)"
 }
 $Project = (Resolve-Path $Project).Path
 $EditorCmd = Join-Path $EngineRoot "Engine\Binaries\Win64\UnrealEditor-Cmd.exe"
