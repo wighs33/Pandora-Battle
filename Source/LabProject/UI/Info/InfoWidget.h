@@ -36,10 +36,10 @@ class UWidgetAnimation;
 class UWidgetSwitcher;
 class AActor;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FPdOnClickedInfoCenterButton, FGameplayTag, LeftUiTag, FGameplayTag, RightUiTag);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPdOnClickedMapButton);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPdOnDroppedItemToCharacterPanel, UItemInstance*, ItemInstance);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPdOnDroppedSkinToCharacterPanel, const USkinDefinition*, SkinDefinition);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnClickedInfoCenterButton, FGameplayTag, LeftUiTag, FGameplayTag, RightUiTag);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnClickedMapButton);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDroppedItemToCharacterPanel, UItemInstance*, ItemInstance);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDroppedSkinToCharacterPanel, const USkinDefinition*, SkinDefinition);
 
 UCLASS(Blueprintable, BlueprintType)
 class LABPROJECT_API UInfoWidget : public UPdScreenWidget
@@ -198,16 +198,16 @@ private:
 
 public:
 	UPROPERTY(BlueprintAssignable, Category = "!UI|Info")
-	FPdOnClickedInfoCenterButton OnClickedInfoCenterButton;
+	FOnClickedInfoCenterButton OnClickedInfoCenterButton;
 
 	UPROPERTY(BlueprintAssignable, Category = "!UI|Info")
-	FPdOnClickedMapButton OnClickedMapButton;
+	FOnClickedMapButton OnClickedMapButton;
 
 	UPROPERTY(BlueprintAssignable, Category = "!UI|Info")
-	FPdOnDroppedItemToCharacterPanel OnDroppedItemToCharacterPanel;
+	FOnDroppedItemToCharacterPanel OnDroppedItemToCharacterPanel;
 
 	UPROPERTY(BlueprintAssignable, Category = "!UI|Info")
-	FPdOnDroppedSkinToCharacterPanel OnDroppedSkinToCharacterPanel;
+	FOnDroppedSkinToCharacterPanel OnDroppedSkinToCharacterPanel;
 
 protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Paint")

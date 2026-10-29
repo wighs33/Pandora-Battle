@@ -6,8 +6,8 @@
 
 // 등록을 먼저 끝낸 뒤 현재 준비 상태를 전달해, 콜백 안에서 구독을 다시 바꿔도 핸들이 남지 않게 한다.
 void FAbilitySystemReadySubscription::SubscribeToCharacter(
-	ACharacterBase* Character, const FPdAbilitySystemReadyDelegate::FDelegate& Delegate,
-	const FPdAbilitySystemReadyDelegate::FDelegate& OnReleased)
+	ACharacterBase* Character, const FOnAbilitySystemAvailabilityChanged::FDelegate& Delegate,
+	const FOnAbilitySystemAvailabilityChanged::FDelegate& OnReleased)
 {
 	Reset();
 
@@ -31,7 +31,7 @@ void FAbilitySystemReadySubscription::SubscribeToCharacter(
 
 // 조종 캐릭터 교체는 컨트롤러가 추적하므로, 구독자는 현재 준비된 캐릭터만 받는다.
 void FAbilitySystemReadySubscription::SubscribeToPossessedCharacter(
-	APlayerController* PlayerController, const FPdAbilitySystemReadyDelegate::FDelegate& Delegate)
+	APlayerController* PlayerController, const FOnAbilitySystemAvailabilityChanged::FDelegate& Delegate)
 {
 	Reset();
 

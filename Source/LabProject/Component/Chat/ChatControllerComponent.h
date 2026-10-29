@@ -16,8 +16,8 @@ enum class EChatViewCommand : uint8
 	SubmitInput,
 };
 
-DECLARE_MULTICAST_DELEGATE_OneParam(FPdChatMessageAdded, const FString&);
-DECLARE_MULTICAST_DELEGATE_OneParam(FPdChatViewCommand, EChatViewCommand);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnChatMessageAdded, const FString&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnChatViewCommand, EChatViewCommand);
 
 UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class LABPROJECT_API UChatControllerComponent : public UActorComponent
@@ -52,8 +52,8 @@ public:
 	void AddChatMessage(const FString& Message);
 
 	// 채팅 화면은 이 알림을 구독해 메시지와 입력 명령을 받고, 입력창 포커스가 바뀌면 SetChatFocused로 알려 준다.
-	FPdChatMessageAdded& OnChatMessageAdded() { return ChatMessageAdded; }
-	FPdChatViewCommand& OnChatViewCommand() { return ChatViewCommand; }
+	FOnChatMessageAdded& OnChatMessageAdded() { return ChatMessageAdded; }
+	FOnChatViewCommand& OnChatViewCommand() { return ChatViewCommand; }
 	void SetChatFocused(bool bFocused) { bChatFocused = bFocused; }
 
 	// Network RPCs ----------------------------------------------------------------------------------------------------
@@ -82,8 +82,8 @@ private:
 	UPROPERTY(EditAnywhere, Category = "!Chat|Validation", meta = (ClampMin = "0.0"))
 	float MinSendInterval = 0.2f;
 
-	FPdChatMessageAdded ChatMessageAdded;
-	FPdChatViewCommand ChatViewCommand;
+	FOnChatMessageAdded ChatMessageAdded;
+	FOnChatViewCommand ChatViewCommand;
 	bool bChatFocused = false;
 
 	double LastServerSendTime = -1000.0;

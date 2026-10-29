@@ -20,7 +20,7 @@ class UPandoraWidgetViewModel;
 class UWidget;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
-	FPandoraWidgetInteractionSignature,
+	FOnPandoraWidgetInteraction,
 	UPandoraWidget*,
 	PandoraWidget);
 
@@ -120,13 +120,13 @@ private:
 
 public:
 	UPROPERTY(BlueprintAssignable, Category = "!UI|Pandora|Interaction")
-	FPandoraWidgetInteractionSignature OnPandoraDescriptionRequested;
+	FOnPandoraWidgetInteraction OnPandoraDescriptionRequested;
 
 	UPROPERTY(BlueprintAssignable, Category = "!UI|Pandora|Interaction")
-	FPandoraWidgetInteractionSignature OnPandoraDescriptionDismissed;
+	FOnPandoraWidgetInteraction OnPandoraDescriptionDismissed;
 
 	UPROPERTY(BlueprintAssignable, Category = "!UI|Pandora|Interaction")
-	FPandoraWidgetInteractionSignature OnPandoraTreeFocusRequested;
+	FOnPandoraWidgetInteraction OnPandoraTreeFocusRequested;
 
 protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Pandora|Widgets")

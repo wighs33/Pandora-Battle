@@ -9,8 +9,8 @@ class UPandoraDefinition;
 class UTextBlock;
 class UPandoraEquipSlotWidget;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPdOnClickedPandoraEquipSlotWidget, UPandoraEquipSlotWidget*, PandoraEquipSlot);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPdOnHoveredPandoraEquipSlotWidget, UPandoraEquipSlotWidget*, PandoraEquipSlot);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnClickedPandoraEquipSlotWidget, UPandoraEquipSlotWidget*, PandoraEquipSlot);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnHoveredPandoraEquipSlotWidget, UPandoraEquipSlotWidget*, PandoraEquipSlot);
 
 UCLASS(Blueprintable, BlueprintType)
 class LABPROJECT_API UPandoraEquipSlotWidget : public UUserWidget
@@ -61,10 +61,10 @@ private:
 
 public:
 	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "!UI|Pandora")
-	FPdOnClickedPandoraEquipSlotWidget OnClicked_PandoraEquipSlot;
+	FOnClickedPandoraEquipSlotWidget OnClicked_PandoraEquipSlot;
 
 	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "!UI|Pandora")
-	FPdOnHoveredPandoraEquipSlotWidget OnHovered_PandoraEquipSlot;
+	FOnHoveredPandoraEquipSlotWidget OnHovered_PandoraEquipSlot;
 
 protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Pandora|Bind")

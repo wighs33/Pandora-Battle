@@ -116,7 +116,7 @@ UPdAbilitySystemComponent* UAbilityStateComponent::GetReadyAbilitySystemComponen
 	return ASC && ASC->GetAvatarActor() == GetOwner() ? ASC : nullptr;
 }
 
-FDelegateHandle UAbilityStateComponent::RegisterOnAbilitySystemReady(const FPdAbilitySystemReadyDelegate::FDelegate& Delegate)
+FDelegateHandle UAbilityStateComponent::RegisterOnAbilitySystemReady(const FOnAbilitySystemAvailabilityChanged::FDelegate& Delegate)
 {
 	return OnAbilitySystemReady.Add(Delegate);
 }
@@ -126,7 +126,7 @@ void UAbilityStateComponent::UnregisterOnAbilitySystemReady(const FDelegateHandl
 	OnAbilitySystemReady.Remove(Handle);
 }
 
-FDelegateHandle UAbilityStateComponent::RegisterOnAbilitySystemReleased(const FPdAbilitySystemReadyDelegate::FDelegate& Delegate)
+FDelegateHandle UAbilityStateComponent::RegisterOnAbilitySystemReleased(const FOnAbilitySystemAvailabilityChanged::FDelegate& Delegate)
 {
 	return OnAbilitySystemReleased.Add(Delegate);
 }

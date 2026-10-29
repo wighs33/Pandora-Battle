@@ -30,9 +30,9 @@ void ALobbyGameState::BeginPlay()
 		}
 	}
 	ExperienceManagerComponent->CallOrRegister_OnExperienceLoaded(
-		FOnPdExperienceLoaded::FDelegate::CreateUObject(this, &ThisClass::HandleExperienceLoaded));
+		FOnExperienceLoaded::FDelegate::CreateUObject(this, &ThisClass::HandleExperienceLoaded));
 	ExperienceManagerComponent->CallOrRegister_OnExperienceLoadFailed(
-		FOnPdExperienceLoadFailed::FDelegate::CreateUObject(this, &ThisClass::HandleExperienceLoadFailed));
+		FOnExperienceLoadFailed::FDelegate::CreateUObject(this, &ThisClass::HandleExperienceLoadFailed));
 }
 
 // 월드 종료 후 참가자 변경 알림이 이전 로비로 전달되지 않도록 구독을 해제한다.

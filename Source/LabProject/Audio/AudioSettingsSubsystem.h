@@ -7,7 +7,7 @@
 class UAudioSettingsSaveGame;
 class UWorld;
 
-DECLARE_MULTICAST_DELEGATE_OneParam(FMasterVolumeChangedSignature, int32);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnMasterVolumeChanged, int32);
 
 UCLASS()
 class LABPROJECT_API UAudioSettingsSubsystem : public UGameInstanceSubsystem
@@ -41,7 +41,7 @@ private:
 	void ApplyMasterVolumeToAudioDevice(UWorld* TargetWorld = nullptr) const;
 
 public:
-	FMasterVolumeChangedSignature OnMasterVolumeChanged;
+	FOnMasterVolumeChanged OnMasterVolumeChanged;
 
 private:
 	UPROPERTY(Transient)

@@ -7,12 +7,12 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "OnlineSessionsSubsystem.generated.h"
 
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnlineSessionBoolDelegate, bool /*bWasSuccessful*/);
-DECLARE_MULTICAST_DELEGATE_TwoParams(FOnlineSessionRequestBoolDelegate, uint64 /*RequestId*/, bool /*bWasSuccessful*/);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnSessionOperationComplete, bool /*bWasSuccessful*/);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnSessionRequestComplete, uint64 /*RequestId*/, bool /*bWasSuccessful*/);
 DECLARE_MULTICAST_DELEGATE_ThreeParams(
-	FOnlineSessionRequestFindDelegate, uint64 /*RequestId*/, const TArray<FBlueprintSessionResult>& /*Results*/, bool /*bWasSuccessful*/);
+	FOnSessionFindRequestComplete, uint64 /*RequestId*/, const TArray<FBlueprintSessionResult>& /*Results*/, bool /*bWasSuccessful*/);
 DECLARE_MULTICAST_DELEGATE_ThreeParams(
-	FOnlineSessionQuickMatchDelegate, uint64 /*RequestId*/, bool /*bWasSuccessful*/, bool /*bCreatedRoom*/);
+	FOnQuickMatchRequestComplete, uint64 /*RequestId*/, bool /*bWasSuccessful*/, bool /*bCreatedRoom*/);
 
 class IOnlineSubsystem;
 class ULocalPlayer;
@@ -24,14 +24,14 @@ class LABPROJECT_API UOnlineSessionsSubsystem : public UGameInstanceSubsystem
 
 public:
 	// UI와 로비 흐름이 구독하는 완료 알림
-	FOnlineSessionBoolDelegate OnStartSessionComplete;
-	FOnlineSessionBoolDelegate OnEndSessionComplete;
-	FOnlineSessionBoolDelegate OnDestroySessionComplete;
-	FOnlineSessionRequestBoolDelegate OnCreateRoomRequestComplete;
-	FOnlineSessionRequestFindDelegate OnFindRoomsRequestComplete;
-	FOnlineSessionRequestBoolDelegate OnJoinRoomRequestComplete;
-	FOnlineSessionRequestBoolDelegate OnDestroySessionRequestComplete;
-	FOnlineSessionQuickMatchDelegate OnQuickMatchRequestComplete;
+	FOnSessionOperationComplete OnStartSessionComplete;
+	FOnSessionOperationComplete OnEndSessionComplete;
+	FOnSessionOperationComplete OnDestroySessionComplete;
+	FOnSessionRequestComplete OnCreateRoomRequestComplete;
+	FOnSessionFindRequestComplete OnFindRoomsRequestComplete;
+	FOnSessionRequestComplete OnJoinRoomRequestComplete;
+	FOnSessionRequestComplete OnDestroySessionRequestComplete;
+	FOnQuickMatchRequestComplete OnQuickMatchRequestComplete;
 
 private:
 	enum class ESessionRequestKind : uint8

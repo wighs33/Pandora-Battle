@@ -287,12 +287,12 @@ void UActorExtensionWorldSubsystem::RefreshExperienceLoadState()
 		return;
 	}
 
-	ExperienceManager->CallOrRegister_OnExperienceLoaded(FOnPdExperienceLoaded::FDelegate::CreateWeakLambda(this,
+	ExperienceManager->CallOrRegister_OnExperienceLoaded(FOnExperienceLoaded::FDelegate::CreateWeakLambda(this,
 		[this](const UExperienceDefinition*)
 		{
 			bExperienceLoaded = true;
 		}));
-	ExperienceManager->CallOrRegister_OnExperienceLoadFailed(FOnPdExperienceLoadFailed::FDelegate::CreateWeakLambda(
+	ExperienceManager->CallOrRegister_OnExperienceLoadFailed(FOnExperienceLoadFailed::FDelegate::CreateWeakLambda(
 		this, [this](FPrimaryAssetId, const FString&)
 		{
 			bExperienceLoaded = true;

@@ -124,9 +124,9 @@ void UGameFeatureAction_AddWidgets::RegisterWidgetExtension(UWorld* World, FGame
 	FGameFeatureWidgetHandles& Handles = ContextHandles.FindOrAdd(ChangeContext);
 
 	FActorExtensionSpec ExtensionSpec;
-	ExtensionSpec.CanActivate = FPdActorExtensionCanActivate::CreateUObject(this, &ThisClass::CanActivateWidgetExtension);
-	ExtensionSpec.OnActivate = FPdActorExtensionExecute::CreateUObject(this, &ThisClass::AddWidgetsToActor, ChangeContext);
-	ExtensionSpec.OnDeactivate = FPdActorExtensionExecute::CreateUObject(this, &ThisClass::RemoveWidgetsFromActor, ChangeContext);
+	ExtensionSpec.CanActivate = FActorExtensionCanActivate::CreateUObject(this, &ThisClass::CanActivateWidgetExtension);
+	ExtensionSpec.OnActivate = FActorExtensionAction::CreateUObject(this, &ThisClass::AddWidgetsToActor, ChangeContext);
+	ExtensionSpec.OnDeactivate = FActorExtensionAction::CreateUObject(this, &ThisClass::RemoveWidgetsFromActor, ChangeContext);
 
 	if (TSharedPtr<FActorExtensionHandle> ExtensionHandle = ExtensionSubsystem->RegisterExtensionForClass(LoadedTargetClass, MoveTemp(ExtensionSpec)))
 	{

@@ -115,7 +115,7 @@ void UStatusEffectsBarWidget::SetOwnerActor(AActor* InOwnerActor)
 void UStatusEffectsBarWidget::ObserveOwnerAbilitySystem()
 {
 	OwnerReadySubscription.SubscribeToCharacter(Cast<ACharacterBase>(OwnerActor.Get()),
-		FPdAbilitySystemReadyDelegate::FDelegate::CreateUObject(this, &ThisClass::HandleOwnerAbilitySystemReady));
+		FOnAbilitySystemAvailabilityChanged::FDelegate::CreateUObject(this, &ThisClass::HandleOwnerAbilitySystemReady));
 }
 
 void UStatusEffectsBarWidget::HandleOwnerAbilitySystemReady(

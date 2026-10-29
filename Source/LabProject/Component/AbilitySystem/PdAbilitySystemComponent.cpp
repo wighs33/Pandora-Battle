@@ -234,7 +234,7 @@ void UPdAbilitySystemComponent::ReactivateAutoActivatedAbilities()
 	AbilityGrantAndInputManager->ReactivateAutoActivatedAbilities(*this);
 }
 
-void UPdAbilitySystemComponent::SetFinalStrengthDamageProvider(FPdFinalStrengthDamageProvider Provider)
+void UPdAbilitySystemComponent::SetFinalStrengthDamageProvider(FFinalStrengthDamageProvider Provider)
 {
 	FinalStrengthDamageProvider = MoveTemp(Provider);
 }

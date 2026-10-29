@@ -106,7 +106,7 @@ void UInventoryComponent::AddItemsByPrimaryAssetIds(const TArray<FPrimaryAssetId
 }
 
 // 자산 로딩에 성공한 아이템만 지급하고 실제 추가 결과를 요청자에게 전달한다.
-void UInventoryComponent::AddItemsByPrimaryAssetIdsWithCompletion(const TArray<FPrimaryAssetId>& ItemDefinitions, FOnPdItemsAdded OnComplete)
+void UInventoryComponent::AddItemsByPrimaryAssetIdsWithCompletion(const TArray<FPrimaryAssetId>& ItemDefinitions, FOnItemsAdded OnComplete)
 {
 	if (!HasInventoryAuthority() || ItemDefinitions.IsEmpty())
 	{

@@ -12,10 +12,10 @@ class UGameplayEffect;
 class UStatUpgradeDefinition;
 class UAbilityGrantAndInputManager;
 
-DECLARE_MULTICAST_DELEGATE(FPdAbilitiesChangedNativeDelegate);
-DECLARE_MULTICAST_DELEGATE_OneParam(FPdAbilityRemovedNativeDelegate, const FGameplayAbilitySpec&);
+DECLARE_MULTICAST_DELEGATE(FOnAbilitiesChanged);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnAbilityRemoved, const FGameplayAbilitySpec&);
 // 근력을 받아 아바타의 근력 반영 무기 피해를 돌려준다.
-DECLARE_DELEGATE_RetVal_OneParam(float, FPdFinalStrengthDamageProvider, float);
+DECLARE_DELEGATE_RetVal_OneParam(float, FFinalStrengthDamageProvider, float);
 
 /**
  * 프로젝트의 능력 시스템을 GAS와 연결하는 컴포넌트.
@@ -82,7 +82,7 @@ public:
 
 	// 방어력 감소량의 기준인 근력 반영 무기 피해. 무기·맨손 피해는 아바타의 전투 컴포넌트가 알고 있어서,
 	// 전투 컴포넌트가 ASC 준비 때 계산을 등록하고 해제 때 지운다. 등록이 없으면 0이다.
-	void SetFinalStrengthDamageProvider(FPdFinalStrengthDamageProvider Provider);
+	void SetFinalStrengthDamageProvider(FFinalStrengthDamageProvider Provider);
 	void ClearFinalStrengthDamageProvider(const UObject* Provider);
 	float GetFinalStrengthDamage(float Strength) const;
 
@@ -98,15 +98,15 @@ private:
 
 public:
 	// 스킬바 구성 변경 완료 또는 복제 데이터 도착을 알린다. 개별 능력 부여에서는 방송하지 않는다.
-	FPdAbilitiesChangedNativeDelegate OnAbilitiesChangedNative;
+	FOnAbilitiesChanged OnAbilitiesChangedNative;
 	// 종료 처리가 끝난 Spec을 알린다. 이 콜백 동안 Spec은 아직 능력 목록에 있을 수 있다.
-	FPdAbilityRemovedNativeDelegate OnAbilityRemovedNative;
+	FOnAbilityRemoved OnAbilityRemovedNative;
 
 private:
 	UPROPERTY(VisibleAnywhere, Instanced, Category = "!AbilitySystem|Abilities")
 	TObjectPtr<UAbilityGrantAndInputManager> AbilityGrantAndInputManager;
 
-	FPdFinalStrengthDamageProvider FinalStrengthDamageProvider;
+	FFinalStrengthDamageProvider FinalStrengthDamageProvider;
 };
 
 /**

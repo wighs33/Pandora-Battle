@@ -7,7 +7,7 @@
 class UFont;
 class UTextBlock;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FMenuLanguageChanged);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnMenuLanguageChanged);
 
 /**
  * 메뉴 문구 조회와 언어 전환을 맡는다.
@@ -51,7 +51,7 @@ public:
 public:
 	/** Culture가 바뀐 뒤에 알린다. 문자열 테이블 문구는 엔진이 다시 그리고, 받는 쪽은 글꼴과 조합한 문구를 다시 만든다. */
 	UPROPERTY(BlueprintAssignable, Category="UI|Localization")
-	FMenuLanguageChanged OnLanguageChanged;
+	FOnMenuLanguageChanged OnLanguageChanged;
 
 private:
 	void MoveLegacyLanguageSelection();

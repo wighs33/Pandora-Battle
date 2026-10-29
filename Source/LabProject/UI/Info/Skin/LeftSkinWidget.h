@@ -11,18 +11,18 @@ class UButton;
 class APdPlayer;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
-	FPdOnClickedSkinEquipTypeSlot,
+	FOnClickedSkinEquipTypeSlot,
 	FGameplayTag, EquipTypeTag,
 	USkinEquipSlotWidget*, SelectedSkinEquipSlot,
 	bool, bIsSelectedAnySlot);
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
-	FPdOnDroppedSkinEquipTypeSlot,
+	FOnDroppedSkinEquipTypeSlot,
 	FGameplayTag, EquipTypeTag,
 	USkinEquipSlotWidget*, TargetSkinEquipSlot,
 	const USkinDefinition*, SkinDefinition);
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPdOnPaintCanvasGroupVisibilityChanged, bool, bVisible);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPaintCanvasGroupVisibilityChanged, bool, bVisible);
 
 UCLASS(Blueprintable, BlueprintType)
 class LABPROJECT_API ULeftSkinWidget : public ULocalizedMenuWidget
@@ -85,13 +85,13 @@ private:
 
 public:
 	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "!UI|Skin")
-	FPdOnClickedSkinEquipTypeSlot OnClicked_SkinEquipTypeSlot;
+	FOnClickedSkinEquipTypeSlot OnClicked_SkinEquipTypeSlot;
 
 	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "!UI|Skin")
-	FPdOnDroppedSkinEquipTypeSlot OnDroppedSkin_SkinEquipTypeSlot;
+	FOnDroppedSkinEquipTypeSlot OnDroppedSkin_SkinEquipTypeSlot;
 
 	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "!UI|Skin|Paint")
-	FPdOnPaintCanvasGroupVisibilityChanged OnPaintCanvasGroupVisibilityChanged;
+	FOnPaintCanvasGroupVisibilityChanged OnPaintCanvasGroupVisibilityChanged;
 
 protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Skin|Bind")

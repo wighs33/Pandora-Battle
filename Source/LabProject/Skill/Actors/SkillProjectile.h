@@ -19,7 +19,7 @@ class UNiagaraComponent;
 class UNiagaraSystem;
 class UStatusEffectDefinition;
 
-DECLARE_MULTICAST_DELEGATE_TwoParams(FProjectileSkillImpact, AActor*, const FHitResult&);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnProjectileSkillImpact, AActor*, const FHitResult&);
 
 /**
  * 스킬 투사체의 비행·충돌·연출 상태를 복제하고 순서를 조율한다.
@@ -145,7 +145,7 @@ protected:
 	void MarkImpactStateDirty();
 
 public:
-	FProjectileSkillImpact OnSkillImpact;
+	FOnProjectileSkillImpact OnSkillImpact;
 
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Projectile|Components")

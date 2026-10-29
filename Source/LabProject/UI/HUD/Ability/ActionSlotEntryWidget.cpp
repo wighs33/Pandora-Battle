@@ -52,7 +52,7 @@ void UActionSlotEntryWidget::NativeConstruct()
 	RefreshVisual();
 	CheckForCooldown();
 	PossessedCharacterReadySubscription.SubscribeToPossessedCharacter(GetOwningPlayer(),
-		FPdAbilitySystemReadyDelegate::FDelegate::CreateUObject(this, &ThisClass::HandlePossessedCharacterReady));
+		FOnAbilitySystemAvailabilityChanged::FDelegate::CreateUObject(this, &ThisClass::HandlePossessedCharacterReady));
 }
 
 void UActionSlotEntryWidget::NativeDestruct()

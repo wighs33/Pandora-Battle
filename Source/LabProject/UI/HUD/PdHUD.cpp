@@ -53,7 +53,7 @@ void APdHUD::BeginPlay()
 	Super::BeginPlay();
 	EnsureUiRouter();
 	PossessedCharacterReadySubscription.SubscribeToPossessedCharacter(GetOwningPlayerController(),
-		FPdAbilitySystemReadyDelegate::FDelegate::CreateUObject(this, &ThisClass::HandlePossessedCharacterReady));
+		FOnAbilitySystemAvailabilityChanged::FDelegate::CreateUObject(this, &ThisClass::HandlePossessedCharacterReady));
 	BindPresentationEvents();
 	UGameFrameworkComponentManager::SendGameFrameworkComponentExtensionEvent(this, UGameFrameworkComponentManager::NAME_GameActorReady);
 }

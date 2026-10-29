@@ -9,8 +9,8 @@ class UDefaultPlayerProvisioner;
 class UPandoraComponent;
 class UPandoraDefinition;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPdPandoraTreeChangedDelegate);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPdPandoraPointsChangedDelegate, int32, PointsAvailable);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPandoraTreeChanged);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPandoraPointsChanged, int32, PointsAvailable);
 
 USTRUCT(BlueprintType)
 struct LABPROJECT_API FGrantedPandora
@@ -166,10 +166,10 @@ private:
 
 public:
 	UPROPERTY(BlueprintAssignable, Category = "!PandoraTree")
-	FPdPandoraTreeChangedDelegate OnPandorasChanged;
+	FOnPandoraTreeChanged OnPandorasChanged;
 
 	UPROPERTY(BlueprintAssignable, Category = "!PandoraTree")
-	FPdPandoraPointsChangedDelegate OnPointsChanged;
+	FOnPandoraPointsChanged OnPointsChanged;
 
 private:
 	friend class UDefaultPlayerProvisioner;

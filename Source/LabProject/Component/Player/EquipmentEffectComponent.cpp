@@ -58,8 +58,8 @@ void UEquipmentEffectComponent::BeginPlay()
 	Super::BeginPlay();
 
 	AbilitySystemSubscription.SubscribeToCharacter(Cast<ACharacterBase>(GetOwner()),
-		FPdAbilitySystemReadyDelegate::FDelegate::CreateUObject(this, &ThisClass::HandleAbilitySystemReady),
-		FPdAbilitySystemReadyDelegate::FDelegate::CreateUObject(this, &ThisClass::HandleAbilitySystemReleased));
+		FOnAbilitySystemAvailabilityChanged::FDelegate::CreateUObject(this, &ThisClass::HandleAbilitySystemReady),
+		FOnAbilitySystemAvailabilityChanged::FDelegate::CreateUObject(this, &ThisClass::HandleAbilitySystemReleased));
 }
 
 void UEquipmentEffectComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)

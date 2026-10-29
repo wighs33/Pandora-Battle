@@ -13,7 +13,7 @@ class UTextBlock;
 class UTexture2D;
 class UWidget;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FGuideClosedSignature, UGuideWidget*, GuideWidget);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnGuideClosed, UGuideWidget*, GuideWidget);
 
 UCLASS(Blueprintable, BlueprintType)
 class LABPROJECT_API UGuideWidget : public UPdScreenWidget
@@ -84,7 +84,7 @@ private:
 
 public:
 	UPROPERTY(BlueprintAssignable, Category = "!Guide")
-	FGuideClosedSignature OnGuideClosed;
+	FOnGuideClosed OnGuideClosed;
 
 protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Guide|Bind")

@@ -6,8 +6,8 @@
 class UItemInstance;
 class UEquipSlotWidget;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPdOnClickedEquipSlot, UEquipSlotWidget*, ItemSlot);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FPdOnDroppedItemEquipSlot, UEquipSlotWidget*, EquipSlot, UItemInstance*, ItemInstance);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnClickedEquipSlot, UEquipSlotWidget*, ItemSlot);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnDroppedItemEquipSlot, UEquipSlotWidget*, EquipSlot, UItemInstance*, ItemInstance);
 
 UCLASS(Blueprintable, BlueprintType)
 class LABPROJECT_API UEquipSlotWidget : public UEquipSlotWidgetBase
@@ -65,10 +65,10 @@ public:
 	float ButtonBackgroundOpacity = 1.0f;
 
 	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "!UI|Equipment")
-	FPdOnClickedEquipSlot OnClicked_EquipSlot;
+	FOnClickedEquipSlot OnClicked_EquipSlot;
 
 	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "!UI|Equipment")
-	FPdOnDroppedItemEquipSlot OnDroppedItem_EquipSlot;
+	FOnDroppedItemEquipSlot OnDroppedItem_EquipSlot;
 
 protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Equipment|Bind")

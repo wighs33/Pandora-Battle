@@ -45,7 +45,7 @@ void ULeftProfileWidget::NativeConstruct()
 	BindMatchDisplayNameChanged();
 	RefreshPlayerName();
 	PossessedCharacterReadySubscription.SubscribeToPossessedCharacter(GetOwningPlayer(),
-		FPdAbilitySystemReadyDelegate::FDelegate::CreateUObject(this, &ThisClass::HandlePossessedCharacterReady));
+		FOnAbilitySystemAvailabilityChanged::FDelegate::CreateUObject(this, &ThisClass::HandlePossessedCharacterReady));
 }
 
 void ULeftProfileWidget::NativeDestruct()

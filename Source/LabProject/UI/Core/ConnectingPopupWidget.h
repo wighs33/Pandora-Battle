@@ -7,7 +7,7 @@
 class UButton;
 class UWidgetAnimation;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FConnectingPopupCanceledSignature);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnConnectingPopupCanceled);
 
 UCLASS(Blueprintable, BlueprintType)
 class LABPROJECT_API UConnectingPopupWidget : public UPdScreenWidget
@@ -38,7 +38,7 @@ protected:
 
 public:
 	UPROPERTY(BlueprintAssignable, Category = "!Lobby|Connecting")
-	FConnectingPopupCanceledSignature OnCanceled;
+	FOnConnectingPopupCanceled OnCanceled;
 
 protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Lobby|Bind")

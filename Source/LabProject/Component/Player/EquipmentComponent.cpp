@@ -38,8 +38,8 @@ void UEquipmentComponent::BeginPlay()
 	Super::BeginPlay();
 
 	AbilitySystemSubscription.SubscribeToCharacter(GetCharacter(),
-		FPdAbilitySystemReadyDelegate::FDelegate::CreateUObject(this, &ThisClass::HandleAbilitySystemReady),
-		FPdAbilitySystemReadyDelegate::FDelegate::CreateUObject(this, &ThisClass::HandleAbilitySystemReleased));
+		FOnAbilitySystemAvailabilityChanged::FDelegate::CreateUObject(this, &ThisClass::HandleAbilitySystemReady),
+		FOnAbilitySystemAvailabilityChanged::FDelegate::CreateUObject(this, &ThisClass::HandleAbilitySystemReleased));
 }
 
 // Pawn 종료 시 직접 생성한 무기를 정리한다. 무기 효과는 장비 효과 컴포넌트가 스스로 거두고, 일반 교체 알림은 보내지 않는다.

@@ -20,8 +20,8 @@ enum class EExperienceLoadState : uint8
 	Deactivating
 };
 
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnPdExperienceLoaded, const UExperienceDefinition*);
-DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPdExperienceLoadFailed, FPrimaryAssetId, const FString&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnExperienceLoaded, const UExperienceDefinition*);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnExperienceLoadFailed, FPrimaryAssetId, const FString&);
 
 /**
  * 서버가 선택한 Experience를 각 월드에서 로드하고 준비 결과를 알린다.
@@ -47,8 +47,8 @@ public:
 	bool HasExperienceLoadFailed() const { return LoadState == EExperienceLoadState::Failed; }
 	EExperienceLoadState GetLoadState() const { return LoadState; }
 	const UExperienceDefinition* GetCurrentExperienceChecked() const;
-	FDelegateHandle CallOrRegister_OnExperienceLoaded(FOnPdExperienceLoaded::FDelegate Delegate);
-	FDelegateHandle CallOrRegister_OnExperienceLoadFailed(FOnPdExperienceLoadFailed::FDelegate Delegate);
+	FDelegateHandle CallOrRegister_OnExperienceLoaded(FOnExperienceLoaded::FDelegate Delegate);
+	FDelegateHandle CallOrRegister_OnExperienceLoadFailed(FOnExperienceLoadFailed::FDelegate Delegate);
 	void RemoveOnExperienceLoaded(FDelegateHandle DelegateHandle);
 
 private:
@@ -78,6 +78,6 @@ private:
 	TArray<FString> GameFeaturePluginURLs;
 	FPrimaryAssetId LastFailedExperienceId;
 	FString LastLoadFailureMessage;
-	FOnPdExperienceLoaded OnExperienceLoaded;
-	FOnPdExperienceLoadFailed OnExperienceLoadFailed;
+	FOnExperienceLoaded OnExperienceLoaded;
+	FOnExperienceLoadFailed OnExperienceLoadFailed;
 };

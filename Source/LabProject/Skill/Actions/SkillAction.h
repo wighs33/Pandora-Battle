@@ -26,7 +26,7 @@ struct LABPROJECT_API FSkillActionContext
 	FGameplayEventData EventData;
 };
 
-DECLARE_MULTICAST_DELEGATE_TwoParams(FSkillActionFinished, USkillAction*, bool);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnSkillActionFinished, USkillAction*, bool);
 
 /** 에셋에는 설정만 저장한다. 실행할 때 전체 트리를 복제해 시전자별 상태를 분리한다. */
 UCLASS(Abstract, BlueprintType, EditInlineNew, DefaultToInstanced)
@@ -68,7 +68,7 @@ protected:
 		const FGameplayEffectSpec& DamageSpec) const;
 
 public:
-	FSkillActionFinished OnFinished;
+	FOnSkillActionFinished OnFinished;
 
 private:
 	UPROPERTY(Transient)

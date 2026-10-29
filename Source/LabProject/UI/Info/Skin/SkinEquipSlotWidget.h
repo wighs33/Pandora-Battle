@@ -7,8 +7,8 @@ class USkinDefinition;
 class USkinEquipSlotWidget;
 class UWidget;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPdOnClickedSkinEquipSlot, USkinEquipSlotWidget*, SkinEquipSlot);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FPdOnDroppedSkinEquipSlot, USkinEquipSlotWidget*, SkinEquipSlot, const USkinDefinition*, SkinDefinition);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnClickedSkinEquipSlot, USkinEquipSlotWidget*, SkinEquipSlot);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnDroppedSkinEquipSlot, USkinEquipSlotWidget*, SkinEquipSlot, const USkinDefinition*, SkinDefinition);
 
 UCLASS(Blueprintable, BlueprintType)
 class LABPROJECT_API USkinEquipSlotWidget : public UEquipSlotWidgetBase
@@ -51,10 +51,10 @@ private:
 
 public:
 	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "!UI|Skin")
-	FPdOnClickedSkinEquipSlot OnClicked_SkinEquipSlot;
+	FOnClickedSkinEquipSlot OnClicked_SkinEquipSlot;
 
 	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "!UI|Skin")
-	FPdOnDroppedSkinEquipSlot OnDroppedSkin_SkinEquipSlot;
+	FOnDroppedSkinEquipSlot OnDroppedSkin_SkinEquipSlot;
 
 protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Skin|Bind")

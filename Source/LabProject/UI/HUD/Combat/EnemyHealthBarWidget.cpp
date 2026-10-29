@@ -39,7 +39,7 @@ void UEnemyHealthBarWidget::ObserveOwnerAbilitySystem()
 	if (ACharacterBase* OwnerCharacter = Cast<ACharacterBase>(OwnerActor.Get()))
 	{
 		OwnerReadySubscription.SubscribeToCharacter(OwnerCharacter,
-			FPdAbilitySystemReadyDelegate::FDelegate::CreateUObject(this, &ThisClass::HandleOwnerAbilitySystemReady));
+			FOnAbilitySystemAvailabilityChanged::FDelegate::CreateUObject(this, &ThisClass::HandleOwnerAbilitySystemReady));
 		return;
 	}
 

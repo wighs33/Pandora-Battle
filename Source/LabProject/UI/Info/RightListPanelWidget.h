@@ -12,8 +12,8 @@ class UEditableTextBox;
 class UProjectTagDefinition;
 class UTileView;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPdOnClickedFilterAllButton);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPdOnClickedFilterTypeButton, FGameplayTag, TypeTag);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnClickedFilterAllButton);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnClickedFilterTypeButton, FGameplayTag, TypeTag);
 
 /**
  * Info 화면 오른쪽 목록 패널(아이템·스킨·판도라)의 공통 흐름.
@@ -85,10 +85,10 @@ private:
 
 public:
 	UPROPERTY(BlueprintAssignable, Category = "!UI|Info|List")
-	FPdOnClickedFilterAllButton OnClicked_FilterAllButton;
+	FOnClickedFilterAllButton OnClicked_FilterAllButton;
 
 	UPROPERTY(BlueprintAssignable, Category = "!UI|Info|List")
-	FPdOnClickedFilterTypeButton OnClicked_FilterTypeButton;
+	FOnClickedFilterTypeButton OnClicked_FilterTypeButton;
 
 protected:
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Info|List", meta = (BindWidget))

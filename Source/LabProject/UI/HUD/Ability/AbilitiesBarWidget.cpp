@@ -72,7 +72,7 @@ void UAbilitiesBarWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 	PossessedCharacterReadySubscription.SubscribeToPossessedCharacter(GetOwningPlayer(),
-		FPdAbilitySystemReadyDelegate::FDelegate::CreateUObject(this, &ThisClass::HandlePossessedCharacterReady));
+		FOnAbilitySystemAvailabilityChanged::FDelegate::CreateUObject(this, &ThisClass::HandlePossessedCharacterReady));
 }
 
 void UAbilitiesBarWidget::NativeDestruct()

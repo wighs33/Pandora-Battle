@@ -7,7 +7,7 @@
 class UPandoraDefinition;
 enum class EShopProductType : uint8;
 
-DECLARE_MULTICAST_DELEGATE_OneParam(FShopEntryViewDataClickedDelegate, class UShopEntryViewData*);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnShopEntryClicked, class UShopEntryViewData*);
 
 UCLASS(BlueprintType)
 class LABPROJECT_API UShopEntryViewData : public UObject
@@ -55,7 +55,7 @@ public:
 	void BroadcastClicked();
 
 public:
-	FShopEntryViewDataClickedDelegate OnClicked;
+	FOnShopEntryClicked OnClicked;
 
 private:
 	UPROPERTY(Transient)

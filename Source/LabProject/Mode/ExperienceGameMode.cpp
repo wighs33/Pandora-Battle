@@ -358,9 +358,9 @@ void AExperienceGameMode::StartExperienceLoad()
 	}
 
 	ExperienceManager->CallOrRegister_OnExperienceLoaded(
-		FOnPdExperienceLoaded::FDelegate::CreateUObject(this, &ThisClass::HandleExperienceLoaded));
+		FOnExperienceLoaded::FDelegate::CreateUObject(this, &ThisClass::HandleExperienceLoaded));
 	ExperienceManager->CallOrRegister_OnExperienceLoadFailed(
-		FOnPdExperienceLoadFailed::FDelegate::CreateUObject(this, &ThisClass::HandleExperienceLoadFailed));
+		FOnExperienceLoadFailed::FDelegate::CreateUObject(this, &ThisClass::HandleExperienceLoadFailed));
 	if (ExperienceManager->GetLoadState() == EExperienceLoadState::Unloaded)
 	{
 		ExperienceManager->SetCurrentExperienceAuth(ExperienceId);

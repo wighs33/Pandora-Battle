@@ -126,7 +126,7 @@ ACharacterBase* APdPlayerController::GetReadyPossessedCharacter() const
 }
 
 FDelegateHandle APdPlayerController::RegisterOnPossessedCharacterAbilitySystemReady(
-	const FPdAbilitySystemReadyDelegate::FDelegate& Delegate)
+	const FOnAbilitySystemAvailabilityChanged::FDelegate& Delegate)
 {
 	return OnPossessedCharacterAbilitySystemReady.Add(Delegate);
 }
@@ -149,7 +149,7 @@ void APdPlayerController::ObservePossessedCharacter(ACharacterBase* NewPossessed
 	if (NewPossessedCharacter)
 	{
 		PossessedCharacterReadySubscription.SubscribeToCharacter(NewPossessedCharacter,
-			FPdAbilitySystemReadyDelegate::FDelegate::CreateUObject(
+			FOnAbilitySystemAvailabilityChanged::FDelegate::CreateUObject(
 			this, &ThisClass::HandlePossessedCharacterAbilitySystemReady));
 	}
 }

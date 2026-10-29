@@ -115,9 +115,9 @@ void UGameFeatureAction_AddActorExtension::RegisterActorExtension(UWorld* World,
 	ExtensionSpec.bUseClientRoleFilter = bClientAction;
 	ExtensionSpec.bAddToLocallyControlled = bAddToLocallyControlled;
 	ExtensionSpec.bAddToSimulatedProxy = bAddToSimulatedProxy;
-	ExtensionSpec.CanActivate = FPdActorExtensionCanActivate::CreateUObject(this, &ThisClass::CanActivateActorExtension);
-	ExtensionSpec.OnActivate = FPdActorExtensionExecute::CreateUObject(this, &ThisClass::ActivateActorExtension, ChangeContext);
-	ExtensionSpec.OnDeactivate = FPdActorExtensionExecute::CreateUObject(this, &ThisClass::DeactivateActorExtension, ChangeContext);
+	ExtensionSpec.CanActivate = FActorExtensionCanActivate::CreateUObject(this, &ThisClass::CanActivateActorExtension);
+	ExtensionSpec.OnActivate = FActorExtensionAction::CreateUObject(this, &ThisClass::ActivateActorExtension, ChangeContext);
+	ExtensionSpec.OnDeactivate = FActorExtensionAction::CreateUObject(this, &ThisClass::DeactivateActorExtension, ChangeContext);
 
 	if (TSharedPtr<FActorExtensionHandle> ExtensionHandle = ExtensionSubsystem->RegisterExtensionForClass(LoadedTargetClass, MoveTemp(ExtensionSpec)))
 	{

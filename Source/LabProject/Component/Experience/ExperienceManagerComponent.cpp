@@ -115,7 +115,7 @@ const UExperienceDefinition* UExperienceManagerComponent::GetCurrentExperienceCh
 }
 
 // 이미 준비됐다면 즉시 알리고, 아직 로딩 중이라면 완료 시 실행할 작업을 등록한다.
-FDelegateHandle UExperienceManagerComponent::CallOrRegister_OnExperienceLoaded(FOnPdExperienceLoaded::FDelegate Delegate)
+FDelegateHandle UExperienceManagerComponent::CallOrRegister_OnExperienceLoaded(FOnExperienceLoaded::FDelegate Delegate)
 {
 	if (IsExperienceLoaded())
 	{
@@ -126,7 +126,7 @@ FDelegateHandle UExperienceManagerComponent::CallOrRegister_OnExperienceLoaded(F
 }
 
 // 뒤늦게 구독한 호출자도 실패 원인을 받을 수 있도록 마지막 실패 정보를 보관한다.
-FDelegateHandle UExperienceManagerComponent::CallOrRegister_OnExperienceLoadFailed(FOnPdExperienceLoadFailed::FDelegate Delegate)
+FDelegateHandle UExperienceManagerComponent::CallOrRegister_OnExperienceLoadFailed(FOnExperienceLoadFailed::FDelegate Delegate)
 {
 	if (HasExperienceLoadFailed())
 	{

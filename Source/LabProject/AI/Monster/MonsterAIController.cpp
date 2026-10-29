@@ -574,7 +574,7 @@ bool AMonsterAIController::IsExperienceReadyOrWait()
 	{
 		ExperienceManagerWaitingForLoad = ExperienceManager;
 		ExperienceLoadedDelegateHandle = ExperienceManager->CallOrRegister_OnExperienceLoaded(
-			FOnPdExperienceLoaded::FDelegate::CreateUObject(this, &AMonsterAIController::HandleExperienceLoaded));
+			FOnExperienceLoaded::FDelegate::CreateUObject(this, &AMonsterAIController::HandleExperienceLoaded));
 	}
 
 	return false;

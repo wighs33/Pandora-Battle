@@ -19,9 +19,9 @@ class UEquipmentComponent;
 struct FStreamableHandle;
 struct FGameplayAbilitySpec;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPdPandoraSelectionChangedDelegate, const UPandoraDefinition*, PandoraDefinition);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPdPandoraLoadoutChangedDelegate);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPdPandoraInventoryChangedDelegate);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPandoraSelectionChanged, const UPandoraDefinition*, PandoraDefinition);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPandoraLoadoutChanged);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPandoraInventoryChanged);
 
 USTRUCT()
 struct LABPROJECT_API FReplicatedPandoraEntry : public FFastArraySerializerItem
@@ -199,13 +199,13 @@ private:
 
 public:
 	UPROPERTY(BlueprintAssignable, Category = "!Inventory")
-	FPdPandoraInventoryChangedDelegate OnPandoraInventoryChanged;
+	FOnPandoraInventoryChanged OnPandoraInventoryChanged;
 
 	UPROPERTY(BlueprintAssignable, Category = "!Pandora|Skill")
-	FPdPandoraSelectionChangedDelegate OnPandoraSelectionChanged;
+	FOnPandoraSelectionChanged OnPandoraSelectionChanged;
 
 	UPROPERTY(BlueprintAssignable, Category = "!Pandora|Loadout")
-	FPdPandoraLoadoutChangedDelegate OnPandoraLoadoutChanged;
+	FOnPandoraLoadoutChanged OnPandoraLoadoutChanged;
 
 private:
 	UPROPERTY(Transient)

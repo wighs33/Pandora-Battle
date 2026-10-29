@@ -45,7 +45,7 @@ void UQuickSlotWidget::NativeConstruct()
 
 	RebuildQuickSlotBar();
 	PossessedCharacterReadySubscription.SubscribeToPossessedCharacter(GetOwningPlayer(),
-		FPdAbilitySystemReadyDelegate::FDelegate::CreateUObject(this, &ThisClass::HandlePossessedCharacterReady));
+		FOnAbilitySystemAvailabilityChanged::FDelegate::CreateUObject(this, &ThisClass::HandlePossessedCharacterReady));
 }
 
 void UQuickSlotWidget::NativeDestruct()

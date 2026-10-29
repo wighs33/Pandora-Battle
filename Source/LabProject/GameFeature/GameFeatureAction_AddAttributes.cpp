@@ -181,20 +181,20 @@ void UGameFeatureAction_AddAttributes::RegisterAttributeExtension(UWorld* World,
 		}
 
 		FActorExtensionSpec ExtensionSpec;
-		ExtensionSpec.CanActivate = FPdActorExtensionCanActivate::CreateWeakLambda(this, [this](AActor* Actor)
+		ExtensionSpec.CanActivate = FActorExtensionCanActivate::CreateWeakLambda(this, [this](AActor* Actor)
 		{
 			UPdAbilitySystemComponent* AbilitySystemComponent = GetAbilitySystemComponent(Actor);
 			return AbilitySystemComponent && AbilitySystemComponent->IsRegistered()
 				&& AbilitySystemComponent->AbilityActorInfo.IsValid();
 		});
-		ExtensionSpec.OnActivate = FPdActorExtensionExecute::CreateWeakLambda(this, [this, ChangeContext](AActor* Actor)
+		ExtensionSpec.OnActivate = FActorExtensionAction::CreateWeakLambda(this, [this, ChangeContext](AActor* Actor)
 		{
 			if (FGameFeatureAttributeHandles* FoundHandles = ContextHandles.Find(ChangeContext))
 			{
 				AddAttributesToActor(Actor, *FoundHandles);
 			}
 		});
-		ExtensionSpec.OnDeactivate = FPdActorExtensionExecute::CreateWeakLambda(this, [this, ChangeContext](AActor* Actor)
+		ExtensionSpec.OnDeactivate = FActorExtensionAction::CreateWeakLambda(this, [this, ChangeContext](AActor* Actor)
 		{
 			if (FGameFeatureAttributeHandles* FoundHandles = ContextHandles.Find(ChangeContext))
 			{

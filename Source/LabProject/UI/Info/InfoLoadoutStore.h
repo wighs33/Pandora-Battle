@@ -23,7 +23,7 @@ enum class EInfoLoadoutStateChange : uint8
 	PresentationAssets
 };
 
-DECLARE_MULTICAST_DELEGATE_OneParam(FInfoLoadoutStateChanged, EInfoLoadoutStateChange);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnInfoLoadoutStateChanged, EInfoLoadoutStateChange);
 
 /**
  * Info 화면의 아이템·판도라 로드아웃에 대한 공통 조회 모델과 명령 진입점을 제공한다.
@@ -82,7 +82,7 @@ private:
 	bool PublishRejectedCommand(EInfoLoadoutStateChange Change);
 
 public:
-	FInfoLoadoutStateChanged OnStateChanged;
+	FOnInfoLoadoutStateChanged OnStateChanged;
 
 private:
 	UPROPERTY(Transient)

@@ -9,7 +9,7 @@ class UItemDefinition;
 class UItemInstance;
 class UTextBlock;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FPdOnDroppedInventorySlot, int32, SourceSlotIndex, int32, TargetSlotIndex, UItemInstance*, SourceItem);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnDroppedInventorySlot, int32, SourceSlotIndex, int32, TargetSlotIndex, UItemInstance*, SourceItem);
 
 /** 인벤토리 슬롯 목록. 빈 칸까지 슬롯 수만큼 보여 주고, 합칠 수 있는 무기·장비가 있으면 안내를 띄운다. */
 UCLASS(Blueprintable, BlueprintType)
@@ -49,7 +49,7 @@ private:
 
 public:
 	UPROPERTY(BlueprintAssignable, Category = "!UI|Inventory")
-	FPdOnDroppedInventorySlot OnDropped_InventorySlot;
+	FOnDroppedInventorySlot OnDropped_InventorySlot;
 
 protected:
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Inventory", meta = (BindWidget))

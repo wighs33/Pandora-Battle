@@ -11,7 +11,7 @@ class USkinComponent;
 class USkinDefinition;
 struct FStreamableHandle;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPdSkinsChangedDelegate);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnSkinsChanged);
 
 USTRUCT(BlueprintType, Blueprintable)
 struct FSkinList
@@ -127,7 +127,7 @@ protected:
 
 public:
 	UPROPERTY(BlueprintAssignable, Category = "!Inventory")
-	FPdSkinsChangedDelegate OnSkinsChanged;
+	FOnSkinsChanged OnSkinsChanged;
 
 private:
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "!Inventory|Filter", meta = (AllowPrivateAccess = "true"))

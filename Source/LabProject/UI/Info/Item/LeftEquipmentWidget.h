@@ -11,13 +11,13 @@ class UTexture2D;
 class FContentLease;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
-	FPdOnClickedEquipTypeSlot,
+	FOnClickedEquipTypeSlot,
 	FGameplayTag, EquipTypeTag,
 	UEquipSlotWidget*, SelectedEquipSlot,
 	bool, bIsSelectedAnyButton);
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
-	FPdOnDroppedItemEquipTypeSlot,
+	FOnDroppedItemEquipTypeSlot,
 	FGameplayTag, EquipTypeTag,
 	UEquipSlotWidget*, TargetEquipSlot,
 	UItemInstance*, ItemInstance);
@@ -95,10 +95,10 @@ private:
 
 public:
 	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "!UI|Equipment")
-	FPdOnClickedEquipTypeSlot OnClicked_EquipTypeSlot;
+	FOnClickedEquipTypeSlot OnClicked_EquipTypeSlot;
 
 	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "!UI|Equipment")
-	FPdOnDroppedItemEquipTypeSlot OnDroppedItem_EquipTypeSlot;
+	FOnDroppedItemEquipTypeSlot OnDroppedItem_EquipTypeSlot;
 
 protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Equipment|Bind")

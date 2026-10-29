@@ -317,7 +317,7 @@ void UPlayerRewardComponent::ApplyMonsterDefeatRewards(const URewardDefinition* 
 	if (PotionId.IsValid() && Inventory)
 	{
 		Inventory->AddItemsByPrimaryAssetIdsWithCompletion({PotionId},
-			FOnPdItemsAdded::CreateWeakLambda(this, [this](const TArray<FPrimaryAssetId>& AddedItems)
+			FOnItemsAdded::CreateWeakLambda(this, [this](const TArray<FPrimaryAssetId>& AddedItems)
 			{
 				APlayerState* CurrentPlayerState = GetPlayerState<APlayerState>();
 				APdPlayerController* CurrentController = CurrentPlayerState

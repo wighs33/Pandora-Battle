@@ -10,7 +10,7 @@ class FContentLease;
 class USkinDefinition;
 class UAnimMontage;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPdOnEquippedSkinsChanged);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnEquippedSkinsChanged);
 
 USTRUCT(BlueprintType)
 struct LABPROJECT_API FEquippedSkinSlot
@@ -109,7 +109,7 @@ protected:
 
 public:
 	UPROPERTY(BlueprintAssignable, Category = "!Skin|Equipment")
-	FPdOnEquippedSkinsChanged OnEquippedSkinsChanged;
+	FOnEquippedSkinsChanged OnEquippedSkinsChanged;
 
 protected:
 	UPROPERTY(ReplicatedUsing = OnRep_EquippedSkins, Transient, BlueprintReadOnly, Category = "!Skin|Equipment")

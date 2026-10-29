@@ -393,8 +393,8 @@ void ALobbyGameMode::StartExperienceLoad()
 		HandleExperienceLoadFailed(Id, TEXT("LobbyGameState or ExperienceManagerComponent is missing."));
 		return;
 	}
-	Manager->CallOrRegister_OnExperienceLoaded(FOnPdExperienceLoaded::FDelegate::CreateUObject(this, &ThisClass::HandleExperienceLoaded));
-	Manager->CallOrRegister_OnExperienceLoadFailed(FOnPdExperienceLoadFailed::FDelegate::CreateUObject(this, &ThisClass::HandleExperienceLoadFailed));
+	Manager->CallOrRegister_OnExperienceLoaded(FOnExperienceLoaded::FDelegate::CreateUObject(this, &ThisClass::HandleExperienceLoaded));
+	Manager->CallOrRegister_OnExperienceLoadFailed(FOnExperienceLoadFailed::FDelegate::CreateUObject(this, &ThisClass::HandleExperienceLoadFailed));
 	if (Manager->GetLoadState() == EExperienceLoadState::Unloaded)
 	{
 		Manager->SetCurrentExperienceAuth(Id);

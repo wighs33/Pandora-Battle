@@ -11,7 +11,7 @@ class APdPlayer;
 class UCableComponent;
 class UPrimitiveComponent;
 
-DECLARE_MULTICAST_DELEGATE(FGrappleStateDelegate);
+DECLARE_MULTICAST_DELEGATE(FOnGrappleStateChanged);
 
 UCLASS(BlueprintType, Blueprintable, ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class LABPROJECT_API UGrappleComponent : public UActorComponent
@@ -79,8 +79,8 @@ private:
 	void ResetGrappleMovementState();
 
 public:
-	FGrappleStateDelegate OnGrappleStarted;
-	FGrappleStateDelegate OnGrappleFinished;
+	FOnGrappleStateChanged OnGrappleStarted;
+	FOnGrappleStateChanged OnGrappleFinished;
 
 private:
 	UPROPERTY(Transient)

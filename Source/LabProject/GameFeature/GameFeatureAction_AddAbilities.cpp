@@ -172,18 +172,18 @@ void UGameFeatureAction_AddAbilities::RegisterAbilityExtension(UWorld* World,
 	FGameFeatureAbilityGrantHandles& Handles = ContextHandles.FindOrAdd(ChangeContext);
 
 	FActorExtensionSpec ExtensionSpec;
-	ExtensionSpec.CanActivate = FPdActorExtensionCanActivate::CreateWeakLambda(this, [this](AActor* Actor)
+	ExtensionSpec.CanActivate = FActorExtensionCanActivate::CreateWeakLambda(this, [this](AActor* Actor)
 	{
 		return Actor && Actor->HasAuthority() && GetAbilitySystemComponent(Actor) != nullptr;
 	});
-	ExtensionSpec.OnActivate = FPdActorExtensionExecute::CreateWeakLambda(this, [this, ChangeContext](AActor* Actor)
+	ExtensionSpec.OnActivate = FActorExtensionAction::CreateWeakLambda(this, [this, ChangeContext](AActor* Actor)
 	{
 		if (FGameFeatureAbilityGrantHandles* FoundHandles = ContextHandles.Find(ChangeContext))
 		{
 			GrantAbilitiesToActor(Actor, *FoundHandles);
 		}
 	});
-	ExtensionSpec.OnDeactivate = FPdActorExtensionExecute::CreateWeakLambda(this, [this, ChangeContext](AActor* Actor)
+	ExtensionSpec.OnDeactivate = FActorExtensionAction::CreateWeakLambda(this, [this, ChangeContext](AActor* Actor)
 	{
 		if (FGameFeatureAbilityGrantHandles* FoundHandles = ContextHandles.Find(ChangeContext))
 		{

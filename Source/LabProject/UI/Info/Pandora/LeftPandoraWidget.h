@@ -12,7 +12,7 @@ class UTextBlock;
 class UTexture2D;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
-	FPdOnClickedPandoraEquipSlot,
+	FOnClickedPandoraEquipSlot,
 	UPandoraEquipSlotWidget*, SelectedPandoraEquipSlot,
 	bool, bIsSelectedAnyButton);
 
@@ -72,7 +72,7 @@ private:
 
 public:
 	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "!UI|Pandora")
-	FPdOnClickedPandoraEquipSlot OnClicked_PandoraEquipSlot;
+	FOnClickedPandoraEquipSlot OnClicked_PandoraEquipSlot;
 
 protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Pandora|Bind")

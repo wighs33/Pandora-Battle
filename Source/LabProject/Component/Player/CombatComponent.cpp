@@ -57,8 +57,8 @@ void UCombatComponent::BeginPlay()
 
 	// ASC는 빙의와 PlayerState 도착 순서에 따라 늦게 준비되므로, 준비 알림에서만 공격 속도 변화를 구독한다.
 	AbilitySystemSubscription.SubscribeToCharacter(GetCharacter(),
-		FPdAbilitySystemReadyDelegate::FDelegate::CreateUObject(this, &ThisClass::HandleAbilitySystemReady),
-		FPdAbilitySystemReadyDelegate::FDelegate::CreateUObject(this, &ThisClass::HandleAbilitySystemReleased));
+		FOnAbilitySystemAvailabilityChanged::FDelegate::CreateUObject(this, &ThisClass::HandleAbilitySystemReady),
+		FOnAbilitySystemAvailabilityChanged::FDelegate::CreateUObject(this, &ThisClass::HandleAbilitySystemReleased));
 	// Pawn 정의가 BeginPlay 이전에 적용된 경우에도 몽타주 로딩을 시작한다.
 	BeginUnarmedAttackMontagePreload();
 }
@@ -117,7 +117,7 @@ void UCombatComponent::BindAbilitySystem(UPdAbilitySystemComponent* AbilitySyste
 		AttackSpeedChangedDelegateHandle = AbilitySystem->GetGameplayAttributeValueChangeDelegate(
 			UBasicAttributeSet::GetAttackSpeedAttribute()).AddUObject(this, &ThisClass::HandleAttackSpeedChanged);
 		AbilitySystem->SetFinalStrengthDamageProvider(
-			FPdFinalStrengthDamageProvider::CreateUObject(this, &ThisClass::GetStrengthAdjustedWeaponDamageMagnitude));
+			FFinalStrengthDamageProvider::CreateUObject(this, &ThisClass::GetStrengthAdjustedWeaponDamageMagnitude));
 	}
 }
 

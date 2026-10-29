@@ -8,16 +8,16 @@ class AActor;
 class AGameStateBase;
 struct FComponentRequestHandle;
 
-DECLARE_DELEGATE_RetVal_OneParam(bool, FPdActorExtensionCanActivate, AActor*);
-DECLARE_DELEGATE_OneParam(FPdActorExtensionExecute, AActor*);
+DECLARE_DELEGATE_RetVal_OneParam(bool, FActorExtensionCanActivate, AActor*);
+DECLARE_DELEGATE_OneParam(FActorExtensionAction, AActor*);
 
 class UActorExtensionWorldSubsystem;
 
 struct FActorExtensionSpec
 {
-	FPdActorExtensionCanActivate CanActivate;
-	FPdActorExtensionExecute OnActivate;
-	FPdActorExtensionExecute OnDeactivate;
+	FActorExtensionCanActivate CanActivate;
+	FActorExtensionAction OnActivate;
+	FActorExtensionAction OnDeactivate;
 	bool bUseClientRoleFilter = false;
 	bool bAddToLocallyControlled = false;
 	bool bAddToSimulatedProxy = false;

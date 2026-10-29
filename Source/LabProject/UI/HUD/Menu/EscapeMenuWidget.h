@@ -7,7 +7,7 @@
 class UButton;
 class UTextBlock;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FEscapeMenuClosedSignature, UEscapeMenuWidget*, EscapeMenuWidget);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEscapeMenuClosed, UEscapeMenuWidget*, EscapeMenuWidget);
 
 /** 게임 중 ESC로 여는 메뉴. 게임으로 돌아가기와 타이틀로 나가기만 맡고, 설정은 게임 설정 화면이 맡는다. */
 UCLASS(Blueprintable, BlueprintType)
@@ -49,7 +49,7 @@ private:
 
 public:
 	UPROPERTY(BlueprintAssignable, Category = "!Menu")
-	FEscapeMenuClosedSignature OnMenuClosed;
+	FOnEscapeMenuClosed OnMenuClosed;
 
 protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!Menu|Bind")

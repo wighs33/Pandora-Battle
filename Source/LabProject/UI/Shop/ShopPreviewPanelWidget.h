@@ -9,7 +9,7 @@ class UImage;
 class UShopEntryViewData;
 class UTextBlock;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FShopPreviewBuyRequestedDelegate, UShopEntryViewData*, EntryData);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnShopPreviewBuyRequested, UShopEntryViewData*, EntryData);
 
 UCLASS(Blueprintable, BlueprintType)
 class LABPROJECT_API UShopPreviewPanelWidget : public ULocalizedMenuWidget
@@ -49,7 +49,7 @@ private:
 
 public:
 	UPROPERTY(BlueprintAssignable, Category = "!Shop")
-	FShopPreviewBuyRequestedDelegate OnBuyRequested;
+	FOnShopPreviewBuyRequested OnBuyRequested;
 
 protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Shop|Bind")

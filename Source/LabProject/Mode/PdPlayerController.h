@@ -21,8 +21,8 @@ class UPdAbilitySystemComponent;
 class UPlayerNotificationComponent;
 class FContentLease;
 
-DECLARE_MULTICAST_DELEGATE_TwoParams(FPdAimCrosshairChanged, bool /*bVisible*/, FGameplayTag /*CrosshairWidgetTag*/);
-DECLARE_MULTICAST_DELEGATE_OneParam(FPdDamageScreenEffectRequested, float /*DamageAmount*/);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnAimCrosshairChanged, bool /*bVisible*/, FGameplayTag /*CrosshairWidgetTag*/);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnDamageScreenEffectRequested, float /*DamageAmount*/);
 
 /**
  * 플레이어의 네트워크 요청과 컨트롤러 생명주기를 연결한다.
@@ -50,7 +50,7 @@ public:
 	// 조종 중인 캐릭터의 ASC 준비 계약. Pawn 교체·리스폰 뒤 새 캐릭터가 준비될 때마다 다시 알린다.
 	// 구독은 FAbilitySystemReadySubscription::SubscribeToPossessedCharacter로 한다.
 	ACharacterBase* GetReadyPossessedCharacter() const;
-	FDelegateHandle RegisterOnPossessedCharacterAbilitySystemReady(const FPdAbilitySystemReadyDelegate::FDelegate& Delegate);
+	FDelegateHandle RegisterOnPossessedCharacterAbilitySystemReady(const FOnAbilitySystemAvailabilityChanged::FDelegate& Delegate);
 	void UnregisterOnPossessedCharacterAbilitySystemReady(FDelegateHandle Handle);
 
 	void RequestLocalCosmeticProfileSync();
@@ -66,8 +66,8 @@ public:
 	void ShowAimCrosshair(FGameplayTag CrosshairWidgetTag) { AimCrosshairChanged.Broadcast(true, CrosshairWidgetTag); }
 	void HideAimCrosshair() { AimCrosshairChanged.Broadcast(false, FGameplayTag()); }
 	void ShowDamageScreenEffect(float DamageAmount) { DamageScreenEffectRequested.Broadcast(DamageAmount); }
-	FPdAimCrosshairChanged& OnAimCrosshairChanged() { return AimCrosshairChanged; }
-	FPdDamageScreenEffectRequested& OnDamageScreenEffectRequested() { return DamageScreenEffectRequested; }
+	FOnAimCrosshairChanged& OnAimCrosshairChanged() { return AimCrosshairChanged; }
+	FOnDamageScreenEffectRequested& OnDamageScreenEffectRequested() { return DamageScreenEffectRequested; }
 
 	bool RequestExitMatchToTitle();
 
@@ -176,7 +176,7 @@ private:
 
 	TWeakObjectPtr<ACharacterBase> ObservedPossessedCharacter;
 	FAbilitySystemReadySubscription PossessedCharacterReadySubscription;
-	FPdAbilitySystemReadyDelegate OnPossessedCharacterAbilitySystemReady;
-	FPdAimCrosshairChanged AimCrosshairChanged;
-	FPdDamageScreenEffectRequested DamageScreenEffectRequested;
+	FOnAbilitySystemAvailabilityChanged OnPossessedCharacterAbilitySystemReady;
+	FOnAimCrosshairChanged AimCrosshairChanged;
+	FOnDamageScreenEffectRequested DamageScreenEffectRequested;
 };

@@ -38,7 +38,7 @@ public:
 	}
 };
 
-DECLARE_MULTICAST_DELEGATE_FiveParams(FPdGameResultReceived, const FText& /*WinnerTitle*/, int32 /*WinnerTeamColorIndex*/,
+DECLARE_MULTICAST_DELEGATE_FiveParams(FOnGameResultReceived, const FText& /*WinnerTitle*/, int32 /*WinnerTeamColorIndex*/,
 	const FText& /*MaxKillerName*/, int32 /*MaxKillCount*/, const TArray<FGameResultPlayerStat>& /*PlayerStats*/);
 
 UCLASS()
@@ -64,7 +64,7 @@ public:
 
 	// 화면(HUD)이 구독한다. 타이머 상태나 경기 규칙이 바뀌면 타이머 표시를, 경기가 끝나면 결과 창을 그린다.
 	FSimpleMulticastDelegate& OnMatchTimerChanged() { return MatchTimerChanged; }
-	FPdGameResultReceived& OnGameResultReceived() { return GameResultReceived; }
+	FOnGameResultReceived& OnGameResultReceived() { return GameResultReceived; }
 
 	// Network RPCs ----------------------------------------------------------------------------------------------------
 	UFUNCTION(NetMulticast, Reliable, BlueprintCallable, Category = "!GameResult")
@@ -98,5 +98,5 @@ private:
 	FReplicatedMatchTimerState MatchTimerState;
 
 	FSimpleMulticastDelegate MatchTimerChanged;
-	FPdGameResultReceived GameResultReceived;
+	FOnGameResultReceived GameResultReceived;
 };

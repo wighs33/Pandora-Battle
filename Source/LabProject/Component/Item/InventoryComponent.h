@@ -15,10 +15,10 @@ class UItemInstance;
 struct FStreamableHandle;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogInventoryComponent, Log, All);
-DECLARE_DELEGATE_OneParam(FOnPdItemsAdded, const TArray<FPrimaryAssetId>&);
-DECLARE_MULTICAST_DELEGATE(FPdInventoryChanged);
-DECLARE_MULTICAST_DELEGATE(FPdEquipmentSlotsChanged);
-DECLARE_MULTICAST_DELEGATE(FPdWeaponLoadoutChanged);
+DECLARE_DELEGATE_OneParam(FOnItemsAdded, const TArray<FPrimaryAssetId>&);
+DECLARE_MULTICAST_DELEGATE(FOnInventoryChanged);
+DECLARE_MULTICAST_DELEGATE(FOnEquipmentSlotsChanged);
+DECLARE_MULTICAST_DELEGATE(FOnWeaponLoadoutChanged);
 
 USTRUCT(BlueprintType)
 struct FItemList
@@ -131,7 +131,7 @@ public:
 	void AddItemsByPrimaryAssetIds(const TArray<FPrimaryAssetId>& ItemDefinitions);
 
 	// 로딩과 추가가 완료된 실제 아이템 목록만 반환한다. 취소된 요청은 완료 통지를 보내지 않는다.
-	void AddItemsByPrimaryAssetIdsWithCompletion(const TArray<FPrimaryAssetId>& ItemDefinitions, FOnPdItemsAdded OnComplete);
+	void AddItemsByPrimaryAssetIdsWithCompletion(const TArray<FPrimaryAssetId>& ItemDefinitions, FOnItemsAdded OnComplete);
 
 	/**
 	 * 스트리머블 핸들이 반환되지 않은 경우에도 Asset Manager의 완료 델리게이트가 큐에 등록된 요청을 포함한다. (예: 이미 로드된 Primary Asset)
@@ -314,9 +314,9 @@ public:
 	static constexpr int32 ConsumableQuickSlotCount = 4;
 	static constexpr int32 WeaponLoadoutSlotCount = 3;
 
-	FPdInventoryChanged OnInventoryChanged;
-	FPdEquipmentSlotsChanged OnEquipmentSlotsChanged;
-	FPdWeaponLoadoutChanged OnWeaponLoadoutChanged;
+	FOnInventoryChanged OnInventoryChanged;
+	FOnEquipmentSlotsChanged OnEquipmentSlotsChanged;
+	FOnWeaponLoadoutChanged OnWeaponLoadoutChanged;
 
 private:
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "!Inventory|Filter", meta = (AllowPrivateAccess = "true"))

@@ -19,7 +19,7 @@ class UPandoraWidget;
 class UWidget;
 class UWidgetAnimation;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPandoraTreeClosedSignature, UPandoraTreeWidget*, PandoraTreeWidget);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPandoraTreeClosed, UPandoraTreeWidget*, PandoraTreeWidget);
 
 UCLASS(Blueprintable, BlueprintType)
 class LABPROJECT_API UPandoraTreeWidget : public ULocalizedMenuWidget
@@ -132,7 +132,7 @@ private:
 
 public:
 	UPROPERTY(BlueprintAssignable, Category = "!UI|Pandora")
-	FPandoraTreeClosedSignature OnPandoraTreeClosed;
+	FOnPandoraTreeClosed OnPandoraTreeClosed;
 
 protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional, DisplayName = "Reset Pandora Button"), Category = "!UI|Pandora|Widgets")

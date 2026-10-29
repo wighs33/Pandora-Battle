@@ -7,8 +7,8 @@
 
 class UButton;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPdOnClickedStatUpButton, FGameplayTag, StatTag);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPdOnClickedStatDownButton, FGameplayTag, StatTag);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnClickedStatUpButton, FGameplayTag, StatTag);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnClickedStatDownButton, FGameplayTag, StatTag);
 
 UCLASS(Blueprintable, BlueprintType)
 class LABPROJECT_API URightStatusWidget : public ULocalizedMenuWidget
@@ -148,10 +148,10 @@ private:
 
 public:
 	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "!UI|Status")
-	FPdOnClickedStatUpButton OnClicked_StatUpButton;
+	FOnClickedStatUpButton OnClicked_StatUpButton;
 
 	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "!UI|Status")
-	FPdOnClickedStatDownButton OnClicked_StatDownButton;
+	FOnClickedStatDownButton OnClicked_StatDownButton;
 
 protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Status|Bind")

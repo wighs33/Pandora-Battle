@@ -13,7 +13,7 @@ class UPdAbilitySystemComponent;
  * 기본 속성은 ASC 소유 액터(PlayerState·적)의 기본 서브오브젝트라 같은 시점에 함께 준비된다.
  * 빙의·PlayerState 도착·리스폰으로 다시 연결될 때마다 다시 보낸다.
  */
-DECLARE_MULTICAST_DELEGATE_TwoParams(FPdAbilitySystemReadyDelegate,
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnAbilitySystemAvailabilityChanged,
 	ACharacterBase* /*Character*/, UPdAbilitySystemComponent* /*AbilitySystemComponent*/);
 
 /**
@@ -31,11 +31,11 @@ public:
 	FAbilitySystemReadySubscription& operator=(const FAbilitySystemReadySubscription&) = delete;
 
 	/** 지정한 캐릭터의 ASC 준비를 구독한다. OnReleased를 주면 캐릭터가 그 ASC에서 빠질 때도 알린다. */
-	void SubscribeToCharacter(ACharacterBase* Character, const FPdAbilitySystemReadyDelegate::FDelegate& Delegate,
-		const FPdAbilitySystemReadyDelegate::FDelegate& OnReleased = FPdAbilitySystemReadyDelegate::FDelegate());
+	void SubscribeToCharacter(ACharacterBase* Character, const FOnAbilitySystemAvailabilityChanged::FDelegate& Delegate,
+		const FOnAbilitySystemAvailabilityChanged::FDelegate& OnReleased = FOnAbilitySystemAvailabilityChanged::FDelegate());
 
 	/** 플레이어가 조종하는 캐릭터의 ASC 준비를 구독한다. Pawn이 바뀌면 새 캐릭터가 준비될 때 다시 알린다. */
-	void SubscribeToPossessedCharacter(APlayerController* PlayerController, const FPdAbilitySystemReadyDelegate::FDelegate& Delegate);
+	void SubscribeToPossessedCharacter(APlayerController* PlayerController, const FOnAbilitySystemAvailabilityChanged::FDelegate& Delegate);
 
 	void Reset();
 

@@ -9,7 +9,7 @@ class UImage;
 class UTextBlock;
 class UTexture2D;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPdOnSelectedPandoraDirection, EEnum_Direction, Direction);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSelectedPandoraDirection, EEnum_Direction, Direction);
 
 UCLASS(Blueprintable, BlueprintType)
 class LABPROJECT_API USelectPandoraWidget : public UPdScreenWidget
@@ -44,7 +44,7 @@ private:
 
 public:
 	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "!UI|Pandora")
-	FPdOnSelectedPandoraDirection OnSelected;
+	FOnSelectedPandoraDirection OnSelected;
 
 protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "!UI|Pandora|Bind")

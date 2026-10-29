@@ -13,11 +13,11 @@ class APdPlayerController;
 struct FKillLogEntry;
 struct FPdNotificationData;
 
-DECLARE_MULTICAST_DELEGATE_OneParam(FPdRightNotificationRequested, const FPdNotificationData& /*NotificationData*/);
-DECLARE_MULTICAST_DELEGATE_OneParam(FPdKillLogEntryRequested, const FKillLogEntry& /*KillLogEntry*/);
-DECLARE_MULTICAST_DELEGATE_OneParam(FPdGoldenKillAnnouncementRequested, const FText& /*AnnouncementText*/);
-DECLARE_MULTICAST_DELEGATE_TwoParams(FPdRespawnDelayChanged, bool /*bVisible*/, float /*DelaySeconds*/);
-DECLARE_MULTICAST_DELEGATE_OneParam(FPdInGameScoreboardChanged, bool /*bVisible*/);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnRightNotificationRequested, const FPdNotificationData& /*NotificationData*/);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnKillLogEntryRequested, const FKillLogEntry& /*KillLogEntry*/);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnGoldenKillAnnouncementRequested, const FText& /*AnnouncementText*/);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnRespawnDelayChanged, bool /*bVisible*/, float /*DelaySeconds*/);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnInGameScoreboardChanged, bool /*bVisible*/);
 
 /**
  * 소유 플레이어의 입력 모드·카메라·로딩 화면·체력바 표시를 조율한다.
@@ -54,11 +54,11 @@ public:
 	void SetLoadingScreenWaiting(bool bWaiting) { LoadingScreenWaiting = bWaiting; }
 
 	// HUD가 구독해 그리는 화면 요청. 로컬 HUD가 없으면 구독자도 없어 요청은 버려진다.
-	FPdRightNotificationRequested& OnRightNotificationRequested() { return RightNotificationRequested; }
-	FPdKillLogEntryRequested& OnKillLogEntryRequested() { return KillLogEntryRequested; }
-	FPdGoldenKillAnnouncementRequested& OnGoldenKillAnnouncementRequested() { return GoldenKillAnnouncementRequested; }
-	FPdRespawnDelayChanged& OnRespawnDelayChanged() { return RespawnDelayChanged; }
-	FPdInGameScoreboardChanged& OnInGameScoreboardChanged() { return InGameScoreboardChanged; }
+	FOnRightNotificationRequested& OnRightNotificationRequested() { return RightNotificationRequested; }
+	FOnKillLogEntryRequested& OnKillLogEntryRequested() { return KillLogEntryRequested; }
+	FOnGoldenKillAnnouncementRequested& OnGoldenKillAnnouncementRequested() { return GoldenKillAnnouncementRequested; }
+	FOnRespawnDelayChanged& OnRespawnDelayChanged() { return RespawnDelayChanged; }
+	FOnInGameScoreboardChanged& OnInGameScoreboardChanged() { return InGameScoreboardChanged; }
 
 private:
 	void ApplyCameraViewPitchClamp() const;
@@ -83,9 +83,9 @@ private:
 	TOptional<bool> LoadingScreenWaiting;
 	bool bAppliedTrainingRoomLoadingPause = false;
 
-	FPdRightNotificationRequested RightNotificationRequested;
-	FPdKillLogEntryRequested KillLogEntryRequested;
-	FPdGoldenKillAnnouncementRequested GoldenKillAnnouncementRequested;
-	FPdRespawnDelayChanged RespawnDelayChanged;
-	FPdInGameScoreboardChanged InGameScoreboardChanged;
+	FOnRightNotificationRequested RightNotificationRequested;
+	FOnKillLogEntryRequested KillLogEntryRequested;
+	FOnGoldenKillAnnouncementRequested GoldenKillAnnouncementRequested;
+	FOnRespawnDelayChanged RespawnDelayChanged;
+	FOnInGameScoreboardChanged InGameScoreboardChanged;
 };
