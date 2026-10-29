@@ -139,8 +139,10 @@ bool ULunaChatSubsystem::Ask(const FString& Question)
 	}
 
 	// 모델 서버가 준비되면 이어서 묻는다. 띄우지 못했으면 다음 틱에 실패를 알려, 타이틀이 "생각 중" 문구를 먼저 보여 준 뒤 덮게 한다.
+	// Start는 띄우지 못하면 Failed를 그 자리에서 알리므로, 그 알림이 여기서 답을 끝내지 않게 기다림은 Start가 돌아온 뒤에 표시한다.
+	const bool bStarted = LocalServer->Start();
 	bWaitingForServer = true;
-	if (!LocalServer->Start())
+	if (!bStarted)
 	{
 		Ticker::RunNextTick(this, [this, RequestSerial]()
 		{
