@@ -15,7 +15,7 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StatUpgradeComponent)
 
-DEFINE_LOG_CATEGORY(StatUpgradeComponentLog);
+DEFINE_LOG_CATEGORY_STATIC(LogStatUpgradeComponent, Log, All);
 
 UStatUpgradeComponent::UStatUpgradeComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -225,7 +225,7 @@ bool UStatUpgradeComponent::ApplyStatChange(FGameplayTag StatTag, const int32 Le
 	FScopedResourceRatio KeepResourceRatio(ASC);
 	if (!ASC->ApplyStatUpEffectByTags(Settings->EquipmentStatGameplayEffectClass, StatMagnitudes))
 	{
-		UE_LOG(StatUpgradeComponentLog, Error, TEXT("Failed to apply stat investment change: %s"), *StatTag.ToString());
+		UE_LOG(LogStatUpgradeComponent, Error, TEXT("Failed to apply stat investment change: %s"), *StatTag.ToString());
 		return false;
 	}
 	return true;
@@ -273,7 +273,7 @@ void UStatUpgradeComponent::HandleStatUpgradeDefinitionPreloaded()
 	StatUpgradeDefinitionLease.Reset();
 	if (!Definition)
 	{
-		UE_LOG(StatUpgradeComponentLog, Error,
+		UE_LOG(LogStatUpgradeComponent, Error,
 			TEXT("Stat upgrade definition '%s' did not resolve after asynchronous preload."),
 			*StatUpgradeDefinition.ToString());
 		return;
@@ -290,7 +290,7 @@ void UStatUpgradeComponent::HandleStatUpgradeDefinitionPreloaded()
 		TGuardValue<bool> ApplyingDefaults(bApplyingStatChange, true);
 		if (!ASC || !ASC->ApplyConfiguredAttributeDefaults(*Definition))
 		{
-			UE_LOG(StatUpgradeComponentLog, Error, TEXT("Failed to initialize player attributes from '%s'."), *Definition->GetPathName());
+			UE_LOG(LogStatUpgradeComponent, Error, TEXT("Failed to initialize player attributes from '%s'."), *Definition->GetPathName());
 			return;
 		}
 	}

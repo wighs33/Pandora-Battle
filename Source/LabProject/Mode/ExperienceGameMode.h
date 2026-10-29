@@ -24,8 +24,6 @@ class APawn;
 class APlayerController;
 class APlayerState;
 
-DECLARE_LOG_CATEGORY_EXTERN(PdExperienceGameModeLog, Log, All);
-
 /**
  * 서버의 입장·스폰·경기 시작 조건을 연결한다.
  *

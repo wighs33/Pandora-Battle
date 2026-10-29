@@ -13,7 +13,6 @@ class UItemDefinition;
 class UItemInstance;
 class UPdAbilitySystemComponent;
 
-DECLARE_LOG_CATEGORY_EXTERN(LogEquipmentEffect, Log, All);
 DECLARE_MULTICAST_DELEGATE(FOnEquipmentStatsChanged);
 
 /**

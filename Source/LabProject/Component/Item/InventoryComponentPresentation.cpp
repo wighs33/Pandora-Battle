@@ -145,7 +145,7 @@ void UInventoryComponent::RefreshWeaponLoadoutPresentationAssets()
 		TSharedPtr<FContentLease> PresentationLease = ContentSubsystem->AcquireContent(PresentationAssetPaths);
 		if (PresentationLease->HasFailed())
 		{
-			UE_LOG(InventoryComponentLog, Error,
+			UE_LOG(LogInventoryComponent, Error,
 				TEXT("Failed to start weapon presentation preload for loadout item '%s'."),
 				*AssetId.ToString());
 			continue;

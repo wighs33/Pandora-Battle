@@ -23,7 +23,7 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SkinEquipmentComponent)
 
-DEFINE_LOG_CATEGORY(SkinEquipmentComponentLog);
+DEFINE_LOG_CATEGORY_STATIC(LogSkinEquipmentComponent, Log, All);
 
 namespace
 {
@@ -442,7 +442,7 @@ void USkinEquipmentComponent::RebuildEquippedSkinActors()
 	if (SkinPresentationLease->HasFailed())
 	{
 		SkinPresentationLease.Reset();
-		UE_LOG(SkinEquipmentComponentLog, Error, TEXT("Failed to preload changed skins for '%s'."), *GetPathNameSafe(GetOwner()));
+		UE_LOG(LogSkinEquipmentComponent, Error, TEXT("Failed to preload changed skins for '%s'."), *GetPathNameSafe(GetOwner()));
 	}
 }
 
@@ -479,7 +479,7 @@ void USkinEquipmentComponent::ApplyEquippedSkinSlot(const FEquippedSkinSlot& Slo
 	}
 	if (bNeedsActor && !ActorClass.IsValid())
 	{
-		UE_LOG(SkinEquipmentComponentLog, Error, TEXT("Skin class '%s' was unavailable after preload."), *ActorClass.ToString());
+		UE_LOG(LogSkinEquipmentComponent, Error, TEXT("Skin class '%s' was unavailable after preload."), *ActorClass.ToString());
 		return;
 	}
 
@@ -545,7 +545,7 @@ AActor* USkinEquipmentComponent::SpawnPetSkinActor(const USkinDefinition* SkinDe
 	TSubclassOf<AActor> PetActorClass = SkinDefinition->PetActorClass.Get();
 	if (!PetActorClass)
 	{
-		UE_LOG(SkinEquipmentComponentLog, Error, TEXT("Pet skin class '%s' was unavailable after preload for '%s'."),
+		UE_LOG(LogSkinEquipmentComponent, Error, TEXT("Pet skin class '%s' was unavailable after preload for '%s'."),
 			*SkinDefinition->PetActorClass.ToString(),
 			*GetPathNameSafe(GetOwner()));
 		return nullptr;
@@ -617,7 +617,7 @@ AActor* USkinEquipmentComponent::SpawnAndAttachSkinActor(const USkinDefinition* 
 	TSubclassOf<AActor> SkinActorClass = SkinDefinition->ActorClass.Get();
 	if (!SkinActorClass)
 	{
-		UE_LOG(SkinEquipmentComponentLog, Error, TEXT("Skin actor class '%s' was unavailable after preload for '%s'."),
+		UE_LOG(LogSkinEquipmentComponent, Error, TEXT("Skin actor class '%s' was unavailable after preload for '%s'."),
 			*SkinDefinition->ActorClass.ToString(),
 			*GetPathNameSafe(GetOwner()));
 		return nullptr;

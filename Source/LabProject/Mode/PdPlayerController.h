@@ -21,8 +21,6 @@ class UPdAbilitySystemComponent;
 class UPlayerNotificationComponent;
 class FContentLease;
 
-DECLARE_LOG_CATEGORY_EXTERN(PdPlayerControllerLog, Log, All);
-
 DECLARE_MULTICAST_DELEGATE_TwoParams(FPdAimCrosshairChanged, bool /*bVisible*/, FGameplayTag /*CrosshairWidgetTag*/);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPdDamageScreenEffectRequested, float /*DamageAmount*/);
 

@@ -19,8 +19,6 @@ class UItemDefinition;
 class UItemInstance;
 class UPdAbilitySystemComponent;
 
-DECLARE_LOG_CATEGORY_EXTERN(EquipmentComponentLog, Log, All);
-
 /**
  * 캐릭터가 든 무기를 관리한다.
  *

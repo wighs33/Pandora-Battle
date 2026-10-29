@@ -9,8 +9,6 @@ class FContentLease;
 class UAbilitySystemComponent;
 class UStatUpgradeDefinition;
 
-DECLARE_LOG_CATEGORY_EXTERN(StatUpgradeComponentLog, Log, All);
-
 /**
  * 플레이어의 스탯 투자와 환불 요청을 처리한다.
  *

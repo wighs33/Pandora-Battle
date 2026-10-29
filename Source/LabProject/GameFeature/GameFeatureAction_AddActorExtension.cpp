@@ -12,7 +12,7 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameFeatureAction_AddActorExtension)
 
-DEFINE_LOG_CATEGORY(PdGameFeatureAction_AddActorExtensionLog);
+DEFINE_LOG_CATEGORY_STATIC(LogGameFeatureAddActorExtension, Log, All);
 
 void UGameFeatureAction_AddActorExtension::OnGameFeatureDeactivating(FGameFeatureDeactivatingContext& Context)
 {
@@ -104,7 +104,7 @@ void UGameFeatureAction_AddActorExtension::RegisterActorExtension(UWorld* World,
 	TSubclassOf<AActor> LoadedTargetClass = TargetClass.Get();
 	if (!LoadedTargetClass)
 	{
-		UE_LOG(PdGameFeatureAction_AddActorExtensionLog, Error, TEXT("AddActorExtension skipped '%s': failed to load target class."),
+		UE_LOG(LogGameFeatureAddActorExtension, Error, TEXT("AddActorExtension skipped '%s': failed to load target class."),
 			*TargetClass.ToString());
 		return;
 	}

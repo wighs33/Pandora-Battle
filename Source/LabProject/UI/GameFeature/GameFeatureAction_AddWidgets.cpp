@@ -17,7 +17,7 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameFeatureAction_AddWidgets)
 
-DEFINE_LOG_CATEGORY(PdGameFeatureAction_AddWidgetsLog);
+DEFINE_LOG_CATEGORY_STATIC(LogGameFeatureAddWidgets, Log, All);
 
 UGameFeatureAction_AddWidgets::UGameFeatureAction_AddWidgets()
 {
@@ -115,7 +115,7 @@ void UGameFeatureAction_AddWidgets::RegisterWidgetExtension(UWorld* World, FGame
 	const TSubclassOf<APdHUD> LoadedTargetClass = TargetHudClass.Get();
 	if (!LoadedTargetClass)
 	{
-		UE_LOG(PdGameFeatureAction_AddWidgetsLog, Error,
+		UE_LOG(LogGameFeatureAddWidgets, Error,
 			TEXT("AddWidgets skipped '%s': target HUD class was not resident after the GameFeature bundle loaded."),
 			*TargetHudClass.ToString());
 		return;
@@ -158,7 +158,7 @@ void UGameFeatureAction_AddWidgets::AddWidgetsToActor(AActor* Actor, FGameFeatur
 	UWidgetClassDefinition* LoadedWidgetClassDefinition = WidgetClassDefinition.Get();
 	if (!LoadedWidgetClassDefinition)
 	{
-		UE_LOG(PdGameFeatureAction_AddWidgetsLog, Error,
+		UE_LOG(LogGameFeatureAddWidgets, Error,
 			TEXT("AddWidgets skipped '%s': WidgetClassDefinition was not resident after the GameFeature bundle loaded."),
 			*GetNameSafe(Actor));
 		return;
@@ -171,7 +171,7 @@ void UGameFeatureAction_AddWidgets::AddWidgetsToActor(AActor* Actor, FGameFeatur
 	if (!UiSubsystem)
 	{
 		Handles->PendingWidgetDefinitionsByActor.Remove(Actor);
-		UE_LOG(PdGameFeatureAction_AddWidgetsLog, Error,
+		UE_LOG(LogGameFeatureAddWidgets, Error,
 			TEXT("AddWidgets skipped '%s': UiSubsystem was unavailable for the UI preload."),
 			*GetNameSafe(Actor));
 		return;
@@ -197,7 +197,7 @@ void UGameFeatureAction_AddWidgets::AddWidgetsToActor(AActor* Actor, FGameFeatur
 		if (!Lease.IsValid())
 		{
 			Handles->PendingWidgetDefinitionsByActor.Remove(Actor);
-			UE_LOG(PdGameFeatureAction_AddWidgetsLog, Error,
+			UE_LOG(LogGameFeatureAddWidgets, Error,
 				TEXT("AddWidgets skipped '%s': UI content group lease acquisition failed."),
 				*GetNameSafe(Actor));
 			return;
@@ -230,7 +230,7 @@ void UGameFeatureAction_AddWidgets::CompleteAddWidgetsToActor(AActor* Actor,
 	{
 		if (!Lease.IsValid() || Lease->HasFailed())
 		{
-			UE_LOG(PdGameFeatureAction_AddWidgetsLog, Error,
+			UE_LOG(LogGameFeatureAddWidgets, Error,
 				TEXT("HUD initialization was canceled because a Core/InGame UI content group for '%s' failed."),
 				*GetNameSafe(ExpectedWidgetClassDefinition));
 			Handles->PendingWidgetDefinitionsByActor.Remove(Actor);

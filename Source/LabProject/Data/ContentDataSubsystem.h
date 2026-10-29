@@ -10,8 +10,6 @@ struct FStreamableHandle;
 class UPandoraDefinition;
 class USkinDefinition;
 
-DECLARE_LOG_CATEGORY_EXTERN(ContentDataSubsystemLog, Log, All);
-
 UCLASS()
 class LABPROJECT_API UContentDataSubsystem : public UGameInstanceSubsystem
 {

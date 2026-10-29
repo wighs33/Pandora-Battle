@@ -13,8 +13,6 @@ struct FGameFeatureDeactivatingContext;
 struct FGameFeatureStateChangeContext;
 struct FWorldContext;
 
-DECLARE_LOG_CATEGORY_EXTERN(PdGameFeatureAction_AddActorExtensionLog, Log, All);
-
 struct FGameFeatureActorExtensionHandles
 {
 	TArray<TSharedPtr<FActorExtensionHandle>> ExtensionRequestHandles;

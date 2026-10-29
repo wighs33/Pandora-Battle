@@ -22,7 +22,7 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(EquipmentComponent)
 
-DEFINE_LOG_CATEGORY(EquipmentComponentLog);
+DEFINE_LOG_CATEGORY_STATIC(LogEquipmentComponent, Log, All);
 
 UEquipmentComponent::UEquipmentComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

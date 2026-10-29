@@ -15,7 +15,7 @@
 #include "Component/Player/EquipmentComponent.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PandoraComponent)
 
-DEFINE_LOG_CATEGORY(PandoraComponentLog)
+DEFINE_LOG_CATEGORY_STATIC(LogPandoraComponent, Log, All);
 
 namespace
 {
@@ -111,7 +111,7 @@ void UPandoraComponent::LogRejectedServerRequest(const TCHAR* RequestName, const
 		return;
 	}
 
-	UE_LOG(PandoraComponentLog, Warning, TEXT("Rejected Pandora server request. Owner=%s Request=%s Reason=%s "
+	UE_LOG(LogPandoraComponent, Warning, TEXT("Rejected Pandora server request. Owner=%s Request=%s Reason=%s "
 			"SuppressedSinceLast=%u"),
 		*GetPathNameSafe(GetOwner()),
 		RequestName,
@@ -162,7 +162,7 @@ void UPandoraComponent::GrantPandorasWithLoadout(const TArray<FPrimaryAssetId>& 
 				const UPandoraDefinition* Definition = Cast<UPandoraDefinition>(AssetManager.GetPrimaryAssetObject(DefinitionId));
 				if (!IsValid(Definition))
 				{
-					UE_LOG(PandoraComponentLog, Error, TEXT("Failed to load Pandora definition '%s'."), *DefinitionId.ToString());
+					UE_LOG(LogPandoraComponent, Error, TEXT("Failed to load Pandora definition '%s'."), *DefinitionId.ToString());
 					continue;
 				}
 				bChanged |= AddOwnedPandoraEntry(Definition);

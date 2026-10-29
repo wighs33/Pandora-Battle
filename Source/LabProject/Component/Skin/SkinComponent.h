@@ -11,7 +11,6 @@ class USkinComponent;
 class USkinDefinition;
 struct FStreamableHandle;
 
-DECLARE_LOG_CATEGORY_EXTERN(SkinComponentLog, Log, All);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPdSkinsChangedDelegate);
 
 USTRUCT(BlueprintType, Blueprintable)

@@ -16,8 +16,6 @@ struct FGameFeatureDeactivatingContext;
 struct FGameFeatureStateChangeContext;
 struct FWorldContext;
 
-DECLARE_LOG_CATEGORY_EXTERN(PdGameFeatureAction_AddAbilitiesLog, Log, All);
-
 USTRUCT(BlueprintType)
 struct FGameFeatureAbilityEntry
 {

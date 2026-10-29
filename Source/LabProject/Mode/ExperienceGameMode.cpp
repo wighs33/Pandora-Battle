@@ -33,7 +33,7 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ExperienceGameMode)
 
-DEFINE_LOG_CATEGORY(PdExperienceGameModeLog);
+DEFINE_LOG_CATEGORY_STATIC(LogExperienceGameMode, Log, All);
 
 namespace
 {
@@ -206,11 +206,11 @@ void AExperienceGameMode::ReturnEmptyDedicatedServerToLobby()
 	const FString LobbyMapName = LoadedLevelDefinition ? LoadedLevelDefinition->GetLobbyTravelMapName() : FString();
 	if (LobbyMapName.IsEmpty())
 	{
-		UE_LOG(PdExperienceGameModeLog, Warning, TEXT("Empty dedicated server match could not resolve the lobby map."));
+		UE_LOG(LogExperienceGameMode, Warning, TEXT("Empty dedicated server match could not resolve the lobby map."));
 		return;
 	}
 
-	UE_LOG(PdExperienceGameModeLog, Log, TEXT("All players left the dedicated server match. Returning to %s."), *LobbyMapName);
+	UE_LOG(LogExperienceGameMode, Log, TEXT("All players left the dedicated server match. Returning to %s."), *LobbyMapName);
 	World->ServerTravel(LobbyMapName);
 }
 
@@ -376,7 +376,7 @@ void AExperienceGameMode::HandleExperienceLoaded(const UExperienceDefinition* Ex
 // 필수 Experience 실패 시 입장과 경기 시작을 중단한다.
 void AExperienceGameMode::HandleExperienceLoadFailed(FPrimaryAssetId ExperienceId, const FString& FailureMessage)
 {
-	UE_LOG(PdExperienceGameModeLog, Error, TEXT("Experience load failed. Experience=%s Reason=%s"), *ExperienceId.ToString(), *FailureMessage);
+	UE_LOG(LogExperienceGameMode, Error, TEXT("Experience load failed. Experience=%s Reason=%s"), *ExperienceId.ToString(), *FailureMessage);
 }
 
 // 현재 맵이 사용할 Experience 식별자를 월드 설정에서 읽는다. 보스 레이드 여부는 InitGame에서 이동 옵션으로 이미 정해졌다.
@@ -422,7 +422,7 @@ void AExperienceGameMode::HandleRuntimeContentPreloadComplete()
 	LoadedDefaultProvisionDefinition = Definitions.DefaultProvision.Get();
 	if (!IsRuntimeContentReady())
 	{
-		UE_LOG(PdExperienceGameModeLog, Error, TEXT("Required match definitions failed to load. Player and match start are blocked."));
+		UE_LOG(LogExperienceGameMode, Error, TEXT("Required match definitions failed to load. Player and match start are blocked."));
 		return;
 	}
 	SpawnComponent->Initialize(LoadedMatchRuleDefinition);

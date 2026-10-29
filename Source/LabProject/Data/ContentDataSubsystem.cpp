@@ -10,7 +10,7 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ContentDataSubsystem)
 
-DEFINE_LOG_CATEGORY(ContentDataSubsystemLog);
+DEFINE_LOG_CATEGORY_STATIC(LogContentDataSubsystem, Log, All);
 
 namespace
 {
@@ -133,7 +133,7 @@ void UContentDataSubsystem::HandleSkillDataAssetsPreloaded()
 {
 	bSkillDataAssetsPreloadPending = false;
 	bSkillDataAssetsReady = AreSkillDataAssetsLoaded();
-	UE_CLOG(!bSkillDataAssetsReady, ContentDataSubsystemLog, Error,
+	UE_CLOG(!bSkillDataAssetsReady, LogContentDataSubsystem, Error,
 		TEXT("Skill data asset preload completed with unresolved assets."));
 }
 
@@ -144,7 +144,7 @@ bool UContentDataSubsystem::AreSkillDataAssetsLoaded() const
 	AssetManager.GetPrimaryAssetIdList(SkillAssetType, AssetIds);
 	if (AssetIds.IsEmpty())
 	{
-		UE_LOG(ContentDataSubsystemLog, Error, TEXT("No registered Skill primary assets were found."));
+		UE_LOG(LogContentDataSubsystem, Error, TEXT("No registered Skill primary assets were found."));
 		return false;
 	}
 	for (const FPrimaryAssetId& AssetId : AssetIds)
@@ -152,7 +152,7 @@ bool UContentDataSubsystem::AreSkillDataAssetsLoaded() const
 		const FSoftObjectPath AssetPath = AssetManager.GetPrimaryAssetPath(AssetId);
 		if (!AssetPath.IsValid() || (!AssetManager.GetPrimaryAssetObject(AssetId) && !AssetPath.ResolveObject()))
 		{
-			UE_LOG(ContentDataSubsystemLog, Error, TEXT("Required skill data asset '%s' was not resolved."),
+			UE_LOG(LogContentDataSubsystem, Error, TEXT("Required skill data asset '%s' was not resolved."),
 				*AssetId.ToString());
 			return false;
 		}
@@ -208,7 +208,7 @@ TSharedPtr<FStreamableHandle> UContentDataSubsystem::PreloadSoftObjectPathsAsync
 
 	if (!Handle.IsValid())
 	{
-		UE_LOG(ContentDataSubsystemLog, Error,
+		UE_LOG(LogContentDataSubsystem, Error,
 			TEXT("Failed to start an asynchronous preload for %d soft object path(s)."), PathsToLoad.Num());
 		CompletionDelegate.ExecuteIfBound();
 	}
@@ -296,7 +296,7 @@ void UContentDataSubsystem::BuildPrimaryAssetIndex(const FPrimaryAssetType Asset
 		const FPrimaryAssetId AssetId = AssetManager.GetPrimaryAssetIdForData(AssetData);
 		if (!AssetId.IsValid())
 		{
-			UE_LOG(ContentDataSubsystemLog, Error,
+			UE_LOG(LogContentDataSubsystem, Error,
 				TEXT("Primary asset '%s' has no valid PrimaryAssetId for type '%s'."),
 				*AssetData.GetSoftObjectPath().ToString(),
 				*AssetType.ToString());
@@ -322,7 +322,7 @@ void UContentDataSubsystem::AddIndexedName(const FPrimaryAssetType AssetType, co
 	const FSoftObjectPath* ExistingPath = AssetPathsByName.Find(LookupName);
 	if (ExistingId && ExistingPath && (*ExistingId != AssetId || *ExistingPath != AssetPath))
 	{
-		UE_LOG(ContentDataSubsystemLog, Error,
+		UE_LOG(LogContentDataSubsystem, Error,
 			TEXT("Duplicate %s content name '%s': '%s' and '%s'. The ambiguous name is disabled."),
 			*AssetType.ToString(),
 			*LookupName.ToString(),
@@ -391,7 +391,7 @@ TSharedPtr<FStreamableHandle> UContentDataSubsystem::PreloadPrimaryAssetsAsync(c
 
 	if (!Handle.IsValid())
 	{
-		UE_LOG(ContentDataSubsystemLog, Error, TEXT("Failed to start an asynchronous preload for %d primary asset(s)."),
+		UE_LOG(LogContentDataSubsystem, Error, TEXT("Failed to start an asynchronous preload for %d primary asset(s)."),
 			AssetIdsToLoad.Num());
 		CompletionDelegate.ExecuteIfBound();
 	}
@@ -422,7 +422,7 @@ UObject* UContentDataSubsystem::LoadPrimaryAssetOnDemand(const FPrimaryAssetId& 
 	TSharedPtr<FStreamableHandle> LoadHandle = AssetManager.LoadPrimaryAsset(AssetId, GetRuntimeBundles());
 	if (!LoadHandle.IsValid())
 	{
-		UE_LOG(ContentDataSubsystemLog, Error, TEXT("Failed to start on-demand load for primary asset '%s'."),
+		UE_LOG(LogContentDataSubsystem, Error, TEXT("Failed to start on-demand load for primary asset '%s'."),
 			*AssetId.ToString());
 		return nullptr;
 	}

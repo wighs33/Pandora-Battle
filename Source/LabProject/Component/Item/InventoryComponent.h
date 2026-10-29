@@ -14,7 +14,7 @@ class UItemDefinition;
 class UItemInstance;
 struct FStreamableHandle;
 
-DECLARE_LOG_CATEGORY_EXTERN(InventoryComponentLog, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogInventoryComponent, Log, All);
 DECLARE_DELEGATE_OneParam(FOnPdItemsAdded, const TArray<FPrimaryAssetId>&);
 DECLARE_MULTICAST_DELEGATE(FPdInventoryChanged);
 DECLARE_MULTICAST_DELEGATE(FPdEquipmentSlotsChanged);

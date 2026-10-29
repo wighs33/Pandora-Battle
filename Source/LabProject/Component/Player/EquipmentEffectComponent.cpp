@@ -12,7 +12,7 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(EquipmentEffectComponent)
 
-DEFINE_LOG_CATEGORY(LogEquipmentEffect);
+DEFINE_LOG_CATEGORY_STATIC(LogEquipmentEffect, Log, All);
 
 namespace
 {

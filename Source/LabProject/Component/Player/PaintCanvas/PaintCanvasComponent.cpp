@@ -13,7 +13,7 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PaintCanvasComponent)
 
-DEFINE_LOG_CATEGORY_STATIC(PdPaintCanvasComponentLog, Log, All);
+DEFINE_LOG_CATEGORY_STATIC(LogPaintCanvasComponent, Log, All);
 
 namespace
 {
@@ -352,7 +352,7 @@ bool UPaintCanvasComponent::ApplyPaintCanvasToSpeechBubble()
 	UTextureRenderTarget2D* PaintRenderTarget = GetActivePaintCanvasRenderTarget();
 	if (!PaintRenderTarget)
 	{
-		UE_LOG(PdPaintCanvasComponentLog, Warning,
+		UE_LOG(LogPaintCanvasComponent, Warning,
 			TEXT("Failed to export paint canvas to speech bubble. RenderTarget=None"));
 		return false;
 	}

@@ -14,7 +14,7 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameFeatureAction_AddAttributes)
 
-DEFINE_LOG_CATEGORY(PdGameFeatureAction_AddAttributesLog);
+DEFINE_LOG_CATEGORY_STATIC(LogGameFeatureAddAttributes, Log, All);
 
 namespace
 {
@@ -167,7 +167,7 @@ void UGameFeatureAction_AddAttributes::RegisterAttributeExtension(UWorld* World,
 	CollectTargetClasses(LoadedTargetClasses);
 	if (LoadedTargetClasses.IsEmpty())
 	{
-		UE_LOG(PdGameFeatureAction_AddAttributesLog, Error, TEXT("AddAttributes skipped: failed to load any target class."));
+		UE_LOG(LogGameFeatureAddAttributes, Error, TEXT("AddAttributes skipped: failed to load any target class."));
 		return;
 	}
 

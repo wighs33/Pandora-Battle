@@ -17,7 +17,7 @@
 #include "Net/UnrealNetwork.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InventoryComponent)
 
-DEFINE_LOG_CATEGORY(InventoryComponentLog);
+DEFINE_LOG_CATEGORY(LogInventoryComponent);
 
 void FReplicatedInventoryEntry::PostReplicatedAdd(const FReplicatedInventoryList& InArraySerializer)
 {
@@ -134,7 +134,7 @@ void UInventoryComponent::AddItemsByPrimaryAssetIdsWithCompletion(const TArray<F
 					const UItemDefinition* Definition = Cast<UItemDefinition>(AssetManager.GetPrimaryAssetObject(DefinitionId));
 					if (!IsValid(Definition))
 					{
-						UE_LOG(InventoryComponentLog, Error, TEXT("Failed to resolve asynchronously loaded item definition '%s'."),
+						UE_LOG(LogInventoryComponent, Error, TEXT("Failed to resolve asynchronously loaded item definition '%s'."),
 							*DefinitionId.ToString());
 						continue;
 					}
@@ -222,7 +222,7 @@ void UInventoryComponent::SetItemQuantityByPrimaryAssetIdInternal(const FPrimary
 				UAssetManager::Get().GetPrimaryAssetObject(ItemDefinitionId));
 			if (!IsValid(ItemDefinition))
 			{
-				UE_LOG(InventoryComponentLog, Error,
+				UE_LOG(LogInventoryComponent, Error,
 					TEXT("Failed to resolve asynchronously loaded item definition '%s'."),
 					*ItemDefinitionId.ToString());
 				CompletePendingItemLoadRequest(RequestGeneration);

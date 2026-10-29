@@ -21,8 +21,6 @@ class UWidgetClassDefinition;
 class UWorld;
 class FContentLease;
 
-DECLARE_LOG_CATEGORY_EXTERN(PdUiSubsystemLog, Log, All);
-
 UCLASS(Config = Game)
 class LABPROJECT_API UUiSubsystem : public ULocalPlayerSubsystem
 {

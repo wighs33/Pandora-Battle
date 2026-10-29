@@ -10,7 +10,6 @@ class FContentLease;
 class USkinDefinition;
 class UAnimMontage;
 
-DECLARE_LOG_CATEGORY_EXTERN(SkinEquipmentComponentLog, Log, All);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPdOnEquippedSkinsChanged);
 
 USTRUCT(BlueprintType)

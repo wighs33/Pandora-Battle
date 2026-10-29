@@ -25,7 +25,7 @@
 #include "ViewModel/StatusViewModel.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(UiSubsystem)
 
-DEFINE_LOG_CATEGORY(PdUiSubsystemLog);
+DEFINE_LOG_CATEGORY_STATIC(LogUiSubsystem, Log, All);
 
 void UUiSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -181,7 +181,7 @@ void UUiSubsystem::BeginConfiguredWidgetDefinitionPreload()
 	{
 		bConfiguredWidgetContentReady = false;
 		FailPendingConfiguredUiContent();
-		UE_LOG(PdUiSubsystemLog, Error, TEXT("Default WidgetClassDefinition is required but was not configured."));
+		UE_LOG(LogUiSubsystem, Error, TEXT("Default WidgetClassDefinition is required but was not configured."));
 		return;
 	}
 
@@ -194,7 +194,7 @@ void UUiSubsystem::BeginConfiguredWidgetDefinitionPreload()
 		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
 	if (!ContentSubsystem)
 	{
-		UE_LOG(PdUiSubsystemLog, Error,
+		UE_LOG(LogUiSubsystem, Error,
 			TEXT("Default WidgetClassDefinition preload could not start because ContentDataSubsystem is unavailable."));
 		bConfiguredWidgetContentPreloadPending = false;
 		FailPendingConfiguredUiContent();
@@ -218,7 +218,7 @@ void UUiSubsystem::HandleConfiguredWidgetDefinitionLoaded()
 	{
 		bConfiguredWidgetContentPreloadPending = false;
 		FailPendingConfiguredUiContent();
-		UE_LOG(PdUiSubsystemLog, Error,
+		UE_LOG(LogUiSubsystem, Error,
 			TEXT("Default WidgetClassDefinition '%s' did not resolve after its asynchronous preload."),
 			*DefaultWidgetClassDefinition.ToString());
 		return;
@@ -468,7 +468,7 @@ void UUiSubsystem::OpenGameSettings(UUserWidget* OwnerMenu)
 	const TSubclassOf<UGameSettingsWidget> SettingsClass = Definition->SettingsWidgetClass.Get();
 	if (!SettingsClass)
 	{
-		UE_LOG(PdUiSubsystemLog, Warning, TEXT("Game settings widget class '%s' is not loaded yet."),
+		UE_LOG(LogUiSubsystem, Warning, TEXT("Game settings widget class '%s' is not loaded yet."),
 			*Definition->SettingsWidgetClass.ToString());
 		return;
 	}

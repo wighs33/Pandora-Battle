@@ -8,7 +8,7 @@
 #include "Definition/Skin/SkinDefinition.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SkinComponent)
 
-DEFINE_LOG_CATEGORY(SkinComponentLog)
+DEFINE_LOG_CATEGORY_STATIC(LogSkinComponent, Log, All);
 
 void FReplicatedSkinEntry::PostReplicatedAdd(const FReplicatedSkinList& InArraySerializer)
 {
@@ -125,7 +125,7 @@ void USkinComponent::AddSkinsByPrimaryAssetIds(const TArray<FPrimaryAssetId>& Sk
 				const USkinDefinition* Definition = Cast<USkinDefinition>(UAssetManager::Get().GetPrimaryAssetObject(DefinitionId));
 				if (!IsValid(Definition))
 				{
-					UE_LOG(SkinComponentLog, Error, TEXT("Failed to load skin definition '%s'."), *DefinitionId.ToString());
+					UE_LOG(LogSkinComponent, Error, TEXT("Failed to load skin definition '%s'."), *DefinitionId.ToString());
 					continue;
 				}
 				bChanged |= AddSkinDefinition(Definition);

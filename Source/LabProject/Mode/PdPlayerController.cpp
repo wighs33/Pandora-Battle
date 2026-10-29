@@ -22,7 +22,7 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PdPlayerController)
 
-DEFINE_LOG_CATEGORY(PdPlayerControllerLog);
+DEFINE_LOG_CATEGORY_STATIC(LogPdPlayerController, Log, All);
 
 // 플레이어가 항상 사용하는 기능 컴포넌트와 기본 설정 에셋 경로를 구성한다.
 APdPlayerController::APdPlayerController(const FObjectInitializer& ObjectInitializer)
@@ -160,7 +160,7 @@ void APdPlayerController::HandlePossessedCharacterAbilitySystemReady(
 {
 	if (ReadyCharacter && ReadyCharacter == GetPawn())
 	{
-		UE_LOG(PdPlayerControllerLog, Verbose, TEXT("%s: possessed character %s is ready; notifying UI listeners."),
+		UE_LOG(LogPdPlayerController, Verbose, TEXT("%s: possessed character %s is ready; notifying UI listeners."),
 			*GetNameSafe(this), *GetNameSafe(ReadyCharacter));
 		OnPossessedCharacterAbilitySystemReady.Broadcast(ReadyCharacter, AbilitySystemComponent);
 	}
@@ -393,7 +393,7 @@ void APdPlayerController::HandleControllerDefinitionPreloaded()
 	LoadedPlayerControllerDefinition = PlayerControllerDefinition.Get();
 	if (!LoadedPlayerControllerDefinition)
 	{
-		UE_LOG(PdPlayerControllerLog, Error,
+		UE_LOG(LogPdPlayerController, Error,
 			TEXT("PlayerController definition '%s' did not resolve after asynchronous preload."),
 			*PlayerControllerDefinition.ToString());
 		return;

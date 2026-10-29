@@ -18,7 +18,7 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameFeatureAction_AddAbilities)
 
-DEFINE_LOG_CATEGORY(PdGameFeatureAction_AddAbilitiesLog);
+DEFINE_LOG_CATEGORY_STATIC(LogGameFeatureAddAbilities, Log, All);
 
 UGameFeatureAction_AddAbilities::UGameFeatureAction_AddAbilities()
 {
@@ -164,7 +164,7 @@ void UGameFeatureAction_AddAbilities::RegisterAbilityExtension(UWorld* World,
 	TSubclassOf<AActor> LoadedTargetClass = TargetClass.Get();
 	if (!LoadedTargetClass)
 	{
-		UE_LOG(PdGameFeatureAction_AddAbilitiesLog, Error, TEXT("AddAbilities skipped '%s': failed to load target class."),
+		UE_LOG(LogGameFeatureAddAbilities, Error, TEXT("AddAbilities skipped '%s': failed to load target class."),
 			*TargetClass.ToString());
 		return;
 	}

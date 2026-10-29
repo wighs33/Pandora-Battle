@@ -12,7 +12,7 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ExperienceManagerComponent)
 
-DEFINE_LOG_CATEGORY(PdExperienceManagerLog);
+DEFINE_LOG_CATEGORY_STATIC(LogExperienceManagerComponent, Log, All);
 
 namespace
 {
@@ -85,17 +85,17 @@ void UExperienceManagerComponent::SetCurrentExperienceAuth(FPrimaryAssetId Exper
 	AActor* Owner = GetOwner();
 	if (!Owner || !Owner->HasAuthority())
 	{
-		UE_LOG(PdExperienceManagerLog, Warning, TEXT("SetCurrentExperienceAuth ignored because the owner has no authority."));
+		UE_LOG(LogExperienceManagerComponent, Warning, TEXT("SetCurrentExperienceAuth ignored because the owner has no authority."));
 		return;
 	}
 	if (!ExperienceId.IsValid())
 	{
-		UE_LOG(PdExperienceManagerLog, Error, TEXT("SetCurrentExperienceAuth ignored because ExperienceId is invalid."));
+		UE_LOG(LogExperienceManagerComponent, Error, TEXT("SetCurrentExperienceAuth ignored because ExperienceId is invalid."));
 		return;
 	}
 	if (LoadState != EExperienceLoadState::Unloaded)
 	{
-		UE_LOG(PdExperienceManagerLog, Warning,
+		UE_LOG(LogExperienceManagerComponent, Warning,
 			TEXT("SetCurrentExperienceAuth ignored because an experience is already active or loading. Current=%s Requested=%s State=%d"),
 			*CurrentExperienceId.ToString(), *ExperienceId.ToString(), static_cast<int32>(LoadState));
 		return;
@@ -277,7 +277,7 @@ void UExperienceManagerComponent::FailExperienceLoad(FPrimaryAssetId FailedExper
 	LoadState = EExperienceLoadState::Failed;
 	LastFailedExperienceId = FailedExperienceId;
 	LastLoadFailureMessage = MoveTemp(FailureMessage);
-	UE_LOG(PdExperienceManagerLog, Error, TEXT("%s"), *LastLoadFailureMessage);
+	UE_LOG(LogExperienceManagerComponent, Error, TEXT("%s"), *LastLoadFailureMessage);
 
 	ReleaseRuntimeResources();
 	OnExperienceLoaded.Clear();

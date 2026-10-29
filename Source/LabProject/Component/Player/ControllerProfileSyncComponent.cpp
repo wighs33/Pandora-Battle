@@ -12,6 +12,8 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ControllerProfileSyncComponent)
 
+DEFINE_LOG_CATEGORY_STATIC(LogControllerProfileSync, Log, All);
+
 namespace
 {
 	const FPrimaryAssetType SkinDefinitionAssetType(TEXT("SkinDefinition"));
@@ -142,7 +144,7 @@ void UControllerProfileSyncComponent::ApplySubmittedLocalCosmeticProfileOnServer
 
 	if (OwnedSkinNames.Num() > MaxClientSyncedSkinNameCount)
 	{
-		UE_LOG(PdPlayerControllerLog, VeryVerbose,
+		UE_LOG(LogControllerProfileSync, VeryVerbose,
 			TEXT("Ignored oversized local cosmetic profile. Player=%s Count=%d Limit=%d"),
 			*GetNameSafe(Controller->PlayerState),
 			OwnedSkinNames.Num(),

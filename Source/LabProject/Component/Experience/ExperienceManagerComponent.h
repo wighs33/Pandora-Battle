@@ -9,8 +9,6 @@
 class UExperienceDefinition;
 class FContentLease;
 
-DECLARE_LOG_CATEGORY_EXTERN(PdExperienceManagerLog, Log, All);
-
 UENUM(BlueprintType)
 enum class EExperienceLoadState : uint8
 {
