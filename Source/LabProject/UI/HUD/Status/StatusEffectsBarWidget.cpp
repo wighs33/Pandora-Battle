@@ -9,7 +9,7 @@
 #include "Components/HorizontalBox.h"
 #include "Data/ContentDataSubsystem.h"
 #include "Data/ContentLease.h"
-#include "Definition/Mode/PdGameInstanceDefinition.h"
+#include "Definition/Mode/GameInstanceDefinition.h"
 #include "Engine/GameInstance.h"
 #include "UI/HUD/Status/StatusEffectWidget.h"
 #include "UI/Core/WidgetClassDefinition.h"
@@ -66,7 +66,7 @@ void UStatusEffectsBarWidget::BeginStatusEffectContentPreload()
 
 	TArray<FSoftObjectPath> StatusEffectPaths;
 	for (const TSoftObjectPtr<UStatusEffectDefinition>& StatusEffect :
-		UPdGameInstanceDefinition::GetConfiguredDefinitionReferences().StatusEffects)
+		UGameInstanceDefinition::GetConfiguredDefinitionReferences().StatusEffects)
 	{
 		StatusEffectPaths.Add(StatusEffect.ToSoftObjectPath());
 	}
@@ -442,7 +442,7 @@ void UStatusEffectsBarWidget::RebuildObservedStatusEffectDataAssetCache()
 	CachedObservedStatusEffectDataAssets.Reset();
 
 	for (const TSoftObjectPtr<UStatusEffectDefinition>& StatusEffect :
-		UPdGameInstanceDefinition::GetConfiguredDefinitionReferences().StatusEffects)
+		UGameInstanceDefinition::GetConfiguredDefinitionReferences().StatusEffects)
 	{
 		AddObservedStatusEffectDataAsset(StatusEffect.Get());
 	}

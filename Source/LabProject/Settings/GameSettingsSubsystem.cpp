@@ -4,7 +4,7 @@
 #include "Data/ContentLease.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
-#include "Definition/Mode/PdGameInstanceDefinition.h"
+#include "Definition/Mode/GameInstanceDefinition.h"
 #include "Definition/Settings/GameSettingDefinition.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameSettingsSubsystem)
@@ -37,7 +37,7 @@ void UGameSettingsSubsystem::Deinitialize()
 
 FSoftObjectPath UGameSettingsSubsystem::GetDefaultGameSettingDefinitionPath()
 {
-	return UPdGameInstanceDefinition::GetConfiguredDefinitionReferences().GameSetting.ToSoftObjectPath();
+	return UGameInstanceDefinition::GetConfiguredDefinitionReferences().GameSetting.ToSoftObjectPath();
 }
 
 UGameSettingDefinition* UGameSettingsSubsystem::ResolveGameSettingDefinition(const UObject* WorldContextObject)

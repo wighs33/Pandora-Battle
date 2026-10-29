@@ -1,6 +1,6 @@
 #include "Definition/Match/MatchRuleDefinition.h"
 
-#include "Definition/Mode/PdGameInstanceDefinition.h"
+#include "Definition/Mode/GameInstanceDefinition.h"
 #include "Materials/MaterialInterface.h"
 
 #if WITH_EDITOR
@@ -109,7 +109,7 @@ FPrimaryAssetId UMatchRuleDefinition::GetPrimaryAssetId() const
 
 FSoftObjectPath UMatchRuleDefinition::GetDefaultDefinitionPath()
 {
-	return UPdGameInstanceDefinition::GetConfiguredDefinitionReferences().MatchRule.ToSoftObjectPath();
+	return UGameInstanceDefinition::GetConfiguredDefinitionReferences().MatchRule.ToSoftObjectPath();
 }
 
 const UMatchRuleDefinition* UMatchRuleDefinition::ResolveDefaultDefinition()

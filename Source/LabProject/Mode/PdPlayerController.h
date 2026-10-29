@@ -83,7 +83,7 @@ public:
 
 	// Network RPCs ----------------------------------------------------------------------------------------------------
 	UFUNCTION(Client, Reliable, Category = "!UI|Notification")
-	void Client_ShowRewardNotifications(const TArray<FPdRewardNotification>& Rewards);
+	void Client_ShowRewardNotifications(const TArray<FRewardNotification>& Rewards);
 
 	UFUNCTION(Client, Reliable, Category = "!UI|KillLog")
 	void Client_AddKillLogEntry(const FKillLogEntry& KillLogEntry);

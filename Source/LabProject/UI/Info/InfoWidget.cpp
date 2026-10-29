@@ -620,7 +620,7 @@ void UInfoWidget::PlaySidePanelsSlideOutAnimation()
 	}
 }
 
-TArray<FPdButtonClickBinding, TInlineAllocator<12>> UInfoWidget::GetButtonBindings() const
+TArray<FButtonClickBinding, TInlineAllocator<12>> UInfoWidget::GetButtonBindings() const
 {
 	return {
 		{ ProfileTabButton, GET_FUNCTION_NAME_CHECKED(ThisClass, OnProfileTabButtonClicked) },

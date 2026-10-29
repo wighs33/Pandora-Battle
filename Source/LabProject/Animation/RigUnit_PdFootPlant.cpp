@@ -19,7 +19,7 @@ FRigUnit_PdFootPlant_Execute()
 	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(PdFootPlant), false, ExecuteContext.GetOwningActor());
 	TArray<FVector, TInlineAllocator<4>> FootTargets;
 	float LowestOffset = 0.0f;
-	for (const FPdFootPlantLeg& Leg : Legs)
+	for (const FFootPlantLeg& Leg : Legs)
 	{
 		const FVector Foot = Hierarchy->GetGlobalTransform(Leg.Foot).GetLocation();
 		FHitResult Hit;
@@ -44,7 +44,7 @@ FRigUnit_PdFootPlant_Execute()
 	// 3) 다리마다 2본 IK. 무릎 방향은 지금 자세에서 무릎이 엉덩이-발 직선에서 벗어난 쪽으로 둔다.
 	for (int32 Index = 0; Index < Legs.Num(); ++Index)
 	{
-		const FPdFootPlantLeg& Leg = Legs[Index];
+		const FFootPlantLeg& Leg = Legs[Index];
 		FTransform Upper = Hierarchy->GetGlobalTransform(Leg.Upper);
 		FTransform Lower = Hierarchy->GetGlobalTransform(Leg.Lower);
 		FTransform Foot = Hierarchy->GetGlobalTransform(Leg.Foot);

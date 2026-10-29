@@ -30,13 +30,13 @@ public:
 		const TArray<FPrimaryAssetId>& RewardSkinDefinitions, const TArray<FPrimaryAssetId>& RewardPandoraDefinitions) const;
 	void SendExperienceRewardNotification(float RewardAmount, UObject* IconResource) const;
 	void SendSoulDustRewardNotification(int32 RewardAmount, UObject* IconResource) const;
-	void ShowRewardNotifications(const TArray<FPdRewardNotification>& Rewards);
+	void ShowRewardNotifications(const TArray<FRewardNotification>& Rewards);
 
 private:
 	// Internal Helpers ------------------------------------------------------------------------------------------------
-	void SendNumericRewardNotification(EPdRewardNotificationType Type, double RewardAmount, UObject* IconResource) const;
-	void CompleteRewardNotificationLoad(uint64 RequestId, const TArray<FPdRewardNotification>& Rewards);
-	void ShowLoadedRewardNotifications(const TArray<FPdRewardNotification>& Rewards) const;
+	void SendNumericRewardNotification(ERewardNotificationType Type, double RewardAmount, UObject* IconResource) const;
+	void CompleteRewardNotificationLoad(uint64 RequestId, const TArray<FRewardNotification>& Rewards);
+	void ShowLoadedRewardNotifications(const TArray<FRewardNotification>& Rewards) const;
 
 private:
 	uint64 NextRewardNotificationRequestId = 1;

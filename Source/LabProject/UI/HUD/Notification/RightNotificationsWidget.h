@@ -20,7 +20,7 @@ protected:
 public:
 	// Public API ------------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "!UI|Notification")
-	void EnqueueNotification(const FPdNotificationData& NotificationData);
+	void EnqueueNotification(const FNotificationData& NotificationData);
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Notification")
 	void ClearNotifications();
@@ -60,7 +60,7 @@ protected:
 
 private:
 	UPROPERTY(Transient)
-	TArray<FPdNotificationData> NotificationQueue;
+	TArray<FNotificationData> NotificationQueue;
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UNotificationEntryWidget>> AvailableNotifications;

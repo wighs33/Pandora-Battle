@@ -6,7 +6,7 @@
 #include "RewardNotificationTypes.generated.h"
 
 UENUM()
-enum class EPdRewardNotificationType : uint8
+enum class ERewardNotificationType : uint8
 {
 	Item,
 	Skin,
@@ -17,12 +17,12 @@ enum class EPdRewardNotificationType : uint8
 
 // 서버가 확정한 보상 정보만 전달하며, 표시 문구와 아이콘 객체는 클라이언트에서 준비한다.
 USTRUCT()
-struct LABPROJECT_API FPdRewardNotification
+struct LABPROJECT_API FRewardNotification
 {
 	GENERATED_BODY()
 
 	UPROPERTY()
-	EPdRewardNotificationType Type = EPdRewardNotificationType::Item;
+	ERewardNotificationType Type = ERewardNotificationType::Item;
 
 	UPROPERTY()
 	FPrimaryAssetId AssetId;

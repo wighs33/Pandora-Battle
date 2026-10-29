@@ -1,6 +1,6 @@
 #include "Definition/Character/EnemyBaseDefinition.h"
 
-#include "Definition/Mode/PdGameInstanceDefinition.h"
+#include "Definition/Mode/GameInstanceDefinition.h"
 #include "Definition/Player/StatUpgradeDefinition.h"
 #include "GameplayEffect.h"
 
@@ -22,7 +22,7 @@ FPrimaryAssetId UEnemyBaseDefinition::GetDefaultPrimaryAssetId()
 
 FSoftObjectPath UEnemyBaseDefinition::GetDefaultDefinitionPath()
 {
-	return UPdGameInstanceDefinition::GetConfiguredDefinitionReferences().EnemyBase.ToSoftObjectPath();
+	return UGameInstanceDefinition::GetConfiguredDefinitionReferences().EnemyBase.ToSoftObjectPath();
 }
 
 TSoftObjectPtr<UStatUpgradeDefinition>
@@ -33,7 +33,7 @@ UEnemyBaseDefinition::GetEffectiveDefaultStatDefinition() const
 		return Combat.DefaultStatDefinition;
 	}
 
-	return UPdGameInstanceDefinition::GetConfiguredDefinitionReferences().StatUpgrade;
+	return UGameInstanceDefinition::GetConfiguredDefinitionReferences().StatUpgrade;
 }
 
 #if WITH_EDITOR

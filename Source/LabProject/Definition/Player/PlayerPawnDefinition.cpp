@@ -1,7 +1,7 @@
 #include "Definition/Player/PlayerPawnDefinition.h"
 
 #include "Common/PdGameplayTags.h"
-#include "Definition/Mode/PdGameInstanceDefinition.h"
+#include "Definition/Mode/GameInstanceDefinition.h"
 #include "GameplayEffect.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PlayerPawnDefinition)
@@ -69,7 +69,7 @@ FPrimaryAssetId UPlayerPawnDefinition::GetDefaultPrimaryAssetId()
 
 FSoftObjectPath UPlayerPawnDefinition::GetDefaultDefinitionPath()
 {
-	return UPdGameInstanceDefinition::GetConfiguredDefinitionReferences().PlayerPawn.ToSoftObjectPath();
+	return UGameInstanceDefinition::GetConfiguredDefinitionReferences().PlayerPawn.ToSoftObjectPath();
 }
 
 #if WITH_EDITOR

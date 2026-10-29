@@ -1,7 +1,7 @@
 #include "Definition/Player/StatUpgradeDefinition.h"
 
 #include "Common/PdGameplayTags.h"
-#include "Definition/Mode/PdGameInstanceDefinition.h"
+#include "Definition/Mode/GameInstanceDefinition.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -140,7 +140,7 @@ FPrimaryAssetId UStatUpgradeDefinition::GetPrimaryAssetId() const
 // 게임 시작 시 사용할 기본 스탯 설정 에셋의 경로를 GameInstance 설정에서 가져온다.
 FSoftObjectPath UStatUpgradeDefinition::GetDefaultDefinitionPath()
 {
-	return UPdGameInstanceDefinition::GetConfiguredDefinitionReferences().StatUpgrade.ToSoftObjectPath();
+	return UGameInstanceDefinition::GetConfiguredDefinitionReferences().StatUpgrade.ToSoftObjectPath();
 }
 
 // 플레이어가 특정 스탯에 포인트를 투자할 때 적용할 비용·재화 규칙을 찾아준다.

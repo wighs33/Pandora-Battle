@@ -13,7 +13,7 @@
 #include "UI/Title/TitleWidget.h"
 #include "UObject/UObjectIterator.h"
 
-// 화면(UPdScreenWidget)이 CommonUI 화면 층에 올라가고, 뒤로 가기(ESC)로 닫히며, 로딩 화면이 화면이 뜬 것을 보고 내려가는지 본다.
+// 화면(UScreenWidget)이 CommonUI 화면 층에 올라가고, 뒤로 가기(ESC)로 닫히며, 로딩 화면이 화면이 뜬 것을 보고 내려가는지 본다.
 
 namespace
 {

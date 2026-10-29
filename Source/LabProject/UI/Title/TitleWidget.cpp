@@ -271,7 +271,7 @@ void UTitleWidget::NativeDestruct()
 	Super::NativeDestruct();
 }
 
-TArray<FPdButtonClickBinding, TInlineAllocator<10>> UTitleWidget::GetMenuButtonBindings() const
+TArray<FButtonClickBinding, TInlineAllocator<10>> UTitleWidget::GetMenuButtonBindings() const
 {
 	return {
 		{ Btn_RoomList, GET_FUNCTION_NAME_CHECKED(ThisClass, HandleRoomListClicked) },
@@ -859,7 +859,7 @@ void UTitleWidget::ClearQuickMatchDelegates()
 	}
 }
 
-void UTitleWidget::PresentMenuPopup(UPdScreenWidget* Popup, FSimpleDelegate OnBack)
+void UTitleWidget::PresentMenuPopup(UScreenWidget* Popup, FSimpleDelegate OnBack)
 {
 	Popup->SetVisibility(ESlateVisibility::Visible);
 	if (Popup->IsActivated())
@@ -871,7 +871,7 @@ void UTitleWidget::PresentMenuPopup(UPdScreenWidget* Popup, FSimpleDelegate OnBa
 	GetUiSubsystem()->PushScreen(Popup, EUiScreenLayer::Menu);
 }
 
-void UTitleWidget::DismissMenuPopup(UPdScreenWidget* Popup) const
+void UTitleWidget::DismissMenuPopup(UScreenWidget* Popup) const
 {
 	Popup->DeactivateWidget();
 }

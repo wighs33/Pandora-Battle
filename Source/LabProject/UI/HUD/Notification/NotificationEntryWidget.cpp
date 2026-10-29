@@ -26,7 +26,7 @@ void UNotificationEntryWidget::NativePreConstruct()
 	}
 }
 
-void UNotificationEntryWidget::SetNotificationData(const FPdNotificationData& InNotificationData)
+void UNotificationEntryWidget::SetNotificationData(const FNotificationData& InNotificationData)
 {
 	CachedNotificationData = InNotificationData;
 	bHasRuntimeNotificationData = true;
@@ -34,7 +34,7 @@ void UNotificationEntryWidget::SetNotificationData(const FPdNotificationData& In
 	ApplyNotificationData(InNotificationData, true);
 }
 
-void UNotificationEntryWidget::ApplyNotificationData(const FPdNotificationData& InNotificationData, bool bNotifyBlueprint)
+void UNotificationEntryWidget::ApplyNotificationData(const FNotificationData& InNotificationData, bool bNotifyBlueprint)
 {
 	if (IconImage)
 	{
@@ -79,7 +79,7 @@ float UNotificationEntryWidget::PlayNotificationOut()
 	return FadeIn->GetEndTime();
 }
 
-bool UNotificationEntryWidget::HasNotificationContent(const FPdNotificationData& InNotificationData)
+bool UNotificationEntryWidget::HasNotificationContent(const FNotificationData& InNotificationData)
 {
 	return !InNotificationData.Text.IsEmpty() || InNotificationData.IconResource != nullptr;
 }

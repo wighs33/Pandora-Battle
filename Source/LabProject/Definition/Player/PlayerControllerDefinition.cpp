@@ -1,6 +1,6 @@
 #include "Definition/Player/PlayerControllerDefinition.h"
 
-#include "Definition/Mode/PdGameInstanceDefinition.h"
+#include "Definition/Mode/GameInstanceDefinition.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PlayerControllerDefinition)
 
@@ -11,7 +11,7 @@ FPrimaryAssetId UPlayerControllerDefinition::GetPrimaryAssetId() const
 
 FSoftObjectPath UPlayerControllerDefinition::GetDefaultDefinitionPath()
 {
-	return UPdGameInstanceDefinition::GetConfiguredDefinitionReferences().PlayerController.ToSoftObjectPath();
+	return UGameInstanceDefinition::GetConfiguredDefinitionReferences().PlayerController.ToSoftObjectPath();
 }
 
 #if WITH_EDITOR

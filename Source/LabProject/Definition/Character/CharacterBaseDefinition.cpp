@@ -1,6 +1,6 @@
 #include "Definition/Character/CharacterBaseDefinition.h"
 
-#include "Definition/Mode/PdGameInstanceDefinition.h"
+#include "Definition/Mode/GameInstanceDefinition.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -15,7 +15,7 @@ FPrimaryAssetId UCharacterBaseDefinition::GetPrimaryAssetId() const
 
 FSoftObjectPath UCharacterBaseDefinition::GetDefaultDefinitionPath()
 {
-	return UPdGameInstanceDefinition::GetConfiguredDefinitionReferences().Character.ToSoftObjectPath();
+	return UGameInstanceDefinition::GetConfiguredDefinitionReferences().Character.ToSoftObjectPath();
 }
 
 #if WITH_EDITOR

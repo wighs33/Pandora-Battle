@@ -7,7 +7,7 @@
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/PlayerController.h"
 #include "InputCoreTypes.h"
-#include "UI/Core/PdUIActionRouter.h"
+#include "UI/Core/UiActionRouter.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ChatBoxWidget)
 
@@ -42,7 +42,7 @@ void UChatBoxWidget::NativeDestruct()
 	}
 
 	// LocalPlayer가 남아 있어도 종료 중에는 서브시스템이 먼저 해제될 수 있다.
-	if (UPdUIActionRouter* Router = ULocalPlayer::GetSubsystem<UPdUIActionRouter>(GetOwningLocalPlayer()))
+	if (UUiActionRouter* Router = ULocalPlayer::GetSubsystem<UUiActionRouter>(GetOwningLocalPlayer()))
 	{
 		Router->EndChatInput(GetChatInputWidget());
 	}
@@ -73,7 +73,7 @@ void UChatBoxWidget::FocusChat()
 {
 	APlayerController* PlayerController = GetOwningPlayer();
 	UEditableText* ChatInputText = GetChatInputWidget();
-	UPdUIActionRouter* Router = ULocalPlayer::GetSubsystem<UPdUIActionRouter>(GetOwningLocalPlayer());
+	UUiActionRouter* Router = ULocalPlayer::GetSubsystem<UUiActionRouter>(GetOwningLocalPlayer());
 	if (!PlayerController || !ChatInputText || !Router)
 	{
 		return;
@@ -91,7 +91,7 @@ void UChatBoxWidget::ExitChat()
 	SetChatInputText(FText::GetEmpty());
 	SetChatInputEnabled(false);
 
-	if (UPdUIActionRouter* Router = ULocalPlayer::GetSubsystem<UPdUIActionRouter>(GetOwningLocalPlayer()))
+	if (UUiActionRouter* Router = ULocalPlayer::GetSubsystem<UUiActionRouter>(GetOwningLocalPlayer()))
 	{
 		Router->EndChatInput(GetChatInputWidget());
 	}

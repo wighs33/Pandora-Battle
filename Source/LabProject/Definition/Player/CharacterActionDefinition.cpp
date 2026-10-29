@@ -1,6 +1,6 @@
 #include "Definition/Player/CharacterActionDefinition.h"
 
-#include "Definition/Mode/PdGameInstanceDefinition.h"
+#include "Definition/Mode/GameInstanceDefinition.h"
 #include "InputAction.h"
 
 #if WITH_EDITOR
@@ -156,7 +156,7 @@ FPrimaryAssetId UCharacterActionDefinition::GetPrimaryAssetId() const
 
 FSoftObjectPath UCharacterActionDefinition::GetDefaultDefinitionPath()
 {
-	return UPdGameInstanceDefinition::GetConfiguredDefinitionReferences().CharacterAction.ToSoftObjectPath();
+	return UGameInstanceDefinition::GetConfiguredDefinitionReferences().CharacterAction.ToSoftObjectPath();
 }
 
 const FCharacterActionConfig& UCharacterActionDefinition::FindActionConfig(const ECharacterActionType ActionType) const

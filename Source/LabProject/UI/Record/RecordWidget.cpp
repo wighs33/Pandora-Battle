@@ -11,7 +11,7 @@
 #include "Engine/Texture2D.h"
 #include "GameFramework/PlayerController.h"
 #include "Profile/PlayerProfileSubsystem.h"
-#include "Definition/Mode/PdGameInstanceDefinition.h"
+#include "Definition/Mode/GameInstanceDefinition.h"
 #include "Definition/UI/RecordDefinition.h"
 #include "UI/Record/RecordEntryWidget.h"
 #include "UI/Core/WidgetClassDefinition.h"
@@ -51,7 +51,7 @@ void URecordWidget::BeginContentPreload()
 	UContentDataSubsystem* ContentSubsystem =
 		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
 	const TSoftObjectPtr<URecordDefinition>& RecordDefinition =
-		UPdGameInstanceDefinition::GetConfiguredDefinitionReferences().Record;
+		UGameInstanceDefinition::GetConfiguredDefinitionReferences().Record;
 	if (!ContentSubsystem || RecordDefinition.IsNull())
 	{
 		return;
@@ -208,7 +208,7 @@ TSubclassOf<URecordEntryWidget> URecordWidget::ResolveRecordEntryWidgetClass() c
 
 const URecordDefinition* URecordWidget::ResolveRecordDefinition()
 {
-	return UPdGameInstanceDefinition::GetConfiguredDefinitionReferences().Record.Get();
+	return UGameInstanceDefinition::GetConfiguredDefinitionReferences().Record.Get();
 }
 
 void URecordWidget::ApplyTierImage()

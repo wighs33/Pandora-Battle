@@ -5,7 +5,7 @@
 #include "UObject/PrimaryAssetId.h"
 #include "ProjectBootstrapSettings.generated.h"
 
-class UPdGameInstanceDefinition;
+class UGameInstanceDefinition;
 class UWidgetComponent;
 
 /**
@@ -22,7 +22,7 @@ public:
 	virtual FName GetCategoryName() const override { return TEXT("Game"); }
 
 	// Public API ------------------------------------------------------------------------------------------------------
-	const TSoftObjectPtr<UPdGameInstanceDefinition>& GetBootstrapDefinition() const
+	const TSoftObjectPtr<UGameInstanceDefinition>& GetBootstrapDefinition() const
 	{
 		return BootstrapDefinition;
 	}
@@ -43,7 +43,7 @@ private:
 	UPROPERTY(Config, EditAnywhere, Category = "!Content",
 		meta = (AllowedTypes = "GameInstanceDefinition",
 			DisplayName = "Game Instance Bootstrap Definition"))
-	TSoftObjectPtr<UPdGameInstanceDefinition> BootstrapDefinition;
+	TSoftObjectPtr<UGameInstanceDefinition> BootstrapDefinition;
 
 	/** 게임플레이에 들어가기 전에 반드시 읽어야 하는 정확한 주 애셋 목록. */
 	UPROPERTY(Config, EditAnywhere, Category = "!Content|Game Entry",

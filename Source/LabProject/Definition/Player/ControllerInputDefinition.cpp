@@ -1,7 +1,7 @@
 #include "Definition/Player/ControllerInputDefinition.h"
 
 #include "InputAction.h"
-#include "Definition/Mode/PdGameInstanceDefinition.h"
+#include "Definition/Mode/GameInstanceDefinition.h"
 #include "Definition/Player/CharacterActionDefinition.h"
 
 #if WITH_EDITOR
@@ -65,7 +65,7 @@ UControllerInputDefinition::GetEffectiveCharacterActionDefinition() const
 		return CharacterActionDefinition;
 	}
 
-	return UPdGameInstanceDefinition::GetConfiguredDefinitionReferences().CharacterAction;
+	return UGameInstanceDefinition::GetConfiguredDefinitionReferences().CharacterAction;
 }
 
 UInputAction* UControllerInputDefinition::GetLoadedSkillInputAction(const int32 SkillSlotIndex) const

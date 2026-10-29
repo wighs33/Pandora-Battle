@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "CommonActivatableWidget.h"
-#include "PdScreenWidget.generated.h"
+#include "ScreenWidget.generated.h"
 
 class UButton;
 class UMenuLocalizationExtension;
@@ -14,7 +14,7 @@ class UMenuLocalizationSubsystem;
  * 화면을 띄우는 쪽이 ConfigureScreen으로 포커스와 뒤로 가기를 정한 뒤 올린다. 정하지 않으면 메뉴 입력을 쓰고 뒤로 가기에 스스로 닫힌다.
  */
 UCLASS(Abstract)
-class LABPROJECT_API UPdScreenWidget : public UCommonActivatableWidget
+class LABPROJECT_API UScreenWidget : public UCommonActivatableWidget
 {
 	GENERATED_BODY()
 
@@ -28,7 +28,7 @@ public:
 	virtual bool NativeOnHandleBackAction() override;
 
 	// Public API ------------------------------------------------------------------------------------------------------
-	UPdScreenWidget(const FObjectInitializer& ObjectInitializer);
+	UScreenWidget(const FObjectInitializer& ObjectInitializer);
 
 	/** FocusTarget이 없으면 CommonUI가 뷰포트에 포커스를 유지하여 누르고 있는 입력을 지킨다. 마우스는 기본으로 잡지 않는다. */
 	void ConfigureScreen(UWidget* FocusTarget, FSimpleDelegate BackAction, ECommonInputMode InputMode = ECommonInputMode::Menu,

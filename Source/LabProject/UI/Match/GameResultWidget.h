@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Common/GameResultTypes.h"
-#include "UI/Core/PdScreenWidget.h"
+#include "UI/Core/ScreenWidget.h"
 #include "GameResultWidget.generated.h"
 
 class UButton;
@@ -12,7 +12,7 @@ class UTextBlock;
 class UWidget;
 
 UCLASS(Blueprintable, BlueprintType)
-class LABPROJECT_API UGameResultWidget : public UPdScreenWidget
+class LABPROJECT_API UGameResultWidget : public UScreenWidget
 {
 	GENERATED_BODY()
 

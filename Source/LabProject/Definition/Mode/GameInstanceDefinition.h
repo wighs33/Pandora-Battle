@@ -4,7 +4,7 @@
 #include "Engine/DataAsset.h"
 #include "UObject/PrimaryAssetId.h"
 
-#include "PdGameInstanceDefinition.generated.h"
+#include "GameInstanceDefinition.generated.h"
 
 class UCharacterActionDefinition;
 class UCharacterBaseDefinition;
@@ -98,7 +98,7 @@ struct LABPROJECT_API FProjectDefinitionReferences
  * GameInstance 수명의 서브시스템에서 사용하는 데이터 기반 설정 묶음을 제공한다.
  */
 UCLASS(BlueprintType, Const)
-class LABPROJECT_API UPdGameInstanceDefinition : public UPrimaryDataAsset
+class LABPROJECT_API UGameInstanceDefinition : public UPrimaryDataAsset
 {
 	GENERATED_BODY()
 

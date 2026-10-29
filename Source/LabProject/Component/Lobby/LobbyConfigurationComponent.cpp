@@ -3,7 +3,7 @@
 #include "Data/ContentDataSubsystem.h"
 #include "Data/ContentLease.h"
 #include "Definition/Provision/DefaultProvisionDefinition.h"
-#include "Definition/Mode/PdGameInstanceDefinition.h"
+#include "Definition/Mode/GameInstanceDefinition.h"
 #include "Lobby/Contents/LobbyGameMode.h"
 #include "Lobby/Contents/LobbyGameState.h"
 #include "Engine/GameInstance.h"
@@ -32,7 +32,7 @@ void ULobbyConfigurationComponent::InitializeRuntime(FSimpleDelegate OnReady)
 	RuntimeReadyDelegate = MoveTemp(OnReady);
 	TArray<FSoftObjectPath> DependencyPaths;
 	const FProjectDefinitionReferences& DefinitionReferences =
-		UPdGameInstanceDefinition::GetConfiguredDefinitionReferences();
+		UGameInstanceDefinition::GetConfiguredDefinitionReferences();
 	if (!DefinitionReferences.MatchRule.IsNull())
 	{
 		DependencyPaths.AddUnique(DefinitionReferences.MatchRule.ToSoftObjectPath());
@@ -164,7 +164,7 @@ void ULobbyConfigurationComponent::FinishRuntimeInitialization()
 	}
 
 	const FProjectDefinitionReferences& DefinitionReferences =
-		UPdGameInstanceDefinition::GetConfiguredDefinitionReferences();
+		UGameInstanceDefinition::GetConfiguredDefinitionReferences();
 	LoadedLevelDefinition = DefinitionReferences.LevelDefinition.Get();
 	LoadedMatchRuleDefinition = DefinitionReferences.MatchRule.Get();
 	LoadedDefaultProvisionDefinition = DefinitionReferences.DefaultProvision.Get();

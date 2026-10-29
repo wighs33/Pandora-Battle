@@ -11,9 +11,9 @@ class ACharacterBase;
 class APawn;
 class APdPlayerController;
 struct FKillLogEntry;
-struct FPdNotificationData;
+struct FNotificationData;
 
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnRightNotificationRequested, const FPdNotificationData& /*NotificationData*/);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnRightNotificationRequested, const FNotificationData& /*NotificationData*/);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnKillLogEntryRequested, const FKillLogEntry& /*KillLogEntry*/);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnGoldenKillAnnouncementRequested, const FText& /*AnnouncementText*/);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnRespawnDelayChanged, bool /*bVisible*/, float /*DelaySeconds*/);
@@ -41,7 +41,7 @@ public:
 	void InitializeLocalPresentation();
 	void RefreshAfterPossession(APawn* PossessedPawn);
 
-	void ShowRightNotification(const FPdNotificationData& NotificationData) const;
+	void ShowRightNotification(const FNotificationData& NotificationData) const;
 	void AddKillLogEntry(const FKillLogEntry& KillLogEntry) const;
 	void ShowGoldenKillAnnouncement(const FText& AnnouncementText) const;
 	void StartRespawnDelayCountdown(float DelaySeconds) const;

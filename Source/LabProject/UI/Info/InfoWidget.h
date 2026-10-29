@@ -1,6 +1,6 @@
 #pragma once
 
-#include "UI/Core/PdScreenWidget.h"
+#include "UI/Core/ScreenWidget.h"
 #include "GameplayTagContainer.h"
 #include "Common/InfoUiTypes.h"
 #include "UI/Info/Item/LeftEquipmentWidget.h"
@@ -15,7 +15,7 @@
 
 class UButton;
 class UCanvasPanel;
-struct FPdButtonClickBinding;
+struct FButtonClickBinding;
 class UPandoraTreeWidget;
 class UDragDropOperation;
 class UInfoCharacterPreview;
@@ -42,7 +42,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDroppedItemToCharacterPanel, UIte
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDroppedSkinToCharacterPanel, const USkinDefinition*, SkinDefinition);
 
 UCLASS(Blueprintable, BlueprintType)
-class LABPROJECT_API UInfoWidget : public UPdScreenWidget
+class LABPROJECT_API UInfoWidget : public UScreenWidget
 {
 	GENERATED_BODY()
 
@@ -181,7 +181,7 @@ private:
 	void ApplyWidgetDefinitionSettings();
 	void PlaySidePanelsSlideInAnimation();
 	void PlaySidePanelsSlideOutAnimation();
-	TArray<FPdButtonClickBinding, TInlineAllocator<12>> GetButtonBindings() const;
+	TArray<FButtonClickBinding, TInlineAllocator<12>> GetButtonBindings() const;
 	// 왼쪽·오른쪽 패널을 쓰는 탭으로 바꾼다. 지도 패널은 밀어 닫고, 판도라 탭에서만 강화 버튼을 보인다.
 	void SelectSidePanelSection(EInfoUiSection Section, UWidget* LeftWidget, UWidget* RightWidget, const FGameplayTag& LeftUiTag, const FGameplayTag& RightUiTag);
 	void SelectInfoCenterPage(UWidget* LeftWidget, UWidget* RightWidget, const FGameplayTag& LeftUiTag, const FGameplayTag& RightUiTag);

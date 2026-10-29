@@ -1,6 +1,6 @@
 #include "UI/HUD/PdHUD.h"
 #include "UI/Common/EditorTransactionReset.h"
-#include "UI/Core/PdUIActionRouter.h"
+#include "UI/Core/UiActionRouter.h"
 
 #include "Blueprint/UserWidget.h"
 #include "Components/GameFrameworkComponentManager.h"
@@ -259,7 +259,7 @@ void APdHUD::HideAimCrosshair()
 	}
 }
 
-void APdHUD::ShowRightNotification(const FPdNotificationData& NotificationData)
+void APdHUD::ShowRightNotification(const FNotificationData& NotificationData)
 {
 	if (!CachedRightNotificationsUI)
 	{
@@ -869,6 +869,6 @@ bool APdHUD::IsGameplayInputBlockedByUi() const
 {
 	const APlayerController* Controller = GetOwningPlayerController();
 	const ULocalPlayer* LocalPlayer = Controller ? Controller->GetLocalPlayer() : nullptr;
-	const UPdUIActionRouter* Router = LocalPlayer ? LocalPlayer->GetSubsystem<UPdUIActionRouter>() : nullptr;
+	const UUiActionRouter* Router = LocalPlayer ? LocalPlayer->GetSubsystem<UUiActionRouter>() : nullptr;
 	return Router && Router->IsGameplayInputBlocked();
 }

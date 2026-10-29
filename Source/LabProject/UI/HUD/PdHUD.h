@@ -115,7 +115,7 @@ private:
 	// 게임 중 기본 화면이 받은 ESC. 포커스가 빠진 채팅이 남아 있으면 채팅부터 닫는다.
 	void HandleGameplayBackAction();
 	void HandleAimCrosshairChanged(bool bVisible, FGameplayTag CrosshairWidgetTag);
-	void ShowRightNotification(const FPdNotificationData& NotificationData);
+	void ShowRightNotification(const FNotificationData& NotificationData);
 	void ShowGoldenKillAnnouncement(const FText& AnnouncementText);
 	void AddKillLogEntry(const FKillLogEntry& KillLogEntry);
 	void HandleRespawnDelayChanged(bool bVisible, float DelaySeconds);

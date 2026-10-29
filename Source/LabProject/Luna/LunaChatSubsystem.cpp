@@ -14,7 +14,7 @@
 #include "Common/Ticker.h"
 #include "Common/UiLanguage.h"
 #include "Data/ContentDataSubsystem.h"
-#include "Definition/Mode/PdGameInstanceDefinition.h"
+#include "Definition/Mode/GameInstanceDefinition.h"
 #include "Definition/UI/GuideDefinition.h"
 #include "Luna/LunaChatSettings.h"
 #include "Online/Backend/BackendHttp.h"
@@ -95,7 +95,7 @@ void ULunaChatSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 		Localization->OnLanguageChanged.AddDynamic(this, &ThisClass::HandleMenuLanguageChanged);
 	}
 	// 가이드는 첫 질문 전에 막지 않고 불러 둔다. 이미지는 가이드 화면이 따로 불러온다.
-	const TSoftObjectPtr<UGuideDefinition>& Guide = UPdGameInstanceDefinition::GetConfiguredDefinitionReferences().Guide;
+	const TSoftObjectPtr<UGuideDefinition>& Guide = UGameInstanceDefinition::GetConfiguredDefinitionReferences().Guide;
 	if (!Guide.IsNull())
 	{
 		GuideLease = UContentDataSubsystem::AcquireContent({Guide.ToSoftObjectPath()},
@@ -324,7 +324,7 @@ void ULunaChatSubsystem::RebuildGuideSections()
 {
 	GuideSections.Reset();
 	GuideSectionNames.Reset();
-	const UGuideDefinition* Guide = UPdGameInstanceDefinition::GetConfiguredDefinitionReferences().Guide.Get();
+	const UGuideDefinition* Guide = UGameInstanceDefinition::GetConfiguredDefinitionReferences().Guide.Get();
 	const UMenuLocalizationSubsystem* Localization = GetGameInstance()->GetSubsystem<UMenuLocalizationSubsystem>();
 	if (!Guide)
 	{

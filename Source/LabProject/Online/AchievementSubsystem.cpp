@@ -8,7 +8,7 @@
 #include "OnlineSubsystemUtils.h"
 #include "Data/ContentDataSubsystem.h"
 #include "Data/ContentLease.h"
-#include "Definition/Mode/PdGameInstanceDefinition.h"
+#include "Definition/Mode/GameInstanceDefinition.h"
 #include "Profile/PlayerProfileSubsystem.h"
 
 THIRD_PARTY_INCLUDES_START
@@ -193,7 +193,7 @@ const UAchievementDefinition* UAchievementSubsystem::ResolveAchievementDefinitio
 	}
 
 	const TSoftObjectPtr<UAchievementDefinition>& AchievementData =
-		UPdGameInstanceDefinition::GetConfiguredDefinitionReferences().Achievement;
+		UGameInstanceDefinition::GetConfiguredDefinitionReferences().Achievement;
 
 	CachedAchievementDefinition = AchievementData.Get();
 	if (!CachedAchievementDefinition && AchievementData.IsNull() == false)
@@ -210,7 +210,7 @@ void UAchievementSubsystem::BeginAchievementDefinitionPreload()
 		return;
 	}
 
-	const FSoftObjectPath AchievementPath = UPdGameInstanceDefinition::GetConfiguredDefinitionReferences()
+	const FSoftObjectPath AchievementPath = UGameInstanceDefinition::GetConfiguredDefinitionReferences()
 		.Achievement.ToSoftObjectPath();
 	if (AchievementPath.IsNull())
 	{

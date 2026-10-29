@@ -14,7 +14,7 @@
 #include "Definition/Experience/ExperienceDefinition.h"
 #include "Definition/Level/LevelDefinition.h"
 #include "Definition/Match/MatchRuleDefinition.h"
-#include "Definition/Mode/PdGameInstanceDefinition.h"
+#include "Definition/Mode/GameInstanceDefinition.h"
 #include "Definition/Provision/DefaultProvisionDefinition.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
@@ -389,7 +389,7 @@ FPrimaryAssetId AExperienceGameMode::GetConfiguredExperienceId() const
 void AExperienceGameMode::BeginRuntimeContentPreload()
 {
 	ReleaseRuntimeContentPreload();
-	const FProjectDefinitionReferences& Definitions = UPdGameInstanceDefinition::GetConfiguredDefinitionReferences();
+	const FProjectDefinitionReferences& Definitions = UGameInstanceDefinition::GetConfiguredDefinitionReferences();
 	TArray<FSoftObjectPath> Paths;
 	for (const FSoftObjectPath& Path : {Definitions.MatchRule.ToSoftObjectPath(),
 		Definitions.LevelDefinition.ToSoftObjectPath(), Definitions.DefaultProvision.ToSoftObjectPath()})
@@ -416,7 +416,7 @@ void AExperienceGameMode::BeginRuntimeContentPreload()
 
 void AExperienceGameMode::HandleRuntimeContentPreloadComplete()
 {
-	const FProjectDefinitionReferences& Definitions = UPdGameInstanceDefinition::GetConfiguredDefinitionReferences();
+	const FProjectDefinitionReferences& Definitions = UGameInstanceDefinition::GetConfiguredDefinitionReferences();
 	LoadedMatchRuleDefinition = Definitions.MatchRule.Get();
 	LoadedLevelDefinition = Definitions.LevelDefinition.Get();
 	LoadedDefaultProvisionDefinition = Definitions.DefaultProvision.Get();

@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Common/GameSessionConstants.h"
-#include "UI/Core/PdScreenWidget.h"
+#include "UI/Core/ScreenWidget.h"
 #include "FindSessionsCallbackProxy.h"
 #include "Types/SlateEnums.h"
 #include "Online/Backend/BackendClientSubsystem.h"
@@ -10,7 +10,7 @@
 
 class UButton;
 class UAudioVolumeSlider;
-struct FPdButtonClickBinding;
+struct FButtonClickBinding;
 class UAudioVolumeControl;
 class UEditableTextBox;
 class UGuideWidget;
@@ -26,7 +26,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnLunaQuestionSubmitted, const FString& /*Q
 DECLARE_MULTICAST_DELEGATE(FOnBossRaidRequested);
 
 UCLASS(Blueprintable, BlueprintType)
-class LABPROJECT_API UTitleWidget : public UPdScreenWidget
+class LABPROJECT_API UTitleWidget : public UScreenWidget
 {
 	GENERATED_BODY()
 
@@ -103,7 +103,7 @@ private:
 	void HandleLunaChatCommitted(const FText& Text, ETextCommit::Type CommitMethod);
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
-	TArray<FPdButtonClickBinding, TInlineAllocator<10>> GetMenuButtonBindings() const;
+	TArray<FButtonClickBinding, TInlineAllocator<10>> GetMenuButtonBindings() const;
 	void ApplyWidgetDefinitionSettings();
 	void BuildLunaSpeechBubble();
 	void BuildLunaChatInput();
@@ -119,8 +119,8 @@ private:
 	void OpenGuide();
 	void OpenRecord();
 	// 팝업 화면이 아직 떠 있지 않으면 메뉴 층에 올린다. 뒤로 가기는 OnBack이 맡는다.
-	void PresentMenuPopup(UPdScreenWidget* Popup, FSimpleDelegate OnBack);
-	void DismissMenuPopup(UPdScreenWidget* Popup) const;
+	void PresentMenuPopup(UScreenWidget* Popup, FSimpleDelegate OnBack);
+	void DismissMenuPopup(UScreenWidget* Popup) const;
 
 	TSubclassOf<UShopWidget> ResolveShopWidgetClass() const;
 	TSubclassOf<UGuideWidget> ResolveGuideWidgetClass() const;

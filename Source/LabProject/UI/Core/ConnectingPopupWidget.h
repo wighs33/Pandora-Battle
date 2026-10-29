@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UI/Core/PdScreenWidget.h"
+#include "UI/Core/ScreenWidget.h"
 #include "ConnectingPopupWidget.generated.h"
 
 class UButton;
@@ -10,7 +10,7 @@ class UWidgetAnimation;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnConnectingPopupCanceled);
 
 UCLASS(Blueprintable, BlueprintType)
-class LABPROJECT_API UConnectingPopupWidget : public UPdScreenWidget
+class LABPROJECT_API UConnectingPopupWidget : public UScreenWidget
 {
 	GENERATED_BODY()
 

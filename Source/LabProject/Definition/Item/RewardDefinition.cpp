@@ -1,7 +1,7 @@
 #include "Definition/Item/RewardDefinition.h"
 
 #include "Definition/Item/ItemDefinition.h"
-#include "Definition/Mode/PdGameInstanceDefinition.h"
+#include "Definition/Mode/GameInstanceDefinition.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RewardDefinition)
 
@@ -136,7 +136,7 @@ FPrimaryAssetId URewardDefinition::GetPrimaryAssetId() const
 
 FSoftObjectPath URewardDefinition::GetDefaultRewardDefinitionPath()
 {
-	return UPdGameInstanceDefinition::GetConfiguredDefinitionReferences().Reward.ToSoftObjectPath();
+	return UGameInstanceDefinition::GetConfiguredDefinitionReferences().Reward.ToSoftObjectPath();
 }
 
 int32 URewardDefinition::RollMonsterDefeatExperienceReward() const

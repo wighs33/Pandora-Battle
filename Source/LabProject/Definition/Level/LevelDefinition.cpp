@@ -1,6 +1,6 @@
 #include "Definition/Level/LevelDefinition.h"
 
-#include "Definition/Mode/PdGameInstanceDefinition.h"
+#include "Definition/Mode/GameInstanceDefinition.h"
 #include "Kismet/GameplayStatics.h"
 #include "Misc/PackageName.h"
 
@@ -110,7 +110,7 @@ FPrimaryAssetId ULevelDefinition::GetPrimaryAssetId() const
 
 FSoftObjectPath ULevelDefinition::GetDefaultDefinitionPath()
 {
-	return UPdGameInstanceDefinition::GetConfiguredDefinitionReferences().LevelDefinition.ToSoftObjectPath();
+	return UGameInstanceDefinition::GetConfiguredDefinitionReferences().LevelDefinition.ToSoftObjectPath();
 }
 
 const ULevelDefinition* ULevelDefinition::ResolveDefaultDefinition()

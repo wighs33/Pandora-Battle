@@ -20,7 +20,7 @@ protected:
 public:
 	// Public API ------------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "!UI|Notification")
-	void SetNotificationData(const FPdNotificationData& InNotificationData);
+	void SetNotificationData(const FNotificationData& InNotificationData);
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Notification")
 	void PlayNotificationIn();
@@ -31,15 +31,15 @@ public:
 protected:
 	// Event Handlers --------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintImplementableEvent, Category = "!UI|Notification", meta = (DisplayName = "On Notification Data Set"))
-	void BP_OnNotificationDataSet(const FPdNotificationData& InNotificationData);
+	void BP_OnNotificationDataSet(const FNotificationData& InNotificationData);
 
 private:
-	void ApplyNotificationData(const FPdNotificationData& InNotificationData, bool bNotifyBlueprint);
-	static bool HasNotificationContent(const FPdNotificationData& InNotificationData);
+	void ApplyNotificationData(const FNotificationData& InNotificationData, bool bNotifyBlueprint);
+	static bool HasNotificationContent(const FNotificationData& InNotificationData);
 
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "!UI|Notification|Preview")
-	FPdNotificationData PreviewNotificationData;
+	FNotificationData PreviewNotificationData;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Notification|Bind")
 	TObjectPtr<UImage> IconImage;
@@ -52,7 +52,7 @@ protected:
 
 private:
 	UPROPERTY(Transient)
-	FPdNotificationData CachedNotificationData;
+	FNotificationData CachedNotificationData;
 
 	UPROPERTY(Transient)
 	bool bHasRuntimeNotificationData = false;

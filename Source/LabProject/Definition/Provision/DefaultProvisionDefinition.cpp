@@ -1,6 +1,6 @@
 #include "Definition/Provision/DefaultProvisionDefinition.h"
 
-#include "Definition/Mode/PdGameInstanceDefinition.h"
+#include "Definition/Mode/GameInstanceDefinition.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DefaultProvisionDefinition)
 
@@ -90,7 +90,7 @@ FPrimaryAssetId UDefaultProvisionDefinition::GetPrimaryAssetId() const
 
 FSoftObjectPath UDefaultProvisionDefinition::GetDefaultDefinitionPath()
 {
-	return UPdGameInstanceDefinition::GetConfiguredDefinitionReferences().DefaultProvision.ToSoftObjectPath();
+	return UGameInstanceDefinition::GetConfiguredDefinitionReferences().DefaultProvision.ToSoftObjectPath();
 }
 
 const UDefaultProvisionDefinition* UDefaultProvisionDefinition::ResolveDefaultDefinition()

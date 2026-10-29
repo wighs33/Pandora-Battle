@@ -113,7 +113,7 @@ void UControllerPresentationComponent::ApplyCameraViewPitchClamp() const
 }
 
 // 보상이나 상태 알림을 띄우도록 HUD에 알린다.
-void UControllerPresentationComponent::ShowRightNotification(const FPdNotificationData& NotificationData) const
+void UControllerPresentationComponent::ShowRightNotification(const FNotificationData& NotificationData) const
 {
 	RightNotificationRequested.Broadcast(NotificationData);
 }

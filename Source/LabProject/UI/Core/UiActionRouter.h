@@ -3,13 +3,13 @@
 #include "CoreMinimal.h"
 #include "Containers/Ticker.h"
 #include "Input/CommonUIActionRouterBase.h"
-#include "PdUIActionRouter.generated.h"
+#include "UiActionRouter.generated.h"
 
-enum class EPdGameplayInputPolicy : uint8 { Allow, Block };
+enum class EGameplayInputPolicy : uint8 { Allow, Block };
 
 /** CommonUI 입력 정책을 적용한다. 채팅 입력란만 별도 어댑터로 지원한다. */
 UCLASS()
-class LABPROJECT_API UPdUIActionRouter : public UCommonUIActionRouterBase
+class LABPROJECT_API UUiActionRouter : public UCommonUIActionRouterBase
 {
 	GENERATED_BODY()
 
@@ -38,7 +38,7 @@ protected:
 private:
 	FTSTicker::FDelegateHandle PendingInputConfigTickerHandle;
 	TWeakObjectPtr<UWidget> ChatInputWidget;
-	EPdGameplayInputPolicy AppliedGameplayPolicy = EPdGameplayInputPolicy::Allow;
+	EGameplayInputPolicy AppliedGameplayPolicy = EGameplayInputPolicy::Allow;
 	mutable TSet<FKey> PressedKeys;
 	mutable TSet<FKey> KeysAwaitingRelease;
 };

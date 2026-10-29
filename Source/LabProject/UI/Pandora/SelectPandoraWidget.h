@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Common/Enum_Direction.h"
-#include "UI/Core/PdScreenWidget.h"
+#include "UI/Core/ScreenWidget.h"
 #include "SelectPandoraWidget.generated.h"
 
 class UImage;
@@ -12,7 +12,7 @@ class UTexture2D;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSelectedPandoraDirection, EEnum_Direction, Direction);
 
 UCLASS(Blueprintable, BlueprintType)
-class LABPROJECT_API USelectPandoraWidget : public UPdScreenWidget
+class LABPROJECT_API USelectPandoraWidget : public UScreenWidget
 {
 	GENERATED_BODY()
 

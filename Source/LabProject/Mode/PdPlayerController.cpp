@@ -14,7 +14,7 @@
 #include "Components/GameFrameworkComponentManager.h"
 #include "Data/ContentDataSubsystem.h"
 #include "Data/ContentLease.h"
-#include "Definition/Mode/PdGameInstanceDefinition.h"
+#include "Definition/Mode/GameInstanceDefinition.h"
 #include "Definition/Player/ControllerInputDefinition.h"
 #include "Definition/Player/PlayerControllerDefinition.h"
 #include "Engine/GameInstance.h"
@@ -167,7 +167,7 @@ void APdPlayerController::HandlePossessedCharacterAbilitySystemReady(
 }
 
 // 소유 클라이언트에서 보상 표시용 에셋을 준비하도록 알림 컴포넌트에 전달한다.
-void APdPlayerController::Client_ShowRewardNotifications_Implementation(const TArray<FPdRewardNotification>& Rewards)
+void APdPlayerController::Client_ShowRewardNotifications_Implementation(const TArray<FRewardNotification>& Rewards)
 {
 	if (NotificationComponent)
 	{
@@ -417,7 +417,7 @@ void APdPlayerController::RefreshControllerInput()
 	}
 
 	const TSoftObjectPtr<UControllerInputDefinition> DefaultInputDefinition =
-		UPdGameInstanceDefinition::GetConfiguredDefinitionReferences().ControllerInput;
+		UGameInstanceDefinition::GetConfiguredDefinitionReferences().ControllerInput;
 	if (!DefaultInputDefinition.IsNull())
 	{
 		ControllerInputComponent->SetInputDefinition(DefaultInputDefinition);

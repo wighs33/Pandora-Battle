@@ -1,4 +1,4 @@
-#include "UI/Core/PdUIActionRouter.h"
+#include "UI/Core/UiActionRouter.h"
 
 #include "Common/Ticker.h"
 #include "Component/Player/ControllerInputComponent.h"
@@ -8,9 +8,9 @@
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/PlayerController.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(PdUIActionRouter)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(UiActionRouter)
 
-void UPdUIActionRouter::PlayerControllerChanged(APlayerController* NewPlayerController)
+void UUiActionRouter::PlayerControllerChanged(APlayerController* NewPlayerController)
 {
 	FTSTicker::RemoveTicker(PendingInputConfigTickerHandle);
 	PendingInputConfigTickerHandle.Reset();
@@ -18,7 +18,7 @@ void UPdUIActionRouter::PlayerControllerChanged(APlayerController* NewPlayerCont
 	PressedKeys.Reset();
 	KeysAwaitingRelease.Reset();
 	ChatInputWidget.Reset();
-	AppliedGameplayPolicy = EPdGameplayInputPolicy::Allow;
+	AppliedGameplayPolicy = EGameplayInputPolicy::Allow;
 	ActiveInputConfig.Reset();
 	if (NewPlayerController)
 	{
@@ -26,14 +26,14 @@ void UPdUIActionRouter::PlayerControllerChanged(APlayerController* NewPlayerCont
 	}
 }
 
-void UPdUIActionRouter::Deinitialize()
+void UUiActionRouter::Deinitialize()
 {
 	FTSTicker::RemoveTicker(PendingInputConfigTickerHandle);
 	PendingInputConfigTickerHandle.Reset();
 	Super::Deinitialize();
 }
 
-void UPdUIActionRouter::BeginChatInput(UWidget* InputWidget)
+void UUiActionRouter::BeginChatInput(UWidget* InputWidget)
 {
 	ChatInputWidget = InputWidget;
 	if (IsDefaultScreenActive())
@@ -42,7 +42,7 @@ void UPdUIActionRouter::BeginChatInput(UWidget* InputWidget)
 	}
 }
 
-void UPdUIActionRouter::EndChatInput(const UWidget* InputWidget)
+void UUiActionRouter::EndChatInput(const UWidget* InputWidget)
 {
 	if (ChatInputWidget.Get() != InputWidget)
 	{
@@ -55,7 +55,7 @@ void UPdUIActionRouter::EndChatInput(const UWidget* InputWidget)
 	}
 }
 
-void UPdUIActionRouter::SetActiveRoot(FActivatableTreeRootPtr NewActiveRoot)
+void UUiActionRouter::SetActiveRoot(FActivatableTreeRootPtr NewActiveRoot)
 {
 	Super::SetActiveRoot(NewActiveRoot);
 	// UE 5.8은 Slate root 제거를 마친 뒤 ActiveInputConfig를 비운다.
@@ -69,7 +69,7 @@ void UPdUIActionRouter::SetActiveRoot(FActivatableTreeRootPtr NewActiveRoot)
 	});
 }
 
-FUIInputConfig UPdUIActionRouter::MakeDefaultInputConfig() const
+FUIInputConfig UUiActionRouter::MakeDefaultInputConfig() const
 {
 	// 게임 중 기본 화면의 뒤로 가기(ESC)는 Menu 모드 바인딩이라, 게임 입력과 함께 받는 All 모드를 쓴다.
 	const bool bChatInput = ChatInputWidget.IsValid();
@@ -78,7 +78,7 @@ FUIInputConfig UPdUIActionRouter::MakeDefaultInputConfig() const
 	return Config;
 }
 
-void UPdUIActionRouter::ApplyDefaultInput()
+void UUiActionRouter::ApplyDefaultInput()
 {
 	ApplyUIInputConfig(MakeDefaultInputConfig(), true);
 	if (UWidget* ChatInput = ChatInputWidget.Get())
@@ -87,18 +87,18 @@ void UPdUIActionRouter::ApplyDefaultInput()
 	}
 }
 
-bool UPdUIActionRouter::IsDefaultScreenActive() const
+bool UUiActionRouter::IsDefaultScreenActive() const
 {
 	const UCommonActivatableWidget* ActiveScreen = GetLeafmostActivatableWidget();
 	return !ActiveScreen || ActiveScreen->IsA<UGameplayScreen>();
 }
 
-bool UPdUIActionRouter::IsGameplayInputBlocked() const
+bool UUiActionRouter::IsGameplayInputBlocked() const
 {
-	return AppliedGameplayPolicy == EPdGameplayInputPolicy::Block;
+	return AppliedGameplayPolicy == EGameplayInputPolicy::Block;
 }
 
-void UPdUIActionRouter::ApplyUIInputConfig(const FUIInputConfig& NewConfig, bool bForceRefresh)
+void UUiActionRouter::ApplyUIInputConfig(const FUIInputConfig& NewConfig, bool bForceRefresh)
 {
 	FTSTicker::RemoveTicker(PendingInputConfigTickerHandle);
 	PendingInputConfigTickerHandle.Reset();
@@ -139,11 +139,11 @@ void UPdUIActionRouter::ApplyUIInputConfig(const FUIInputConfig& NewConfig, bool
 	// 게임 중 기본 화면 위에 다른 화면이 있거나 채팅을 입력하는 동안에는 게임 입력을 막는다.
 	if (!IsDefaultScreenActive() || ChatInputWidget.IsValid())
 	{
-		AppliedGameplayPolicy = EPdGameplayInputPolicy::Block;
+		AppliedGameplayPolicy = EGameplayInputPolicy::Block;
 	}
 	else
 	{
-		AppliedGameplayPolicy = EPdGameplayInputPolicy::Allow;
+		AppliedGameplayPolicy = EGameplayInputPolicy::Allow;
 	}
 	const bool bWillBlock = IsGameplayInputBlocked();
 	if (bWasBlocked != bWillBlock)
@@ -184,7 +184,7 @@ void UPdUIActionRouter::ApplyUIInputConfig(const FUIInputConfig& NewConfig, bool
 	}
 }
 
-ERouteUIInputResult UPdUIActionRouter::ProcessInput(FKey Key, EInputEvent InputEvent) const
+ERouteUIInputResult UUiActionRouter::ProcessInput(FKey Key, EInputEvent InputEvent) const
 {
 	if (InputEvent == IE_Pressed)
 	{

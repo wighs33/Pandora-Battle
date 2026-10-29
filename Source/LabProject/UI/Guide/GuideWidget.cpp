@@ -11,7 +11,7 @@
 #include "Engine/GameInstance.h"
 #include "Engine/Texture2D.h"
 #include "InputCoreTypes.h"
-#include "Definition/Mode/PdGameInstanceDefinition.h"
+#include "Definition/Mode/GameInstanceDefinition.h"
 #include "UI/HUD/PdHUD.h"
 #include "Audio/BgmSubsystem.h"
 #include "Localization/MenuLocalizationSubsystem.h"
@@ -90,7 +90,7 @@ void UGuideWidget::BeginContentPreload()
 	UContentDataSubsystem* ContentSubsystem =
 		GameInstance ? GameInstance->GetSubsystem<UContentDataSubsystem>() : nullptr;
 	const TSoftObjectPtr<UGuideDefinition>& GuideDefinition =
-		UPdGameInstanceDefinition::GetConfiguredDefinitionReferences().Guide;
+		UGameInstanceDefinition::GetConfiguredDefinitionReferences().Guide;
 	if (!ContentSubsystem || GuideDefinition.IsNull())
 	{
 		return;
@@ -124,7 +124,7 @@ void UGuideWidget::BeginPageImagePreload()
 
 const UGuideDefinition* UGuideWidget::ResolveGuideDefinition() const
 {
-	return UPdGameInstanceDefinition::GetConfiguredDefinitionReferences().Guide.Get();
+	return UGameInstanceDefinition::GetConfiguredDefinitionReferences().Guide.Get();
 }
 
 void UGuideWidget::RefreshGuide()

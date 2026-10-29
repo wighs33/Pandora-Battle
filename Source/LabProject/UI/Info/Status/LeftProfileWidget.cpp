@@ -15,7 +15,7 @@
 #include "Profile/PlayerProfileSubsystem.h"
 #include "Mode/PdPlayerController.h"
 #include "Mode/PdPlayerState.h"
-#include "Definition/Mode/PdGameInstanceDefinition.h"
+#include "Definition/Mode/GameInstanceDefinition.h"
 #include "Definition/Online/AchievementDefinition.h"
 #include "Online/AchievementSubsystem.h"
 #include "TimerManager.h"
@@ -73,8 +73,8 @@ void ULeftProfileWidget::BeginContentPreload()
 	}
 
 	DefinitionLease = ContentSubsystem->AcquireContent({
-			UPdGameInstanceDefinition::GetConfiguredDefinitionReferences().Record.ToSoftObjectPath(),
-			UPdGameInstanceDefinition::GetConfiguredDefinitionReferences().Achievement.ToSoftObjectPath()
+			UGameInstanceDefinition::GetConfiguredDefinitionReferences().Record.ToSoftObjectPath(),
+			UGameInstanceDefinition::GetConfiguredDefinitionReferences().Achievement.ToSoftObjectPath()
 		},
 		FSimpleDelegate::CreateUObject(this, &ThisClass::BeginPresentationPreload));
 }
@@ -620,7 +620,7 @@ UImage* ULeftProfileWidget::GetAchievementImage(const int32 AchievementIndex) co
 
 const URecordDefinition* ULeftProfileWidget::ResolveRecordDefinition()
 {
-	return UPdGameInstanceDefinition::GetConfiguredDefinitionReferences().Record.Get();
+	return UGameInstanceDefinition::GetConfiguredDefinitionReferences().Record.Get();
 }
 
 const UAchievementDefinition* ULeftProfileWidget::ResolveAchievementDefinition() const

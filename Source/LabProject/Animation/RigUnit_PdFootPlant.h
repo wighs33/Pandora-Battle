@@ -6,7 +6,7 @@
 
 /** 지면에 맞출 다리 하나. 허벅지(위팔)부터 발(손)까지 세 뼈다. */
 USTRUCT(BlueprintType)
-struct FPdFootPlantLeg
+struct FFootPlantLeg
 {
 	GENERATED_BODY()
 
@@ -38,7 +38,7 @@ struct LABPROJECT_API FRigUnit_PdFootPlant : public FRigUnit_HighlevelBaseMutabl
 
 	/** 지면에 맞출 다리들. */
 	UPROPERTY(meta = (Input))
-	TArray<FPdFootPlantLeg> Legs;
+	TArray<FFootPlantLeg> Legs;
 
 	/** 발이 내려가야 할 때 함께 내릴 뼈(골반). 비우면 골반은 그대로 둔다. */
 	UPROPERTY(meta = (Input))

@@ -41,7 +41,7 @@ void URightNotificationsWidget::ApplyWidgetDefinitionSettings()
 	}
 }
 
-void URightNotificationsWidget::EnqueueNotification(const FPdNotificationData& NotificationData)
+void URightNotificationsWidget::EnqueueNotification(const FNotificationData& NotificationData)
 {
 	if (NotificationData.Text.IsEmpty() && !NotificationData.IconResource)
 	{
@@ -140,7 +140,7 @@ bool URightNotificationsWidget::TryShowNextQueuedNotification()
 		return false;
 	}
 
-	const FPdNotificationData NotificationData = NotificationQueue[0];
+	const FNotificationData NotificationData = NotificationQueue[0];
 	NotificationQueue.RemoveAt(0);
 
 	EntryWidget->SetNotificationData(NotificationData);

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UI/Core/PdScreenWidget.h"
+#include "UI/Core/ScreenWidget.h"
 #include "EscapeMenuWidget.generated.h"
 
 class UButton;
@@ -11,7 +11,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEscapeMenuClosed, UEscapeMenuWidg
 
 /** 게임 중 ESC로 여는 메뉴. 게임으로 돌아가기와 타이틀로 나가기만 맡고, 설정은 게임 설정 화면이 맡는다. */
 UCLASS(Blueprintable, BlueprintType)
-class LABPROJECT_API UEscapeMenuWidget : public UPdScreenWidget
+class LABPROJECT_API UEscapeMenuWidget : public UScreenWidget
 {
 	GENERATED_BODY()
 

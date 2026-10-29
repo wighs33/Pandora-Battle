@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UI/Core/PdScreenWidget.h"
+#include "UI/Core/ScreenWidget.h"
 #include "Profile/PlayerProfileSaveData.h"
 #include "RecordWidget.generated.h"
 
@@ -15,7 +15,7 @@ class URecordDefinition;
 class UTextBlock;
 
 UCLASS(Blueprintable, BlueprintType)
-class LABPROJECT_API URecordWidget : public UPdScreenWidget
+class LABPROJECT_API URecordWidget : public UScreenWidget
 {
 	GENERATED_BODY()
 

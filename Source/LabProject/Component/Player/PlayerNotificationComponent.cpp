@@ -42,22 +42,22 @@ void UPlayerNotificationComponent::SendRewardNotifications(const TArray<FPrimary
 		return;
 	}
 
-	TArray<FPdRewardNotification> Rewards;
-	const auto AppendRewards = [&Rewards](const TArray<FPrimaryAssetId>& AssetIds, EPdRewardNotificationType Type)
+	TArray<FRewardNotification> Rewards;
+	const auto AppendRewards = [&Rewards](const TArray<FPrimaryAssetId>& AssetIds, ERewardNotificationType Type)
 	{
 		for (const FPrimaryAssetId& AssetId : AssetIds)
 		{
 			if (AssetId.IsValid())
 			{
-				FPdRewardNotification& Reward = Rewards.AddDefaulted_GetRef();
+				FRewardNotification& Reward = Rewards.AddDefaulted_GetRef();
 				Reward.Type = Type;
 				Reward.AssetId = AssetId;
 			}
 		}
 	};
-	AppendRewards(RewardItemDefinitions, EPdRewardNotificationType::Item);
-	AppendRewards(RewardSkinDefinitions, EPdRewardNotificationType::Skin);
-	AppendRewards(RewardPandoraDefinitions, EPdRewardNotificationType::Pandora);
+	AppendRewards(RewardItemDefinitions, ERewardNotificationType::Item);
+	AppendRewards(RewardSkinDefinitions, ERewardNotificationType::Skin);
+	AppendRewards(RewardPandoraDefinitions, ERewardNotificationType::Pandora);
 	if (!Rewards.IsEmpty())
 	{
 		Controller->Client_ShowRewardNotifications(Rewards);
@@ -67,18 +67,18 @@ void UPlayerNotificationComponent::SendRewardNotifications(const TArray<FPrimary
 // 처치 등으로 지급한 경험치 획득량을 알린다.
 void UPlayerNotificationComponent::SendExperienceRewardNotification(const float RewardAmount, UObject* IconResource) const
 {
-	SendNumericRewardNotification(EPdRewardNotificationType::Experience, RewardAmount, IconResource);
+	SendNumericRewardNotification(ERewardNotificationType::Experience, RewardAmount, IconResource);
 }
 
 // 지급한 소울 더스트 수량을 정수 정밀도를 유지한 채 알린다.
 void UPlayerNotificationComponent::SendSoulDustRewardNotification(const int32 RewardAmount, UObject* IconResource) const
 {
-	SendNumericRewardNotification(EPdRewardNotificationType::SoulDust, RewardAmount, IconResource);
+	SendNumericRewardNotification(ERewardNotificationType::SoulDust, RewardAmount, IconResource);
 }
 
 // 수치 보상은 종류·수량·아이콘 경로를 보내 클라이언트가 문구와 아이콘을 준비하게 한다.
 void UPlayerNotificationComponent::SendNumericRewardNotification(
-	const EPdRewardNotificationType Type, const double RewardAmount, UObject* IconResource) const
+	const ERewardNotificationType Type, const double RewardAmount, UObject* IconResource) const
 {
 	APdPlayerController* Controller = GetController<APdPlayerController>();
 	if (!Controller || !Controller->HasAuthority() || !FMath::IsFinite(RewardAmount) || RewardAmount <= 0.0)
@@ -86,7 +86,7 @@ void UPlayerNotificationComponent::SendNumericRewardNotification(
 		return;
 	}
 
-	FPdRewardNotification Reward;
+	FRewardNotification Reward;
 	Reward.Type = Type;
 	Reward.Amount = RewardAmount;
 	Reward.IconPath = FSoftObjectPath(IconResource);
@@ -94,7 +94,7 @@ void UPlayerNotificationComponent::SendNumericRewardNotification(
 }
 
 // 소유 클라이언트에서 보상 정의와 Client 번들의 아이콘을 읽어 알림을 준비한다.
-void UPlayerNotificationComponent::ShowRewardNotifications(const TArray<FPdRewardNotification>& Rewards)
+void UPlayerNotificationComponent::ShowRewardNotifications(const TArray<FRewardNotification>& Rewards)
 {
 	if (!IsLocalController() || Rewards.IsEmpty())
 	{
@@ -104,7 +104,7 @@ void UPlayerNotificationComponent::ShowRewardNotifications(const TArray<FPdRewar
 	UAssetManager& AssetManager = UAssetManager::Get();
 	const TArray<FName> ClientBundles = {FName(TEXT("Client"))};
 	TArray<FSoftObjectPath> PathsToLoad;
-	for (const FPdRewardNotification& Reward : Rewards)
+	for (const FRewardNotification& Reward : Rewards)
 	{
 		if (Reward.AssetId.IsValid())
 		{
@@ -141,7 +141,7 @@ void UPlayerNotificationComponent::ShowRewardNotifications(const TArray<FPdRewar
 
 // 로딩이 끝난 요청의 알림을 표시하고, 위젯에 아이콘을 넘긴 뒤 로딩 참조를 해제한다.
 void UPlayerNotificationComponent::CompleteRewardNotificationLoad(
-	const uint64 RequestId, const TArray<FPdRewardNotification>& Rewards)
+	const uint64 RequestId, const TArray<FRewardNotification>& Rewards)
 {
 	TSharedPtr<FContentLease> CompletedLease;
 	PendingRewardNotificationLeases.RemoveAndCopyValue(RequestId, CompletedLease);
@@ -149,7 +149,7 @@ void UPlayerNotificationComponent::CompleteRewardNotificationLoad(
 }
 
 // 보상 정보를 화면용 문구와 아이콘으로 바꿔 알림 UI에 전달한다. 에셋을 읽지 못해도 기본 문구는 표시한다.
-void UPlayerNotificationComponent::ShowLoadedRewardNotifications(const TArray<FPdRewardNotification>& Rewards) const
+void UPlayerNotificationComponent::ShowLoadedRewardNotifications(const TArray<FRewardNotification>& Rewards) const
 {
 	const APdPlayerController* Controller = GetController<APdPlayerController>();
 	UControllerPresentationComponent* Presentation = Controller ? Controller->GetControllerPresentationComponent() : nullptr;
@@ -159,12 +159,12 @@ void UPlayerNotificationComponent::ShowLoadedRewardNotifications(const TArray<FP
 	}
 
 	UAssetManager& AssetManager = UAssetManager::Get();
-	for (const FPdRewardNotification& Reward : Rewards)
+	for (const FRewardNotification& Reward : Rewards)
 	{
-		FPdNotificationData NotificationData;
+		FNotificationData NotificationData;
 		switch (Reward.Type)
 		{
-		case EPdRewardNotificationType::Item:
+		case ERewardNotificationType::Item:
 			NotificationData.Text = UMenuLocalizationSubsystem::GetText(TEXT("HUD.ItemCollected"));
 			if (const UItemDefinition* Definition = Cast<UItemDefinition>(AssetManager.GetPrimaryAssetObject(Reward.AssetId)))
 			{
@@ -174,7 +174,7 @@ void UPlayerNotificationComponent::ShowLoadedRewardNotifications(const TArray<FP
 			}
 			break;
 
-		case EPdRewardNotificationType::Skin:
+		case ERewardNotificationType::Skin:
 			NotificationData.Text = UMenuLocalizationSubsystem::GetText(TEXT("HUD.SkinCollected"));
 			if (const USkinDefinition* Definition = Cast<USkinDefinition>(AssetManager.GetPrimaryAssetObject(Reward.AssetId)))
 			{
@@ -184,7 +184,7 @@ void UPlayerNotificationComponent::ShowLoadedRewardNotifications(const TArray<FP
 			}
 			break;
 
-		case EPdRewardNotificationType::Pandora:
+		case ERewardNotificationType::Pandora:
 			NotificationData.Text = UMenuLocalizationSubsystem::GetText(TEXT("HUD.PandoraCollected"));
 			if (const UPandoraDefinition* Definition = Cast<UPandoraDefinition>(AssetManager.GetPrimaryAssetObject(Reward.AssetId)))
 			{
@@ -195,11 +195,11 @@ void UPlayerNotificationComponent::ShowLoadedRewardNotifications(const TArray<FP
 			}
 			break;
 
-		case EPdRewardNotificationType::Experience:
-		case EPdRewardNotificationType::SoulDust:
+		case ERewardNotificationType::Experience:
+		case ERewardNotificationType::SoulDust:
 			NotificationData.Text = FText::Format(
 				INVTEXT("{0} +{1}"),
-				Reward.Type == EPdRewardNotificationType::Experience
+				Reward.Type == ERewardNotificationType::Experience
 					? UMenuLocalizationSubsystem::GetText(TEXT("HUD.Experience"))
 					: UMenuLocalizationSubsystem::GetText(TEXT("HUD.SoulDust")),
 				FText::AsNumber(Reward.Amount));

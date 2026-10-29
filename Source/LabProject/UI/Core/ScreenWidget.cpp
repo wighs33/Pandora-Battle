@@ -1,4 +1,4 @@
-#include "UI/Core/PdScreenWidget.h"
+#include "UI/Core/ScreenWidget.h"
 
 #include "Components/Button.h"
 #include "Engine/GameInstance.h"
@@ -7,7 +7,7 @@
 #include "UI/Common/MenuLocalizationExtension.h"
 #include "UI/Core/UiSubsystem.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(PdScreenWidget)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ScreenWidget)
 
 namespace
 {
@@ -19,7 +19,7 @@ namespace
 	}
 }
 
-UPdScreenWidget::UPdScreenWidget(const FObjectInitializer& ObjectInitializer)
+UScreenWidget::UScreenWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, ScreenInputConfig(MakeBlockingInputConfig(ECommonInputMode::Menu, EMouseCaptureMode::NoCapture))
 {
@@ -27,7 +27,7 @@ UPdScreenWidget::UPdScreenWidget(const FObjectInitializer& ObjectInitializer)
 	bAutoRestoreFocus = true;
 }
 
-void UPdScreenWidget::ConfigureScreen(UWidget* FocusTarget, FSimpleDelegate BackAction, const ECommonInputMode InputMode,
+void UScreenWidget::ConfigureScreen(UWidget* FocusTarget, FSimpleDelegate BackAction, const ECommonInputMode InputMode,
 	const EMouseCaptureMode MouseCapture)
 {
 	ScreenInputConfig = MakeBlockingInputConfig(InputMode, MouseCapture);
@@ -36,14 +36,14 @@ void UPdScreenWidget::ConfigureScreen(UWidget* FocusTarget, FSimpleDelegate Back
 	ScreenBackAction = MoveTemp(BackAction);
 }
 
-void UPdScreenWidget::NativeOnInitialized()
+void UScreenWidget::NativeOnInitialized()
 {
 	Super::NativeOnInitialized();
 	MenuLocalization = UMenuLocalizationExtension::Attach(*this, {MenuTextBindings, MenuTooltipBindings, MenuHintBindings},
 		FSimpleDelegate::CreateUObject(this, &ThisClass::OnMenuLanguageChanged));
 }
 
-void UPdScreenWidget::NativeConstruct()
+void UScreenWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 	if (Btn_GameSettings)
@@ -52,7 +52,7 @@ void UPdScreenWidget::NativeConstruct()
 	}
 }
 
-void UPdScreenWidget::NativeDestruct()
+void UScreenWidget::NativeDestruct()
 {
 	CloseGameSettings();
 	if (Btn_GameSettings)
@@ -62,17 +62,17 @@ void UPdScreenWidget::NativeDestruct()
 	Super::NativeDestruct();
 }
 
-TOptional<FUIInputConfig> UPdScreenWidget::GetDesiredInputConfig() const
+TOptional<FUIInputConfig> UScreenWidget::GetDesiredInputConfig() const
 {
 	return ScreenInputConfig;
 }
 
-UWidget* UPdScreenWidget::NativeGetDesiredFocusTarget() const
+UWidget* UScreenWidget::NativeGetDesiredFocusTarget() const
 {
 	return ScreenFocusTarget.Get();
 }
 
-bool UPdScreenWidget::NativeOnHandleBackAction()
+bool UScreenWidget::NativeOnHandleBackAction()
 {
 	if (ScreenBackAction.IsBound())
 	{
@@ -85,7 +85,7 @@ bool UPdScreenWidget::NativeOnHandleBackAction()
 	return true;
 }
 
-void UPdScreenWidget::OpenGameSettings()
+void UScreenWidget::OpenGameSettings()
 {
 	ULocalPlayer* LocalPlayer = GetOwningLocalPlayer();
 	if (UUiSubsystem* Ui = LocalPlayer ? LocalPlayer->GetSubsystem<UUiSubsystem>() : nullptr)
@@ -94,29 +94,29 @@ void UPdScreenWidget::OpenGameSettings()
 	}
 }
 
-bool UPdScreenWidget::CloseGameSettings()
+bool UScreenWidget::CloseGameSettings()
 {
 	ULocalPlayer* LocalPlayer = GetOwningLocalPlayer();
 	UUiSubsystem* Ui = LocalPlayer ? LocalPlayer->GetSubsystem<UUiSubsystem>() : nullptr;
 	return Ui && Ui->CloseGameSettings(this);
 }
 
-UMenuLocalizationSubsystem* UPdScreenWidget::GetLocalization() const
+UMenuLocalizationSubsystem* UScreenWidget::GetLocalization() const
 {
 	return GetGameInstance() ? GetGameInstance()->GetSubsystem<UMenuLocalizationSubsystem>() : nullptr;
 }
 
-FText UPdScreenWidget::MenuText(FName Key) const
+FText UScreenWidget::MenuText(FName Key) const
 {
 	return UMenuLocalizationSubsystem::GetText(Key);
 }
 
-FText UPdScreenWidget::MenuTextOrFallback(FName Key, const FText& Fallback) const
+FText UScreenWidget::MenuTextOrFallback(FName Key, const FText& Fallback) const
 {
 	return UMenuLocalizationSubsystem::GetTextOrFallback(Key, Fallback);
 }
 
-void UPdScreenWidget::SetHoverTooltip(UWidget* Widget, const FText& Text)
+void UScreenWidget::SetHoverTooltip(UWidget* Widget, const FText& Text)
 {
 	if (MenuLocalization)
 	{

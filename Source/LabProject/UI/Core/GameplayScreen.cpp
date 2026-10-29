@@ -3,7 +3,7 @@
 #include "Blueprint/WidgetTree.h"
 #include "Components/Overlay.h"
 #include "Engine/LocalPlayer.h"
-#include "UI/Core/PdUIActionRouter.h"
+#include "UI/Core/UiActionRouter.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayScreen)
 
@@ -28,7 +28,7 @@ UGameplayScreen* UGameplayScreen::Create(APlayerController* OwningPlayer, FSimpl
 
 TOptional<FUIInputConfig> UGameplayScreen::GetDesiredInputConfig() const
 {
-	const UPdUIActionRouter* Router = ULocalPlayer::GetSubsystem<UPdUIActionRouter>(GetOwningLocalPlayer());
+	const UUiActionRouter* Router = ULocalPlayer::GetSubsystem<UUiActionRouter>(GetOwningLocalPlayer());
 	return Router ? Router->MakeDefaultInputConfig() : TOptional<FUIInputConfig>();
 }
 

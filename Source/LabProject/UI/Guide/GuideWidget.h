@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UI/Core/PdScreenWidget.h"
+#include "UI/Core/ScreenWidget.h"
 #include "Definition/UI/GuideDefinition.h"
 #include "Fonts/SlateFontInfo.h"
 #include "GuideWidget.generated.h"
@@ -16,7 +16,7 @@ class UWidget;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnGuideClosed, UGuideWidget*, GuideWidget);
 
 UCLASS(Blueprintable, BlueprintType)
-class LABPROJECT_API UGuideWidget : public UPdScreenWidget
+class LABPROJECT_API UGuideWidget : public UScreenWidget
 {
 	GENERATED_BODY()
 

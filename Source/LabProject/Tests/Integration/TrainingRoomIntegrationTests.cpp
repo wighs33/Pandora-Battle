@@ -348,7 +348,7 @@ bool FPdInfoShortcutsTest::RunTest(const FString& Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPdHeldKeyAcrossMenuTest, "LabProject.Integration.TrainingRoom.HeldKeyAcrossMenu",
 	EAutomationTestFlags::ClientContext | EAutomationTestFlags::EngineFilter)
 
-// 메뉴가 떠 있는 동안 누른 스킬 키를 누른 채 메뉴를 닫아도, 뗄 때까지 게임 입력이 되지 않는다(UPdUIActionRouter의 KeysAwaitingRelease).
+// 메뉴가 떠 있는 동안 누른 스킬 키를 누른 채 메뉴를 닫아도, 뗄 때까지 게임 입력이 되지 않는다(UUiActionRouter의 KeysAwaitingRelease).
 // 게임 입력은 그 키가 눌린 줄 모르므로, 막지 않으면 첫 키 반복을 새로 누른 것으로 처리해 스킬 입력이 들어간다.
 bool FPdHeldKeyAcrossMenuTest::RunTest(const FString& Parameters)
 {
