@@ -15,6 +15,7 @@
 #include "OnlineSubsystemUtils.h"
 #include "TimerManager.h"
 #include "Common/GameResultTypes.h"
+#include "Common/PdTicker.h"
 #include "Component/Match/MatchOutcomeRules.h"
 #include "Component/Match/MatchResultReport.h"
 
@@ -462,12 +463,13 @@ void UOnlineSessionsSubsystem::HandleNetworkFailure(
 			{
 				const ULevelDefinition* Levels = ULevelDefinition::ResolveDefaultDefinition();
 				const FString TitleMapName = Levels ? Levels->GetTitleTravelMapName() : FString();
-				World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateWeakLambda(World, [World, TitleMapName]() {
-					if (IsValid(World) && !TitleMapName.IsEmpty())
+				PdTicker::RunNextTick(World, [World, TitleMapName]()
+				{
+					if (!TitleMapName.IsEmpty())
 					{
 						UGameplayStatics::OpenLevel(World, FName(*TitleMapName));
 					}
-				}));
+				});
 			}
 			return;
 		}

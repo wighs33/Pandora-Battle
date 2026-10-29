@@ -9,10 +9,10 @@
 #include "Kismet/GameplayStatics.h"
 #include "Engine/GameInstance.h"
 #include "Audio/BgmSubsystem.h"
+#include "Common/PdTicker.h"
 #include "Online/OnlineSessionsSubsystem.h"
 #include "UI/Room/CreateRoomPopupWidget.h"
 #include "UI/Room/RoomItemWidget.h"
-#include "TimerManager.h"
 #include "UI/Core/UiSubsystem.h"
 #include "UI/Settings/AudioVolumeControl.h"
 #include "UI/Core/WidgetClassDefinition.h"
@@ -350,16 +350,10 @@ void URoomListWidget::OpenTitleMap() const
 	const FString TitleMapName = GetResolvedTitleTravelMapName();
 	if (!TitleMapName.IsEmpty())
 	{
-		if (UWorld* World = GetWorld())
+		PdTicker::RunNextTick(this, [this, TitleMapName]()
 		{
-			World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateWeakLambda(this, [this, TitleMapName]()
-			{
-				UGameplayStatics::OpenLevel(this, FName(*TitleMapName));
-			}));
-			return;
-		}
-
-		UGameplayStatics::OpenLevel(this, FName(*TitleMapName));
+			UGameplayStatics::OpenLevel(this, FName(*TitleMapName));
+		});
 	}
 }
 
