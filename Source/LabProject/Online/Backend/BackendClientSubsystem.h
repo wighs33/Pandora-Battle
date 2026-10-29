@@ -36,22 +36,22 @@ struct FBackendPlayerStats
 {
 	GENERATED_BODY()
 
-	UPROPERTY(BlueprintReadOnly, Category = "Backend")
+	UPROPERTY(BlueprintReadOnly, Category = "!Backend")
 	int32 Matches = 0;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Backend")
+	UPROPERTY(BlueprintReadOnly, Category = "!Backend")
 	int32 Wins = 0;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Backend")
+	UPROPERTY(BlueprintReadOnly, Category = "!Backend")
 	int32 Losses = 0;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Backend")
+	UPROPERTY(BlueprintReadOnly, Category = "!Backend")
 	int32 Draws = 0;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Backend")
+	UPROPERTY(BlueprintReadOnly, Category = "!Backend")
 	int32 Kills = 0;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Backend")
+	UPROPERTY(BlueprintReadOnly, Category = "!Backend")
 	int32 Deaths = 0;
 };
 
@@ -60,26 +60,26 @@ struct FBackendMatchRecord
 {
 	GENERATED_BODY()
 
-	UPROPERTY(BlueprintReadOnly, Category = "Backend")
+	UPROPERTY(BlueprintReadOnly, Category = "!Backend")
 	FString MatchId;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Backend")
+	UPROPERTY(BlueprintReadOnly, Category = "!Backend")
 	FString RecordedAt;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Backend")
+	UPROPERTY(BlueprintReadOnly, Category = "!Backend")
 	FString MapKey;
 
 	/** win, lose, draw */
-	UPROPERTY(BlueprintReadOnly, Category = "Backend")
+	UPROPERTY(BlueprintReadOnly, Category = "!Backend")
 	FString Result;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Backend")
+	UPROPERTY(BlueprintReadOnly, Category = "!Backend")
 	int32 Team = INDEX_NONE;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Backend")
+	UPROPERTY(BlueprintReadOnly, Category = "!Backend")
 	int32 Kills = 0;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Backend")
+	UPROPERTY(BlueprintReadOnly, Category = "!Backend")
 	int32 Deaths = 0;
 };
 
@@ -88,16 +88,16 @@ struct FBackendPlayerProfile
 {
 	GENERATED_BODY()
 
-	UPROPERTY(BlueprintReadOnly, Category = "Backend")
+	UPROPERTY(BlueprintReadOnly, Category = "!Backend")
 	FString PlayerId;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Backend")
+	UPROPERTY(BlueprintReadOnly, Category = "!Backend")
 	FString DisplayName;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Backend")
+	UPROPERTY(BlueprintReadOnly, Category = "!Backend")
 	FBackendPlayerStats Stats;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Backend")
+	UPROPERTY(BlueprintReadOnly, Category = "!Backend")
 	TArray<FBackendMatchRecord> RecentMatches;
 };
 
@@ -157,29 +157,29 @@ public:
 
 	// Public API ------------------------------------------------------------------------------------------------------
 	/** Steam으로 로그인한다. 실행 인자 -BackendDevLogin=<id>가 있으면 개발용 로그인을 대신 쓴다. */
-	UFUNCTION(BlueprintCallable, Category = "Backend")
+	UFUNCTION(BlueprintCallable, Category = "!Backend")
 	void Login();
 
 	/** 백엔드 스테이지가 AllowDevLogin=true일 때만 성공한다. */
-	UFUNCTION(BlueprintCallable, Category = "Backend")
+	UFUNCTION(BlueprintCallable, Category = "!Backend")
 	void LoginAsDeveloper(const FString& DevId);
 
 	/** 필요하면 먼저 로그인한 뒤, 백엔드가 잡아 준 GameLift 게임 세션으로 이동한다. */
-	UFUNCTION(BlueprintCallable, Category = "Backend")
+	UFUNCTION(BlueprintCallable, Category = "!Backend")
 	void JoinOnlineMatch(EOnlineMatchMode Mode = EOnlineMatchMode::Match);
 
-	UFUNCTION(BlueprintPure, Category = "Backend")
+	UFUNCTION(BlueprintPure, Category = "!Backend")
 	bool IsMatchJoinInProgress() const { return bMatchJoinInProgress; }
 
-	UFUNCTION(BlueprintCallable, Category = "Backend")
+	UFUNCTION(BlueprintCallable, Category = "!Backend")
 	void RequestMyProfile();
 
 	/** 보스 레이드가 지금 열려 있는지 묻는다. 운영자가 백엔드에서 열고 닫으며, 로그인 없이 물을 수 있다. */
-	UFUNCTION(BlueprintCallable, Category = "Backend")
+	UFUNCTION(BlueprintCallable, Category = "!Backend")
 	void RequestBossRaidStatus();
 
 	/** 마지막으로 받은 보스 레이드 개최 여부. 아직 받지 못했으면 닫힌 것으로 본다. */
-	UFUNCTION(BlueprintPure, Category = "Backend")
+	UFUNCTION(BlueprintPure, Category = "!Backend")
 	bool IsBossRaidOpen() const { return BossRaidStatus.bOpen; }
 
 	const FBackendBossRaidStatus& GetBossRaidStatus() const { return BossRaidStatus; }
@@ -204,31 +204,31 @@ public:
 	/** GameLift 없이 로컬 전용 서버로 전적 기록을 시험한다. 서버는 이 경로의 PlayerId를 검증하지 않는다. */
 	void ConnectToLocalServer(const FString& Address);
 
-	UFUNCTION(BlueprintPure, Category = "Backend")
+	UFUNCTION(BlueprintPure, Category = "!Backend")
 	bool IsLoggedIn() const { return LoginState == EBackendLoginState::LoggedIn; }
 
-	UFUNCTION(BlueprintPure, Category = "Backend")
+	UFUNCTION(BlueprintPure, Category = "!Backend")
 	EBackendLoginState GetLoginState() const { return LoginState; }
 
-	UFUNCTION(BlueprintPure, Category = "Backend")
+	UFUNCTION(BlueprintPure, Category = "!Backend")
 	const FString& GetPlayerId() const { return PlayerId; }
 
-	UFUNCTION(BlueprintPure, Category = "Backend")
+	UFUNCTION(BlueprintPure, Category = "!Backend")
 	const FString& GetDisplayName() const { return DisplayName; }
 
 	// Event Handlers --------------------------------------------------------------------------------------------------
-	UPROPERTY(BlueprintAssignable, Category = "Backend")
+	UPROPERTY(BlueprintAssignable, Category = "!Backend")
 	FOnBackendRequestFinished OnLoginFinished;
 
 	/** 성공은 게임 서버로 이동을 시작했다는 뜻이다. 접속 실패는 기존 네트워크 오류 흐름이 처리한다. */
-	UPROPERTY(BlueprintAssignable, Category = "Backend")
+	UPROPERTY(BlueprintAssignable, Category = "!Backend")
 	FOnBackendRequestFinished OnMatchJoinFinished;
 
-	UPROPERTY(BlueprintAssignable, Category = "Backend")
+	UPROPERTY(BlueprintAssignable, Category = "!Backend")
 	FOnBackendProfileReceived OnProfileReceived;
 
 	/** 개최 여부를 받았을 때와, 레이드가 닫혀 참가가 거절됐을 때 알린다. */
-	UPROPERTY(BlueprintAssignable, Category = "Backend")
+	UPROPERTY(BlueprintAssignable, Category = "!Backend")
 	FOnBackendBossRaidStatus OnBossRaidStatusUpdated;
 
 	FOnBackendBossRaidStandingUpdated OnBossRaidStandingUpdated;

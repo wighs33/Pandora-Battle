@@ -31,25 +31,25 @@ public:
 	FString GetGameServerRoleArn() const;
 
 private:
-	UPROPERTY(Config, EditAnywhere, Category = "Backend")
+	UPROPERTY(Config, EditAnywhere, Category = "!Backend")
 	FString ApiBaseUrl;
 
 	/** SigV4 서명에 쓰는 API Gateway 리전. */
-	UPROPERTY(Config, EditAnywhere, Category = "Backend")
+	UPROPERTY(Config, EditAnywhere, Category = "!Backend")
 	FString AwsRegion = TEXT("ap-northeast-2");
 
 	/** 클라이언트의 Steam Web API 티켓 identity. 백엔드의 SteamTicketIdentity와 같아야 한다. */
-	UPROPERTY(Config, EditAnywhere, Category = "Backend|Steam")
+	UPROPERTY(Config, EditAnywhere, Category = "!Backend|Steam")
 	FString SteamWebApiIdentity = TEXT("labproject-backend");
 
 	/** 매치 참가 요청은 백엔드가 새 게임 세션이 ACTIVE가 될 때까지 기다리므로 API Gateway 한도(30초)에 맞춘다. */
-	UPROPERTY(Config, EditAnywhere, Category = "Backend", meta = (ClampMin = "1.0"))
+	UPROPERTY(Config, EditAnywhere, Category = "!Backend", meta = (ClampMin = "1.0"))
 	float ClientRequestTimeoutSeconds = 30.0f;
 
 	/** 서버는 결과 보고가 끝나야 GameLift 프로세스를 종료하므로 짧게 둔다. */
-	UPROPERTY(Config, EditAnywhere, Category = "Backend|Server", meta = (ClampMin = "1.0"))
+	UPROPERTY(Config, EditAnywhere, Category = "!Backend|Server", meta = (ClampMin = "1.0"))
 	float ServerReportTimeoutSeconds = 10.0f;
 
-	UPROPERTY(Config, EditAnywhere, Category = "Backend|Server")
+	UPROPERTY(Config, EditAnywhere, Category = "!Backend|Server")
 	FString GameServerRoleArn;
 };

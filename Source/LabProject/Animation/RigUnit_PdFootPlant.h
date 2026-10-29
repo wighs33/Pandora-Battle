@@ -11,15 +11,15 @@ struct FPdFootPlantLeg
 	GENERATED_BODY()
 
 	/** 허벅지(위팔). */
-	UPROPERTY(EditAnywhere, Category = "Leg", meta = (Input))
+	UPROPERTY(EditAnywhere, Category = "!Leg", meta = (Input))
 	FRigElementKey Upper;
 
 	/** 정강이(아래팔). 무릎(팔꿈치)이 이 뼈의 시작점이다. */
-	UPROPERTY(EditAnywhere, Category = "Leg", meta = (Input))
+	UPROPERTY(EditAnywhere, Category = "!Leg", meta = (Input))
 	FRigElementKey Lower;
 
 	/** 땅에 닿는 발(손). */
-	UPROPERTY(EditAnywhere, Category = "Leg", meta = (Input))
+	UPROPERTY(EditAnywhere, Category = "!Leg", meta = (Input))
 	FRigElementKey Foot;
 };
 

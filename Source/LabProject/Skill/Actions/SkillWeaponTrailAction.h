@@ -19,7 +19,7 @@ class LABPROJECT_API USkillWeaponTrailAction : public USkillAction
 
 public:
 	/** 무기의 궤적과 검기 타격을 몽타주 이벤트에 연결한다. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings", meta = (ShowOnlyInnerProperties))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "!Settings", meta = (ShowOnlyInnerProperties))
 	FSkillSwordTrailSettings Settings;
 
 protected:

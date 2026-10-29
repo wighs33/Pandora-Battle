@@ -18,10 +18,10 @@ struct FGameFeatureSpawnActorEntry
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, Category = "Spawn")
+	UPROPERTY(EditAnywhere, Category = "!Spawn")
 	TSoftClassPtr<AActor> ActorClass;
 
-	UPROPERTY(EditAnywhere, Category = "Spawn")
+	UPROPERTY(EditAnywhere, Category = "!Spawn")
 	FTransform Transform;
 };
 
@@ -32,10 +32,10 @@ struct FGameFeatureSpawnWorldEntry
 	GENERATED_BODY()
 
 	/** 이 맵이 열렸을 때만 놓는다. */
-	UPROPERTY(EditAnywhere, Category = "Spawn")
+	UPROPERTY(EditAnywhere, Category = "!Spawn")
 	TSoftObjectPtr<UWorld> TargetWorld;
 
-	UPROPERTY(EditAnywhere, Category = "Spawn")
+	UPROPERTY(EditAnywhere, Category = "!Spawn")
 	TArray<FGameFeatureSpawnActorEntry> Actors;
 };
 
@@ -62,7 +62,7 @@ public:
 	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
 #endif
 
-	UPROPERTY(EditAnywhere, Category = "Spawn")
+	UPROPERTY(EditAnywhere, Category = "!Spawn")
 	TArray<FGameFeatureSpawnWorldEntry> SpawnEntries;
 
 protected:

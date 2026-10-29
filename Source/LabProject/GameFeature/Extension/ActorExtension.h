@@ -28,10 +28,10 @@ public:
 	void OnDeactivate(AActor* Owner);
 
 public:
-	UPROPERTY(EditAnywhere, Category = "Extension")
+	UPROPERTY(EditAnywhere, Category = "!Extension")
 	TArray<TInstancedStruct<FExtensionCondition>> Conditions;
 
-	UPROPERTY(EditAnywhere, Category = "Extension")
+	UPROPERTY(EditAnywhere, Category = "!Extension")
 	TArray<TInstancedStruct<FExtensionExecute>> Executes;
 
 private:

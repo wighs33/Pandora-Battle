@@ -26,7 +26,7 @@ public:
 	UWidget* GetInitialFocusTarget() const { return CB_SettingsLanguage; }
 
 	// Event Handlers --------------------------------------------------------------------------------------------------
-	UFUNCTION(BlueprintCallable, Category="UI|Settings") void CloseSettings();
+	UFUNCTION(BlueprintCallable, Category="!UI|Settings") void CloseSettings();
 
 protected:
 	virtual void OnMenuLanguageChanged() override;
@@ -64,8 +64,8 @@ protected:
 	/** 0번은 일반 설정, 1번은 훈련장 설정 페이지. */
 	UPROPERTY(meta=(BindWidget)) TObjectPtr<UWidgetSwitcher> Switcher_SettingsPages;
 
-	UPROPERTY(EditDefaultsOnly, Category="UI|Settings") FLinearColor SelectedTabColor = FLinearColor::White;
-	UPROPERTY(EditDefaultsOnly, Category="UI|Settings") FLinearColor UnselectedTabColor = FLinearColor(0.45f, 0.4f, 0.5f, 1.f);
+	UPROPERTY(EditDefaultsOnly, Category="!UI|Settings") FLinearColor SelectedTabColor = FLinearColor::White;
+	UPROPERTY(EditDefaultsOnly, Category="!UI|Settings") FLinearColor UnselectedTabColor = FLinearColor(0.45f, 0.4f, 0.5f, 1.f);
 
 private:
 	UPROPERTY(Transient) TObjectPtr<UAudioVolumeControl> SoundButtonControl;

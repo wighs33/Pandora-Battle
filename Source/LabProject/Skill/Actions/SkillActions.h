@@ -17,7 +17,7 @@ class LABPROJECT_API USkillWaitAction : public USkillAction
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, Category = "Skill", meta = (ClampMin = "0", Units = "s"))
+	UPROPERTY(EditAnywhere, Category = "!Skill", meta = (ClampMin = "0", Units = "s"))
 	float Seconds = 0.0f;
 
 protected:
@@ -38,9 +38,9 @@ class LABPROJECT_API USkillWaitEventAction : public USkillAction
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, Category = "Skill", meta = (Categories = "Event"))
+	UPROPERTY(EditAnywhere, Category = "!Skill", meta = (Categories = "Event"))
 	FGameplayTag EventTag;
-	UPROPERTY(EditAnywhere, Category = "Skill", meta = (ClampMin = "0.01", Units = "s"))
+	UPROPERTY(EditAnywhere, Category = "!Skill", meta = (ClampMin = "0.01", Units = "s"))
 	float Timeout = 10.0f;
 
 protected:
@@ -65,7 +65,7 @@ class LABPROJECT_API USkillMontageAction : public USkillAction
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, Category = "Skill")
+	UPROPERTY(EditAnywhere, Category = "!Skill")
 	TObjectPtr<UAnimMontage> Montage;
 
 protected:
@@ -91,14 +91,14 @@ class LABPROJECT_API USkillDashAction : public USkillAction
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, Category = "Skill", meta = (ClampMin = "0", Units = "cm/s"))
+	UPROPERTY(EditAnywhere, Category = "!Skill", meta = (ClampMin = "0", Units = "cm/s"))
 	float Speed = 1000.0f;
-	UPROPERTY(EditAnywhere, Category = "Skill", meta = (ClampMin = "0.01", Units = "s"))
+	UPROPERTY(EditAnywhere, Category = "!Skill", meta = (ClampMin = "0.01", Units = "s"))
 	float Duration = 0.2f;
-	UPROPERTY(EditAnywhere, Category = "Skill")
+	UPROPERTY(EditAnywhere, Category = "!Skill")
 	bool bEnableGravity = false;
 	/** 대시 GameplayCue가 실행되는 동안 캐릭터를 숨긴다. */
-	UPROPERTY(EditAnywhere, Category = "Skill")
+	UPROPERTY(EditAnywhere, Category = "!Skill")
 	bool bHideCharacter = true;
 
 	// Public API ------------------------------------------------------------------------------------------------------
@@ -129,9 +129,9 @@ class LABPROJECT_API USkillGameplayEffectAction : public USkillAction
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, Category = "Skill")
+	UPROPERTY(EditAnywhere, Category = "!Skill")
 	FSkillGameplayEffectConfig Effect;
-	UPROPERTY(EditAnywhere, Category = "Skill")
+	UPROPERTY(EditAnywhere, Category = "!Skill")
 	bool bApplyToSelf = false;
 
 protected:
@@ -145,9 +145,9 @@ class LABPROJECT_API USkillAreaDamageAction : public USkillAction
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, Category = "Skill")
+	UPROPERTY(EditAnywhere, Category = "!Skill")
 	FSkillGameplayEffectConfig Damage;
-	UPROPERTY(EditAnywhere, Category = "Skill", meta = (ClampMin = "0", Units = "cm"))
+	UPROPERTY(EditAnywhere, Category = "!Skill", meta = (ClampMin = "0", Units = "cm"))
 	float Radius = 300.0f;
 
 protected:
@@ -162,13 +162,13 @@ class LABPROJECT_API USkillSpawnActorAction : public USkillAction
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, Category = "Skill")
+	UPROPERTY(EditAnywhere, Category = "!Skill")
 	TSubclassOf<AActor> ActorClass;
-	UPROPERTY(EditAnywhere, Category = "Skill")
+	UPROPERTY(EditAnywhere, Category = "!Skill")
 	FTransform Offset = FTransform::Identity;
-	UPROPERTY(EditAnywhere, Category = "Skill", meta = (ClampMin = "0.01", Units = "s"))
+	UPROPERTY(EditAnywhere, Category = "!Skill", meta = (ClampMin = "0.01", Units = "s"))
 	float LifeSpan = 10.0f;
-	UPROPERTY(EditAnywhere, Category = "Skill")
+	UPROPERTY(EditAnywhere, Category = "!Skill")
 	bool bProjectToGround = true;
 
 protected:
@@ -183,17 +183,17 @@ class LABPROJECT_API USkillProjectileAction : public USkillAction
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, Category = "Skill")
+	UPROPERTY(EditAnywhere, Category = "!Skill")
 	TSubclassOf<ASkillProjectile> ProjectileClass;
-	UPROPERTY(EditAnywhere, Category = "Skill", meta = (ClampMin = "1", Units = "cm/s"))
+	UPROPERTY(EditAnywhere, Category = "!Skill", meta = (ClampMin = "1", Units = "cm/s"))
 	float Speed = 1500.0f;
-	UPROPERTY(EditAnywhere, Category = "Skill")
+	UPROPERTY(EditAnywhere, Category = "!Skill")
 	FVector SpawnOffset = FVector(100.0, 0.0, 0.0);
-	UPROPERTY(EditAnywhere, Category = "Skill", meta = (ClampMin = "0.01", Units = "s"))
+	UPROPERTY(EditAnywhere, Category = "!Skill", meta = (ClampMin = "0.01", Units = "s"))
 	float MaxFlightSeconds = 10.0f;
-	UPROPERTY(EditAnywhere, Category = "Skill")
+	UPROPERTY(EditAnywhere, Category = "!Skill")
 	FSkillGameplayEffectConfig Damage;
-	UPROPERTY(EditAnywhere, Instanced, Category = "Skill")
+	UPROPERTY(EditAnywhere, Instanced, Category = "!Skill")
 	TObjectPtr<USkillAction> OnImpact;
 
 protected:
@@ -219,11 +219,11 @@ class LABPROJECT_API USkillRepeatAction : public USkillAction
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, Instanced, Category = "Skill")
+	UPROPERTY(EditAnywhere, Instanced, Category = "!Skill")
 	TObjectPtr<USkillAction> Action;
-	UPROPERTY(EditAnywhere, Category = "Skill", meta = (ClampMin = "0"))
+	UPROPERTY(EditAnywhere, Category = "!Skill", meta = (ClampMin = "0"))
 	int32 Count = 1;
-	UPROPERTY(EditAnywhere, Category = "Skill", meta = (ClampMin = "0.01", Units = "s"))
+	UPROPERTY(EditAnywhere, Category = "!Skill", meta = (ClampMin = "0.01", Units = "s"))
 	float Interval = 0.5f;
 
 protected:

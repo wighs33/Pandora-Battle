@@ -16,15 +16,15 @@ public:
 	virtual bool IsSatisfied(AActor* Owner) const override;
 
 public:
-	UPROPERTY(EditAnywhere, Category = "Condition")
+	UPROPERTY(EditAnywhere, Category = "!Condition")
 	uint8 bRequirePlayerController : 1 = true;
 
-	UPROPERTY(EditAnywhere, Category = "Condition")
+	UPROPERTY(EditAnywhere, Category = "!Condition")
 	uint8 bRequirePlayerStateLinked : 1 = true;
 
-	UPROPERTY(EditAnywhere, Category = "Condition")
+	UPROPERTY(EditAnywhere, Category = "!Condition")
 	uint8 bRequireAbilitySystemReady : 1 = true;
 
-	UPROPERTY(EditAnywhere, Category = "Condition", meta = (EditCondition = "bRequireAbilitySystemReady"))
+	UPROPERTY(EditAnywhere, Category = "!Condition", meta = (EditCondition = "bRequireAbilitySystemReady"))
 	TArray<TSubclassOf<UAttributeSet>> RequiredAttributeSets;
 };

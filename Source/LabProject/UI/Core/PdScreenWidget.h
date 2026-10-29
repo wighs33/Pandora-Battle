@@ -53,16 +53,16 @@ protected:
 
 protected:
 	/** 아래 연결 표는 ULocalizedMenuWidget과 이름이 같아, 패널에서 화면으로 바꾼 위젯 애셋이 값을 그대로 쓴다. */
-	UPROPERTY(EditDefaultsOnly, Category="UI|Localization")
+	UPROPERTY(EditDefaultsOnly, Category="!UI|Localization")
 	TMap<FName, FName> MenuTextBindings;
 
-	UPROPERTY(EditDefaultsOnly, Category="UI|Localization")
+	UPROPERTY(EditDefaultsOnly, Category="!UI|Localization")
 	TMap<FName, FName> MenuTooltipBindings;
 
-	UPROPERTY(EditDefaultsOnly, Category="UI|Localization")
+	UPROPERTY(EditDefaultsOnly, Category="!UI|Localization")
 	TMap<FName, FName> MenuHintBindings;
 
-	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="UI|Settings")
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="!UI|Settings")
 	TObjectPtr<UButton> Btn_GameSettings;
 
 private:

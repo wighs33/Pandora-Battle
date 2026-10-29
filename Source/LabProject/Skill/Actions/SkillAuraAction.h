@@ -52,11 +52,11 @@ private:
 
 public:
 	/** 실행 중 장판 생성, 이동 속도 보정과 아군 회복을 관리한다. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings", meta = (ShowOnlyInnerProperties))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "!Settings", meta = (ShowOnlyInnerProperties))
 	FAuraSkillConfig Settings;
 
 	/** 범위 안의 아군에게 적용할 회복 설정. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Healing", meta = (ShowOnlyInnerProperties))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "!Healing", meta = (ShowOnlyInnerProperties))
 	FSkillHealSettings Healing;
 
 private:

@@ -59,16 +59,16 @@ private:
 	void DeactivateAllActorExtensions(FGameFeatureActorExtensionHandles& Handles) const;
 
 public:
-	UPROPERTY(EditAnywhere, Category = "Extension", meta = (AllowAbstract = "false"))
+	UPROPERTY(EditAnywhere, Category = "!Extension", meta = (AllowAbstract = "false"))
 	TSoftClassPtr<AActor> TargetClass;
 
-	UPROPERTY(EditAnywhere, Category = "Extension")
+	UPROPERTY(EditAnywhere, Category = "!Extension")
 	FActorExtension Extension;
 
-	UPROPERTY(EditAnywhere, Category = "Network", meta = (EditCondition = "bClientAction"))
+	UPROPERTY(EditAnywhere, Category = "!Network", meta = (EditCondition = "bClientAction"))
 	uint8 bAddToLocallyControlled : 1 = false;
 
-	UPROPERTY(EditAnywhere, Category = "Network", meta = (EditCondition = "bClientAction"))
+	UPROPERTY(EditAnywhere, Category = "!Network", meta = (EditCondition = "bClientAction"))
 	uint8 bAddToSimulatedProxy : 1 = false;
 
 private:

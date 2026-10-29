@@ -28,7 +28,7 @@ class LABPROJECT_API USkillSummonAction : public USkillAction
 
 public:
 	/** 소환물의 등장, 상승, 피해 활성화와 수명을 관리한다. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings", meta = (ShowOnlyInnerProperties))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "!Settings", meta = (ShowOnlyInnerProperties))
 	FSkillSummonSettings Settings;
 
 protected:

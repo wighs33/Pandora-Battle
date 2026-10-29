@@ -60,10 +60,10 @@ private:
 	void RemoveAllWidgets(FGameFeatureWidgetHandles& Handles) const;
 
 public:
-	UPROPERTY(EditAnywhere, Category = "UI", meta = (AllowAbstract = "false"))
+	UPROPERTY(EditAnywhere, Category = "!UI", meta = (AllowAbstract = "false"))
 	TSoftClassPtr<APdHUD> TargetHudClass;
 
-	UPROPERTY(EditAnywhere, Category = "UI", meta = (AssetBundles = "Client"))
+	UPROPERTY(EditAnywhere, Category = "!UI", meta = (AssetBundles = "Client"))
 	TSoftObjectPtr<UWidgetClassDefinition> WidgetClassDefinition;
 
 private:

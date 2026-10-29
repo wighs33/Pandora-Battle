@@ -31,84 +31,84 @@ class LABPROJECT_API APortalActor : public AActor
 	GENERATED_BODY()
 
 protected:
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Portal|Components", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Portal|Components", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<USceneComponent> SceneRootComponent;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Portal|Components", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Portal|Components", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UStaticMeshComponent> PortalPlaneComponent;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Portal|Components", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Portal|Components", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UArrowComponent> ForwardDirectionComponent;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Portal|Components", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Portal|Components", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UNiagaraComponent> FXComponent;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Portal|Components", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Portal|Components", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UBoxComponent> PlayerDetectionComponent;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Portal|Components", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Portal|Components", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<USceneCaptureComponent2D> PortalCameraComponent;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Portal|Components", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Portal|Components", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UBoxComponent> BoxComponent;
 
-	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "Portal")
+	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "!Portal")
 	TObjectPtr<APortalActor> LinkedPortal;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Portal|Teleport")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Portal|Teleport")
 	TSubclassOf<AActor> TeleportableActorClass;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Portal|Teleport", meta = (ClampMin = "0.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Portal|Teleport", meta = (ClampMin = "0.0"))
 	float TeleportCooldown = 0.25f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Portal|Teleport", meta = (ClampMin = "0.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Portal|Teleport", meta = (ClampMin = "0.0"))
 	float ExitOffset = 55.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Portal|Teleport", meta = (ClampMin = "0.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Portal|Teleport", meta = (ClampMin = "0.0"))
 	float CrossingDistanceTolerance = 1.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Portal|Teleport")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Portal|Teleport")
 	bool bTeleportOnlyOnAuthority = true;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Portal|Scene Capture")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Portal|Scene Capture")
 	bool bUpdateOnlyWhenOverlapping = true;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Portal|Scene Capture")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Portal|Scene Capture")
 	bool bCopyPlayerCameraFov = true;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Portal|Scene Capture")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Portal|Scene Capture")
 	bool bCopyPlayerCameraPostProcess = true;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Portal|Scene Capture")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Portal|Scene Capture")
 	bool bEnablePortalClipPlane = true;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Portal|Scene Capture")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Portal|Scene Capture")
 	float ClipPlaneOffset = 3.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Portal|Scene Capture", meta = (ClampMin = "0.01"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Portal|Scene Capture", meta = (ClampMin = "0.01"))
 	float InitRetryInterval = 0.1f;
 
 	/** BP_Portal이 참조하는 soft 정의. 쿡 전에 애셋 번들을 검증한다. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Portal|Definition",
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Portal|Definition",
 		meta = (AssetBundles = "Portal"))
 	TSoftObjectPtr<UPortalDefinition> PortalDefinition;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Portal|Material")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Portal|Material")
 	FName TextureParameterName = TEXT("Texture");
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Portal|Material")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Portal|Material")
 	FName OffsetDistanceParameterName = TEXT("OffsetDistance");
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Portal|Material")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Portal|Material")
 	float PortalEffectOffsetAmount = 0.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Portal|VFX")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Portal|VFX")
 	FName VortexVectorParameterName = TEXT("VortexVector");
 
-	UPROPERTY(Transient, BlueprintReadWrite, Category = "Portal|Runtime")
+	UPROPERTY(Transient, BlueprintReadWrite, Category = "!Portal|Runtime")
 	TObjectPtr<UMaterialInstanceDynamic> PortalMat;
 
-	UPROPERTY(Transient, BlueprintReadWrite, Category = "Portal|Runtime")
+	UPROPERTY(Transient, BlueprintReadWrite, Category = "!Portal|Runtime")
 	TObjectPtr<UTextureRenderTarget2D> PortalRT;
 
 public:
@@ -125,20 +125,20 @@ public:
 	// Public API ------------------------------------------------------------------------------------------------------
 	APortalActor(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-	UFUNCTION(BlueprintCallable, Category = "Portal")
+	UFUNCTION(BlueprintCallable, Category = "!Portal")
 	void NativeUpdateSceneCapture();
 
-	UFUNCTION(BlueprintCallable, Category = "Portal")
+	UFUNCTION(BlueprintCallable, Category = "!Portal")
 	bool NativeTryTeleportOverlappingActor();
 
-	UFUNCTION(BlueprintPure, Category = "Portal")
+	UFUNCTION(BlueprintPure, Category = "!Portal")
 	FVector GetPortalForward() const;
 
-	UFUNCTION(BlueprintPure, Category = "Portal")
+	UFUNCTION(BlueprintPure, Category = "!Portal")
 	FVector GetPortalPlaneLocation() const;
 
 	// Event Handlers --------------------------------------------------------------------------------------------------
-	UFUNCTION(BlueprintCallable, Category = "Portal")
+	UFUNCTION(BlueprintCallable, Category = "!Portal")
 	void NativeTryInitPortalMaterial();
 
 private:

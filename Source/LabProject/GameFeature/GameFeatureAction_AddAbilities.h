@@ -21,13 +21,13 @@ struct FGameFeatureAbilityEntry
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, Category = "Ability", meta = (AssetBundles = "Server"))
+	UPROPERTY(EditAnywhere, Category = "!Ability", meta = (AssetBundles = "Server"))
 	TSoftClassPtr<UGameplayAbility> Ability;
 
-	UPROPERTY(EditAnywhere, Category = "Ability", meta = (ClampMin = "1"))
+	UPROPERTY(EditAnywhere, Category = "!Ability", meta = (ClampMin = "1"))
 	int32 Level = 1;
 
-	UPROPERTY(EditAnywhere, Category = "Ability")
+	UPROPERTY(EditAnywhere, Category = "!Ability")
 	FGameplayTag InputTag;
 };
 
@@ -79,10 +79,10 @@ private:
 	bool HasAbilityClass(const UAbilitySystemComponent* AbilitySystemComponent, TSubclassOf<UGameplayAbility> AbilityClass) const;
 
 public:
-	UPROPERTY(EditAnywhere, Category = "Abilities", meta = (AllowAbstract = "false"))
+	UPROPERTY(EditAnywhere, Category = "!Abilities", meta = (AllowAbstract = "false"))
 	TSoftClassPtr<AActor> TargetClass;
 
-	UPROPERTY(EditAnywhere, Category = "Abilities", meta = (TitleProperty = "{Ability}"))
+	UPROPERTY(EditAnywhere, Category = "!Abilities", meta = (TitleProperty = "{Ability}"))
 	TArray<FGameFeatureAbilityEntry> Abilities;
 
 private:

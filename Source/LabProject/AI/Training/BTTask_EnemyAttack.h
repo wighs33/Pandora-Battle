@@ -19,12 +19,12 @@ public:
 	UBTTask_EnemyAttack();
 
 protected:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attack")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Attack")
 	bool bRequireTargetInAttackRange = true;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attack")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Attack")
 	bool bMoveToTargetWhenOutOfRange = true;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attack")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Attack")
 	bool bStopMovementBeforeAttack = true;
 };

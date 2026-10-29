@@ -27,7 +27,7 @@ private:
 	UControllerInputComponent* FindControllerInputComponent(AActor* Owner) const;
 
 public:
-	UPROPERTY(EditAnywhere, Category = "Input", meta = (AssetBundles = "Client"))
+	UPROPERTY(EditAnywhere, Category = "!Input", meta = (AssetBundles = "Client"))
 	TSoftObjectPtr<UControllerInputDefinition> InputDefinition;
 
 private:

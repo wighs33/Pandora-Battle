@@ -35,36 +35,36 @@ private:
 	void RestoreMovementSettings(APawn* Pawn, uint8* NodeMemory, bool bRestoreFacing) const;
 
 protected:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Move Around Target")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Move Around Target")
 	bool bTreatTimeoutAsSuccess = true;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Move Around Target", meta = (ClampMin = "1"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Move Around Target", meta = (ClampMin = "1"))
 	int32 MinMovesBeforeAttack = 1;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Move Around Target", meta = (ClampMin = "1"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Move Around Target", meta = (ClampMin = "1"))
 	int32 MaxMovesBeforeAttack = 2;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attack")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Attack")
 	bool bAttackAfterMoves = true;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attack")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Attack")
 	bool bApproachTargetBeforeAttack = true;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attack")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Attack")
 	bool bStopMovementBeforeAttack = true;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attack", meta = (ClampMin = "0.0", ForceUnits = "s"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Attack", meta = (ClampMin = "0.0", ForceUnits = "s"))
 	float MaxAttackApproachTime = 5.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attack")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Attack")
 	bool bTreatAttackApproachTimeoutAsSuccess = true;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attack", meta = (ClampMin = "0.0", ForceUnits = "s"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Attack", meta = (ClampMin = "0.0", ForceUnits = "s"))
 	float MaxComboAttackWaitTime = 10.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attack", meta = (ClampMin = "0.05", ForceUnits = "s"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Attack", meta = (ClampMin = "0.05", ForceUnits = "s"))
 	float ComboAttackRequestInterval = 0.5f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Facing")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Facing")
 	bool bKeepFacingTargetAfterMove = true;
 };

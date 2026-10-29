@@ -29,11 +29,11 @@ public:
 	// Public API ------------------------------------------------------------------------------------------------------
 	USkillProjectileCastAction();
 
-	UFUNCTION(BlueprintCallable, Category = "Skill|Projectile")
+	UFUNCTION(BlueprintCallable, Category = "!Skill|Projectile")
 	FVector GetSpawnLocation() const;
 
 	// Event Handlers --------------------------------------------------------------------------------------------------
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Skill|Projectile")
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "!Skill|Projectile")
 	void ShootProjectile(FVector TargetLocation);
 
 protected:
@@ -145,7 +145,7 @@ private:
 	void CleanupAimingState();
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings", meta = (ShowOnlyInnerProperties))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "!Settings", meta = (ShowOnlyInnerProperties))
 	FSkillProjectileSettings Settings;
 
 private:

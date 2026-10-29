@@ -31,18 +31,18 @@ private:
 	bool BuildRetreatDestination(APawn* Pawn, AActor* TargetActor, FVector& OutDestination) const;
 
 protected:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Move", meta = (ClampMin = "0.0", ForceUnits = "cm"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Move", meta = (ClampMin = "0.0", ForceUnits = "cm"))
 	float RetreatDistance = 500.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Move", meta = (ClampMin = "0.0", ForceUnits = "cm"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Move", meta = (ClampMin = "0.0", ForceUnits = "cm"))
 	float RetreatMoveDistance = 700.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Move", meta = (ClampMin = "0.05", ForceUnits = "s"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Move", meta = (ClampMin = "0.05", ForceUnits = "s"))
 	float RetreatRepathInterval = 0.5f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attack")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Attack")
 	bool bAttackWhileMoving = true;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attack", meta = (ClampMin = "0.05", ForceUnits = "s"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Attack", meta = (ClampMin = "0.05", ForceUnits = "s"))
 	float AttackRequestInterval = 0.75f;
 };

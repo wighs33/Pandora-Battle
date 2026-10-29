@@ -17,6 +17,6 @@ public:
 	virtual bool IsSatisfied(AActor* Owner) const override;
 
 public:
-	UPROPERTY(EditAnywhere, Category = "Condition", meta = (AllowAbstract = "false"))
+	UPROPERTY(EditAnywhere, Category = "!Condition", meta = (AllowAbstract = "false"))
 	TSubclassOf<UInputComponent> RequiredClass;
 };

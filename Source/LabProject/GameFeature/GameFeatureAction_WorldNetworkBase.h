@@ -46,10 +46,10 @@ protected:
 #endif
 
 public:
-	UPROPERTY(EditAnywhere, Category = "Network")
+	UPROPERTY(EditAnywhere, Category = "!Network")
 	uint8 bClientAction : 1;
 
-	UPROPERTY(EditAnywhere, Category = "Network")
+	UPROPERTY(EditAnywhere, Category = "!Network")
 	uint8 bServerAction : 1;
 
 private:

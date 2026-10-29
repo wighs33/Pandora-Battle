@@ -12,9 +12,9 @@ class LABPROJECT_API UMenuLocalizationSettings : public UDeveloperSettings
 {
 	GENERATED_BODY()
 public:
-	UPROPERTY(Config, EditAnywhere, Category="Localization")
+	UPROPERTY(Config, EditAnywhere, Category="!Localization")
 	TSoftObjectPtr<UFont> CjkFont;
 
-	UPROPERTY(Config, EditAnywhere, Category="Localization")
+	UPROPERTY(Config, EditAnywhere, Category="!Localization")
 	TSoftObjectPtr<UFont> LatinFont;
 };

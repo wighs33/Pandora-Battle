@@ -71,10 +71,10 @@ private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Loadout", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<USelectingPandoraAndWeaponComponent> SelectingPandoraAndWeaponComponent;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Abilities", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Abilities", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UPdAbilitySystemComponent> AbilitySystemComponent;
 
-	UPROPERTY(VisibleAnywhere, Category = "Abilities")
+	UPROPERTY(VisibleAnywhere, Category = "!Abilities")
 	TObjectPtr<UBasicAttributeSet> BasicAttributeSet;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Match", meta = (AllowPrivateAccess = "true"))

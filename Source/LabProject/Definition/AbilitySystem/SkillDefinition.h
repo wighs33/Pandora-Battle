@@ -84,7 +84,7 @@ public:
 	FSkillTimeSettings Time;
 
 	/** 스킬 적중 피해와 트리거 반복 피해의 공통 설정. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Damage", meta = (ShowOnlyInnerProperties))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Damage", meta = (ShowOnlyInnerProperties))
 	FSkillTopLevelDamageConfig Damage;
 
 	/** 보호막 액션 등 피해 이외의 용도로 적용하는 효과. */

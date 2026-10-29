@@ -34,22 +34,22 @@ class LABPROJECT_API USkillTargetedAreaAction : public USkillAction
 
 public:
 	/** 지면을 조준하고 몽타주 이벤트에 맞춰 범위 피해를 적용한다. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings", meta = (ShowOnlyInnerProperties))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "!Settings", meta = (ShowOnlyInnerProperties))
 	FSkillAreaSettings Settings;
 
 	// Public API ------------------------------------------------------------------------------------------------------
 	USkillTargetedAreaAction();
 
-	UFUNCTION(BlueprintCallable, Category = "Skill|AOE")
+	UFUNCTION(BlueprintCallable, Category = "!Skill|AOE")
 	void StartTargeting();
 
-	UFUNCTION(BlueprintCallable, Category = "Skill|AOE")
+	UFUNCTION(BlueprintCallable, Category = "!Skill|AOE")
 	void LoopTargetingAnimation();
 
-	UFUNCTION(BlueprintCallable, Category = "Skill|AOE")
+	UFUNCTION(BlueprintCallable, Category = "!Skill|AOE")
 	void ConfirmStrike();
 
-	UFUNCTION(BlueprintCallable, Category = "Skill|AOE")
+	UFUNCTION(BlueprintCallable, Category = "!Skill|AOE")
 	void AOEDamage();
 
 protected:

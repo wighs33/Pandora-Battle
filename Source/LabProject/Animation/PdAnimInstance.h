@@ -63,56 +63,56 @@ private:
 protected:
 	// 캐시한 UObject 참조 (게임 스레드 전용)
 
-	UPROPERTY(Transient, BlueprintReadOnly, Category = "References")
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "!References")
 	TObjectPtr<ACharacter> CachedCharacter;
 
-	UPROPERTY(Transient, BlueprintReadOnly, Category = "References")
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "!References")
 	TObjectPtr<UCharacterMovementComponent> MovementComponent;
 
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Animation Data|Location")
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "!Animation Data|Location")
 	FVector3f Velocity = FVector3f::ZeroVector;
 
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Animation Data|Location")
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "!Animation Data|Location")
 	float GroundSpeed = 0.f;
 
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Animation Data|Location")
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "!Animation Data|Location")
 	float Direction = 0.f;
 
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Animation Data|Location")
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "!Animation Data|Location")
 	float VerticalVelocity = 0.f;
 
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Animation Data|States")
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "!Animation Data|States")
 	bool bIsMoving = false;
 
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Animation Data|States")
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "!Animation Data|States")
 	bool bIsFalling = false;
 
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Animation Data|States")
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "!Animation Data|States")
 	bool bIsJumping = false;
 
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Animation Data|States")
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "!Animation Data|States")
 	bool bIsCrouching = false;
 
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Animation Data|States")
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "!Animation Data|States")
 	bool bIsOnGround = true;
 
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Animation Data|States", meta = (DisplayName = "Is Grappling"))
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "!Animation Data|States", meta = (DisplayName = "Is Grappling"))
 	bool bIsGrappling = false;
 
 	/**
 	 * 전신 몽타주(근접 콤보·피격)를 재생하며 움직일 때 다리에 걷기 모션을 섞는 정도(0~1).
 	 * AnimGraph의 FullBody 슬롯 뒤 다리 블렌드가 이 값으로 Locomotion의 다리를 덮어, 공격하며 움직여도 미끄러지지 않게 한다.
 	 */
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Animation Data|States")
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "!Animation Data|States")
 	float FullBodyLegLocomotionAlpha = 0.f;
 
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Animation Data|Aiming")
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "!Animation Data|Aiming")
 	float AimYaw = 0.f;
 
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Animation Data|Aiming")
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "!Animation Data|Aiming")
 	float AimPitch = 0.f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation Data|Settings")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Animation Data|Settings")
 	float MovingSpeedThreshold = 3.f;
 
 private:

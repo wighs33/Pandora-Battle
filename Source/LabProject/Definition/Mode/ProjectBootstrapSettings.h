@@ -40,21 +40,21 @@ public:
 	}
 
 private:
-	UPROPERTY(Config, EditAnywhere, Category = "Content",
+	UPROPERTY(Config, EditAnywhere, Category = "!Content",
 		meta = (AllowedTypes = "GameInstanceDefinition",
 			DisplayName = "Game Instance Bootstrap Definition"))
 	TSoftObjectPtr<UPdGameInstanceDefinition> BootstrapDefinition;
 
 	/** 게임플레이에 들어가기 전에 반드시 읽어야 하는 정확한 주 애셋 목록. */
-	UPROPERTY(Config, EditAnywhere, Category = "Content|Game Entry",
+	UPROPERTY(Config, EditAnywhere, Category = "!Content|Game Entry",
 		meta = (TitleProperty = "PrimaryAssetName"))
 	TArray<FPrimaryAssetId> GameEntryRequiredPrimaryAssets;
 
 	/** 이 주 애셋 유형으로 등록된 애셋은 게임플레이 전에 모두 읽는다. */
-	UPROPERTY(Config, EditAnywhere, Category = "Content|Game Entry")
+	UPROPERTY(Config, EditAnywhere, Category = "!Content|Game Entry")
 	TArray<FPrimaryAssetType> GameEntryRequiredPrimaryAssetTypes;
 
 	/** 캐릭터가 머리 위 체력바로 만드는 위젯 컴포넌트 클래스. 캐릭터 BP는 이 하위 객체의 값을 덮어쓴다. */
-	UPROPERTY(Config, EditAnywhere, Category = "Character|Presentation")
+	UPROPERTY(Config, EditAnywhere, Category = "!Character|Presentation")
 	TSoftClassPtr<UWidgetComponent> CharacterHealthBarComponentClass;
 };

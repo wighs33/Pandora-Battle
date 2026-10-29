@@ -68,13 +68,13 @@ private:
 	UPdAbilitySystemComponent* GetAbilitySystemComponent(AActor* Actor) const;
 
 public:
-	UPROPERTY(EditAnywhere, Category = "Attributes", meta = (AllowAbstract = "false"))
+	UPROPERTY(EditAnywhere, Category = "!Attributes", meta = (AllowAbstract = "false"))
 	TArray<TSoftClassPtr<AActor>> TargetClasses;
 
 	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use TargetClasses instead."))
 	TSoftClassPtr<AActor> TargetClass;
 
-	UPROPERTY(EditAnywhere, Category = "Attributes", meta = (AssetBundles = "Client,Server"))
+	UPROPERTY(EditAnywhere, Category = "!Attributes", meta = (AssetBundles = "Client,Server"))
 	TArray<TSoftClassPtr<UAttributeSet>> AttributeSetClasses;
 
 private:

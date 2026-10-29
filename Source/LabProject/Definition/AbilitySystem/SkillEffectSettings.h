@@ -14,23 +14,23 @@ struct LABPROJECT_API FSkillTopLevelDamageConfig
 
 public:
 	/** 적용할 GameplayEffect 클래스. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Damage")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Damage")
 	TSubclassOf<UGameplayEffect> GameplayEffectClass;
 
 	/** Magnitude를 전달할 SetByCaller 태그. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Damage", meta = (Categories = "Data"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Damage", meta = (Categories = "Data"))
 	FGameplayTag MagnitudeDataTag;
 
 	/** GameplayEffect에 전달할 기본 수치. 피해로 사용할 때 공격력 보정이 적용된다. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Damage")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Damage")
 	double Magnitude = 0.0;
 
 	/** 배치·소환 액터의 트리거 안에 머무는 대상에게 피해를 반복 적용한다. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Damage", meta = (DisplayName = "Repeat Trigger Damage While Overlapping"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Damage", meta = (DisplayName = "Repeat Trigger Damage While Overlapping"))
 	bool bRepeatTriggerDamageWhileOverlapping = false;
 
 	/** 트리거의 반복 피해 간격(초). 최소 0.05초. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Damage", meta = (EditCondition = "bRepeatTriggerDamageWhileOverlapping", EditConditionHides, ClampMin = "0.05", ForceUnits = "s", DisplayName = "Trigger Damage Interval"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Damage", meta = (EditCondition = "bRepeatTriggerDamageWhileOverlapping", EditConditionHides, ClampMin = "0.05", ForceUnits = "s", DisplayName = "Trigger Damage Interval"))
 	double TriggerDamageInterval = 1.0;
 
 	// Public API ------------------------------------------------------------------------------------------------------

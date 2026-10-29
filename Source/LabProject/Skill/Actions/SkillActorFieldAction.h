@@ -91,7 +91,7 @@ private:
 	void CleanupFieldTasks();
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings", meta = (ShowOnlyInnerProperties))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "!Settings", meta = (ShowOnlyInnerProperties))
 	FSkillActorFieldSettings Settings;
 
 private:

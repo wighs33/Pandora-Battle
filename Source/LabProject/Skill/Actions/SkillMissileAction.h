@@ -23,7 +23,7 @@ class LABPROJECT_API USkillMissileAction : public USkillAction
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings", meta = (ShowOnlyInnerProperties))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "!Settings", meta = (ShowOnlyInnerProperties))
 	FMissileSkillConfig Settings;
 
 protected:

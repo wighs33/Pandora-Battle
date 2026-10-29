@@ -31,13 +31,13 @@ protected:
 	void SetHoverTooltip(UWidget* Widget, const FText& Text);
 
 protected:
-	UPROPERTY(EditDefaultsOnly, Category="UI|Localization")
+	UPROPERTY(EditDefaultsOnly, Category="!UI|Localization")
 	TMap<FName, FName> MenuTextBindings;
 
-	UPROPERTY(EditDefaultsOnly, Category="UI|Localization")
+	UPROPERTY(EditDefaultsOnly, Category="!UI|Localization")
 	TMap<FName, FName> MenuTooltipBindings;
 
-	UPROPERTY(EditDefaultsOnly, Category="UI|Localization")
+	UPROPERTY(EditDefaultsOnly, Category="!UI|Localization")
 	TMap<FName, FName> MenuHintBindings;
 
 private:

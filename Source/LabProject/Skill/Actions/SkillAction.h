@@ -16,13 +16,13 @@ struct LABPROJECT_API FSkillActionContext
 {
 	GENERATED_BODY()
 
-	UPROPERTY(BlueprintReadOnly, Category = "Skill")
+	UPROPERTY(BlueprintReadOnly, Category = "!Skill")
 	TObjectPtr<AActor> TargetActor;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Skill")
+	UPROPERTY(BlueprintReadOnly, Category = "!Skill")
 	FTransform Transform = FTransform::Identity;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Skill")
+	UPROPERTY(BlueprintReadOnly, Category = "!Skill")
 	FGameplayEventData EventData;
 };
 
@@ -87,7 +87,7 @@ class LABPROJECT_API USkillSequenceAction : public USkillAction
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, Instanced, Category = "Skill")
+	UPROPERTY(EditAnywhere, Instanced, Category = "!Skill")
 	TArray<TObjectPtr<USkillAction>> Actions;
 
 protected:
@@ -112,7 +112,7 @@ class LABPROJECT_API USkillParallelAction : public USkillAction
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, Instanced, Category = "Skill")
+	UPROPERTY(EditAnywhere, Instanced, Category = "!Skill")
 	TArray<TObjectPtr<USkillAction>> Actions;
 
 protected:
