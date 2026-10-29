@@ -21,9 +21,13 @@ namespace
 		Brush.SetResourceObject(Texture);
 	}
 
+	// AudioWidgets 슬라이더는 값 표시를 마우스를 올렸을 때만 보이게 할 수 있을 뿐 아예 끄는 옵션이 없고,
+	// 값 표시 위젯 SAudioTextBox도 모듈 밖으로 내보내지 않는다. 그래서 Slate 타입 이름으로 찾아 숨긴다.
+	const FName AudioSliderValueLabelType(TEXT("SAudioTextBox"));
+
 	void HideAudioSliderTextLabel(const TSharedRef<SWidget>& Widget)
 	{
-		if (Widget->GetType() == TEXT("SAudioTextBox"))
+		if (Widget->GetType() == AudioSliderValueLabelType)
 		{
 			Widget->SetVisibility(EVisibility::Collapsed);
 			return;

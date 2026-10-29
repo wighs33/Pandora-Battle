@@ -1,5 +1,6 @@
 #include "Component/Player/PlayerActionComponent.h"
 
+#include "Abilities/GameplayAbility.h"
 #include "AbilitySystemComponent.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
@@ -12,9 +13,12 @@
 
 namespace
 {
-	bool IsHitReactMontage(const UAnimMontage* Montage)
+	// 지금 재생 중인 몽타주를 피격 능력이 틀었는지 능력의 에셋 태그로 본다.
+	bool IsPlayingHitReactMontage(const UAbilitySystemComponent& AbilitySystemComponent, const FGameplayTagContainer& HitReactTags)
 	{
-		return Montage && Montage->GetName().Contains(TEXT("HitReact"), ESearchCase::IgnoreCase);
+		const UGameplayAbility* AnimatingAbility = AbilitySystemComponent.GetAnimatingAbility();
+		return AnimatingAbility && AbilitySystemComponent.GetCurrentMontage()
+			&& AnimatingAbility->GetAssetTags().HasAny(HitReactTags);
 	}
 }
 
@@ -72,7 +76,7 @@ bool UPlayerActionComponent::CancelHitReactForMovementLocally(const float BlendO
 	USkeletalMeshComponent* MeshComponent = Character->GetMesh();
 	UAnimInstance* AnimInstance = MeshComponent ? MeshComponent->GetAnimInstance() : nullptr;
 	UAnimMontage* ActiveMontage = AnimInstance ? AnimInstance->GetCurrentActiveMontage() : nullptr;
-	if (!OwnedTags.HasAny(CancelTags) && !IsHitReactMontage(ActiveMontage))
+	if (!OwnedTags.HasAny(CancelTags) && !IsPlayingHitReactMontage(*AbilitySystemComponent, CancelTags))
 	{
 		return false;
 	}
