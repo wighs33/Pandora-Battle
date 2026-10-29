@@ -8,8 +8,6 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StateTree_PdMonsterAttackTask)
 
-#define LOCTEXT_NAMESPACE "LabProjectStateTree"
-
 DEFINE_LOG_CATEGORY_STATIC(LogStateTreeMonsterAttack, Log, All);
 
 namespace
@@ -208,14 +206,13 @@ FText FStateTreePdMonsterAttackTask::GetDescription(const FGuid& ID, FStateTreeD
 	if (Formatting == EStateTreeNodeFormatting::RichText)
 	{
 		return TargetValue.IsEmpty()
-			? LOCTEXT("MonsterAttackRich", "<b>Pd Monster Attack</>")
-			: FText::Format(LOCTEXT("MonsterAttackTargetRich", "<b>Pd Monster Attack</> {0}"), TargetValue);
+			? NSLOCTEXT("LabProjectStateTree", "MonsterAttackRich", "<b>Pd Monster Attack</>")
+			: FText::Format(NSLOCTEXT("LabProjectStateTree", "MonsterAttackTargetRich", "<b>Pd Monster Attack</> {0}"),
+				TargetValue);
 	}
 
 	return TargetValue.IsEmpty()
-		? LOCTEXT("MonsterAttack", "Pd Monster Attack")
-		: FText::Format(LOCTEXT("MonsterAttackTarget", "Pd Monster Attack {0}"), TargetValue);
+		? NSLOCTEXT("LabProjectStateTree", "MonsterAttack", "Pd Monster Attack")
+		: FText::Format(NSLOCTEXT("LabProjectStateTree", "MonsterAttackTarget", "Pd Monster Attack {0}"), TargetValue);
 }
 #endif
-
-#undef LOCTEXT_NAMESPACE

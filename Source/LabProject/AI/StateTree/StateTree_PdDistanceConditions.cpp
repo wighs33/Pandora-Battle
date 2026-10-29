@@ -5,8 +5,6 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StateTree_PdDistanceConditions)
 
-#define LOCTEXT_NAMESPACE "LabProjectStateTree"
-
 #if WITH_EDITOR
 namespace
 {
@@ -55,7 +53,7 @@ FText FStateTreePdPlayerDistanceCondition::GetDescription(const FGuid& ID, FStat
 	{
 		TargetActor = IsValid(InstanceData->TargetActor)
 			? FText::FromString(InstanceData->TargetActor->GetActorNameOrLabel())
-			: LOCTEXT("TargetActor", "Target Actor");
+			: NSLOCTEXT("LabProjectStateTree", "TargetActor", "Target Actor");
 	}
 
 	const FText TriggerDistance = GetBoundOrNumericValue(ID,
@@ -64,13 +62,15 @@ FText FStateTreePdPlayerDistanceCondition::GetDescription(const FGuid& ID, FStat
 
 	return Formatting == EStateTreeNodeFormatting::RichText
 		? FText::Format(
-			LOCTEXT(
+			NSLOCTEXT(
+				"LabProjectStateTree",
 				"PlayerDistanceRich",
 				"<b>{0}</> <s>is farther than</> {1} cm <s>from Actor</>"),
 			TargetActor,
 			TriggerDistance)
 		: FText::Format(
-			LOCTEXT(
+			NSLOCTEXT(
+				"LabProjectStateTree",
 				"PlayerDistance",
 				"{0} is farther than {1} cm from Actor"),
 			TargetActor,
@@ -107,12 +107,14 @@ FText FStateTreePdTargetDistanceCondition::GetDescription(const FGuid& ID, FStat
 	{
 		return InstanceData->bFartherAway
 			? FText::Format(
-				LOCTEXT(
+				NSLOCTEXT(
+					"LabProjectStateTree",
 					"TargetFartherRich",
 					"<b>Actor</> <s>is farther away than</> {0} cm <s>from target location</>"),
 				Distance)
 			: FText::Format(
-				LOCTEXT(
+				NSLOCTEXT(
+					"LabProjectStateTree",
 					"TargetCloserRich",
 					"<b>Actor</> <s>is closer than</> {0} cm <s>from target location</>"),
 				Distance);
@@ -120,16 +122,16 @@ FText FStateTreePdTargetDistanceCondition::GetDescription(const FGuid& ID, FStat
 
 	return InstanceData->bFartherAway
 		? FText::Format(
-			LOCTEXT(
+			NSLOCTEXT(
+				"LabProjectStateTree",
 				"TargetFarther",
 				"Actor is farther away than {0} cm from target location"),
 			Distance)
 		: FText::Format(
-			LOCTEXT(
+			NSLOCTEXT(
+				"LabProjectStateTree",
 				"TargetCloser",
 				"Actor is closer than {0} cm from target location"),
 			Distance);
 }
 #endif
-
-#undef LOCTEXT_NAMESPACE

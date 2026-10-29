@@ -8,8 +8,6 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StateTree_PdUtilityTasks)
 
-#define LOCTEXT_NAMESPACE "LabProjectStateTree"
-
 namespace
 {
 UCharacterMovementComponent* ResolveMovementComponent(
@@ -106,8 +104,8 @@ FText FStateTreePdSaveLocationTask::GetDescription(const FGuid& ID, FStateTreeDa
 {
 	static_cast<void>(InstanceDataView);
 	return DescribeWithBoundInput(ID, GET_MEMBER_NAME_CHECKED(FInstanceDataType, Pawn), BindingLookup, Formatting,
-		LOCTEXT("SaveLocation", "Save the Actor's location on Enter State"),
-		LOCTEXT("SaveLocationPawn", "Save {0}'s location on Enter State"));
+		NSLOCTEXT("LabProjectStateTree", "SaveLocation", "Save the Actor's location on Enter State"),
+		NSLOCTEXT("LabProjectStateTree", "SaveLocationPawn", "Save {0}'s location on Enter State"));
 }
 #endif
 
@@ -155,8 +153,8 @@ FText FStateTreePdTrackPlayerTask::GetDescription(const FGuid& ID, FStateTreeDat
 {
 	static_cast<void>(InstanceDataView);
 	return DescribeWithBoundInput(ID, GET_MEMBER_NAME_CHECKED(FInstanceDataType, Controller), BindingLookup, Formatting,
-		LOCTEXT("TrackPlayer", "Track perceived player"),
-		LOCTEXT("TrackPlayerController", "Track perceived player from {0}"));
+		NSLOCTEXT("LabProjectStateTree", "TrackPlayer", "Track perceived player"),
+		NSLOCTEXT("LabProjectStateTree", "TrackPlayerController", "Track perceived player from {0}"));
 }
 #endif
 
@@ -194,9 +192,7 @@ FText FStateTreePdMovementParametersTask::GetDescription(const FGuid& ID, FState
 {
 	static_cast<void>(InstanceDataView);
 	return DescribeWithBoundInput(ID, GET_MEMBER_NAME_CHECKED(FInstanceDataType, Pawn), BindingLookup, Formatting,
-		LOCTEXT("MovementParameters", "Set movement parameters while state is active"),
-		LOCTEXT("MovementParametersPawn", "Set movement parameters on {0}"));
+		NSLOCTEXT("LabProjectStateTree", "MovementParameters", "Set movement parameters while state is active"),
+		NSLOCTEXT("LabProjectStateTree", "MovementParametersPawn", "Set movement parameters on {0}"));
 }
 #endif
-
-#undef LOCTEXT_NAMESPACE

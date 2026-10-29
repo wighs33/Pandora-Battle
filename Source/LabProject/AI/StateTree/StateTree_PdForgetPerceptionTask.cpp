@@ -7,8 +7,6 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StateTree_PdForgetPerceptionTask)
 
-#define LOCTEXT_NAMESPACE "LabProjectStateTree"
-
 FStateTreePdForgetPerceptionTask::FStateTreePdForgetPerceptionTask()
 {
 	bShouldStateChangeOnReselect = true;
@@ -54,18 +52,17 @@ FText FStateTreePdForgetPerceptionTask::GetDescription(const FGuid& ID, FStateTr
 	if (Formatting == EStateTreeNodeFormatting::RichText)
 	{
 		return ControllerValue.IsEmpty()
-			? LOCTEXT("ForgetPerceptionRich", "<b>Forget Distant Perception</>")
+			? NSLOCTEXT("LabProjectStateTree", "ForgetPerceptionRich", "<b>Forget Distant Perception</>")
 			: FText::Format(
-				LOCTEXT("ForgetPerceptionControllerRich", "<b>Forget Distant Perception</> on {0}"),
+				NSLOCTEXT("LabProjectStateTree", "ForgetPerceptionControllerRich",
+					"<b>Forget Distant Perception</> on {0}"),
 				ControllerValue);
 	}
 
 	return ControllerValue.IsEmpty()
-		? LOCTEXT("ForgetPerception", "Forget Distant Perception")
+		? NSLOCTEXT("LabProjectStateTree", "ForgetPerception", "Forget Distant Perception")
 		: FText::Format(
-			LOCTEXT("ForgetPerceptionController", "Forget Distant Perception on {0}"),
+			NSLOCTEXT("LabProjectStateTree", "ForgetPerceptionController", "Forget Distant Perception on {0}"),
 			ControllerValue);
 }
 #endif
-
-#undef LOCTEXT_NAMESPACE
