@@ -38,7 +38,7 @@ FRigUnit_PdFootPlant_Execute()
 	{
 		FTransform PelvisTransform = Hierarchy->GetGlobalTransform(Pelvis);
 		PelvisTransform.AddToTranslation(FVector(0.0f, 0.0f, LowestOffset));
-		Hierarchy->SetGlobalTransform(Pelvis, PelvisTransform, true);
+		Hierarchy->SetGlobalTransform(Pelvis, PelvisTransform, false, true);
 	}
 
 	// 3) 다리마다 2본 IK. 무릎 방향은 지금 자세에서 무릎이 엉덩이-발 직선에서 벗어난 쪽으로 둔다.
@@ -57,8 +57,9 @@ FRigUnit_PdFootPlant_Execute()
 		const FVector KneeTarget = Lower.GetLocation() + Bend.GetSafeNormal() * FVector::Dist(Upper.GetLocation(), Lower.GetLocation());
 		AnimationCore::SolveTwoBoneIK(Upper, Lower, Foot, KneeTarget, FootTargets[Index], false, 1.0, 1.0);
 		Foot.SetRotation(FootRotation);
-		Hierarchy->SetGlobalTransform(Leg.Upper, Upper, false);
-		Hierarchy->SetGlobalTransform(Leg.Lower, Lower, false);
-		Hierarchy->SetGlobalTransform(Leg.Foot, Foot, true);
+		// 세 번째 인자(bInitial)는 false여야 지금 포즈가 바뀐다. 허벅지와 정강이는 자식을 두고 옮기고, 발은 발가락과 함께 옮긴다.
+		Hierarchy->SetGlobalTransform(Leg.Upper, Upper, false, false);
+		Hierarchy->SetGlobalTransform(Leg.Lower, Lower, false, false);
+		Hierarchy->SetGlobalTransform(Leg.Foot, Foot, false, true);
 	}
 }
