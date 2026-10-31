@@ -238,12 +238,13 @@ float URangedAttackAbility::GetAIRangedTargetLockDelay() const
 	const ACharacterBase* Character = GetPdCharacterFromActorInfo();
 	const UEquipmentComponent* EquipmentComponent = Character ? Character->GetEquipmentComponent() : nullptr;
 	const UItemDefinition* ItemDefinition = EquipmentComponent ? EquipmentComponent->GetCurrentWeaponDefinition() : nullptr;
-	if (!ItemDefinition)
+	const FItemFragment_Weapon* Weapon = FindItemFragment<FItemFragment_Weapon>(ItemDefinition);
+	if (!Weapon)
 	{
 		return FWeaponAIDefinitionData().RangedTargetLockDelay;
 	}
 
-	return ItemDefinition->WeaponData.AI.RangedTargetLockDelay;
+	return Weapon->AI.RangedTargetLockDelay;
 }
 
 void URangedAttackAbility::ScheduleAIPrimaryAttack()

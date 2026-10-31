@@ -284,9 +284,10 @@ TArray<FRewardChestLootCandidate> ARewardChest::GatherDroppableItemCandidates() 
 	for (const FPrimaryAssetId& ItemDefinitionId : AllItemDefinitionIds)
 	{
 		const UItemDefinition* ItemDefinition = AssetManager.GetPrimaryAssetObject<UItemDefinition>(ItemDefinitionId);
-		if (ItemDefinition && ItemDefinition->CanDropFromRewardChest())
+		const FItemFragment_Drop* Drop = FindItemFragment<FItemFragment_Drop>(ItemDefinition);
+		if (Drop && Drop->GetDropWeight() > 0.0f)
 		{
-			Candidates.Add({ ItemDefinitionId, ItemDefinition->GetRewardChestDropWeight(), IsWeaponItemDefinition(ItemDefinition) });
+			Candidates.Add({ ItemDefinitionId, Drop->GetDropWeight(), IsWeaponItemDefinition(ItemDefinition) });
 		}
 	}
 	return Candidates;
@@ -304,14 +305,16 @@ TArray<FRewardChestLootCandidate> ARewardChest::GatherConfiguredItemCandidates()
 			continue;
 		}
 
-		// 상자 드롭을 끈 무기는 빼고, 무기가 아닌 아이템은 드롭 설정과 상관없이 넣는다.
+		// 상자에서 나오지 않는 무기는 빼고, 무기가 아닌 아이템은 드롭 조각과 상관없이 넣는다(조각이 없으면 기본 가중치).
+		const FItemFragment_Drop* Drop = ItemDefinition->FindFragment<FItemFragment_Drop>();
+		const float DropWeight = Drop ? Drop->GetDropWeight() : FItemFragment_Drop().GetDropWeight();
 		const bool bWeapon = IsWeaponItemDefinition(ItemDefinition);
-		if (bWeapon && !ItemDefinition->CanDropFromRewardChest())
+		if (bWeapon && (!Drop || DropWeight <= 0.0f))
 		{
 			continue;
 		}
 
-		Candidates.Add({ PrimaryAssetId, ItemDefinition->GetRewardChestDropWeight(), bWeapon });
+		Candidates.Add({ PrimaryAssetId, DropWeight, bWeapon });
 	}
 	return Candidates;
 }
@@ -320,7 +323,7 @@ bool ARewardChest::IsWeaponItemDefinition(const UItemDefinition* ItemDefinition)
 {
 	const UProjectTagDefinition* TagConfig = UProjectTagDefinition::Get(this);
 	return ItemDefinition
-		&& (ItemDefinition->HasWeaponData() || ItemDefinition->MatchesItemType(TagConfig->GetItemWeaponTypeTag()));
+		&& (ItemDefinition->HasFragment<FItemFragment_Weapon>() || ItemDefinition->MatchesItemType(TagConfig->GetItemWeaponTypeTag()));
 }
 
 void ARewardChest::BeginRewardContentPreload()

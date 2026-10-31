@@ -28,15 +28,18 @@ bool FWeaponPresentationLoader::IsLoaded(const UItemDefinition* ItemDefinition, 
 		return false;
 	}
 
-	const FWeaponDefinitionData& WeaponData = ItemDefinition->WeaponData;
-	return (WeaponData.Equip.ActorClass.IsNull() || WeaponData.Equip.ActorClass.IsValid())
-		&& (!bRequiresEquipMontage || WeaponData.Equip.EquipMontage.IsNull() || WeaponData.Equip.EquipMontage.IsValid())
-		&& (WeaponData.Equip.UnequipMontage.IsNull() || WeaponData.Equip.UnequipMontage.IsValid())
-		&& (WeaponData.Equip.AnimLayer.IsNull() || WeaponData.Equip.AnimLayer.IsValid())
-		&& (WeaponData.Attack.AttackMontage.IsNull() || WeaponData.Attack.AttackMontage.IsValid())
-		&& (WeaponData.HitReact.HitReactMontage.IsNull() || WeaponData.HitReact.HitReactMontage.IsValid())
-		&& (WeaponData.Bow.WeaponMontage.IsNull() || WeaponData.Bow.WeaponMontage.IsValid())
-		&& (WeaponData.Gun.ImpactDecalMaterial.IsNull() || WeaponData.Gun.ImpactDecalMaterial.IsValid());
+	// 조각이 없으면 그 조각의 표현 애셋도 없으므로 불러올 것이 없다.
+	const FItemFragment_Weapon* Weapon = ItemDefinition->FindFragment<FItemFragment_Weapon>();
+	const FItemFragment_Bow* Bow = ItemDefinition->FindFragment<FItemFragment_Bow>();
+	const FItemFragment_Gun* Gun = ItemDefinition->FindFragment<FItemFragment_Gun>();
+	return (!Weapon || ((Weapon->Equip.ActorClass.IsNull() || Weapon->Equip.ActorClass.IsValid())
+			&& (!bRequiresEquipMontage || Weapon->Equip.EquipMontage.IsNull() || Weapon->Equip.EquipMontage.IsValid())
+			&& (Weapon->Equip.UnequipMontage.IsNull() || Weapon->Equip.UnequipMontage.IsValid())
+			&& (Weapon->Equip.AnimLayer.IsNull() || Weapon->Equip.AnimLayer.IsValid())
+			&& (Weapon->Attack.AttackMontage.IsNull() || Weapon->Attack.AttackMontage.IsValid())
+			&& (Weapon->HitReact.HitReactMontage.IsNull() || Weapon->HitReact.HitReactMontage.IsValid())))
+		&& (!Bow || Bow->WeaponMontage.IsNull() || Bow->WeaponMontage.IsValid())
+		&& (!Gun || Gun->ImpactDecalMaterial.IsNull() || Gun->ImpactDecalMaterial.IsValid());
 }
 
 bool FWeaponPresentationLoader::Request(UObject& Owner, const UItemDefinition* ItemDefinition,

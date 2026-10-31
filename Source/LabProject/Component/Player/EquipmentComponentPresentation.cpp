@@ -9,7 +9,8 @@
 
 TSubclassOf<UAnimInstance> UEquipmentComponent::GetLoadedEquipAnimLayer(const UItemDefinition* ItemDefinition) const
 {
-	return ItemDefinition ? ItemDefinition->WeaponData.Equip.AnimLayer.Get() : nullptr;
+	const FItemFragment_Weapon* Weapon = FindItemFragment<FItemFragment_Weapon>(ItemDefinition);
+	return Weapon ? Weapon->Equip.AnimLayer.Get() : nullptr;
 }
 
 void UEquipmentComponent::RefreshCurrentWeaponAnimationLayer()
@@ -83,7 +84,8 @@ AWeaponBase* UEquipmentComponent::SpawnAndAttachWeaponActor(TSubclassOf<AWeaponB
 	}
 
 	FTransform SpawnTransform = OwnerMesh->GetComponentTransform();
-	const FName AttachSocketName = ItemDefinition->WeaponData.Equip.GetResolvedAttachSocketName();
+	const FItemFragment_Weapon* Weapon = ItemDefinition->FindFragment<FItemFragment_Weapon>();
+	const FName AttachSocketName = Weapon ? Weapon->Equip.GetResolvedAttachSocketName() : NAME_None;
 	if (AttachSocketName != NAME_None && OwnerMesh->DoesSocketExist(AttachSocketName))
 	{
 		SpawnTransform = OwnerMesh->GetSocketTransform(AttachSocketName);
@@ -116,7 +118,8 @@ void UEquipmentComponent::AttachWeaponToOwner(AWeaponBase* WeaponActor, const UI
 		return;
 	}
 
-	const FName AttachSocketName = ItemDefinition ? ItemDefinition->WeaponData.Equip.GetResolvedAttachSocketName() : NAME_None;
+	const FItemFragment_Weapon* Weapon = FindItemFragment<FItemFragment_Weapon>(ItemDefinition);
+	const FName AttachSocketName = Weapon ? Weapon->Equip.GetResolvedAttachSocketName() : NAME_None;
 	WeaponActor->AttachToComponent(OwnerMesh, FAttachmentTransformRules::SnapToTargetNotIncludingScale,
 		AttachSocketName);
 }

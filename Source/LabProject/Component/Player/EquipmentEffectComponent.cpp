@@ -197,9 +197,9 @@ void UEquipmentEffectComponent::CollectItemStats(const UItemDefinition* Definiti
 	{
 		Instance->BuildEffectiveStatMagnitudes(Magnitudes);
 	}
-	else if (Definition)
+	else if (const FItemFragment_Stat* Stat = FindItemFragment<FItemFragment_Stat>(Definition))
 	{
-		Magnitudes = Definition->Map_Stat_Magnitude;
+		Magnitudes = Stat->Map_Stat_Magnitude;
 	}
 
 	OutEffect.SourceObject = Definition;

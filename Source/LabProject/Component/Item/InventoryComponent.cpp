@@ -458,8 +458,8 @@ bool UInventoryComponent::UseConsumableQuickSlot(const int32 SlotIndex)
 		return false;
 	}
 
-	const int32 QuantityToConsume = ItemDefinition->GetSafeQuantityToConsume();
-	if (ItemInstance->Quantity < QuantityToConsume)
+	const FItemFragment_Consumable* Consumable = ItemDefinition->FindFragment<FItemFragment_Consumable>();
+	if (!Consumable || ItemInstance->Quantity < Consumable->GetSafeQuantityToConsume())
 	{
 		return false;
 	}
@@ -469,7 +469,7 @@ bool UInventoryComponent::UseConsumableQuickSlot(const int32 SlotIndex)
 		return false;
 	}
 
-	const int32 NewQuantity = ItemInstance->Quantity - QuantityToConsume;
+	const int32 NewQuantity = ItemInstance->Quantity - Consumable->GetSafeQuantityToConsume();
 	return SetReplicatedItemQuantityById(ItemId, NewQuantity);
 }
 
@@ -780,7 +780,8 @@ bool UInventoryComponent::IsUpgradeableItem(const UItemInstance* ItemInstance) c
 bool UInventoryComponent::ApplyConsumableItemEffect(const UItemInstance* ItemInstance) const
 {
 	const UItemDefinition* ItemDefinition = IsValid(ItemInstance) ? ItemInstance->ItemDefinition.Get() : nullptr;
-	if (!ItemDefinition || !ItemDefinition->ConsumeGameplayEffectClass)
+	const FItemFragment_Consumable* Consumable = FindItemFragment<FItemFragment_Consumable>(ItemDefinition);
+	if (!Consumable || !Consumable->ConsumeGameplayEffectClass)
 	{
 		return false;
 	}
@@ -794,13 +795,13 @@ bool UInventoryComponent::ApplyConsumableItemEffect(const UItemInstance* ItemIns
 	FGameplayEffectContextHandle EffectContext = AbilitySystemComponent->MakeEffectContext();
 	EffectContext.AddSourceObject(ItemDefinition);
 
-	FGameplayEffectSpecHandle SpecHandle = AbilitySystemComponent->MakeOutgoingSpec(ItemDefinition->ConsumeGameplayEffectClass, 1.0f, EffectContext);
+	FGameplayEffectSpecHandle SpecHandle = AbilitySystemComponent->MakeOutgoingSpec(Consumable->ConsumeGameplayEffectClass, 1.0f, EffectContext);
 	if (!SpecHandle.IsValid())
 	{
 		return false;
 	}
 
-	for (const TPair<FGameplayTag, float>& Pair : ItemDefinition->Map_Consume_Magnitude)
+	for (const TPair<FGameplayTag, float>& Pair : Consumable->Map_Consume_Magnitude)
 	{
 		if (Pair.Key.IsValid() && !FMath::IsNearlyZero(Pair.Value))
 		{

@@ -362,7 +362,8 @@ bool UEnemyCombatComponent::IsUsingRangedWeapon() const
 	}
 
 	const UItemDefinition* WeaponDefinition = Equipment ? Equipment->GetCurrentWeaponDefinition() : nullptr;
-	return WeaponDefinition && WeaponDefinition->WeaponData.Aim.bSupportsInput;
+	const FItemFragment_Weapon* WeaponData = FindItemFragment<FItemFragment_Weapon>(WeaponDefinition);
+	return WeaponData && WeaponData->Aim.bSupportsInput;
 }
 
 bool UEnemyCombatComponent::IsUsingGunWeapon() const
@@ -376,7 +377,7 @@ bool UEnemyCombatComponent::IsUsingGunWeapon() const
 	}
 
 	const UItemDefinition* WeaponDefinition = Equipment ? Equipment->GetCurrentWeaponDefinition() : nullptr;
-	return WeaponDefinition && WeaponDefinition->WeaponData.Gun.HasAnyData();
+	return WeaponDefinition && WeaponDefinition->HasFragment<FItemFragment_Gun>();
 }
 
 // 기본 속성 집합은 적 액터의 기본 서브오브젝트로 이미 ASC에 등록되어 있으므로, 서버에서 기본 능력치만 한 번 적용한다.

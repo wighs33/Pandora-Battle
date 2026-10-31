@@ -723,7 +723,8 @@ void UAttackAbility::PlayConfiguredComboWindowStartEffect()
 	{
 		const UEquipmentComponent* EquipmentComponent = Character->GetEquipmentComponent();
 		const UItemDefinition* ItemDefinition = EquipmentComponent ? EquipmentComponent->GetCurrentWeaponDefinition() : nullptr;
-		EffectSystem = ItemDefinition ? ItemDefinition->WeaponData.Attack.ComboWindowStartEffect.Get() : nullptr;
+		const FItemFragment_Weapon* Weapon = FindItemFragment<FItemFragment_Weapon>(ItemDefinition);
+		EffectSystem = Weapon ? Weapon->Attack.ComboWindowStartEffect.Get() : nullptr;
 	}
 	else if (const UCombatComponent* CombatComponent = Character->GetCombatComponent())
 	{

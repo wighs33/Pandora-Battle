@@ -2,6 +2,7 @@
 
 #include "Common/PdGameplayTags.h"
 #include "Definition/Common/ProjectTagDefinition.h"
+#include "Engine/AssetManager.h"
 #include "GameplayEffect.h"
 
 #if WITH_EDITOR
@@ -138,52 +139,79 @@ namespace
 		}
 	}
 
-	void ValidateDropData(FDataValidationContext& Context, EDataValidationResult& Result, const UItemDefinition& ItemDefinition)
+	/** 빈 칸과 같은 종류의 조각이 두 번 들어간 경우를 막는다. 조회는 앞의 조각만 찾기 때문이다. */
+	void ValidateFragmentList(FDataValidationContext& Context, EDataValidationResult& Result, const UItemDefinition& ItemDefinition)
 	{
-		if (!FMath::IsFinite(ItemDefinition.DropRate))
+		TSet<const UScriptStruct*> FragmentTypes;
+		for (const TInstancedStruct<FItemFragment>& Fragment : ItemDefinition.Fragments)
 		{
-			MarkItemInvalid(Context, Result, NSLOCTEXT("ItemDefinition", "InvalidDropRateFinite", "DropRate must be finite."));
-		}
-		else if (ItemDefinition.DropRate < 0.0f)
-		{
-			MarkItemInvalid(Context, Result, NSLOCTEXT("ItemDefinition", "InvalidDropRateNegative", "DropRate cannot be negative."));
-		}
-		else if (ItemDefinition.bCanDropFromRewardChest && FMath::IsNearlyZero(ItemDefinition.DropRate))
-		{
-			Context.AddWarning(NSLOCTEXT("ItemDefinition", "ZeroRewardChestDropRate", "bCanDropFromRewardChest is true, but DropRate is zero. Reward chests will not select this item."));
+			const UScriptStruct* FragmentType = Fragment.GetScriptStruct();
+			if (!FragmentType)
+			{
+				MarkItemInvalid(Context, Result, NSLOCTEXT("ItemDefinition", "EmptyFragment", "Fragments contains an empty entry."));
+				continue;
+			}
+
+			bool bAlreadyAdded = false;
+			FragmentTypes.Add(FragmentType, &bAlreadyAdded);
+			if (bAlreadyAdded)
+			{
+				MarkItemInvalid(Context, Result, FText::Format(
+					NSLOCTEXT("ItemDefinition", "DuplicateFragment", "Fragments contains {0} more than once."),
+					FragmentType->GetDisplayNameText()));
+			}
 		}
 	}
 
-	void ValidateConsumableData(FDataValidationContext& Context, EDataValidationResult& Result, const UItemDefinition& ItemDefinition)
+	void ValidateConsumableFragment(FDataValidationContext& Context, EDataValidationResult& Result, const UItemDefinition& ItemDefinition)
 	{
 		const UProjectTagDefinition* ProjectTagConfig = UProjectTagDefinition::GetDefaultDefinition();
 		const FGameplayTag ConsumableTypeTag = ProjectTagConfig
 			? ProjectTagConfig->GetItemConsumableTypeTag()
 			: PdGameplayTags::Item_Consumable;
 		const bool bConsumableByTag = ItemDefinition.IsConsumableDefinition(ConsumableTypeTag);
-		const bool bHasConsumableEffect = ItemDefinition.ConsumeGameplayEffectClass != nullptr;
-
-		if (ItemDefinition.QuantityToConsume < 1)
+		const FItemFragment_Consumable* Consumable = ItemDefinition.FindFragment<FItemFragment_Consumable>();
+		if (!Consumable)
 		{
-			MarkItemInvalid(Context, Result, NSLOCTEXT("ItemDefinition", "InvalidQuantityToConsume", "QuantityToConsume must be at least 1."));
+			if (bConsumableByTag)
+			{
+				MarkItemInvalid(Context, Result, NSLOCTEXT("ItemDefinition", "MissingConsumableFragment", "Consumable items require the Consumable fragment."));
+			}
+			return;
 		}
 
-		if (bConsumableByTag && !bHasConsumableEffect)
+		if (Consumable->QuantityToConsume < 1)
 		{
-			MarkItemInvalid(Context, Result, NSLOCTEXT("ItemDefinition", "MissingConsumableEffect", "Consumable items require ConsumeGameplayEffectClass."));
+			MarkItemInvalid(Context, Result, NSLOCTEXT("ItemDefinition", "InvalidQuantityToConsume", "Consumable.QuantityToConsume must be at least 1."));
 		}
 
-		if (!bHasConsumableEffect && !ItemDefinition.Map_Consume_Magnitude.IsEmpty())
+		if (!Consumable->ConsumeGameplayEffectClass)
 		{
-			MarkItemInvalid(Context, Result, NSLOCTEXT("ItemDefinition", "ConsumeMagnitudesWithoutEffect", "Map_Consume_Magnitude is set, but ConsumeGameplayEffectClass is missing."));
+			MarkItemInvalid(Context, Result, NSLOCTEXT("ItemDefinition", "MissingConsumableEffect", "The Consumable fragment requires ConsumeGameplayEffectClass."));
 		}
 
-		if (bHasConsumableEffect && !bConsumableByTag)
+		if (!bConsumableByTag)
 		{
-			Context.AddWarning(NSLOCTEXT("ItemDefinition", "ConsumableEffectWithoutTag", "ConsumeGameplayEffectClass is set, but IdTag does not match the consumable item type. Quick slot usage will not treat this as a consumable."));
+			Context.AddWarning(NSLOCTEXT("ItemDefinition", "ConsumableFragmentWithoutTag", "The Consumable fragment is set, but IdTag does not match the consumable item type. Quick slot usage will not treat this as a consumable."));
 		}
 
-		ValidateMagnitudeMap(Context, Result, ItemDefinition.Map_Consume_Magnitude, TEXT("Map_Consume_Magnitude"));
+		ValidateMagnitudeMap(Context, Result, Consumable->Map_Consume_Magnitude, TEXT("Consumable.Map_Consume_Magnitude"));
+	}
+
+	void ValidateDropFragment(FDataValidationContext& Context, EDataValidationResult& Result, const FItemFragment_Drop& Drop)
+	{
+		if (!FMath::IsFinite(Drop.DropRate))
+		{
+			MarkItemInvalid(Context, Result, NSLOCTEXT("ItemDefinition", "InvalidDropRateFinite", "Drop.DropRate must be finite."));
+		}
+		else if (Drop.DropRate < 0.0f)
+		{
+			MarkItemInvalid(Context, Result, NSLOCTEXT("ItemDefinition", "InvalidDropRateNegative", "Drop.DropRate cannot be negative."));
+		}
+		else if (FMath::IsNearlyZero(Drop.DropRate))
+		{
+			Context.AddWarning(NSLOCTEXT("ItemDefinition", "ZeroRewardChestDropRate", "Drop.DropRate is zero. Reward chests will not select this item; remove the Drop fragment instead."));
+		}
 	}
 
 	void ValidateItemAimCameraSettings(FDataValidationContext& Context, EDataValidationResult& Result,
@@ -224,170 +252,197 @@ namespace
 		}
 	}
 
-	void ValidateWeaponData(FDataValidationContext& Context, EDataValidationResult& Result, const UItemDefinition& ItemDefinition)
+	void ValidateBowFragment(FDataValidationContext& Context, EDataValidationResult& Result, const FItemFragment_Bow& Bow)
+	{
+		if (!Bow.ArrowActorClass)
+		{
+			MarkItemInvalid(Context, Result, NSLOCTEXT("ItemDefinition", "BowMissingArrowClass", "The Bow fragment requires Bow.ArrowActorClass."));
+		}
+
+		if (!FMath::IsFinite(Bow.TraceRange) || Bow.TraceRange <= 0.0f)
+		{
+			MarkItemInvalid(Context, Result, NSLOCTEXT("ItemDefinition", "InvalidBowTraceRange", "Bow.TraceRange must be a positive finite value."));
+		}
+
+		if (!FMath::IsFinite(Bow.MaxAcceptedServerLaunchStartDistance) || Bow.MaxAcceptedServerLaunchStartDistance < 0.0f)
+		{
+			MarkItemInvalid(Context, Result, NSLOCTEXT("ItemDefinition", "InvalidBowServerLaunchDistance", "Bow.MaxAcceptedServerLaunchStartDistance must be a non-negative finite value."));
+		}
+
+		if (!FMath::IsFinite(Bow.MinimumDrawDuration) || Bow.MinimumDrawDuration <= 0.0f)
+		{
+			MarkItemInvalid(Context, Result, NSLOCTEXT("ItemDefinition", "InvalidBowMinimumDrawDuration", "Bow.MinimumDrawDuration must be a positive finite value."));
+		}
+
+		if (!FMath::IsFinite(Bow.FireInterval) || Bow.FireInterval <= 0.0f)
+		{
+			MarkItemInvalid(Context, Result, NSLOCTEXT("ItemDefinition", "InvalidBowFireInterval", "Bow.FireInterval must be a positive finite value."));
+		}
+
+		if (Bow.TraceObjectTypes.IsEmpty())
+		{
+			Context.AddWarning(NSLOCTEXT("ItemDefinition", "BowEmptyTraceObjectTypes", "Bow.TraceObjectTypes is empty. Bow aim and launch traces may not hit anything."));
+		}
+
+		ValidateSoftObjectReference(Context, Result, Bow.WeaponMontage, TEXT("Bow.WeaponMontage"));
+	}
+
+	void ValidateGunFragment(FDataValidationContext& Context, EDataValidationResult& Result, const FItemFragment_Gun& Gun)
+	{
+		if (!FMath::IsFinite(Gun.TraceRange) || Gun.TraceRange <= 0.0f)
+		{
+			MarkItemInvalid(Context, Result, NSLOCTEXT("ItemDefinition", "InvalidGunTraceRange", "Gun.TraceRange must be a positive finite value."));
+		}
+
+		if (!FMath::IsFinite(Gun.TraceRadius) || Gun.TraceRadius < 0.0f)
+		{
+			MarkItemInvalid(Context, Result, NSLOCTEXT("ItemDefinition", "InvalidGunTraceRadius", "Gun.TraceRadius must be a non-negative finite value."));
+		}
+
+		if (!FMath::IsFinite(Gun.FireInterval) || Gun.FireInterval <= 0.0f)
+		{
+			MarkItemInvalid(Context, Result, NSLOCTEXT("ItemDefinition", "InvalidGunFireInterval", "Gun.FireInterval must be positive."));
+		}
+
+		const FVector2D& ImpactDecalSizeRange = Gun.ImpactDecalSizeRange;
+		if (!FMath::IsFinite(ImpactDecalSizeRange.X) || !FMath::IsFinite(ImpactDecalSizeRange.Y)
+			|| ImpactDecalSizeRange.X < 0.0f || ImpactDecalSizeRange.Y < 0.0f)
+		{
+			MarkItemInvalid(Context, Result, NSLOCTEXT("ItemDefinition", "InvalidGunImpactDecalSizeRange", "Gun.ImpactDecalSizeRange must contain non-negative finite values."));
+		}
+		else if (ImpactDecalSizeRange.X > ImpactDecalSizeRange.Y)
+		{
+			MarkItemInvalid(Context, Result, NSLOCTEXT("ItemDefinition", "InvertedGunImpactDecalSizeRange", "Gun.ImpactDecalSizeRange minimum cannot be greater than maximum."));
+		}
+
+		if (!FMath::IsFinite(Gun.ImpactDecalDepth) || Gun.ImpactDecalDepth < 0.0f)
+		{
+			MarkItemInvalid(Context, Result, NSLOCTEXT("ItemDefinition", "InvalidGunImpactDecalDepth", "Gun.ImpactDecalDepth must be a non-negative finite value."));
+		}
+
+		if (!FMath::IsFinite(Gun.ImpactDecalLifeSpan) || Gun.ImpactDecalLifeSpan < 0.0f)
+		{
+			MarkItemInvalid(Context, Result, NSLOCTEXT("ItemDefinition", "InvalidGunImpactDecalLifeSpan", "Gun.ImpactDecalLifeSpan must be a non-negative finite value."));
+		}
+
+		if (Gun.ImpactDecalRotationOffset.ContainsNaN())
+		{
+			MarkItemInvalid(Context, Result, NSLOCTEXT("ItemDefinition", "InvalidGunImpactDecalRotation", "Gun.ImpactDecalRotationOffset contains NaN."));
+		}
+
+		ValidateSoftObjectReference(Context, Result, Gun.ImpactDecalMaterial, TEXT("Gun.ImpactDecalMaterial"));
+
+		if (Gun.TraceObjectTypes.IsEmpty())
+		{
+			Context.AddWarning(NSLOCTEXT("ItemDefinition", "GunEmptyTraceObjectTypes", "Gun.TraceObjectTypes is empty. Gun traces may not hit anything."));
+		}
+	}
+
+	/** 무기 공통 조각과, 그 위에 얹는 활·총 조각을 함께 본다. */
+	void ValidateWeaponFragments(FDataValidationContext& Context, EDataValidationResult& Result, const UItemDefinition& ItemDefinition)
 	{
 		const UProjectTagDefinition* ProjectTagConfig = UProjectTagDefinition::GetDefaultDefinition();
 		const FGameplayTag WeaponTypeTag = ProjectTagConfig
 			? ProjectTagConfig->GetItemWeaponTypeTag()
 			: PdGameplayTags::Item_Weapon;
 		const bool bWeaponByTag = ItemDefinition.MatchesItemType(WeaponTypeTag);
-		const bool bHasWeaponData = ItemDefinition.HasWeaponData();
+		const FItemFragment_Weapon* Weapon = ItemDefinition.FindFragment<FItemFragment_Weapon>();
+		const FItemFragment_Bow* Bow = ItemDefinition.FindFragment<FItemFragment_Bow>();
+		const FItemFragment_Gun* Gun = ItemDefinition.FindFragment<FItemFragment_Gun>();
 
-		if (!bWeaponByTag && !bHasWeaponData)
+		if (!Weapon)
 		{
+			if (bWeaponByTag)
+			{
+				MarkItemInvalid(Context, Result, NSLOCTEXT("ItemDefinition", "MissingWeaponFragment", "Weapon items require the Weapon fragment."));
+			}
+
+			if (Bow || Gun)
+			{
+				MarkItemInvalid(Context, Result, NSLOCTEXT("ItemDefinition", "RangedFragmentWithoutWeapon", "Bow and Gun fragments require the Weapon fragment."));
+			}
 			return;
 		}
 
-		if (bHasWeaponData && !bWeaponByTag)
+		if (!bWeaponByTag)
 		{
-			Context.AddWarning(NSLOCTEXT("ItemDefinition", "WeaponDataWithoutWeaponTag", "WeaponData is set, but IdTag does not match the weapon item type. Inventory filtering may not show it as a weapon."));
+			Context.AddWarning(NSLOCTEXT("ItemDefinition", "WeaponFragmentWithoutWeaponTag", "The Weapon fragment is set, but IdTag does not match the weapon item type. Inventory filtering may not show it as a weapon."));
 		}
 
-		ValidateSoftClassReference(Context, Result, ItemDefinition.WeaponData.Equip.ActorClass, TEXT("WeaponData.Equip.ActorClass"));
-		ValidateSoftObjectReference(Context, Result, ItemDefinition.WeaponData.Equip.EquipMontage, TEXT("WeaponData.Equip.EquipMontage"));
-		ValidateSoftObjectReference(Context, Result, ItemDefinition.WeaponData.Equip.UnequipMontage, TEXT("WeaponData.Equip.UnequipMontage"));
-		ValidateSoftClassReference(Context, Result, ItemDefinition.WeaponData.Equip.AnimLayer, TEXT("WeaponData.Equip.AnimLayer"));
-		ValidateSoftObjectReference(Context, Result, ItemDefinition.WeaponData.Attack.AttackMontage, TEXT("WeaponData.Attack.AttackMontage"));
-		ValidateSoftObjectReference(Context, Result, ItemDefinition.WeaponData.HitReact.HitReactMontage, TEXT("WeaponData.HitReact.HitReactMontage"));
+		ValidateSoftClassReference(Context, Result, Weapon->Equip.ActorClass, TEXT("Weapon.Equip.ActorClass"));
+		ValidateSoftObjectReference(Context, Result, Weapon->Equip.EquipMontage, TEXT("Weapon.Equip.EquipMontage"));
+		ValidateSoftObjectReference(Context, Result, Weapon->Equip.UnequipMontage, TEXT("Weapon.Equip.UnequipMontage"));
+		ValidateSoftClassReference(Context, Result, Weapon->Equip.AnimLayer, TEXT("Weapon.Equip.AnimLayer"));
+		ValidateSoftObjectReference(Context, Result, Weapon->Attack.AttackMontage, TEXT("Weapon.Attack.AttackMontage"));
+		ValidateSoftObjectReference(Context, Result, Weapon->HitReact.HitReactMontage, TEXT("Weapon.HitReact.HitReactMontage"));
 
-		if (!FMath::IsFinite(ItemDefinition.WeaponData.Attack.StaminaCost)
-			|| ItemDefinition.WeaponData.Attack.StaminaCost < 0.0f)
+		if (!FMath::IsFinite(Weapon->Attack.StaminaCost) || Weapon->Attack.StaminaCost < 0.0f)
 		{
-			MarkItemInvalid(Context, Result, NSLOCTEXT("ItemDefinition", "InvalidWeaponAttackStaminaCost", "WeaponData.Attack.StaminaCost must be a non-negative finite value."));
+			MarkItemInvalid(Context, Result, NSLOCTEXT("ItemDefinition", "InvalidWeaponAttackStaminaCost", "Weapon.Attack.StaminaCost must be a non-negative finite value."));
 		}
 
-		if (!FMath::IsFinite(ItemDefinition.WeaponData.Movement.MeleeEquippedMovementSpeedMultiplier)
-			|| ItemDefinition.WeaponData.Movement.MeleeEquippedMovementSpeedMultiplier <= 0.0f)
+		if (!FMath::IsFinite(Weapon->Movement.MeleeEquippedMovementSpeedMultiplier)
+			|| Weapon->Movement.MeleeEquippedMovementSpeedMultiplier <= 0.0f)
 		{
-			MarkItemInvalid(Context, Result, NSLOCTEXT("ItemDefinition", "InvalidMeleeMovementSpeedMultiplier", "WeaponData.Movement.MeleeEquippedMovementSpeedMultiplier must be a positive finite value."));
+			MarkItemInvalid(Context, Result, NSLOCTEXT("ItemDefinition", "InvalidMeleeMovementSpeedMultiplier", "Weapon.Movement.MeleeEquippedMovementSpeedMultiplier must be a positive finite value."));
 		}
 
-		if (ItemDefinition.WeaponData.Equip.ActorClass.IsNull())
+		if (Weapon->Equip.ActorClass.IsNull())
 		{
-			MarkItemInvalid(Context, Result, NSLOCTEXT("ItemDefinition", "WeaponMissingActorClass", "Weapon items require WeaponData.Equip.ActorClass."));
+			MarkItemInvalid(Context, Result, NSLOCTEXT("ItemDefinition", "WeaponMissingActorClass", "The Weapon fragment requires Weapon.Equip.ActorClass."));
 		}
 
-		if (ItemDefinition.WeaponData.Equip.AttachSocketName == EWeaponSocketName::None)
+		if (Weapon->Equip.AttachSocketName == EWeaponSocketName::None)
 		{
-			Context.AddWarning(NSLOCTEXT("ItemDefinition", "WeaponMissingAttachSocket", "WeaponData.Equip.AttachSocketName is None. The weapon may attach to the wrong place."));
+			Context.AddWarning(NSLOCTEXT("ItemDefinition", "WeaponMissingAttachSocket", "Weapon.Equip.AttachSocketName is None. The weapon may attach to the wrong place."));
 		}
 
-		if (ItemDefinition.WeaponData.Aim.CrosshairWidgetTag.IsValid() && !ItemDefinition.WeaponData.Aim.bSupportsInput)
+		if (Weapon->Aim.CrosshairWidgetTag.IsValid() && !Weapon->Aim.bSupportsInput)
 		{
-			Context.AddWarning(NSLOCTEXT("ItemDefinition", "AimCrosshairWithoutInput", "WeaponData.Aim.CrosshairWidgetTag is set, but bSupportsInput is false."));
+			Context.AddWarning(NSLOCTEXT("ItemDefinition", "AimCrosshairWithoutInput", "Weapon.Aim.CrosshairWidgetTag is set, but bSupportsInput is false."));
 		}
 
-		if (ItemDefinition.WeaponData.Aim.bSupportsInput && !ItemDefinition.WeaponData.Aim.CrosshairWidgetTag.IsValid())
+		if (Weapon->Aim.bSupportsInput && !Weapon->Aim.CrosshairWidgetTag.IsValid())
 		{
-			Context.AddWarning(NSLOCTEXT("ItemDefinition", "AimInputWithoutCrosshair", "WeaponData.Aim.bSupportsInput is true, but CrosshairWidgetTag is not set."));
+			Context.AddWarning(NSLOCTEXT("ItemDefinition", "AimInputWithoutCrosshair", "Weapon.Aim.bSupportsInput is true, but CrosshairWidgetTag is not set."));
 		}
 
-		if (!FMath::IsFinite(ItemDefinition.WeaponData.Aim.MaxAcceptedServerViewDistance)
-			|| ItemDefinition.WeaponData.Aim.MaxAcceptedServerViewDistance < 0.0f)
+		if (!FMath::IsFinite(Weapon->Aim.MaxAcceptedServerViewDistance) || Weapon->Aim.MaxAcceptedServerViewDistance < 0.0f)
 		{
-			MarkItemInvalid(Context, Result, NSLOCTEXT("ItemDefinition", "InvalidAimServerViewDistance", "WeaponData.Aim.MaxAcceptedServerViewDistance must be a non-negative finite value."));
+			MarkItemInvalid(Context, Result, NSLOCTEXT("ItemDefinition", "InvalidAimServerViewDistance", "Weapon.Aim.MaxAcceptedServerViewDistance must be a non-negative finite value."));
 		}
 
-		ValidateItemAimCameraSettings(Context, Result, ItemDefinition.WeaponData.Aim.CameraSettings, TEXT("WeaponData.Aim.CameraSettings"));
+		ValidateItemAimCameraSettings(Context, Result, Weapon->Aim.CameraSettings, TEXT("Weapon.Aim.CameraSettings"));
 
-		if (!FMath::IsFinite(ItemDefinition.WeaponData.Bow.TraceRange) || ItemDefinition.WeaponData.Bow.TraceRange <= 0.0f)
+		if (!FMath::IsFinite(Weapon->AI.RangedTargetLockDelay) || Weapon->AI.RangedTargetLockDelay < 0.0f)
 		{
-			MarkItemInvalid(Context, Result, NSLOCTEXT("ItemDefinition", "InvalidBowTraceRange", "WeaponData.Bow.TraceRange must be a positive finite value."));
+			MarkItemInvalid(Context, Result, NSLOCTEXT("ItemDefinition", "InvalidAiRangedTargetLockDelay", "Weapon.AI.RangedTargetLockDelay must be a non-negative finite value."));
 		}
 
-		if (!FMath::IsFinite(ItemDefinition.WeaponData.Bow.MaxAcceptedServerLaunchStartDistance)
-			|| ItemDefinition.WeaponData.Bow.MaxAcceptedServerLaunchStartDistance < 0.0f)
+		if (Bow)
 		{
-			MarkItemInvalid(Context, Result, NSLOCTEXT("ItemDefinition", "InvalidBowServerLaunchDistance", "WeaponData.Bow.MaxAcceptedServerLaunchStartDistance must be a non-negative finite value."));
+			ValidateBowFragment(Context, Result, *Bow);
 		}
 
-		if (!FMath::IsFinite(ItemDefinition.WeaponData.Bow.MinimumDrawDuration)
-			|| ItemDefinition.WeaponData.Bow.MinimumDrawDuration <= 0.0f)
+		if (Gun)
 		{
-			MarkItemInvalid(Context, Result, NSLOCTEXT("ItemDefinition", "InvalidBowMinimumDrawDuration", "WeaponData.Bow.MinimumDrawDuration must be a positive finite value."));
+			ValidateGunFragment(Context, Result, *Gun);
 		}
 
-		if (!FMath::IsFinite(ItemDefinition.WeaponData.Bow.FireInterval)
-			|| ItemDefinition.WeaponData.Bow.FireInterval <= 0.0f)
+		if (Bow && Gun)
 		{
-			MarkItemInvalid(Context, Result, NSLOCTEXT("ItemDefinition", "InvalidBowFireInterval", "WeaponData.Bow.FireInterval must be a positive finite value."));
+			Context.AddWarning(NSLOCTEXT("ItemDefinition", "BowAndGunDataSet", "Both Bow and Gun fragments are set. Confirm that the weapon actor is expected to use both."));
 		}
+	}
+#endif
 
-		ValidateSoftObjectReference(Context, Result, ItemDefinition.WeaponData.Bow.WeaponMontage, TEXT("WeaponData.Bow.WeaponMontage"));
-
-		if (ItemDefinition.WeaponData.Bow.HasAnyData())
-		{
-			if (!ItemDefinition.WeaponData.Bow.ArrowActorClass)
-			{
-				MarkItemInvalid(Context, Result, NSLOCTEXT("ItemDefinition", "BowMissingArrowClass", "Bow weapon data requires WeaponData.Bow.ArrowActorClass."));
-			}
-
-			if (ItemDefinition.WeaponData.Bow.TraceObjectTypes.IsEmpty())
-			{
-				Context.AddWarning(NSLOCTEXT("ItemDefinition", "BowEmptyTraceObjectTypes", "WeaponData.Bow.TraceObjectTypes is empty. Bow aim and launch traces may not hit anything."));
-			}
-		}
-
-		if (!FMath::IsFinite(ItemDefinition.WeaponData.Gun.TraceRange) || ItemDefinition.WeaponData.Gun.TraceRange <= 0.0f)
-		{
-			MarkItemInvalid(Context, Result, NSLOCTEXT("ItemDefinition", "InvalidGunTraceRange", "WeaponData.Gun.TraceRange must be a positive finite value."));
-		}
-
-		if (!FMath::IsFinite(ItemDefinition.WeaponData.Gun.TraceRadius) || ItemDefinition.WeaponData.Gun.TraceRadius < 0.0f)
-		{
-			MarkItemInvalid(Context, Result, NSLOCTEXT("ItemDefinition", "InvalidGunTraceRadius", "WeaponData.Gun.TraceRadius must be a non-negative finite value."));
-		}
-
-		if (!FMath::IsFinite(ItemDefinition.WeaponData.Gun.FireInterval) || ItemDefinition.WeaponData.Gun.FireInterval <= 0.0f)
-		{
-			MarkItemInvalid(Context, Result, NSLOCTEXT("ItemDefinition", "InvalidGunFireInterval", "WeaponData.Gun.FireInterval must be positive."));
-		}
-
-		const FVector2D& ImpactDecalSizeRange = ItemDefinition.WeaponData.Gun.ImpactDecalSizeRange;
-		if (!FMath::IsFinite(ImpactDecalSizeRange.X) || !FMath::IsFinite(ImpactDecalSizeRange.Y)
-			|| ImpactDecalSizeRange.X < 0.0f || ImpactDecalSizeRange.Y < 0.0f)
-		{
-			MarkItemInvalid(Context, Result, NSLOCTEXT("ItemDefinition", "InvalidGunImpactDecalSizeRange", "WeaponData.Gun.ImpactDecalSizeRange must contain non-negative finite values."));
-		}
-		else if (ImpactDecalSizeRange.X > ImpactDecalSizeRange.Y)
-		{
-			MarkItemInvalid(Context, Result, NSLOCTEXT("ItemDefinition", "InvertedGunImpactDecalSizeRange", "WeaponData.Gun.ImpactDecalSizeRange minimum cannot be greater than maximum."));
-		}
-
-		if (!FMath::IsFinite(ItemDefinition.WeaponData.Gun.ImpactDecalDepth)
-			|| ItemDefinition.WeaponData.Gun.ImpactDecalDepth < 0.0f)
-		{
-			MarkItemInvalid(Context, Result, NSLOCTEXT("ItemDefinition", "InvalidGunImpactDecalDepth", "WeaponData.Gun.ImpactDecalDepth must be a non-negative finite value."));
-		}
-
-		if (!FMath::IsFinite(ItemDefinition.WeaponData.Gun.ImpactDecalLifeSpan)
-			|| ItemDefinition.WeaponData.Gun.ImpactDecalLifeSpan < 0.0f)
-		{
-			MarkItemInvalid(Context, Result, NSLOCTEXT("ItemDefinition", "InvalidGunImpactDecalLifeSpan", "WeaponData.Gun.ImpactDecalLifeSpan must be a non-negative finite value."));
-		}
-
-		if (ItemDefinition.WeaponData.Gun.ImpactDecalRotationOffset.ContainsNaN())
-		{
-			MarkItemInvalid(Context, Result, NSLOCTEXT("ItemDefinition", "InvalidGunImpactDecalRotation", "WeaponData.Gun.ImpactDecalRotationOffset contains NaN."));
-		}
-
-		ValidateSoftObjectReference(Context, Result, ItemDefinition.WeaponData.Gun.ImpactDecalMaterial, TEXT("WeaponData.Gun.ImpactDecalMaterial"));
-
-		if (ItemDefinition.WeaponData.Gun.HasAnyData() && ItemDefinition.WeaponData.Gun.TraceObjectTypes.IsEmpty())
-		{
-			Context.AddWarning(NSLOCTEXT("ItemDefinition", "GunEmptyTraceObjectTypes", "WeaponData.Gun.TraceObjectTypes is empty. Gun traces may not hit anything."));
-		}
-
-		if (ItemDefinition.WeaponData.Bow.HasAnyData() && ItemDefinition.WeaponData.Gun.HasAnyData())
-		{
-			Context.AddWarning(NSLOCTEXT("ItemDefinition", "BowAndGunDataSet", "Both Bow and Gun weapon data are set. Confirm that the weapon actor is expected to use both."));
-		}
-
-		if (!FMath::IsFinite(ItemDefinition.WeaponData.AI.RangedTargetLockDelay)
-			|| ItemDefinition.WeaponData.AI.RangedTargetLockDelay < 0.0f)
-		{
-			MarkItemInvalid(Context, Result, NSLOCTEXT("ItemDefinition", "InvalidAiRangedTargetLockDelay", "WeaponData.AI.RangedTargetLockDelay must be a non-negative finite value."));
-		}
+#if WITH_EDITORONLY_DATA
+	/** 옛 애셋에서 기본값과 다른 값이 하나라도 있는 묶음만 조각으로 옮긴다. */
+	template <typename StructType>
+	bool DiffersFromDefault(const StructType& Value)
+	{
+		const StructType DefaultValue;
+		return !StructType::StaticStruct()->CompareScriptStruct(&Value, &DefaultValue, PPF_None);
 	}
 #endif
 }
@@ -400,6 +455,89 @@ FPrimaryAssetId UItemDefinition::GetPrimaryAssetId() const
 {
 	return FPrimaryAssetId(TEXT("ItemDefinition"), GetFName());
 }
+
+void UItemDefinition::PostLoad()
+{
+#if WITH_EDITORONLY_DATA
+	// 부모의 PostLoad가 애셋 번들을 다시 계산하므로, 옮긴 조각이 번들에 들어가도록 먼저 옮긴다.
+	MoveLegacyDataToFragments();
+#endif
+
+	Super::PostLoad();
+}
+
+#if WITH_EDITORONLY_DATA
+void UItemDefinition::UpdateAssetBundleData()
+{
+	Super::UpdateAssetBundleData();
+	if (!UAssetManager::IsInitialized())
+	{
+		return;
+	}
+
+	// 엔진은 AssetBundles 메타데이터를 리플렉션 프로퍼티에서만 찾아서 조각(TInstancedStruct) 안까지 들어가지 않는다.
+	// 무기 표현 애셋은 직접 번들에 넣는다.
+	TArray<FSoftObjectPath> PresentationAssetPaths;
+	GetWeaponPresentationAssetPaths(PresentationAssetPaths);
+	AssetBundleData.AddBundleAssetsTruncated(GetWeaponPresentationBundleName(), PresentationAssetPaths);
+}
+
+void UItemDefinition::MoveLegacyDataToFragments()
+{
+	// 새 구조로 저장한 애셋은 조각을 이미 가지고 있다. 옛 애셋은 모두 드롭 데이터가 있어서 옮기면 조각이 하나 이상 생긴다.
+	if (!Fragments.IsEmpty())
+	{
+		return;
+	}
+
+	if (!Map_Stat_Magnitude_DEPRECATED.IsEmpty())
+	{
+		FItemFragment_Stat Stat;
+		Stat.Map_Stat_Magnitude = MoveTemp(Map_Stat_Magnitude_DEPRECATED);
+		Fragments.Add(TInstancedStruct<FItemFragment>::Make<FItemFragment_Stat>(Stat));
+	}
+
+	if (ConsumeGameplayEffectClass_DEPRECATED || !Map_Consume_Magnitude_DEPRECATED.IsEmpty() || QuantityToConsume_DEPRECATED != 1)
+	{
+		FItemFragment_Consumable Consumable;
+		Consumable.ConsumeGameplayEffectClass = ConsumeGameplayEffectClass_DEPRECATED;
+		Consumable.Map_Consume_Magnitude = MoveTemp(Map_Consume_Magnitude_DEPRECATED);
+		Consumable.QuantityToConsume = QuantityToConsume_DEPRECATED;
+		Fragments.Add(TInstancedStruct<FItemFragment>::Make<FItemFragment_Consumable>(Consumable));
+	}
+
+	if (bCanDropFromRewardChest_DEPRECATED)
+	{
+		FItemFragment_Drop Drop;
+		Drop.DropRate = DropRate_DEPRECATED;
+		Fragments.Add(TInstancedStruct<FItemFragment>::Make<FItemFragment_Drop>(Drop));
+	}
+
+	const FWeaponDefinitionData& LegacyWeapon = WeaponData_DEPRECATED;
+	if (DiffersFromDefault(LegacyWeapon.Equip) || DiffersFromDefault(LegacyWeapon.Attack) || DiffersFromDefault(LegacyWeapon.Movement)
+		|| DiffersFromDefault(LegacyWeapon.HitReact) || DiffersFromDefault(LegacyWeapon.Aim) || DiffersFromDefault(LegacyWeapon.AI))
+	{
+		FItemFragment_Weapon Weapon;
+		Weapon.Equip = LegacyWeapon.Equip;
+		Weapon.Attack = LegacyWeapon.Attack;
+		Weapon.Movement = LegacyWeapon.Movement;
+		Weapon.HitReact = LegacyWeapon.HitReact;
+		Weapon.Aim = LegacyWeapon.Aim;
+		Weapon.AI = LegacyWeapon.AI;
+		Fragments.Add(TInstancedStruct<FItemFragment>::Make<FItemFragment_Weapon>(Weapon));
+	}
+
+	if (DiffersFromDefault(LegacyWeapon.Bow))
+	{
+		Fragments.Add(TInstancedStruct<FItemFragment>::Make<FItemFragment_Bow>(LegacyWeapon.Bow));
+	}
+
+	if (DiffersFromDefault(LegacyWeapon.Gun))
+	{
+		Fragments.Add(TInstancedStruct<FItemFragment>::Make<FItemFragment_Gun>(LegacyWeapon.Gun));
+	}
+}
+#endif
 
 FName UItemDefinition::GetWeaponPresentationBundleName()
 {
@@ -417,14 +555,25 @@ void UItemDefinition::GetWeaponPresentationAssetPaths(TArray<FSoftObjectPath>& O
 		}
 	};
 
-	AddPath(WeaponData.Equip.ActorClass.ToSoftObjectPath());
-	AddPath(WeaponData.Equip.EquipMontage.ToSoftObjectPath());
-	AddPath(WeaponData.Equip.UnequipMontage.ToSoftObjectPath());
-	AddPath(WeaponData.Equip.AnimLayer.ToSoftObjectPath());
-	AddPath(WeaponData.Attack.AttackMontage.ToSoftObjectPath());
-	AddPath(WeaponData.HitReact.HitReactMontage.ToSoftObjectPath());
-	AddPath(WeaponData.Bow.WeaponMontage.ToSoftObjectPath());
-	AddPath(WeaponData.Gun.ImpactDecalMaterial.ToSoftObjectPath());
+	if (const FItemFragment_Weapon* Weapon = FindFragment<FItemFragment_Weapon>())
+	{
+		AddPath(Weapon->Equip.ActorClass.ToSoftObjectPath());
+		AddPath(Weapon->Equip.EquipMontage.ToSoftObjectPath());
+		AddPath(Weapon->Equip.UnequipMontage.ToSoftObjectPath());
+		AddPath(Weapon->Equip.AnimLayer.ToSoftObjectPath());
+		AddPath(Weapon->Attack.AttackMontage.ToSoftObjectPath());
+		AddPath(Weapon->HitReact.HitReactMontage.ToSoftObjectPath());
+	}
+
+	if (const FItemFragment_Bow* Bow = FindFragment<FItemFragment_Bow>())
+	{
+		AddPath(Bow->WeaponMontage.ToSoftObjectPath());
+	}
+
+	if (const FItemFragment_Gun* Gun = FindFragment<FItemFragment_Gun>())
+	{
+		AddPath(Gun->ImpactDecalMaterial.ToSoftObjectPath());
+	}
 }
 
 #if WITH_EDITOR
@@ -437,11 +586,21 @@ EDataValidationResult UItemDefinition::IsDataValid(FDataValidationContext& Conte
 	}
 
 	ValidateItemIdentity(Context, Result, *this);
-	ValidateMagnitudeMap(Context, Result, Map_Stat_Magnitude, TEXT("Map_Stat_Magnitude"));
-	ValidateConsumableData(Context, Result, *this);
-	ValidateDropData(Context, Result, *this);
 	ValidateItemShopData(Context, Result, ShopData);
-	ValidateWeaponData(Context, Result, *this);
+	ValidateFragmentList(Context, Result, *this);
+
+	if (const FItemFragment_Stat* Stat = FindFragment<FItemFragment_Stat>())
+	{
+		ValidateMagnitudeMap(Context, Result, Stat->Map_Stat_Magnitude, TEXT("Stat.Map_Stat_Magnitude"));
+	}
+
+	if (const FItemFragment_Drop* Drop = FindFragment<FItemFragment_Drop>())
+	{
+		ValidateDropFragment(Context, Result, *Drop);
+	}
+
+	ValidateConsumableFragment(Context, Result, *this);
+	ValidateWeaponFragments(Context, Result, *this);
 
 	return Result;
 }
@@ -452,48 +611,12 @@ bool UItemDefinition::MatchesItemType(const FGameplayTag ItemTypeTag) const
 	return IdTag.IsValid() && ItemTypeTag.IsValid() && IdTag.MatchesTag(ItemTypeTag);
 }
 
-bool UItemDefinition::HasWeaponData() const
-{
-	return WeaponData.HasAnyData();
-}
-
 bool UItemDefinition::IsWeaponDefinition(const FGameplayTag WeaponTypeTag) const
 {
-	return MatchesItemType(WeaponTypeTag) || HasWeaponData();
-}
-
-float UItemDefinition::GetSafeAttackStaminaCost() const
-{
-	return FMath::IsFinite(WeaponData.Attack.StaminaCost) ? FMath::Max(WeaponData.Attack.StaminaCost, 0.0f) : 0.0f;
-}
-
-float UItemDefinition::GetEquippedMovementSpeedMultiplier() const
-{
-	if (WeaponData.Aim.bSupportsInput)
-	{
-		return 1.0f;
-	}
-
-	const float ConfiguredMultiplier = WeaponData.Movement.MeleeEquippedMovementSpeedMultiplier;
-	return FMath::IsFinite(ConfiguredMultiplier) ? FMath::Max(ConfiguredMultiplier, 0.01f) : 1.0f;
+	return MatchesItemType(WeaponTypeTag) || HasFragment<FItemFragment_Weapon>();
 }
 
 bool UItemDefinition::IsConsumableDefinition(const FGameplayTag ConsumableTypeTag) const
 {
 	return MatchesItemType(ConsumableTypeTag);
-}
-
-bool UItemDefinition::CanDropFromRewardChest() const
-{
-	return bCanDropFromRewardChest && GetRewardChestDropWeight() > 0.0f;
-}
-
-float UItemDefinition::GetRewardChestDropWeight() const
-{
-	return FMath::Max(0.0f, DropRate);
-}
-
-int32 UItemDefinition::GetSafeQuantityToConsume() const
-{
-	return FMath::Max(1, QuantityToConsume);
 }

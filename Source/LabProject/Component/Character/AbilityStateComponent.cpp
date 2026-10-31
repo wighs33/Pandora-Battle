@@ -256,8 +256,9 @@ void UAbilityStateComponent::ApplyMovementSpeedFromAttribute()
 		FMath::Max(MinimumMaxWalkSpeed, BaseMaxWalkSpeed * (1.0f + FMath::Max(MovementSpeedAttribute, 0.0f) * 0.01f));
 	const UEquipmentComponent* EquipmentComponent = Character->GetEquipmentComponent();
 	const UItemDefinition* EquippedWeaponDefinition = EquipmentComponent ? EquipmentComponent->GetCurrentWeaponDefinition() : nullptr;
+	const FItemFragment_Weapon* EquippedWeapon = FindItemFragment<FItemFragment_Weapon>(EquippedWeaponDefinition);
 	const float EquippedWeaponMovementSpeedMultiplier =
-		EquippedWeaponDefinition ? EquippedWeaponDefinition->GetEquippedMovementSpeedMultiplier() : 1.0f;
+		EquippedWeapon ? EquippedWeapon->GetEquippedMovementSpeedMultiplier() : 1.0f;
 
 	float StaminaSpeedMultiplier = 1.0f;
 	if (StaminaPercent <= FMath::Clamp(SettingDefinition->CriticalStaminaThresholdPercent, 0.0f, 100.0f))

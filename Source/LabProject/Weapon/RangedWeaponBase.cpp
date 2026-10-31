@@ -16,8 +16,8 @@
 
 bool ARangedWeaponBase::SupportsAimInput() const
 {
-	const UItemDefinition* ItemDefinition = GetSourceItemDefinition();
-	return ItemDefinition && ItemDefinition->WeaponData.Aim.bSupportsInput;
+	const FItemFragment_Weapon* WeaponData = FindItemFragment<FItemFragment_Weapon>(GetSourceItemDefinition());
+	return WeaponData && WeaponData->Aim.bSupportsInput;
 }
 
 bool ARangedWeaponBase::CanUseRangedWeapon(const ACharacterBase* AttackingCharacter, const bool bRequirePlayerAim) const
@@ -62,15 +62,15 @@ bool ARangedWeaponBase::CanServerUseRangedWeapon(const ACharacterBase* Attacking
 
 FGameplayTag ARangedWeaponBase::GetAimCrosshairWidgetTag() const
 {
-	const UItemDefinition* ItemDefinition = GetSourceItemDefinition();
-	return ItemDefinition ? ItemDefinition->WeaponData.Aim.CrosshairWidgetTag : FGameplayTag();
+	const FItemFragment_Weapon* WeaponData = FindItemFragment<FItemFragment_Weapon>(GetSourceItemDefinition());
+	return WeaponData ? WeaponData->Aim.CrosshairWidgetTag : FGameplayTag();
 }
 
 const FWeaponAimCameraSettings& ARangedWeaponBase::GetAimCameraSettings() const
 {
-	if (const UItemDefinition* ItemDefinition = GetSourceItemDefinition())
+	if (const FItemFragment_Weapon* WeaponData = FindItemFragment<FItemFragment_Weapon>(GetSourceItemDefinition()))
 	{
-		return ItemDefinition->WeaponData.Aim.CameraSettings;
+		return WeaponData->Aim.CameraSettings;
 	}
 
 	static const FWeaponAimCameraSettings DefaultAimCameraSettings;
@@ -108,9 +108,9 @@ bool ARangedWeaponBase::ResolveServerAimViewPoint(const APdPlayer* PlayerCharact
 	}
 
 	const FVector RequestedDirection = RequestedViewDirection.GetSafeNormal();
-	const UItemDefinition* ItemDefinition = GetSourceItemDefinition();
-	const float MaxAcceptedViewDistance = ItemDefinition
-		? ItemDefinition->WeaponData.Aim.MaxAcceptedServerViewDistance
+	const FItemFragment_Weapon* WeaponData = FindItemFragment<FItemFragment_Weapon>(GetSourceItemDefinition());
+	const float MaxAcceptedViewDistance = WeaponData
+		? WeaponData->Aim.MaxAcceptedServerViewDistance
 		: 0.0f;
 
 	if (!RequestedDirection.IsNearlyZero()

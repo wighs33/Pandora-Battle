@@ -216,13 +216,13 @@ void AGun::ExecuteMuzzleFlashCue(ACharacterBase* Character) const
 	}
 
 	const UItemDefinition* ItemDefinition = GetSourceItemDefinition();
-	if (!ItemDefinition)
+	const FItemFragment_Gun* GunData = FindItemFragment<FItemFragment_Gun>(ItemDefinition);
+	if (!GunData)
 	{
 		return;
 	}
 
-	const FGunWeaponDefinitionData& GunData = ItemDefinition->WeaponData.Gun;
-	FGameplayTag MuzzleFlashCueTag = GunData.MuzzleFlashCueTag;
+	FGameplayTag MuzzleFlashCueTag = GunData->MuzzleFlashCueTag;
 	if (!MuzzleFlashCueTag.IsValid())
 	{
 		return;
@@ -240,7 +240,7 @@ void AGun::ExecuteMuzzleFlashCue(ACharacterBase* Character) const
 	CueParameters.SourceObject = ItemDefinition;
 	CueParameters.TargetAttachComponent = WeaponMesh;
 
-	const FName MuzzleSocketName = GunData.GetResolvedMuzzleSocketName();
+	const FName MuzzleSocketName = GunData->GetResolvedMuzzleSocketName();
 	if (WeaponMesh && !MuzzleSocketName.IsNone() && WeaponMesh->DoesSocketExist(MuzzleSocketName))
 	{
 		const FTransform MuzzleTransform = WeaponMesh->GetSocketTransform(MuzzleSocketName, RTS_World);
@@ -269,32 +269,32 @@ bool AGun::ShouldSkipMulticastMuzzleFlashCue() const
 
 bool AGun::HasConfiguredImpactDecal() const
 {
-	const UItemDefinition* ItemDefinition = GetSourceItemDefinition();
-	return ItemDefinition && !ItemDefinition->WeaponData.Gun.ImpactDecalMaterial.IsNull();
+	const FItemFragment_Gun* GunData = FindItemFragment<FItemFragment_Gun>(GetSourceItemDefinition());
+	return GunData && !GunData->ImpactDecalMaterial.IsNull();
 }
 
 bool AGun::ShouldSpawnImpactDecalForHit(const FHitResult& HitResult) const
 {
-	const UItemDefinition* ItemDefinition = GetSourceItemDefinition();
+	const FItemFragment_Gun* GunData = FindItemFragment<FItemFragment_Gun>(GetSourceItemDefinition());
 	const UPrimitiveComponent* HitComponent = HitResult.GetComponent();
-	if (!ItemDefinition || !HitComponent)
+	if (!GunData || !HitComponent)
 	{
 		return false;
 	}
 
 	const EObjectTypeQuery HitObjectType = UEngineTypes::ConvertToObjectType(HitComponent->GetCollisionObjectType());
-	return ItemDefinition->WeaponData.Gun.ImpactDecalObjectTypes.Contains(HitObjectType);
+	return GunData->ImpactDecalObjectTypes.Contains(HitObjectType);
 }
 
 float AGun::MakeImpactDecalSize() const
 {
-	const UItemDefinition* ItemDefinition = GetSourceItemDefinition();
-	if (!ItemDefinition)
+	const FItemFragment_Gun* GunData = FindItemFragment<FItemFragment_Gun>(GetSourceItemDefinition());
+	if (!GunData)
 	{
 		return 0.0f;
 	}
 
-	const FVector2D& SizeRange = ItemDefinition->WeaponData.Gun.ImpactDecalSizeRange;
+	const FVector2D& SizeRange = GunData->ImpactDecalSizeRange;
 	const float MinSize = FMath::Max(0.0f, FMath::Min(SizeRange.X, SizeRange.Y));
 	const float MaxSize = FMath::Max(MinSize, FMath::Max(SizeRange.X, SizeRange.Y));
 	return FMath::IsNearlyEqual(MinSize, MaxSize) ? MinSize : FMath::FRandRange(MinSize, MaxSize);
@@ -308,32 +308,31 @@ void AGun::SpawnImpactDecal(const FVector& ImpactLocation, const FVector& Impact
 		return;
 	}
 
-	const UItemDefinition* ItemDefinition = GetSourceItemDefinition();
-	if (!ItemDefinition || ItemDefinition->WeaponData.Gun.ImpactDecalMaterial.IsNull() || DecalSize <= 0.0f)
+	const FItemFragment_Gun* GunData = FindItemFragment<FItemFragment_Gun>(GetSourceItemDefinition());
+	if (!GunData || GunData->ImpactDecalMaterial.IsNull() || DecalSize <= 0.0f)
 	{
 		return;
 	}
 
-	const FGunWeaponDefinitionData& GunData = ItemDefinition->WeaponData.Gun;
-	UMaterialInterface* DecalMaterial = GunData.ImpactDecalMaterial.Get();
+	UMaterialInterface* DecalMaterial = GunData->ImpactDecalMaterial.Get();
 	if (!DecalMaterial)
 	{
 		return;
 	}
 
 	const FVector SafeImpactNormal = ImpactNormal.GetSafeNormal(UE_SMALL_NUMBER, FVector::UpVector);
-	const FVector DecalSizeVector(FMath::Max(0.0f, GunData.ImpactDecalDepth), DecalSize, DecalSize);
-	const FRotator DecalRotation = (SafeImpactNormal.Rotation() + GunData.ImpactDecalRotationOffset).GetNormalized();
-	const float LifeSpan = FMath::Max(0.0f, GunData.ImpactDecalLifeSpan);
+	const FVector DecalSizeVector(FMath::Max(0.0f, GunData->ImpactDecalDepth), DecalSize, DecalSize);
+	const FRotator DecalRotation = (SafeImpactNormal.Rotation() + GunData->ImpactDecalRotationOffset).GetNormalized();
+	const float LifeSpan = FMath::Max(0.0f, GunData->ImpactDecalLifeSpan);
 
 	UGameplayStatics::SpawnDecalAtLocation(World, DecalMaterial, DecalSizeVector, ImpactLocation, DecalRotation, LifeSpan);
 }
 
 bool AGun::SupportsAutomaticFire() const
 {
-	if (const UItemDefinition* ItemDefinition = GetSourceItemDefinition())
+	if (const FItemFragment_Gun* GunData = FindItemFragment<FItemFragment_Gun>(GetSourceItemDefinition()))
 	{
-		return ItemDefinition->WeaponData.Gun.bEnableAutomaticFire;
+		return GunData->bEnableAutomaticFire;
 	}
 
 	return false;
@@ -351,9 +350,9 @@ bool AGun::ShouldTriggerHitReactOnDamage() const
 
 float AGun::GetGunFireInterval() const
 {
-	if (const UItemDefinition* ItemDefinition = GetSourceItemDefinition())
+	if (const FItemFragment_Gun* GunData = FindItemFragment<FItemFragment_Gun>(GetSourceItemDefinition()))
 	{
-		const float BaseFireInterval = FMath::Max(0.01f, ItemDefinition->WeaponData.Gun.FireInterval);
+		const float BaseFireInterval = FMath::Max(0.01f, GunData->FireInterval);
 		return FMath::Max(0.01f, BaseFireInterval / GetWeaponAttackSpeedPlayRate());
 	}
 
@@ -391,9 +390,9 @@ bool AGun::TryConsumePrimaryAttackCooldown()
 
 TArray<TEnumAsByte<EObjectTypeQuery>> AGun::GetGunTraceObjectTypes() const
 {
-	if (const UItemDefinition* ItemDefinition = GetSourceItemDefinition())
+	if (const FItemFragment_Gun* GunData = FindItemFragment<FItemFragment_Gun>(GetSourceItemDefinition()))
 	{
-		return MakeRangedTraceObjectTypes(ItemDefinition->WeaponData.Gun.TraceObjectTypes);
+		return MakeRangedTraceObjectTypes(GunData->TraceObjectTypes);
 	}
 
 	return MakeRangedTraceObjectTypes({});
@@ -401,9 +400,9 @@ TArray<TEnumAsByte<EObjectTypeQuery>> AGun::GetGunTraceObjectTypes() const
 
 float AGun::GetGunTraceRange() const
 {
-	if (const UItemDefinition* ItemDefinition = GetSourceItemDefinition())
+	if (const FItemFragment_Gun* GunData = FindItemFragment<FItemFragment_Gun>(GetSourceItemDefinition()))
 	{
-		return ItemDefinition->WeaponData.Gun.TraceRange;
+		return GunData->TraceRange;
 	}
 
 	return 0.0f;
@@ -411,9 +410,9 @@ float AGun::GetGunTraceRange() const
 
 float AGun::GetGunTraceRadius() const
 {
-	if (const UItemDefinition* ItemDefinition = GetSourceItemDefinition())
+	if (const FItemFragment_Gun* GunData = FindItemFragment<FItemFragment_Gun>(GetSourceItemDefinition()))
 	{
-		return FMath::Max(0.0f, ItemDefinition->WeaponData.Gun.TraceRadius);
+		return FMath::Max(0.0f, GunData->TraceRadius);
 	}
 
 	return 0.0f;
@@ -422,16 +421,17 @@ float AGun::GetGunTraceRadius() const
 FVector AGun::GetGunTraceStartLocation(const ACharacterBase* Character) const
 {
 	const UItemDefinition* ItemDefinition = GetSourceItemDefinition();
-	const FName MuzzleSocketName = ItemDefinition ? ItemDefinition->WeaponData.Gun.GetResolvedMuzzleSocketName() : NAME_None;
+	const FItemFragment_Gun* GunData = FindItemFragment<FItemFragment_Gun>(ItemDefinition);
+	const FName MuzzleSocketName = GunData ? GunData->GetResolvedMuzzleSocketName() : NAME_None;
 	if (WeaponMesh && !MuzzleSocketName.IsNone() && WeaponMesh->DoesSocketExist(MuzzleSocketName))
 	{
 		return WeaponMesh->GetSocketLocation(MuzzleSocketName);
 	}
 
-	if (ItemDefinition)
+	if (const FItemFragment_Weapon* WeaponData = FindItemFragment<FItemFragment_Weapon>(ItemDefinition))
 	{
 		FVector AttachSocketLocation = FVector::ZeroVector;
-		if (TryGetOwnerMeshSocketLocation(Character, ItemDefinition->WeaponData.Equip.GetResolvedAttachSocketName(), AttachSocketLocation))
+		if (TryGetOwnerMeshSocketLocation(Character, WeaponData->Equip.GetResolvedAttachSocketName(), AttachSocketLocation))
 		{
 			return AttachSocketLocation;
 		}
@@ -458,9 +458,9 @@ bool AGun::TraceAIGunShotAtLocation(ACharacterBase* AttackingCharacter, const FV
 
 	const TArray<AActor*> ActorsToIgnore = MakeShotIgnoredActors(AttackingCharacter);
 
-	const UItemDefinition* ItemDefinition = GetSourceItemDefinition();
-	const EDrawDebugTrace::Type ShotTraceDebugDrawType = IsAttackDebugVisualizationEnabled() && ItemDefinition
-		? ItemDefinition->WeaponData.Gun.ShotTraceDebugDrawType.GetValue()
+	const FItemFragment_Gun* GunData = FindItemFragment<FItemFragment_Gun>(GetSourceItemDefinition());
+	const EDrawDebugTrace::Type ShotTraceDebugDrawType = IsAttackDebugVisualizationEnabled() && GunData
+		? GunData->ShotTraceDebugDrawType.GetValue()
 		: EDrawDebugTrace::None;
 
 	const FVector TraceEnd = TraceStart + (OutShotDirection * TraceRange);
@@ -497,10 +497,10 @@ bool AGun::TraceGunShot(APdPlayer* PlayerCharacter, const FVector& RequestedView
 	}
 
 	const FVector TraceStart = GetGunTraceStartLocation(PlayerCharacter);
-	const UItemDefinition* ItemDefinition = GetSourceItemDefinition();
+	const FItemFragment_Gun* GunData = FindItemFragment<FItemFragment_Gun>(GetSourceItemDefinition());
 	const TArray<TEnumAsByte<EObjectTypeQuery>> TraceObjectTypes = GetGunTraceObjectTypes();
-	const EDrawDebugTrace::Type AimTraceDebugDrawType = IsAttackDebugVisualizationEnabled() && ItemDefinition
-		? ItemDefinition->WeaponData.Gun.AimTraceDebugDrawType.GetValue()
+	const EDrawDebugTrace::Type AimTraceDebugDrawType = IsAttackDebugVisualizationEnabled() && GunData
+		? GunData->AimTraceDebugDrawType.GetValue()
 		: EDrawDebugTrace::None;
 	FVector AimTargetLocation = FVector::ZeroVector;
 	FHitResult AimHitResult;
@@ -519,8 +519,8 @@ bool AGun::TraceGunShot(APdPlayer* PlayerCharacter, const FVector& RequestedView
 	const float TraceDistance = FMath::Min(TraceRange, TargetDistance + GetGunTraceRadius() + 1.0f);
 	const FVector TraceEnd = TraceStart + (ShotDirection * TraceDistance);
 
-	const EDrawDebugTrace::Type ShotTraceDebugDrawType = IsAttackDebugVisualizationEnabled() && ItemDefinition
-		? ItemDefinition->WeaponData.Gun.ShotTraceDebugDrawType.GetValue()
+	const EDrawDebugTrace::Type ShotTraceDebugDrawType = IsAttackDebugVisualizationEnabled() && GunData
+		? GunData->ShotTraceDebugDrawType.GetValue()
 		: EDrawDebugTrace::None;
 
 	const float TraceRadius = GetGunTraceRadius();

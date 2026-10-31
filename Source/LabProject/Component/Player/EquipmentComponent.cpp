@@ -208,7 +208,8 @@ bool UEquipmentComponent::GetEquipData(FEquipData& OutEquipData) const
 	OutEquipData = FEquipData();
 
 	const UItemDefinition* ItemDefinition = GetRequestedWeaponDefinition();
-	if (!ItemDefinition)
+	const FItemFragment_Weapon* Weapon = FindItemFragment<FItemFragment_Weapon>(ItemDefinition);
+	if (!Weapon)
 	{
 		return false;
 	}
@@ -216,7 +217,7 @@ bool UEquipmentComponent::GetEquipData(FEquipData& OutEquipData) const
 	UAnimMontage* EquipMontage = nullptr;
 	if (!ShouldEquipWeaponsWithoutAnimation())
 	{
-		EquipMontage = ItemDefinition->WeaponData.Equip.EquipMontage.Get();
+		EquipMontage = Weapon->Equip.EquipMontage.Get();
 		if (!EquipMontage)
 		{
 			return false;
@@ -234,12 +235,13 @@ bool UEquipmentComponent::GetUnequipData(FUnequipData& OutUnequipData) const
 	OutUnequipData = FUnequipData();
 
 	const UItemDefinition* ItemDefinition = GetCurrentWeaponDefinition();
-	if (!ItemDefinition)
+	const FItemFragment_Weapon* Weapon = FindItemFragment<FItemFragment_Weapon>(ItemDefinition);
+	if (!Weapon)
 	{
 		return false;
 	}
 
-	UAnimMontage* UnequipMontage = ItemDefinition->WeaponData.Equip.UnequipMontage.Get();
+	UAnimMontage* UnequipMontage = Weapon->Equip.UnequipMontage.Get();
 	if (!UnequipMontage)
 	{
 		return false;
@@ -380,7 +382,8 @@ bool UEquipmentComponent::ResolveWeaponIdFromInstance(UItemInstance* WeaponInsta
 
 bool UEquipmentComponent::IsWeaponDefinitionEquipable(const UItemDefinition* ItemDefinition) const
 {
-	return ItemDefinition && !ItemDefinition->WeaponData.Equip.ActorClass.IsNull();
+	const FItemFragment_Weapon* Weapon = FindItemFragment<FItemFragment_Weapon>(ItemDefinition);
+	return Weapon && !Weapon->Equip.ActorClass.IsNull();
 }
 
 void UEquipmentComponent::MarkCurrentWeaponStateDirty(const bool bCurrentWeaponChanged,
@@ -558,12 +561,13 @@ bool UEquipmentComponent::GetAttackData(FAttackData& OutAttackData) const
 	OutAttackData = FAttackData();
 
 	const UItemDefinition* ItemDefinition = GetCurrentWeaponDefinition();
-	if (!ItemDefinition)
+	const FItemFragment_Weapon* Weapon = FindItemFragment<FItemFragment_Weapon>(ItemDefinition);
+	if (!Weapon)
 	{
 		return false;
 	}
 
-	UAnimMontage* AttackMontage = ItemDefinition->WeaponData.Attack.AttackMontage.Get();
+	UAnimMontage* AttackMontage = Weapon->Attack.AttackMontage.Get();
 	if (!AttackMontage)
 	{
 		return false;
@@ -576,8 +580,8 @@ bool UEquipmentComponent::GetAttackData(FAttackData& OutAttackData) const
 
 bool UEquipmentComponent::AllowsMovementDuringAttack() const
 {
-	const UItemDefinition* ItemDefinition = GetCurrentWeaponDefinition();
-	return !ItemDefinition || ItemDefinition->WeaponData.Attack.bAllowMovementDuringAttack;
+	const FItemFragment_Weapon* Weapon = FindItemFragment<FItemFragment_Weapon>(GetCurrentWeaponDefinition());
+	return !Weapon || Weapon->Attack.bAllowMovementDuringAttack;
 }
 
 bool UEquipmentComponent::GetHitReactData(FHitReactData& OutHitReactData) const
@@ -585,12 +589,13 @@ bool UEquipmentComponent::GetHitReactData(FHitReactData& OutHitReactData) const
 	OutHitReactData = FHitReactData();
 
 	const UItemDefinition* ItemDefinition = GetCurrentWeaponDefinition();
-	if (!ItemDefinition || ItemDefinition->WeaponData.HitReact.HitReactMontage.IsNull())
+	const FItemFragment_Weapon* Weapon = FindItemFragment<FItemFragment_Weapon>(ItemDefinition);
+	if (!Weapon || Weapon->HitReact.HitReactMontage.IsNull())
 	{
 		return false;
 	}
 
-	UAnimMontage* HitReactMontage = ItemDefinition->WeaponData.HitReact.HitReactMontage.Get();
+	UAnimMontage* HitReactMontage = Weapon->HitReact.HitReactMontage.Get();
 	if (!HitReactMontage)
 	{
 		return false;
@@ -628,8 +633,8 @@ float UEquipmentComponent::GetCurrentWeaponStatMagnitude(const FGameplayTag Stat
 		return EquippedItemInstance->GetEffectiveStatMagnitude(StatTag);
 	}
 
-	const UItemDefinition* ItemDefinition = GetCurrentWeaponDefinition();
-	return ItemDefinition ? ItemDefinition->Map_Stat_Magnitude.FindRef(StatTag) : 0.0f;
+	const FItemFragment_Stat* Stat = FindItemFragment<FItemFragment_Stat>(GetCurrentWeaponDefinition());
+	return Stat ? Stat->Map_Stat_Magnitude.FindRef(StatTag) : 0.0f;
 }
 
 UItemInstance* UEquipmentComponent::FindOwnedItemInstanceById(const FGuid ItemId) const
@@ -649,7 +654,8 @@ void UEquipmentComponent::ClearRequestedWeaponInstance()
 // 소유 아이템과 AI 기본 무기가 같은 Actor 생성·무기 효과 적용·복제 확정 절차를 사용한다.
 bool UEquipmentComponent::ReplaceWeapon(const UItemDefinition* Definition, const FGuid WeaponId, const EEnum_Direction Direction)
 {
-	const TSubclassOf<AWeaponBase> WeaponClass = Definition ? Definition->WeaponData.Equip.ActorClass.Get() : nullptr;
+	const FItemFragment_Weapon* Weapon = FindItemFragment<FItemFragment_Weapon>(Definition);
+	const TSubclassOf<AWeaponBase> WeaponClass = Weapon ? Weapon->Equip.ActorClass.Get() : nullptr;
 	if (bEndingPlay || !HasEquipmentAuthority() || !WeaponClass)
 	{
 		return false;

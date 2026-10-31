@@ -31,9 +31,9 @@ float UItemInstance::GetUpgradeBonusStatMagnitude(const FGameplayTag StatTag) co
 	}
 
 	float UnupgradedMagnitude = 0.0f;
-	if (const UItemDefinition* Definition = ItemDefinition.Get())
+	if (const FItemFragment_Stat* Stat = FindItemFragment<FItemFragment_Stat>(ItemDefinition.Get()))
 	{
-		UnupgradedMagnitude += Definition->Map_Stat_Magnitude.FindRef(StatTag);
+		UnupgradedMagnitude += Stat->Map_Stat_Magnitude.FindRef(StatTag);
 	}
 	UnupgradedMagnitude += Map_EnhancedStat_Magnitude.FindRef(StatTag);
 
@@ -57,9 +57,9 @@ float UItemInstance::GetEffectiveStatMagnitude(const FGameplayTag StatTag) const
 	}
 
 	float Result = 0.0f;
-	if (const UItemDefinition* Definition = ItemDefinition.Get())
+	if (const FItemFragment_Stat* Stat = FindItemFragment<FItemFragment_Stat>(ItemDefinition.Get()))
 	{
-		Result += Definition->Map_Stat_Magnitude.FindRef(StatTag);
+		Result += Stat->Map_Stat_Magnitude.FindRef(StatTag);
 	}
 	Result += Map_EnhancedStat_Magnitude.FindRef(StatTag);
 	Result += GetUpgradeBonusStatMagnitude(StatTag);
@@ -75,9 +75,9 @@ void UItemInstance::BuildUpgradeBonusStatMagnitudes(TMap<FGameplayTag, float>& O
 	}
 
 	TSet<FGameplayTag> StatTags;
-	if (const UItemDefinition* Definition = ItemDefinition.Get())
+	if (const FItemFragment_Stat* Stat = FindItemFragment<FItemFragment_Stat>(ItemDefinition.Get()))
 	{
-		for (const TPair<FGameplayTag, float>& Pair : Definition->Map_Stat_Magnitude)
+		for (const TPair<FGameplayTag, float>& Pair : Stat->Map_Stat_Magnitude)
 		{
 			if (Pair.Key.IsValid())
 			{
@@ -106,9 +106,9 @@ void UItemInstance::BuildUpgradeBonusStatMagnitudes(TMap<FGameplayTag, float>& O
 void UItemInstance::BuildEffectiveStatMagnitudes(TMap<FGameplayTag, float>& OutMagnitudes) const
 {
 	OutMagnitudes.Reset();
-	if (const UItemDefinition* Definition = ItemDefinition.Get())
+	if (const FItemFragment_Stat* Stat = FindItemFragment<FItemFragment_Stat>(ItemDefinition.Get()))
 	{
-		OutMagnitudes = Definition->Map_Stat_Magnitude;
+		OutMagnitudes = Stat->Map_Stat_Magnitude;
 	}
 
 	for (const TPair<FGameplayTag, float>& Pair : Map_EnhancedStat_Magnitude)

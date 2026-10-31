@@ -2,6 +2,8 @@
 
 #include "CoreMinimal.h"
 #include "Definition/Item/WeaponDefinitionData.h"
+#include "Engine/EngineTypes.h"
+#include "Kismet/KismetSystemLibrary.h"
 #include "Weapon/WeaponBase.h"
 #include "RangedWeaponBase.generated.h"
 

@@ -17,9 +17,9 @@
 
 TSubclassOf<AActor> ABow::GetArrowActorClass() const
 {
-	if (const UItemDefinition* ItemDefinition = GetSourceItemDefinition())
+	if (const FItemFragment_Bow* BowData = FindItemFragment<FItemFragment_Bow>(GetSourceItemDefinition()))
 	{
-		return ItemDefinition->WeaponData.Bow.ArrowActorClass;
+		return BowData->ArrowActorClass;
 	}
 
 	return nullptr;
@@ -27,19 +27,19 @@ TSubclassOf<AActor> ABow::GetArrowActorClass() const
 
 FName ABow::GetArrowAttachSocketName() const
 {
-	if (const UItemDefinition* ItemDefinition = GetSourceItemDefinition())
+	if (const FItemFragment_Bow* BowData = FindItemFragment<FItemFragment_Bow>(GetSourceItemDefinition()))
 	{
-		return ItemDefinition->WeaponData.Bow.GetResolvedArrowAttachSocketName();
+		return BowData->GetResolvedArrowAttachSocketName();
 	}
 
-	return FBowWeaponDefinitionData().GetResolvedArrowAttachSocketName();
+	return FItemFragment_Bow().GetResolvedArrowAttachSocketName();
 }
 
 float ABow::GetArrowTraceRange() const
 {
-	if (const UItemDefinition* ItemDefinition = GetSourceItemDefinition())
+	if (const FItemFragment_Bow* BowData = FindItemFragment<FItemFragment_Bow>(GetSourceItemDefinition()))
 	{
-		return ItemDefinition->WeaponData.Bow.TraceRange;
+		return BowData->TraceRange;
 	}
 
 	return 0.0f;
@@ -47,29 +47,29 @@ float ABow::GetArrowTraceRange() const
 
 float ABow::GetMinimumDrawDuration() const
 {
-	if (const UItemDefinition* ItemDefinition = GetSourceItemDefinition())
+	if (const FItemFragment_Bow* BowData = FindItemFragment<FItemFragment_Bow>(GetSourceItemDefinition()))
 	{
-		return ItemDefinition->WeaponData.Bow.MinimumDrawDuration;
+		return BowData->MinimumDrawDuration;
 	}
 
-	return FBowWeaponDefinitionData().MinimumDrawDuration;
+	return FItemFragment_Bow().MinimumDrawDuration;
 }
 
 float ABow::GetBowFireInterval() const
 {
-	if (const UItemDefinition* ItemDefinition = GetSourceItemDefinition())
+	if (const FItemFragment_Bow* BowData = FindItemFragment<FItemFragment_Bow>(GetSourceItemDefinition()))
 	{
-		return ItemDefinition->WeaponData.Bow.FireInterval;
+		return BowData->FireInterval;
 	}
 
-	return FBowWeaponDefinitionData().FireInterval;
+	return FItemFragment_Bow().FireInterval;
 }
 
 TArray<TEnumAsByte<EObjectTypeQuery>> ABow::GetBowTraceObjectTypes() const
 {
-	if (const UItemDefinition* ItemDefinition = GetSourceItemDefinition())
+	if (const FItemFragment_Bow* BowData = FindItemFragment<FItemFragment_Bow>(GetSourceItemDefinition()))
 	{
-		return MakeRangedTraceObjectTypes(ItemDefinition->WeaponData.Bow.TraceObjectTypes);
+		return MakeRangedTraceObjectTypes(BowData->TraceObjectTypes);
 	}
 
 	return MakeRangedTraceObjectTypes({});
@@ -316,8 +316,8 @@ bool ABow::HandlePrimaryAttack(APdPlayer* PlayerCharacter)
 
 	bCanLaunchDrawnArrow = false;
 
-	const UItemDefinition* ItemDefinition = GetSourceItemDefinition();
-	const FName ResumeSectionName = ItemDefinition ? ItemDefinition->WeaponData.Bow.AttackResumeSectionName : NAME_None;
+	const FItemFragment_Bow* BowData = FindItemFragment<FItemFragment_Bow>(GetSourceItemDefinition());
+	const FName ResumeSectionName = BowData ? BowData->AttackResumeSectionName : NAME_None;
 	if (!ResumeSectionName.IsNone())
 	{
 		JumpToWeaponMontageSectionAndResume(ResumeSectionName);
@@ -682,9 +682,9 @@ FVector ABow::CalculateArrowLaunchDirection(APdPlayer* PlayerCharacter, const FV
 		return FVector::ZeroVector;
 	}
 
-	const UItemDefinition* ItemDefinition = GetSourceItemDefinition();
-	const EDrawDebugTrace::Type AimTraceDebugDrawType = IsAttackDebugVisualizationEnabled() && ItemDefinition
-		? ItemDefinition->WeaponData.Bow.AimTraceDebugDrawType.GetValue()
+	const FItemFragment_Bow* BowData = FindItemFragment<FItemFragment_Bow>(GetSourceItemDefinition());
+	const EDrawDebugTrace::Type AimTraceDebugDrawType = IsAttackDebugVisualizationEnabled() && BowData
+		? BowData->AimTraceDebugDrawType.GetValue()
 		: EDrawDebugTrace::None;
 	FVector AimTargetLocation = FVector::ZeroVector;
 	if (!ResolveAimTargetBeyondLaunchPoint(ViewLocation, SafeViewDirection, LaunchStartLocation, TraceRange,
@@ -712,6 +712,6 @@ FVector ABow::CalculateArrowLaunchDirection(APdPlayer* PlayerCharacter, const FV
 
 UAnimMontage* ABow::GetConfiguredWeaponMontage() const
 {
-	const UItemDefinition* ItemDefinition = GetSourceItemDefinition();
-	return ItemDefinition ? ItemDefinition->WeaponData.Bow.WeaponMontage.Get() : nullptr;
+	const FItemFragment_Bow* BowData = FindItemFragment<FItemFragment_Bow>(GetSourceItemDefinition());
+	return BowData ? BowData->WeaponMontage.Get() : nullptr;
 }

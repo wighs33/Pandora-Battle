@@ -206,7 +206,8 @@ float UPdGameplayAbility::GetWeaponAttackStaminaCost(const APawn* AvatarPawn)
 	const ACharacterBase* Character = Cast<ACharacterBase>(AvatarPawn);
 	const UEquipmentComponent* Equipment = Character ? Character->GetEquipmentComponent() : nullptr;
 	const UItemDefinition* WeaponDefinition = Equipment ? Equipment->GetCurrentWeaponDefinition() : nullptr;
-	return WeaponDefinition ? WeaponDefinition->GetSafeAttackStaminaCost() : GetDefaultActionStaminaCost(AvatarPawn);
+	const FItemFragment_Weapon* Weapon = FindItemFragment<FItemFragment_Weapon>(WeaponDefinition);
+	return Weapon ? Weapon->GetSafeAttackStaminaCost() : GetDefaultActionStaminaCost(AvatarPawn);
 }
 
 bool UPdGameplayAbility::SetCostEffectMagnitudes(
