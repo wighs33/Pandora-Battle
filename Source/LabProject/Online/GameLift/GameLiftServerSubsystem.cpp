@@ -20,7 +20,6 @@
 #include "Misc/Parse.h"
 #include "Misc/Paths.h"
 #include "Mode/PdPlayerState.h"
-#include "Online/Backend/BackendSettings.h"
 #include "Online/Backend/MatchReportSubsystem.h"
 
 #if PD_WITH_GAMELIFT
@@ -206,10 +205,6 @@ bool UGameLiftServerSubsystem::InitializeSdk()
 		{
 			ServerParameters.m_processId = FString::Printf(TEXT("pd-%s"), *FGuid::NewGuid().ToString(EGuidFormats::Digits));
 		}
-
-		AnywhereCredentials.AccessKeyId = ServerParameters.m_accessKey;
-		AnywhereCredentials.SecretAccessKey = ServerParameters.m_secretKey;
-		AnywhereCredentials.SessionToken = ServerParameters.m_sessionToken;
 	}
 
 	const FGameLiftGenericOutcome Outcome = bAnywhere ? SdkModule->InitSDK(ServerParameters) : SdkModule->InitSDK();
@@ -554,53 +549,6 @@ bool UGameLiftServerSubsystem::TickSessionWatchdog(float DeltaSeconds)
 			: TEXT("No player joined the game session"));
 	}
 	return true;
-}
-
-bool UGameLiftServerSubsystem::TryGetServiceCredentials(FAwsCredentials& OutCredentials)
-{
-	if (AnywhereCredentials.IsValid())
-	{
-		OutCredentials = AnywhereCredentials;
-		return true;
-	}
-
-#if PD_WITH_GAMELIFT
-	if (bSdkInitialized && !FParse::Param(FCommandLine::Get(), TEXT("glAnywhere")))
-	{
-		if (FleetRoleCredentials.IsValid() && FDateTime::UtcNow() + FTimespan::FromMinutes(5) < FleetRoleCredentialsExpiration)
-		{
-			OutCredentials = FleetRoleCredentials;
-			return true;
-		}
-
-		const FString RoleArn = GetDefault<UBackendSettings>()->GetGameServerRoleArn();
-		if (!RoleArn.IsEmpty())
-		{
-			FGameLiftGetFleetRoleCredentialsRequest Request;
-			Request.m_roleArn = RoleArn;
-			Request.m_roleSessionName = TEXT("labproject-game-server");
-			const FGameLiftGetFleetRoleCredentialsOutcome Outcome = SdkModule->GetFleetRoleCredentials(Request);
-			if (Outcome.IsSuccess())
-			{
-				const FGameLiftGetFleetRoleCredentialsResult& Result = Outcome.GetResult();
-				FleetRoleCredentials.AccessKeyId = Result.m_accessKeyId;
-				FleetRoleCredentials.SecretAccessKey = Result.m_secretAccessKey;
-				FleetRoleCredentials.SessionToken = Result.m_sessionToken;
-				FleetRoleCredentialsExpiration = Result.m_expiration;
-				OutCredentials = FleetRoleCredentials;
-				return true;
-			}
-			UE_LOG(LogGameLiftServer, Warning, TEXT("GetFleetRoleCredentials failed: %s"),
-				*DescribeError(Outcome.GetError()));
-		}
-	}
-#endif
-
-	// 로컬 시험: aws configure export-credentials로 환경 변수에 넣은 개발자 자격 증명
-	OutCredentials.AccessKeyId = FPlatformMisc::GetEnvironmentVariable(TEXT("AWS_ACCESS_KEY_ID"));
-	OutCredentials.SecretAccessKey = FPlatformMisc::GetEnvironmentVariable(TEXT("AWS_SECRET_ACCESS_KEY"));
-	OutCredentials.SessionToken = FPlatformMisc::GetEnvironmentVariable(TEXT("AWS_SESSION_TOKEN"));
-	return OutCredentials.IsValid();
 }
 
 void UGameLiftServerSubsystem::EndProcess(const FString& Reason)

@@ -2,42 +2,10 @@
 
 #include "HttpModule.h"
 #include "Interfaces/IHttpResponse.h"
-#include "Online/Backend/AwsSigV4.h"
 #include "Policies/CondensedJsonPrintPolicy.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 #include "Serialization/JsonWriter.h"
-
-namespace
-{
-	// "https://host[:port]/path?query"를 서명에 필요한 조각으로 나눈다. 기본 포트는 Host 헤더에 붙지 않으므로 뺀다.
-	bool SplitUrl(const FString& Url, FString& OutHost, FString& OutPath, FString& OutQuery)
-	{
-		const int32 SchemeEnd = Url.Find(TEXT("://"));
-		if (SchemeEnd == INDEX_NONE)
-		{
-			return false;
-		}
-		const FString Scheme = Url.Left(SchemeEnd).ToLower();
-		const FString Rest = Url.Mid(SchemeEnd + 3);
-
-		int32 QueryStart = INDEX_NONE;
-		Rest.FindChar(TEXT('?'), QueryStart);
-		const FString BeforeQuery = QueryStart == INDEX_NONE ? Rest : Rest.Left(QueryStart);
-		OutQuery = QueryStart == INDEX_NONE ? FString() : Rest.Mid(QueryStart + 1);
-
-		int32 PathStart = INDEX_NONE;
-		BeforeQuery.FindChar(TEXT('/'), PathStart);
-		OutHost = (PathStart == INDEX_NONE ? BeforeQuery : BeforeQuery.Left(PathStart)).ToLower();
-		OutPath = PathStart == INDEX_NONE ? FString(TEXT("/")) : BeforeQuery.Mid(PathStart);
-
-		if ((Scheme == TEXT("https") && OutHost.EndsWith(TEXT(":443"))) || (Scheme == TEXT("http") && OutHost.EndsWith(TEXT(":80"))))
-		{
-			OutHost.LeftInline(OutHost.Find(TEXT(":"), ESearchCase::CaseSensitive, ESearchDir::FromEnd));
-		}
-		return !OutHost.IsEmpty();
-	}
-}
 
 namespace BackendHttp
 {
@@ -64,32 +32,6 @@ namespace BackendHttp
 			Request->SetContentAsString(SerializeJson(Body.ToSharedRef()));
 		}
 		return Request;
-	}
-
-	bool SignWithSigV4(
-		IHttpRequest& Request, const FAwsCredentials& Credentials, const FString& Region, const FString& Service)
-	{
-		AwsSigV4::FRequest SignRequest;
-		if (!Credentials.IsValid()
-			|| !SplitUrl(Request.GetURL(), SignRequest.Host, SignRequest.Path, SignRequest.Query))
-		{
-			return false;
-		}
-
-		SignRequest.Method = Request.GetVerb();
-		SignRequest.Payload = Request.GetContent();
-		SignRequest.Region = Region;
-		SignRequest.Service = Service;
-		SignRequest.TimestampUtc = FDateTime::UtcNow();
-		const AwsSigV4::FSignature Signature = AwsSigV4::Sign(SignRequest, Credentials);
-
-		Request.SetHeader(TEXT("X-Amz-Date"), Signature.AmzDate);
-		if (!Credentials.SessionToken.IsEmpty())
-		{
-			Request.SetHeader(TEXT("X-Amz-Security-Token"), Credentials.SessionToken);
-		}
-		Request.SetHeader(TEXT("Authorization"), Signature.Authorization);
-		return true;
 	}
 
 	void Send(const TSharedRef<IHttpRequest, ESPMode::ThreadSafe>& Request, FOnResponse OnResponse)

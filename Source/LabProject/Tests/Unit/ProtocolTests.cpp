@@ -1,35 +1,17 @@
 #include "Luna/LunaChatProtocol.h"
 #include "Misc/AutomationTest.h"
-#include "Online/Backend/AwsSigV4.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
-// 외부 서비스와 주고받는 형식의 단위 테스트: 전용 서버가 경기 결과를 보고할 때 쓰는 AWS SigV4 서명과
-// Luna 채팅의 모델 서버(Ollama, 함께 배포한 llama-server) 스트리밍 응답 해석. 실제 서비스 없이는 연결 테스트로 볼 수 없어 공개 벡터와 바이트 단위 입력으로 본다.
+// 외부 서비스와 주고받는 형식의 단위 테스트: Luna 채팅의 모델 서버(Ollama, 함께 배포한 llama-server) 스트리밍 응답 해석.
+// 실제 서비스 없이는 연결 테스트로 볼 수 없어 바이트 단위 입력으로 본다.
 
 namespace
 {
-	TArray<uint8> BytesOf(const ANSICHAR* Text)
-	{
-		return TArray<uint8>(reinterpret_cast<const uint8*>(Text), FCStringAnsi::Strlen(Text));
-	}
-
-	TArray<uint8> RepeatedBytes(const uint8 Value, const int32 Count)
-	{
-		TArray<uint8> Bytes;
-		Bytes.Init(Value, Count);
-		return Bytes;
-	}
-
 	TArray<uint8> Utf8Bytes(const FString& Text)
 	{
 		const FTCHARToUTF8 Converted(*Text);
 		return TArray<uint8>(reinterpret_cast<const uint8*>(Converted.Get()), Converted.Length());
-	}
-
-	FString Sha256Hex(const TArray<uint8>& Bytes)
-	{
-		return AwsSigV4::ToLowerHex(AwsSigV4::Sha256(Bytes));
 	}
 
 	FString LunaChunkLine(const FString& Content, const bool bDone)
@@ -44,56 +26,6 @@ namespace
 		return FString::Printf(TEXT("data: {\"choices\":[{\"finish_reason\":null,\"index\":0,\"delta\":{\"content\":\"%s\"}}],\"object\":\"chat.completion.chunk\"}\n\n"),
 			*Content);
 	}
-
-	const FAwsCredentials ExampleCredentials{
-		TEXT("AKIDEXAMPLE"), TEXT("wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY"), FString()};
-}
-
-// 직접 구현한 SHA-256의 패딩 경계와, AWS SigV4 테스트 모음의 get-vanilla 예제·실제 결과 보고 형태(POST + 임시 자격 증명)를 확인한다.
-// HMAC은 서명 키를 만들 때 쓰이므로 두 서명 값으로 함께 검증된다.
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPdAwsSigV4Test, "LabProject.Unit.Protocol.AwsSigV4",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-bool FPdAwsSigV4Test::RunTest(const FString& Parameters)
-{
-	// 55·56·64바이트는 길이 필드가 같은 블록에 들어가는지 다음 블록으로 넘어가는지의 경계이고, 1000바이트는 여러 블록이다.
-	TestEqual(TEXT("sha256 55 bytes"), Sha256Hex(RepeatedBytes('a', 55)),
-		TEXT("9f4390f8d30c2dd92ec9f095b65e2b9ae9b0a925a5258e241c9f1e910f734318"));
-	TestEqual(TEXT("sha256 56 bytes"), Sha256Hex(RepeatedBytes('a', 56)),
-		TEXT("b35439a4ac6f0948b6d6f9e3c6af0f5f590ce20f1bde7090ef7970686ec6738a"));
-	TestEqual(TEXT("sha256 64 bytes"), Sha256Hex(RepeatedBytes('a', 64)),
-		TEXT("ffe054fe7ae0cb6dc65c3af9b61d5209f439851db43d0ba5997337df154668eb"));
-	TestEqual(TEXT("sha256 1000 bytes"), Sha256Hex(RepeatedBytes('a', 1000)),
-		TEXT("41edece42d63e8d9bf515a9ba6932e1c20cbc9f5a5d134645adb5db1b9737ea3"));
-
-	AwsSigV4::FRequest Vanilla;
-	Vanilla.Method = TEXT("GET");
-	Vanilla.Host = TEXT("example.amazonaws.com");
-	Vanilla.Path = TEXT("/");
-	Vanilla.Region = TEXT("us-east-1");
-	Vanilla.Service = TEXT("service");
-	Vanilla.TimestampUtc = FDateTime(2015, 8, 30, 12, 36, 0);
-	const AwsSigV4::FSignature VanillaSignature = AwsSigV4::Sign(Vanilla, ExampleCredentials);
-	TestEqual(TEXT("get-vanilla authorization"), VanillaSignature.Authorization,
-		TEXT("AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20150830/us-east-1/service/aws4_request, ")
-		TEXT("SignedHeaders=host;x-amz-date, Signature=5fa00fa31553b73ebf1942676e86291e8372ff2a2260956d9b8aae1d763fbf31"));
-	TestEqual(TEXT("get-vanilla date"), VanillaSignature.AmzDate, TEXT("20150830T123600Z"));
-
-	// 기대값은 get-vanilla를 재현한 독립 구현으로 계산했다.
-	AwsSigV4::FRequest Report;
-	Report.Method = TEXT("POST");
-	Report.Host = TEXT("abc123.execute-api.ap-northeast-2.amazonaws.com");
-	Report.Path = TEXT("/server/match-result");
-	Report.Payload = BytesOf("{\"matchId\":\"test\"}");
-	Report.Region = TEXT("ap-northeast-2");
-	Report.Service = TEXT("execute-api");
-	Report.TimestampUtc = FDateTime(2026, 9, 30, 12, 0, 0);
-	FAwsCredentials TemporaryCredentials = ExampleCredentials;
-	TemporaryCredentials.SessionToken = TEXT("token123");
-	const AwsSigV4::FSignature ReportSignature = AwsSigV4::Sign(Report, TemporaryCredentials);
-	TestEqual(TEXT("report authorization"), ReportSignature.Authorization,
-		TEXT("AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20260930/ap-northeast-2/execute-api/aws4_request, ")
-		TEXT("SignedHeaders=host;x-amz-date;x-amz-security-token, Signature=b0b799d7d25fa977a3ba388cc025be7e7e48cc05b032ac1b8b946ce0a0414a2c"));
-	return true;
 }
 
 // 네트워크 조각이 줄과 한글(UTF-8 3바이트) 중간에서 끊겨도 완성된 줄만 순서대로 해석하고,

@@ -2,7 +2,6 @@
 
 #include "Algo/Count.h"
 #include "Engine/GameInstance.h"
-#include "Online/Backend/AwsSigV4.h"
 #include "Online/Backend/BackendHttp.h"
 #include "Online/Backend/BackendSettings.h"
 #include "Online/GameLift/GameLiftServerSubsystem.h"
@@ -63,11 +62,10 @@ void UMatchReportSubsystem::ReportMatch(const FMatchReport& Report)
 		return;
 	}
 
-	FAwsCredentials Credentials;
-	UGameLiftServerSubsystem* GameLift = GetGameInstance()->GetSubsystem<UGameLiftServerSubsystem>();
-	if (!GameLift || !GameLift->TryGetServiceCredentials(Credentials))
+	const FString ServerKey = Settings->GetServerKey();
+	if (ServerKey.IsEmpty())
 	{
-		UE_LOG(LogMatchReport, Warning, TEXT("No AWS credentials for the game server. Match %s is not reported."), *Report.MatchId);
+		UE_LOG(LogMatchReport, Warning, TEXT("No backend server key for the game server. Match %s is not reported."), *Report.MatchId);
 		return;
 	}
 
@@ -81,11 +79,7 @@ void UMatchReportSubsystem::ReportMatch(const FMatchReport& Report)
 
 	const TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = BackendHttp::CreateJsonRequest(
 		TEXT("POST"), Url, BuildReportJson(Report), Settings->GetServerReportTimeoutSeconds());
-	if (!BackendHttp::SignWithSigV4(*Request, Credentials, Settings->GetAwsRegion(), TEXT("execute-api")))
-	{
-		UE_LOG(LogMatchReport, Warning, TEXT("Could not sign the match report for %s."), *Url);
-		return;
-	}
+	Request->SetHeader(BackendHttp::ServerKeyHeader, ServerKey);
 
 	++PendingReportCount;
 	const FString MatchId = Report.MatchId;

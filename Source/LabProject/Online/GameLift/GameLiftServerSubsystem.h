@@ -2,7 +2,6 @@
 
 #include "CoreMinimal.h"
 #include "Containers/Ticker.h"
-#include "Online/Backend/AwsSigV4.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "GameLiftServerSubsystem.generated.h"
 
@@ -59,12 +58,6 @@ public:
 	/** 결과 보고가 끝나고 참가자가 모두 나가면(또는 제한 시간이 지나면) 프로세스를 끝낸다. */
 	void RequestSessionEnd(const FString& Reason);
 
-	/**
-	 * 결과 보고 서명에 쓸 자격 증명을 고른다.
-	 * Anywhere 실행 인자 → 관리형 플릿 역할(GetFleetRoleCredentials) → AWS_* 환경 변수 순서다.
-	 */
-	bool TryGetServiceCredentials(FAwsCredentials& OutCredentials);
-
 private:
 	// Event Handlers --------------------------------------------------------------------------------------------------
 	void HandlePostLogin(AGameModeBase* GameMode, APlayerController* NewPlayer);
@@ -106,8 +99,4 @@ private:
 	bool bSessionEndRequested = false;
 	FString SessionEndReason;
 	double SessionEndDeadlineSeconds = 0.0;
-
-	FAwsCredentials AnywhereCredentials;
-	FAwsCredentials FleetRoleCredentials;
-	FDateTime FleetRoleCredentialsExpiration;
 };

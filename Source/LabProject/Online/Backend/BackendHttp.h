@@ -4,8 +4,6 @@
 #include "Dom/JsonObject.h"
 #include "Interfaces/IHttpRequest.h"
 
-struct FAwsCredentials;
-
 /**
  * 백엔드 JSON API 호출을 묶는다. 응답 콜백은 HTTP 모듈이 게임 스레드에서 실행한다.
  */
@@ -31,6 +29,9 @@ namespace BackendHttp
 		inline constexpr const TCHAR* NoAttemptsLeft = TEXT("no_attempts_left");
 	}
 
+	/** 전용 서버 보고 경로(/server/*)가 확인하는 서버 키 헤더. Backend/server의 require_server가 읽는다. */
+	inline constexpr const TCHAR* ServerKeyHeader = TEXT("X-Server-Key");
+
 	DECLARE_DELEGATE_OneParam(FOnResponse, const FResponse&);
 
 	LABPROJECT_API FString SerializeJson(const TSharedRef<FJsonObject>& Object);
@@ -38,10 +39,6 @@ namespace BackendHttp
 	/** JSON 본문과 공통 헤더를 설정한 요청을 만든다. Body가 없으면 본문 없이 보낸다. */
 	LABPROJECT_API TSharedRef<IHttpRequest, ESPMode::ThreadSafe> CreateJsonRequest(
 		const FString& Verb, const FString& Url, const TSharedPtr<FJsonObject>& Body, float TimeoutSeconds);
-
-	/** 현재 URL·메서드·본문으로 SigV4 서명 헤더를 붙인다. URL을 해석할 수 없으면 false. */
-	LABPROJECT_API bool SignWithSigV4(
-		IHttpRequest& Request, const FAwsCredentials& Credentials, const FString& Region, const FString& Service);
 
 	LABPROJECT_API void Send(const TSharedRef<IHttpRequest, ESPMode::ThreadSafe>& Request, FOnResponse OnResponse);
 }

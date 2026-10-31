@@ -14,7 +14,6 @@
 #include "Mode/PdPlayerState.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
-#include "Online/Backend/AwsSigV4.h"
 #include "Online/Backend/BackendClientSubsystem.h"
 #include "Online/Backend/BackendHttp.h"
 #include "Online/Backend/BackendSettings.h"
@@ -313,11 +312,12 @@ void AWorldBossRaid::SendReport()
 
 	const UBackendSettings* Settings = GetDefault<UBackendSettings>();
 	const FString Url = Settings->BuildApiUrl(TEXT("/server/raid-damage"));
-	UGameLiftServerSubsystem* GameLift = UGameLiftServerSubsystem::Get(this);
-	FAwsCredentials Credentials;
-	if (Url.IsEmpty() || !GameLift || !GameLift->TryGetServiceCredentials(Credentials))
+	const FString ServerKey = Settings->GetServerKey();
+	// GameLift 서버 서브시스템은 전용 서버에만 있다. 리슨 서버와 단독 실행은 보고하지 않는다.
+	const UGameLiftServerSubsystem* GameLift = UGameLiftServerSubsystem::Get(this);
+	if (Url.IsEmpty() || ServerKey.IsEmpty() || !GameLift)
 	{
-		UE_LOG(LogWorldBossRaid, Log, TEXT("No backend URL or AWS credentials. The world boss uses this world's health only."));
+		UE_LOG(LogWorldBossRaid, Log, TEXT("No backend URL or server key. The world boss uses this world's health only."));
 		bOffline = true;
 		return;
 	}
@@ -363,11 +363,7 @@ void AWorldBossRaid::SendReport()
 
 	const TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = BackendHttp::CreateJsonRequest(
 		TEXT("POST"), Url, Body, Settings->GetServerReportTimeoutSeconds());
-	if (!BackendHttp::SignWithSigV4(*Request, Credentials, Settings->GetAwsRegion(), TEXT("execute-api")))
-	{
-		UE_LOG(LogWorldBossRaid, Warning, TEXT("Could not sign the raid damage report for %s."), *Url);
-		return;
-	}
+	Request->SetHeader(BackendHttp::ServerKeyHeader, ServerKey);
 	bReportInFlight = true;
 	LastReportServerTime = GetServerTime();
 	BackendHttp::Send(Request, BackendHttp::FOnResponse::CreateUObject(this, &ThisClass::HandleReportResponse));

@@ -29,7 +29,7 @@ struct FMatchReport
 /**
  * 전용 서버의 경기 결과를 백엔드(POST /server/match-result)에 보고한다.
  *
- * 요청은 SigV4로 서명하며, 자격 증명은 GameLift 서버 서브시스템이 고른다. API 주소나 자격 증명이 없으면
+ * 요청에는 서버 키(UBackendSettings::GetServerKey)를 붙인다. API 주소나 서버 키가 없으면
  * 경고만 남기고 건너뛰므로 백엔드 없이도 전용 서버 경기는 그대로 진행된다.
  */
 UCLASS()

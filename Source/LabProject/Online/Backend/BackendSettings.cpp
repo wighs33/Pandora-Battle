@@ -1,11 +1,18 @@
 #include "Online/Backend/BackendSettings.h"
 
+#include "HAL/PlatformMisc.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(BackendSettings)
 
 DEFINE_LOG_CATEGORY_STATIC(LogBackendSettings, Log, All);
+
+namespace
+{
+	/** API 서버(Backend/server)의 .env와 같은 이름이다. */
+	constexpr const TCHAR* ServerKeyEnvironmentVariable = TEXT("LABPROJECT_SERVER_KEY");
+}
 
 FString UBackendSettings::GetApiBaseUrl() const
 {
@@ -34,9 +41,7 @@ FString UBackendSettings::BuildApiUrl(const TCHAR* Path) const
 	return BaseUrl.IsEmpty() ? FString() : BaseUrl + Path;
 }
 
-FString UBackendSettings::GetGameServerRoleArn() const
+FString UBackendSettings::GetServerKey() const
 {
-	FString RoleArn = GameServerRoleArn;
-	FParse::Value(FCommandLine::Get(), TEXT("FleetRoleArn="), RoleArn);
-	return RoleArn;
+	return FPlatformMisc::GetEnvironmentVariable(ServerKeyEnvironmentVariable);
 }
