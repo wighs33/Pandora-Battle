@@ -435,16 +435,6 @@ namespace
 		}
 	}
 #endif
-
-#if WITH_EDITORONLY_DATA
-	/** 옛 애셋에서 기본값과 다른 값이 하나라도 있는 묶음만 조각으로 옮긴다. */
-	template <typename StructType>
-	bool DiffersFromDefault(const StructType& Value)
-	{
-		const StructType DefaultValue;
-		return !StructType::StaticStruct()->CompareScriptStruct(&Value, &DefaultValue, PPF_None);
-	}
-#endif
 }
 
 UItemDefinition::UItemDefinition()
@@ -454,16 +444,6 @@ UItemDefinition::UItemDefinition()
 FPrimaryAssetId UItemDefinition::GetPrimaryAssetId() const
 {
 	return FPrimaryAssetId(TEXT("ItemDefinition"), GetFName());
-}
-
-void UItemDefinition::PostLoad()
-{
-#if WITH_EDITORONLY_DATA
-	// 부모의 PostLoad가 애셋 번들을 다시 계산하므로, 옮긴 조각이 번들에 들어가도록 먼저 옮긴다.
-	MoveLegacyDataToFragments();
-#endif
-
-	Super::PostLoad();
 }
 
 #if WITH_EDITORONLY_DATA
@@ -480,62 +460,6 @@ void UItemDefinition::UpdateAssetBundleData()
 	TArray<FSoftObjectPath> PresentationAssetPaths;
 	GetWeaponPresentationAssetPaths(PresentationAssetPaths);
 	AssetBundleData.AddBundleAssetsTruncated(GetWeaponPresentationBundleName(), PresentationAssetPaths);
-}
-
-void UItemDefinition::MoveLegacyDataToFragments()
-{
-	// 새 구조로 저장한 애셋은 조각을 이미 가지고 있다. 옛 애셋은 모두 드롭 데이터가 있어서 옮기면 조각이 하나 이상 생긴다.
-	if (!Fragments.IsEmpty())
-	{
-		return;
-	}
-
-	if (!Map_Stat_Magnitude_DEPRECATED.IsEmpty())
-	{
-		FItemFragment_Stat Stat;
-		Stat.Map_Stat_Magnitude = MoveTemp(Map_Stat_Magnitude_DEPRECATED);
-		Fragments.Add(TInstancedStruct<FItemFragment>::Make<FItemFragment_Stat>(Stat));
-	}
-
-	if (ConsumeGameplayEffectClass_DEPRECATED || !Map_Consume_Magnitude_DEPRECATED.IsEmpty() || QuantityToConsume_DEPRECATED != 1)
-	{
-		FItemFragment_Consumable Consumable;
-		Consumable.ConsumeGameplayEffectClass = ConsumeGameplayEffectClass_DEPRECATED;
-		Consumable.Map_Consume_Magnitude = MoveTemp(Map_Consume_Magnitude_DEPRECATED);
-		Consumable.QuantityToConsume = QuantityToConsume_DEPRECATED;
-		Fragments.Add(TInstancedStruct<FItemFragment>::Make<FItemFragment_Consumable>(Consumable));
-	}
-
-	if (bCanDropFromRewardChest_DEPRECATED)
-	{
-		FItemFragment_Drop Drop;
-		Drop.DropRate = DropRate_DEPRECATED;
-		Fragments.Add(TInstancedStruct<FItemFragment>::Make<FItemFragment_Drop>(Drop));
-	}
-
-	const FWeaponDefinitionData& LegacyWeapon = WeaponData_DEPRECATED;
-	if (DiffersFromDefault(LegacyWeapon.Equip) || DiffersFromDefault(LegacyWeapon.Attack) || DiffersFromDefault(LegacyWeapon.Movement)
-		|| DiffersFromDefault(LegacyWeapon.HitReact) || DiffersFromDefault(LegacyWeapon.Aim) || DiffersFromDefault(LegacyWeapon.AI))
-	{
-		FItemFragment_Weapon Weapon;
-		Weapon.Equip = LegacyWeapon.Equip;
-		Weapon.Attack = LegacyWeapon.Attack;
-		Weapon.Movement = LegacyWeapon.Movement;
-		Weapon.HitReact = LegacyWeapon.HitReact;
-		Weapon.Aim = LegacyWeapon.Aim;
-		Weapon.AI = LegacyWeapon.AI;
-		Fragments.Add(TInstancedStruct<FItemFragment>::Make<FItemFragment_Weapon>(Weapon));
-	}
-
-	if (DiffersFromDefault(LegacyWeapon.Bow))
-	{
-		Fragments.Add(TInstancedStruct<FItemFragment>::Make<FItemFragment_Bow>(LegacyWeapon.Bow));
-	}
-
-	if (DiffersFromDefault(LegacyWeapon.Gun))
-	{
-		Fragments.Add(TInstancedStruct<FItemFragment>::Make<FItemFragment_Gun>(LegacyWeapon.Gun));
-	}
 }
 #endif
 

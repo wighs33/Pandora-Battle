@@ -14,40 +14,7 @@
 
 #include "ItemDefinition.generated.h"
 
-class UGameplayEffect;
 class UTexture2D;
-
-/** 조각으로 나누기 전의 무기 데이터. 옛 애셋을 읽어 조각으로 옮기는 데만 쓴다. */
-USTRUCT()
-struct LABPROJECT_API FWeaponDefinitionData
-{
-	GENERATED_BODY()
-
-public:
-	UPROPERTY()
-	FWeaponEquipDefinitionData Equip;
-
-	UPROPERTY()
-	FWeaponAttackDefinitionData Attack;
-
-	UPROPERTY()
-	FWeaponMovementDefinitionData Movement;
-
-	UPROPERTY()
-	FWeaponHitReactDefinitionData HitReact;
-
-	UPROPERTY()
-	FWeaponAimDefinitionData Aim;
-
-	UPROPERTY()
-	FItemFragment_Bow Bow;
-
-	UPROPERTY()
-	FItemFragment_Gun Gun;
-
-	UPROPERTY()
-	FWeaponAIDefinitionData AI;
-};
 
 /**
  * 아이템 한 종류의 고정 데이터.
@@ -63,7 +30,6 @@ class LABPROJECT_API UItemDefinition : public UPrimaryDataAsset
 public:
 	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
-	virtual void PostLoad() override;
 
 #if WITH_EDITORONLY_DATA
 	virtual void UpdateAssetBundleData() override;
@@ -120,34 +86,6 @@ public:
 	/** 이 아이템에 필요한 조각만 담는다. 같은 종류의 조각은 하나만 둔다(검증이 막는다). */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Item|Fragments", meta = (ExcludeBaseStruct))
 	TArray<TInstancedStruct<FItemFragment>> Fragments;
-
-private:
-	// Internal Helpers ------------------------------------------------------------------------------------------------
-#if WITH_EDITORONLY_DATA
-	void MoveLegacyDataToFragments();
-
-	// 조각으로 나누기 전에 저장한 애셋의 값. 불러올 때 조각으로 옮기고, 다시 저장하면 남지 않는다.
-	UPROPERTY()
-	TMap<FGameplayTag, float> Map_Stat_Magnitude_DEPRECATED;
-
-	UPROPERTY()
-	TSubclassOf<UGameplayEffect> ConsumeGameplayEffectClass_DEPRECATED;
-
-	UPROPERTY()
-	TMap<FGameplayTag, float> Map_Consume_Magnitude_DEPRECATED;
-
-	UPROPERTY()
-	int32 QuantityToConsume_DEPRECATED = 1;
-
-	UPROPERTY()
-	bool bCanDropFromRewardChest_DEPRECATED = true;
-
-	UPROPERTY()
-	float DropRate_DEPRECATED = 1.0f;
-
-	UPROPERTY()
-	FWeaponDefinitionData WeaponData_DEPRECATED;
-#endif
 };
 
 /** 정의가 없을 수도 있는 호출부용. 정의나 조각이 없으면 nullptr이다. */
