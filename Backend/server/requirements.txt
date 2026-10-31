@@ -1,0 +1,9 @@
+fastapi==0.162.0
+uvicorn==0.54.0
+SQLAlchemy==2.1.6
+# rsa: needed for the first non-TLS login with MySQL 8's default caching_sha2_password authentication.
+PyMySQL[rsa]==1.2.3
+# GameLift session placement (/match/join)
+boto3==1.43.122
+# Tests: fastapi.testclient
+httpx==0.28.1

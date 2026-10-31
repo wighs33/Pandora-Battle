@@ -112,6 +112,10 @@ Content/Env/BP_Windmill.uasset
 # Third-party server SDK plugin installed locally from the Amazon GameLift release (see Docs/GameLift_Backend.md)
 /Plugins/GameLiftServerSDK/
 
+# API server virtual environment and local secrets written by Backend/server/local.ps1 setup
+/Backend/server/.venv/
+/Backend/server/.env
+
 # IDE and local tooling
 .idea/
 .vs/
