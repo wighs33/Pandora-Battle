@@ -1,3 +1,4 @@
 .packaged.yaml
+.server.tar.gz
 __pycache__/
 *.pyc

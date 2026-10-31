@@ -1,0 +1,23 @@
+# LabProject 게임 API 서버. Backend/server/deploy/install.sh가 /etc/systemd/system에 설치한다.
+[Unit]
+Description=LabProject game API (FastAPI on uvicorn)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=labproject
+Group=labproject
+WorkingDirectory=/opt/labproject/current
+# install.sh가 SSM Parameter Store 값으로 쓴 파일(root만 읽는다). systemd가 읽어 서버 프로세스의 환경으로 넘긴다.
+EnvironmentFile=/etc/labproject/api.env
+# 보안 그룹이 API Gateway VPC 링크에서 오는 연결만 이 포트로 들인다.
+ExecStart=/opt/labproject/current/.venv/bin/uvicorn app.main:create_app --factory --host 0.0.0.0 --port 8000
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,2 +1,5 @@
 *.uasset filter=lfs diff=lfs merge=lfs -text
 *.umap filter=lfs diff=lfs merge=lfs -text
+# API 서버는 EC2(리눅스)에서 돌고 마이그레이션은 파일 바이트의 체크섬으로 적용 여부를 가리므로,
+# Windows 체크아웃(core.autocrlf)에서도 LF로 둔다.
+Backend/server/** text eol=lf
