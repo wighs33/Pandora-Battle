@@ -4,7 +4,8 @@
 
 .DESCRIPTION
   실행할 때마다 compute 인증 토큰을 새로 받아 -glAnywhere 인자로 넘긴다.
-  결과 보고 서명에 쓸 자격 증명은 AWS CLI 프로필에서 꺼내 서버 프로세스의 환경 변수로만 넘긴다(명령줄에 남기지 않음).
+  결과 보고에 붙일 서버 키는 SSM(/labproject/<Stage>/server-key)에서 읽어 서버 프로세스의 환경 변수로만 넘긴다
+  (명령줄은 서버 로그에 남는다).
   Anywhere는 프로세스를 자동으로 다시 띄우지 않으므로, 한 경기가 끝나면 이 스크립트를 다시 실행한다.
 
 .EXAMPLE
@@ -19,6 +20,7 @@ param(
     [string]$ServerExe,
     [string]$FleetId = "fleet-51383f38-c462-47e6-bbc9-e0e41cad61ac",
     [string]$ComputeName = "labproject-dev-pc",
+    [string]$Stage = "dev",
     [string]$Profile = "gamelift-dev",
     [string]$Region = "ap-northeast-2",
     [int]$Port = 7777,
@@ -41,11 +43,9 @@ $AuthToken = & aws gamelift get-compute-auth-token --fleet-id $FleetId --compute
     --query AuthToken --output text @AwsArgs
 if ($LASTEXITCODE -ne 0 -or -not $AuthToken) { throw "get-compute-auth-token failed." }
 
-# 결과 보고(SigV4) 서명용. 서버는 Anywhere 키 인자가 없으면 AWS_* 환경 변수를 쓴다.
-$Credentials = & aws configure export-credentials --profile $Profile | ConvertFrom-Json
-$env:AWS_ACCESS_KEY_ID = $Credentials.AccessKeyId
-$env:AWS_SECRET_ACCESS_KEY = $Credentials.SecretAccessKey
-$env:AWS_SESSION_TOKEN = $Credentials.SessionToken
+$env:LABPROJECT_SERVER_KEY = & aws ssm get-parameter --name "/labproject/$Stage/server-key" --with-decryption `
+    --query Parameter.Value --output text @AwsArgs
+if ($LASTEXITCODE -ne 0 -or -not $env:LABPROJECT_SERVER_KEY) { throw "Could not read /labproject/$Stage/server-key." }
 
 Write-Host "Starting $ServerExe on port $Port (fleet $FleetId, compute $ComputeName)"
 & $ServerExe -log "-port=$Port" "-networkversionoverride=$NetworkVersion" -glAnywhere `

@@ -21,7 +21,7 @@ namespace BackendHttp
 		FString ErrorMessage;
 	};
 
-	/** 클라이언트가 따로 처리하는 백엔드 error 코드. 값은 Backend/src의 응답과 같다. */
+	/** 클라이언트가 따로 처리하는 백엔드 error 코드. 값은 Backend/server의 응답과 같다. */
 	namespace ErrorCodes
 	{
 		inline constexpr const TCHAR* SessionTimeout = TEXT("session_timeout");

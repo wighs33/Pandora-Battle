@@ -1,4 +1,4 @@
-"""운영 명령: 보스 레이드 회차를 열고 닫는다. Lambda 백엔드의 Backend/bossraid.ps1과 같은 일을 MySQL에 한다.
+"""운영 명령: 보스 레이드 회차를 열고 닫는다. AWS에서는 Backend/bossraid.ps1이 API 서버 EC2에서 SSM으로 실행한다.
 
     python -m app.admin raid status
     python -m app.admin raid open --hp 3000000 --reward-gold 1000 [--daily-attempts 3] [--attempt-seconds 300]

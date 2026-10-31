@@ -1,12 +1,12 @@
 ﻿<#
 .SYNOPSIS
-  LabProject 백엔드 스택을 배포한다(API Gateway, Lambda + DynamoDB, EC2 API 서버 + RDS MySQL).
+  LabProject 백엔드 스택을 배포한다(API Gateway → EC2 API 서버 → RDS MySQL).
 
 .DESCRIPTION
   AWS CLI만 사용한다.
   1. 처음 실행하면 배포 아티팩트 버킷과 비밀 값(SSM SecureString)을 만든다: 세션 토큰 서명 키, 전용 서버의 서버 키,
      DB 비밀번호 셋(RDS 마스터, 스키마 담당, API 서버). 한 번 만든 값은 유지하고 화면에 출력하지 않는다.
-  2. Lambda 코드와 API 서버 배포 묶음(Backend/server)을 S3에 올리고 스택을 배포한다.
+  2. API 서버 배포 묶음(Backend/server)을 S3에 올리고 스택을 배포한다.
   3. API 서버 EC2에서 SSM Run Command로 Backend/server/deploy/install.sh를 실행한다
      (새 릴리스, DB 계정, 마이그레이션, 서비스 재시작).
   Steam Web API 키는 비밀 값이라 스크립트가 만들지 않는다. 아래 명령으로 직접 등록한다.
@@ -78,7 +78,7 @@ try {
     $Account = Invoke-Aws sts get-caller-identity --query Account --output text
     Write-Host "Account $Account / $Region / stack $StackName"
 
-    # 1. 배포 아티팩트 버킷 (Lambda 코드 zip 업로드용, 공개 접근 차단)
+    # 1. 배포 아티팩트 버킷 (API 서버 배포 묶음 업로드용, 공개 접근 차단)
     $Bucket = "labproject-deploy-$Account-$Region"
     if (-not (Test-AwsCall s3api head-bucket --bucket $Bucket)) {
         Write-Host "Creating artifact bucket $Bucket"
@@ -116,10 +116,7 @@ try {
     Invoke-Aws s3 cp --only-show-errors .server.tar.gz "s3://$Bucket/$ArtifactKey" | Out-Null
     Remove-Item .server.tar.gz
 
-    # 4. Lambda 코드를 업로드하고 스택을 배포한다. 지정하지 않은 파라미터는 기존 스택 값을 유지한다.
-    Invoke-Aws cloudformation package --template-file template.yaml --s3-bucket $Bucket --s3-prefix $Stage `
-        --output-template-file .packaged.yaml | Out-Null
-
+    # 4. 스택을 배포한다. 지정하지 않은 파라미터는 기존 스택 값을 유지한다.
     # 기본 VPC의 가용 영역별 기본 서브넷. 가용 영역 순서로 정렬해, 첫 서브넷(API 서버 자리)이 배포마다 바뀌지 않게 한다.
     # 필터는 따옴표로 묶는다. 묶지 않으면 PowerShell이 쉼표를 배열로 읽는다.
     $VpcId = Invoke-Aws ec2 describe-vpcs --filters "Name=isDefault,Values=true" --query "Vpcs[0].VpcId" --output text
@@ -134,7 +131,7 @@ try {
     if ($GameLiftLocation) { $Overrides += "GameLiftLocation=$GameLiftLocation" }
     if ($AllowDevLogin) { $Overrides += "AllowDevLogin=$AllowDevLogin" }
 
-    & aws cloudformation deploy --template-file .packaged.yaml --stack-name $StackName `
+    & aws cloudformation deploy --template-file template.yaml --stack-name $StackName `
         --capabilities CAPABILITY_IAM CAPABILITY_AUTO_EXPAND --no-fail-on-empty-changeset `
         --parameter-overrides @Overrides @AwsArgs
     if ($LASTEXITCODE -ne 0) { throw "cloudformation deploy failed with exit code $LASTEXITCODE" }

@@ -2,7 +2,7 @@
 
     uvicorn app.main:create_app --factory --host 127.0.0.1 --port 8000
 
-Lambda 백엔드(Backend/src)와 같은 경로·응답 형식을 쓰고, DynamoDB 대신 MySQL에 기록한다.
+Lambda + DynamoDB 백엔드에서 옮겨 오면서 경로와 응답 형식은 그대로 두었다(게임 클라이언트는 바뀌지 않았다). MySQL에 기록한다.
 - 클라이언트 경로는 로그인 토큰(Authorization: Bearer)으로, 전용 서버 경로(/server/*)는 서버 키(X-Server-Key)로 확인한다.
 - 골드와 보유 목록은 서버가 정한다. 구매와 보상은 골드, 골드 기록, 보유 목록을 한 트랜잭션에서 함께 바꾼다.
 

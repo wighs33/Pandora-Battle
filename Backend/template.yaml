@@ -2,7 +2,7 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >
   LabProject backend - Steam login, GameLift game session placement, match results and boss raids.
-  The Lambda functions write DynamoDB; the API server on EC2 (Backend/server) writes RDS MySQL.
+  API Gateway forwards every request to the API server on EC2 (Backend/server), which writes RDS MySQL.
 
 Parameters:
   Stage:
@@ -56,62 +56,12 @@ Parameters:
     Type: String
     Default: db.t4g.micro
 
-Globals:
-  Function:
-    Runtime: python3.13
-    Architectures: [arm64]
-    MemorySize: 256
-    Timeout: 10
-    Environment:
-      Variables:
-        STAGE: !Ref Stage
-        TABLE_NAME: !Ref GameTable
-        TOKEN_SECRET_PARAM: !Sub /labproject/${Stage}/token-signing-key
-
 Resources:
-  # Single table: player profile, per-player match history, match results and boss raids, separated by PK/SK.
-  # On-demand billing keeps the idle cost near zero.
-  # Retain: the data moves to MySQL (app.import_dynamodb), and the table is deleted by hand after a backup.
-  GameTable:
-    Type: AWS::DynamoDB::Table
-    DeletionPolicy: Retain
-    UpdateReplacePolicy: Retain
-    Properties:
-      TableName: !Sub labproject-${Stage}
-      BillingMode: PAY_PER_REQUEST
-      AttributeDefinitions:
-        - AttributeName: PK
-          AttributeType: S
-        - AttributeName: SK
-          AttributeType: S
-        - AttributeName: RankKey
-          AttributeType: S
-        - AttributeName: Damage
-          AttributeType: N
-      KeySchema:
-        - AttributeName: PK
-          KeyType: HASH
-        - AttributeName: SK
-          KeyType: RANGE
-      # Boss raid ranking: one partition per raid, sorted by cumulative damage.
-      # Only player rows that have dealt damage carry both keys, so the index holds nothing else.
-      GlobalSecondaryIndexes:
-        - IndexName: RaidRanking
-          KeySchema:
-            - AttributeName: RankKey
-              KeyType: HASH
-            - AttributeName: Damage
-              KeyType: RANGE
-          Projection:
-            ProjectionType: INCLUDE
-            NonKeyAttributes: [DisplayName]
-
-  # Routes that a Lambda event does not claim fall through to $default, the MySQL API server on EC2.
+  # One $default route: the API server routes and authenticates requests itself (session token, X-Server-Key).
+  # API Gateway keeps the public HTTPS address and the throttling.
   HttpApi:
     Type: AWS::Serverless::HttpApi
     Properties:
-      Auth:
-        EnableIamAuthorizer: true
       DefaultRouteSettings:
         ThrottlingBurstLimit: 20
         ThrottlingRateLimit: 10
@@ -202,10 +152,6 @@ Resources:
                   - gamelift:DescribeGameSessions
                   - gamelift:CreatePlayerSession
                 Resource: '*'
-              # Only for the one-time copy of the Lambda backend's table (app.import_dynamodb).
-              - Effect: Allow
-                Action: dynamodb:Scan
-                Resource: !GetAtt GameTable.Arn
 
   ApiInstanceProfile:
     Type: AWS::IAM::InstanceProfile
@@ -316,220 +262,12 @@ Resources:
       CopyTagsToSnapshot: true
       DeletionProtection: true
 
-  AuthFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      # CodeUri stays on each function: 'aws cloudformation package' does not read SAM Globals.
-      CodeUri: src/
-      Handler: auth.handler
-      Environment:
-        Variables:
-          STEAM_APP_ID: !Ref SteamAppId
-          STEAM_TICKET_IDENTITY: !Ref SteamTicketIdentity
-          STEAM_KEY_PARAM: !Sub /labproject/${Stage}/steam-web-api-key
-          ALLOW_DEV_LOGIN: !Ref AllowDevLogin
-      Policies:
-        - Statement:
-            - Effect: Allow
-              Action: dynamodb:UpdateItem
-              Resource: !GetAtt GameTable.Arn
-            - Effect: Allow
-              Action: ssm:GetParameter
-              Resource:
-                - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/labproject/${Stage}/token-signing-key
-                - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/labproject/${Stage}/steam-web-api-key
-      Events:
-        SteamLogin:
-          Type: HttpApi
-          Properties:
-            ApiId: !Ref HttpApi
-            Method: POST
-            Path: /auth/steam
-        DevLogin:
-          Type: HttpApi
-          Properties:
-            ApiId: !Ref HttpApi
-            Method: POST
-            Path: /auth/dev
-
-  MatchJoinFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: src/
-      Handler: match_join.handler
-      Timeout: 29
-      Environment:
-        Variables:
-          GAMELIFT_FLEET_ID: !Ref GameLiftFleetId
-          GAMELIFT_LOCATION: !Ref GameLiftLocation
-          MAX_PLAYERS_PER_SESSION: !Ref MaxPlayersPerSession
-          MAX_PLAYERS_PER_BOSS_RAID_SESSION: !Ref MaxPlayersPerBossRaidSession
-      Policies:
-        - Statement:
-            - Effect: Allow
-              Action:
-                - gamelift:SearchGameSessions
-                - gamelift:CreateGameSession
-                - gamelift:DescribeGameSessions
-                - gamelift:CreatePlayerSession
-              Resource: '*'
-            - Effect: Allow
-              Action:
-                - dynamodb:GetItem
-                - dynamodb:UpdateItem
-              Resource: !GetAtt GameTable.Arn
-            - Effect: Allow
-              Action: ssm:GetParameter
-              Resource: !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/labproject/${Stage}/token-signing-key
-      Events:
-        Join:
-          Type: HttpApi
-          Properties:
-            ApiId: !Ref HttpApi
-            Method: POST
-            Path: /match/join
-
-  PlayerProfileFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: src/
-      Handler: player.handler
-      Policies:
-        - Statement:
-            - Effect: Allow
-              Action: dynamodb:Query
-              Resource: !GetAtt GameTable.Arn
-            - Effect: Allow
-              Action: ssm:GetParameter
-              Resource: !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/labproject/${Stage}/token-signing-key
-      Events:
-        Me:
-          Type: HttpApi
-          Properties:
-            ApiId: !Ref HttpApi
-            Method: GET
-            Path: /player/me
-
-  # Status needs no login: the title screen asks before the player logs in. Ranking and rewards need the session token.
-  # Backend/bossraid.ps1 opens and closes raids.
-  BossRaidFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: src/
-      Handler: boss_raid.handler
-      Policies:
-        - Statement:
-            - Effect: Allow
-              Action:
-                - dynamodb:GetItem
-                - dynamodb:Query
-                - dynamodb:UpdateItem
-              Resource:
-                - !GetAtt GameTable.Arn
-                - !Sub ${GameTable.Arn}/index/*
-            - Effect: Allow
-              Action: ssm:GetParameter
-              Resource: !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/labproject/${Stage}/token-signing-key
-      Events:
-        Status:
-          Type: HttpApi
-          Properties:
-            ApiId: !Ref HttpApi
-            Method: GET
-            Path: /bossraid/status
-        Me:
-          Type: HttpApi
-          Properties:
-            ApiId: !Ref HttpApi
-            Method: GET
-            Path: /bossraid/me
-        Claim:
-          Type: HttpApi
-          Properties:
-            ApiId: !Ref HttpApi
-            Method: POST
-            Path: /bossraid/claim
-
-  # Game servers only. API Gateway verifies the SigV4 signature, so a client session token cannot call it.
-  MatchResultFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: src/
-      Handler: match_result.handler
-      Policies:
-        - Statement:
-            - Effect: Allow
-              Action:
-                - dynamodb:PutItem
-                - dynamodb:UpdateItem
-              Resource: !GetAtt GameTable.Arn
-      Events:
-        Report:
-          Type: HttpApi
-          Properties:
-            ApiId: !Ref HttpApi
-            Method: POST
-            Path: /server/match-result
-            Auth:
-              Authorizer: AWS_IAM
-
-  # Game servers only, like match-result. Boss raid damage lowers the shared world boss health.
-  RaidDamageFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: src/
-      Handler: raid_damage.handler
-      Policies:
-        - Statement:
-            - Effect: Allow
-              Action:
-                - dynamodb:GetItem
-                - dynamodb:UpdateItem
-              Resource: !GetAtt GameTable.Arn
-      Events:
-        Report:
-          Type: HttpApi
-          Properties:
-            ApiId: !Ref HttpApi
-            Method: POST
-            Path: /server/raid-damage
-            Auth:
-              Authorizer: AWS_IAM
-
-  # Instance role for a managed EC2 fleet. The game server gets temporary credentials for it
-  # through GetFleetRoleCredentials and signs the match-result and raid-damage requests with them.
-  GameServerFleetRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: gamelift.amazonaws.com
-            Action: sts:AssumeRole
-      Policies:
-        - PolicyName: ReportMatchResults
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action: execute-api:Invoke
-                Resource:
-                  - !Sub arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/POST/server/match-result
-                  - !Sub arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/POST/server/raid-damage
-
 Outputs:
   ApiUrl:
     Description: Put this in Config/DefaultGame.ini [/Script/LabProject.BackendSettings] as ApiBaseUrl="<url>" (quotes required, unquoted // is a comment).
     Value: !Sub https://${HttpApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}
-  TableName:
-    Value: !Ref GameTable
   ApiInstanceId:
     Description: deploy.ps1 and bossraid.ps1 run commands on this instance through SSM Run Command.
     Value: !Ref ApiInstance
   DatabaseEndpoint:
     Value: !GetAtt Database.Endpoint.Address
-  GameServerFleetRoleArn:
-    Description: Use as the managed EC2 fleet InstanceRoleArn and pass it to the server with -FleetRoleArn=.
-    Value: !GetAtt GameServerFleetRole.Arn
