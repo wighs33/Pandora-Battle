@@ -14,6 +14,7 @@
 #include "Mode/PdPlayerController.h"
 #include "TimerManager.h"
 #include "UI/Info/Presenter/InfoUiPresenter.h"
+#include "UI/HUD/CinematicScreen.h"
 #include "UI/HUD/HudMenuLayer.h"
 #include "UI/HUD/HudScoreboardLayer.h"
 #include "UI/HUD/HudScreenLayer.h"
@@ -62,6 +63,11 @@ void APdHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	PossessedCharacterReadySubscription.Reset();
 	UnbindPresentationEvents();
+	if (CinematicScreen)
+	{
+		CinematicScreen->DeactivateWidget();
+		CinematicScreen = nullptr;
+	}
 	UGameFrameworkComponentManager::RemoveGameFrameworkComponentReceiver(this);
 	RemoveAllUiWidgets();
 	if (UiRouter)
@@ -193,7 +199,7 @@ bool APdHUD::IsPlayerHudSuppressedByUi() const
 	const UHudScreenLayer* ScreenLayer = GetScreenLayer();
 	const UHudScoreboardLayer* ScoreboardLayer = GetScoreboardLayer();
 	return (ScreenLayer && ScreenLayer->ShouldSuppressPlayerHud()) || IsSelectPandoraUiOpen() || IsEscapeMenuOpen()
-		|| (ScoreboardLayer && ScoreboardLayer->IsOpen());
+		|| (ScoreboardLayer && ScoreboardLayer->IsOpen()) || CinematicScreen != nullptr;
 }
 
 bool APdHUD::IsSelectPandoraUiOpen() const
@@ -293,6 +299,11 @@ void APdHUD::BindPresentationEvents()
 			Presentation->OnGoldenKillAnnouncementRequested().AddUObject(this, &ThisClass::ShowGoldenKillAnnouncement);
 			Presentation->OnRespawnDelayChanged().AddUObject(this, &ThisClass::HandleRespawnDelayChanged);
 			Presentation->OnInGameScoreboardChanged().AddUObject(this, &ThisClass::HandleInGameScoreboardChanged);
+			Presentation->OnCinematicChanged().AddUObject(this, &ThisClass::HandleCinematicChanged);
+			if (Presentation->IsInCinematic())
+			{
+				HandleCinematicChanged(true);
+			}
 		}
 	}
 
@@ -339,6 +350,7 @@ void APdHUD::UnbindPresentationEvents()
 			Presentation->OnGoldenKillAnnouncementRequested().RemoveAll(this);
 			Presentation->OnRespawnDelayChanged().RemoveAll(this);
 			Presentation->OnInGameScoreboardChanged().RemoveAll(this);
+			Presentation->OnCinematicChanged().RemoveAll(this);
 		}
 	}
 	if (AExperienceGameState* ExperienceGameState = PresentationGameState.Get())
@@ -492,6 +504,27 @@ void APdHUD::HandleInGameScoreboardChanged(const bool bVisible)
 	{
 		ScoreboardLayer->Show();
 	}
+}
+
+// 연출 동안에는 연출 화면을 띄워 게임 입력을 막고, 플레이어 HUD를 숨긴다.
+// 겹침 층에 올려 메뉴·모달 스택의 화면(접속 중 안내 등)을 비활성으로 밀어내지 않는다. 그런 화면은 연출 위에 그대로 보인다.
+void APdHUD::HandleCinematicChanged(const bool bInCinematic)
+{
+	if (bInCinematic && !CinematicScreen)
+	{
+		UUiSubsystem* Ui = GetUiSubsystem();
+		CinematicScreen = Ui ? UCinematicScreen::Create(GetOwningPlayerController()) : nullptr;
+		if (CinematicScreen)
+		{
+			Ui->PushScreen(CinematicScreen, EUiScreenLayer::Overlay);
+		}
+	}
+	else if (!bInCinematic && CinematicScreen)
+	{
+		CinematicScreen->DeactivateWidget();
+		CinematicScreen = nullptr;
+	}
+	RefreshPlayerHudVisibility();
 }
 
 void APdHUD::OpenEscapeMenu()

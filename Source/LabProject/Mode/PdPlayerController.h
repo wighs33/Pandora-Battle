@@ -71,6 +71,13 @@ public:
 
 	bool RequestExitMatchToTitle();
 
+	/**
+	 * 서버: 소유 클라이언트가 조종 캐릭터를 받아 게임 화면을 보고 있는지. 처음 준비됐을 때 한 번 알린다.
+	 * 모두가 함께 보는 연출처럼 클라이언트가 화면을 볼 수 있을 때 시작해야 하는 일이 이 알림을 기다린다.
+	 */
+	bool IsClientPlayReady() const { return bClientPlayReady; }
+	FSimpleMulticastDelegate& OnClientPlayReady() { return ClientPlayReady; }
+
 	UPlayerNotificationComponent* GetPlayerNotificationComponent() const { return NotificationComponent.Get(); }
 
 	UControllerPresentationComponent* GetControllerPresentationComponent() const
@@ -134,6 +141,9 @@ public:
 		const TArray<FName>& OwnedSkinNames,
 		FName SelectedAchievementId);
 
+	UFUNCTION(Server, Reliable, Category = "!Match")
+	void Server_NotifyClientPlayReady();
+
 private:
 	// Event Handlers --------------------------------------------------------------------------------------------------
 	void HandleControllerDefinitionPreloaded();
@@ -145,6 +155,8 @@ private:
 	void BeginControllerDefinitionPreload();
 	void RefreshControllerInput();
 	void ObservePossessedCharacter(ACharacterBase* NewPossessedCharacter);
+	void NotifyClientPlayReadyOnce();
+	void MarkClientPlayReady();
 
 private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "!Components", meta = (AllowPrivateAccess = "true"))
@@ -179,4 +191,7 @@ private:
 	FOnAbilitySystemAvailabilityChanged OnPossessedCharacterAbilitySystemReady;
 	FOnAimCrosshairChanged AimCrosshairChanged;
 	FOnDamageScreenEffectRequested DamageScreenEffectRequested;
+	FSimpleMulticastDelegate ClientPlayReady;
+	/** 소유 클라이언트에서는 알림을 보냈는지, 서버에서는 받았는지 */
+	bool bClientPlayReady = false;
 };

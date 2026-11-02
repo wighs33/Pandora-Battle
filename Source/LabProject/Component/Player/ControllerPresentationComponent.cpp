@@ -178,6 +178,7 @@ bool UControllerPresentationComponent::TickTravelLoadingScreenReady(float)
 	if (!bWaiting)
 	{
 		TravelLoadingReadyTickerHandle.Reset();
+		TravelLoadingFinished.Broadcast();
 	}
 	return bWaiting;
 }
@@ -326,4 +327,15 @@ void UControllerPresentationComponent::ShowInGameScoreboard()
 void UControllerPresentationComponent::HideInGameScoreboard()
 {
 	InGameScoreboardChanged.Broadcast(false);
+}
+
+// 연출이 시작되거나 끝날 때만 HUD에 알린다. 나중에 만들어진 HUD는 IsInCinematic으로 지금 상태를 읽는다.
+void UControllerPresentationComponent::SetInCinematic(const bool bCinematic)
+{
+	if (bInCinematic == bCinematic)
+	{
+		return;
+	}
+	bInCinematic = bCinematic;
+	CinematicChanged.Broadcast(bInCinematic);
 }

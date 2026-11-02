@@ -53,6 +53,8 @@ public class LabProject : ModuleRules
 			"RHI",
 			"AssetRegistry",
 			"CableComponent",
+			"LevelSequence",
+			"MovieScene",
 			"Slate",
 			"NavigationSystem",
 			"HTTP",

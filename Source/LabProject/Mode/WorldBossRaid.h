@@ -5,10 +5,14 @@
 #include "WorldBossRaid.generated.h"
 
 class AController;
+class ACinematicSequenceActor;
 class AGameModeBase;
 class AMonsterCharacter;
+class APdPlayerController;
 class APlayerController;
 class APlayerState;
+class FContentLease;
+class ULevelSequence;
 struct FOnAttributeChangeData;
 
 namespace BackendHttp
@@ -48,7 +52,9 @@ struct FWorldBossAttempt
  *   응답으로 받은 전역 체력을 이 월드 보스의 체력으로 맞추므로 다른 서버가 깎은 체력도 보인다.
  *   보스의 최대 체력은 전역 최대 체력과 같아서, 페이즈 소환과 사망은 기존 체력 흐름 그대로 전역 체력 비율을 따른다.
  * - 이 월드의 체력이 0이 되면 전역 체력도 0 이하다(다른 서버의 딜을 아직 받지 못했을 뿐 더 깎였을 수는 없다).
- * - 플레이어마다 들어온 순간부터 도전 시간을 재고, 끝나면 남은 딜을 보고한 뒤 타이틀로 보낸다.
+ * - 보스가 처음 나오면 숨겨 두고, 첫 플레이어의 화면이 준비되면 등장 연출(UEnemyBaseDefinition의 EntranceSequence)을 모두에게 재생한다.
+ *   연출이 끝나면 보스가 싸우기 시작하고, 그때까지 들어온 플레이어의 도전도 함께 시작한다. 연출이 끝난 뒤 들어온 플레이어는 연출 없이 바로 시작한다.
+ * - 플레이어마다 도전을 시작한 순간부터 도전 시간을 재고, 끝나면 남은 딜을 보고한 뒤 타이틀로 보낸다.
  * - 보스가 쓰러지면 쓰러지는 연출을 보여 준 뒤 모두를 타이틀로 보내고 게임 세션을 끝낸다. 보상은 타이틀에서 받는다.
  * - 백엔드 주소나 서버 키가 없거나 열린 회차가 없으면 보고하지 않는다. 보스는 이 월드의 체력으로 싸우고 쓰러지면 다시 나온다.
  *
@@ -94,8 +100,17 @@ private:
 	void OnRep_Attempts();
 	void HandleReportResponse(const BackendHttp::FResponse& Response);
 	void TickRaid();
+	void HandleEntranceSequenceLoaded();
+	void HandleClientPlayReady(TWeakObjectPtr<APdPlayerController> Player);
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
+	void BeginEntrance(AMonsterCharacter& InBoss);
+	void WatchPlayerReady(APlayerController* Player);
+	void TryPlayEntrance();
+	void FinishEntrance();
+	bool HasPlayReadyPlayer() const;
+	/** 연출을 보는 동안에는 움직일 수 없으므로 다른 몬스터에게도 피해를 받지 않게 한다. */
+	static void SetWatchingEntrance(const APlayerController& Player, bool bWatching);
 	void ShowBarOnLocalHuds();
 	void NoteLocalPlayerAttempts() const;
 	void BeginAttempt(APlayerState* Player);
@@ -138,6 +153,25 @@ private:
 	FDelegateHandle PostLoginHandle;
 	FDelegateHandle LogoutHandle;
 	FTimerHandle TickTimerHandle;
+
+	/** 서버: 처음 나온 보스의 등장 연출 진행. 연출이 끝나야(Done) 도전이 시작된다. */
+	enum class EEntranceState : uint8
+	{
+		/** 보스가 아직 나오지 않아 연출이 있는지 모른다. */
+		AwaitingBoss,
+		/** 보스를 숨겨 두고 연출 시퀀스를 불러오며 첫 플레이어의 화면이 준비되기를 기다린다. */
+		AwaitingPlayer,
+		Playing,
+		Done
+	};
+
+	EEntranceState EntranceState = EEntranceState::AwaitingBoss;
+	TSoftObjectPtr<ULevelSequence> EntranceSequence;
+	TSharedPtr<FContentLease> EntranceSequenceLease;
+	bool bEntranceSequenceLoadFinished = false;
+
+	UPROPERTY(Transient)
+	TObjectPtr<ACinematicSequenceActor> EntranceActor;
 
 	TMap<FString, FPendingDamage> PendingDamage;
 	TOptional<FReport> UnsentReport;

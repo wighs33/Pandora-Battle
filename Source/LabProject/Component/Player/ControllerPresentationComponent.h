@@ -18,6 +18,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnKillLogEntryRequested, const FKillLogEntr
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnGoldenKillAnnouncementRequested, const FText& /*AnnouncementText*/);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnRespawnDelayChanged, bool /*bVisible*/, float /*DelaySeconds*/);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnInGameScoreboardChanged, bool /*bVisible*/);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnCinematicChanged, bool /*bInCinematic*/);
 
 /**
  * 소유 플레이어의 입력 모드·카메라·로딩 화면·체력바 표시를 조율한다.
@@ -53,12 +54,21 @@ public:
 	/** 로딩 화면이 갱신될 때마다 대기 중인지 알려 준다. 빙의 직후의 훈련실 일시정지가 이 값을 따른다. */
 	void SetLoadingScreenWaiting(bool bWaiting) { LoadingScreenWaiting = bWaiting; }
 
+	/** 빙의 뒤 로딩 화면이 아직 기다리는 작업이 있는지. 끝나면 OnTravelLoadingFinished로 알린다. */
+	bool IsWaitingForTravelLoading() const { return TravelLoadingReadyTickerHandle.IsValid(); }
+	FSimpleMulticastDelegate& OnTravelLoadingFinished() { return TravelLoadingFinished; }
+
+	/** 연출 시퀀스(ACinematicSequenceActor)가 화면을 차지하는 동안 켠다. HUD는 이 동안 게임 입력과 플레이어 HUD를 막는다. */
+	void SetInCinematic(bool bCinematic);
+	bool IsInCinematic() const { return bInCinematic; }
+
 	// HUD가 구독해 그리는 화면 요청. 로컬 HUD가 없으면 구독자도 없어 요청은 버려진다.
 	FOnRightNotificationRequested& OnRightNotificationRequested() { return RightNotificationRequested; }
 	FOnKillLogEntryRequested& OnKillLogEntryRequested() { return KillLogEntryRequested; }
 	FOnGoldenKillAnnouncementRequested& OnGoldenKillAnnouncementRequested() { return GoldenKillAnnouncementRequested; }
 	FOnRespawnDelayChanged& OnRespawnDelayChanged() { return RespawnDelayChanged; }
 	FOnInGameScoreboardChanged& OnInGameScoreboardChanged() { return InGameScoreboardChanged; }
+	FOnCinematicChanged& OnCinematicChanged() { return CinematicChanged; }
 
 private:
 	void ApplyCameraViewPitchClamp() const;
@@ -82,10 +92,13 @@ private:
 	FTSTicker::FDelegateHandle TravelLoadingReadyTickerHandle;
 	TOptional<bool> LoadingScreenWaiting;
 	bool bAppliedTrainingRoomLoadingPause = false;
+	bool bInCinematic = false;
 
 	FOnRightNotificationRequested RightNotificationRequested;
 	FOnKillLogEntryRequested KillLogEntryRequested;
 	FOnGoldenKillAnnouncementRequested GoldenKillAnnouncementRequested;
 	FOnRespawnDelayChanged RespawnDelayChanged;
 	FOnInGameScoreboardChanged InGameScoreboardChanged;
+	FOnCinematicChanged CinematicChanged;
+	FSimpleMulticastDelegate TravelLoadingFinished;
 };

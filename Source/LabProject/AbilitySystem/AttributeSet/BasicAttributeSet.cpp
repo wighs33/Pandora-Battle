@@ -587,7 +587,8 @@ float UBasicAttributeSet::ApplyIncomingDamage(const float IncomingDamageAmount, 
 		return 0.f;
 	}
 
-	if (ASC && ASC->HasMatchingGameplayTag(PdGameplayTags::State_DefenseField_Invulnerable))
+	if (ASC && (ASC->HasMatchingGameplayTag(PdGameplayTags::State_DefenseField_Invulnerable)
+		|| ASC->HasMatchingGameplayTag(PdGameplayTags::State_Cinematic)))
 	{
 		if (DamageTargetCharacter)
 		{

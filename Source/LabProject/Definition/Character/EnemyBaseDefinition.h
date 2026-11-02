@@ -10,6 +10,7 @@
 class UAnimMontage;
 class UGameplayEffect;
 class UItemDefinition;
+class ULevelSequence;
 class UStateTree;
 class UStatUpgradeDefinition;
 class AMonsterCharacter;
@@ -31,6 +32,13 @@ struct LABPROJECT_API FMonsterPresentationSettings
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Enemy|Monster|Animation")
 	TObjectPtr<UAnimMontage> DeathMontage;
+
+	/**
+	 * 월드 보스로 처음 나올 때 한 번 보여 줄 등장 연출. 보스 레이드가 첫 플레이어가 준비되면 모두에게 재생한다.
+	 * 시퀀스는 보스가 서는 자리(액터 위치와 방향)를 원점으로 만든다. 연출이 끝나는 자리와 자세가 실제 보스와 이어져야 한다.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Enemy|Monster|Presentation")
+	TSoftObjectPtr<ULevelSequence> EntranceSequence;
 };
 
 /**

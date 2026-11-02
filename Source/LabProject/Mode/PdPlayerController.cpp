@@ -63,6 +63,7 @@ void APdPlayerController::BeginPlay()
 		if (ControllerPresentationComponent)
 		{
 			ControllerPresentationComponent->InitializeLocalPresentation();
+			ControllerPresentationComponent->OnTravelLoadingFinished().AddUObject(this, &ThisClass::NotifyClientPlayReadyOnce);
 		}
 	}
 	if (ControllerProfileSyncComponent && (HasAuthority() || IsLocalController()))
@@ -163,7 +164,41 @@ void APdPlayerController::HandlePossessedCharacterAbilitySystemReady(
 		UE_LOG(LogPdPlayerController, Verbose, TEXT("%s: possessed character %s is ready; notifying UI listeners."),
 			*GetNameSafe(this), *GetNameSafe(ReadyCharacter));
 		OnPossessedCharacterAbilitySystemReady.Broadcast(ReadyCharacter, AbilitySystemComponent);
+		NotifyClientPlayReadyOnce();
 	}
+}
+
+// 조종 캐릭터가 준비되고 로딩 화면도 걷혀 게임 화면이 처음 보이면 서버에 한 번 알린다.
+// 두 조건은 어느 쪽이 먼저 끝날지 모르므로 양쪽 알림에서 모두 부른다. 리슨 서버·단독 실행의 로컬 플레이어는 바로 준비된 것으로 둔다.
+void APdPlayerController::NotifyClientPlayReadyOnce()
+{
+	if (bClientPlayReady || !IsLocalController() || !GetReadyPossessedCharacter()
+		|| (ControllerPresentationComponent && ControllerPresentationComponent->IsWaitingForTravelLoading()))
+	{
+		return;
+	}
+	if (HasAuthority())
+	{
+		MarkClientPlayReady();
+		return;
+	}
+	bClientPlayReady = true;
+	Server_NotifyClientPlayReady();
+}
+
+void APdPlayerController::Server_NotifyClientPlayReady_Implementation()
+{
+	MarkClientPlayReady();
+}
+
+void APdPlayerController::MarkClientPlayReady()
+{
+	if (bClientPlayReady)
+	{
+		return;
+	}
+	bClientPlayReady = true;
+	ClientPlayReady.Broadcast();
 }
 
 // 소유 클라이언트에서 보상 표시용 에셋을 준비하도록 알림 컴포넌트에 전달한다.

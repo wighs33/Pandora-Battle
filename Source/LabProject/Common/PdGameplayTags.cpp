@@ -79,6 +79,7 @@ namespace PdGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Effect_Damage_Critical, "Effect.Damage.Critical", "Dynamic asset tag on a damage spec whose damage was a critical hit.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Effect_Damage_NoHitReaction, "Effect.Damage.NoHitReaction", "Dynamic asset tag on a damage spec that must not trigger hit reaction.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Dead, "State.Dead", "State tag granted while a character is dead.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Cinematic, "State.Cinematic", "Player character is watching a shared cinematic and cannot act, so it takes no damage.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_DefenseField_Invulnerable, "State.DefenseField.Invulnerable", "Invulnerability state granted while the Defense Field effect is active.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Movement_Airborne, "State.Movement.Airborne", "Character is currently falling or jumping.");
 

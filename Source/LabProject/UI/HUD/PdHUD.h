@@ -16,6 +16,7 @@ class AGameStateBase;
 class APdPlayerController;
 struct FGameResultPlayerStat;
 class UInfoUiPresenter;
+class UCinematicScreen;
 class UDamageScreenEffectWidget;
 class UGoldenKillAnnouncementWidget;
 class UHudTimerWidget;
@@ -120,6 +121,7 @@ private:
 	void AddKillLogEntry(const FKillLogEntry& KillLogEntry);
 	void HandleRespawnDelayChanged(bool bVisible, float DelaySeconds);
 	void HandleInGameScoreboardChanged(bool bVisible);
+	void HandleCinematicChanged(bool bInCinematic);
 	void ShowGameResult(const FText& WinnerTitle, int32 WinnerTeamColorIndex, const FText& MaxKillerName, int32 MaxKillCount,
 		const TArray<FGameResultPlayerStat>& PlayerStats);
 
@@ -213,4 +215,8 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UPandoraTreeWidget> CachedPandoraTreeUI = nullptr;
+
+	/** 연출 시퀀스가 재생되는 동안만 있는 연출 화면 */
+	UPROPERTY(Transient)
+	TObjectPtr<UCinematicScreen> CinematicScreen = nullptr;
 };

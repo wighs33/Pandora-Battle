@@ -175,11 +175,40 @@ void AMonsterCharacter::HandleCharacterRuntimeInitialized()
 	}
 }
 
-// 구성 오류로 공격할 수 없거나 이미 죽은 몬스터의 AI가 시작되지 않게 한다.
+// 구성 오류로 공격할 수 없거나, 이미 죽었거나, 등장 연출을 기다리는 몬스터의 AI가 시작되지 않게 한다.
 bool AMonsterCharacter::IsMonsterReadyForAI() const
 {
-	return IsCharacterRuntimeInitialized() && !bDying
+	return IsCharacterRuntimeInitialized() && !bDying && !bHeldForEntrance
 		&& (MonsterAttacks.IsEmpty() || (FindFirstLoadedAttackMontage() && AttackComponent.IsValid()));
+}
+
+void AMonsterCharacter::HoldForEntrance()
+{
+	if (!HasAuthority() || bHeldForEntrance)
+	{
+		return;
+	}
+	bHeldForEntrance = true;
+	SetActorHiddenInGame(true);
+	// 충돌을 끄면 바닥도 잃으므로 이동을 멈춰 떨어지지 않게 한다.
+	SetActorEnableCollision(false);
+	GetCharacterMovement()->DisableMovement();
+}
+
+void AMonsterCharacter::ReleaseFromEntrance()
+{
+	if (!HasAuthority() || !bHeldForEntrance)
+	{
+		return;
+	}
+	bHeldForEntrance = false;
+	SetActorHiddenInGame(false);
+	SetActorEnableCollision(true);
+	GetCharacterMovement()->SetDefaultMovementMode();
+	if (AMonsterAIController* MonsterController = Cast<AMonsterAIController>(GetController()))
+	{
+		MonsterController->StartMonsterStateTreeIfReady();
+	}
 }
 
 #if WITH_EDITOR

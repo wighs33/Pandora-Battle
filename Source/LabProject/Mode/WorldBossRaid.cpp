@@ -3,14 +3,22 @@
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
 #include "AbilitySystemComponent.h"
 #include "AI/Monster/MonsterCharacter.h"
+#include "Character/CharacterBase.h"
+#include "Cinematic/CinematicSequenceActor.h"
+#include "Common/PdGameplayTags.h"
 #include "Component/Match/MatchTravel.h"
 #include "Component/Player/PlayerMatchComponent.h"
+#include "Data/ContentDataSubsystem.h"
+#include "Definition/Character/EnemyBaseDefinition.h"
 #include "Definition/Level/LevelDefinition.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/GameModeBase.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/PlayerController.h"
+#include "LevelSequence.h"
+#include "LevelSequencePlayer.h"
+#include "Mode/PdPlayerController.h"
 #include "Mode/PdPlayerState.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
@@ -37,6 +45,8 @@ namespace
 	/** 격파되면 드래곤이 쓰러져 사라지는 연출(AMonsterCharacter::DeathDestroyDelay 8초)을 본 뒤 타이틀로 보낸다. */
 	constexpr double DefeatTravelDelaySeconds = 10.0;
 	constexpr float RaidTickIntervalSeconds = 1.0f;
+	/** 클라이언트는 서버보다 조금 늦게 연출을 끝내므로, 서버가 끝낸 뒤에도 연출 액터를 잠시 남겨 마지막 장면을 마저 보게 한다. */
+	constexpr float EntranceActorLingerSeconds = 2.0f;
 }
 
 AWorldBossRaid::AWorldBossRaid()
@@ -68,7 +78,7 @@ AWorldBossRaid* AWorldBossRaid::Find(const UObject* WorldContextObject)
 	return It ? *It : nullptr;
 }
 
-// 이미 들어와 있는 플레이어(단독 실행의 로컬 플레이어)부터 도전을 시작하고, 빈 보고로 지금 회차와 전역 체력을 받아 온다.
+// 이미 들어와 있는 플레이어(단독 실행의 로컬 플레이어)부터 지켜보고, 빈 보고로 지금 회차와 전역 체력을 받아 온다.
 void AWorldBossRaid::BeginPlay()
 {
 	Super::BeginPlay();
@@ -86,8 +96,9 @@ void AWorldBossRaid::BeginPlay()
 	LogoutHandle = FGameModeEvents::OnGameModeLogoutEvent().AddUObject(this, &ThisClass::HandleLogout);
 	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
 	{
-		if (const APlayerController* Player = It->Get())
+		if (APlayerController* Player = It->Get())
 		{
+			WatchPlayerReady(Player);
 			BeginAttempt(Player->PlayerState);
 		}
 	}
@@ -114,6 +125,14 @@ void AWorldBossRaid::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	FGameModeEvents::OnGameModePostLoginEvent().Remove(PostLoginHandle);
 	FGameModeEvents::OnGameModeLogoutEvent().Remove(LogoutHandle);
 	GetWorldTimerManager().ClearTimer(TickTimerHandle);
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		if (APdPlayerController* Player = Cast<APdPlayerController>(It->Get()))
+		{
+			Player->OnClientPlayReady().RemoveAll(this);
+		}
+	}
+	EntranceSequenceLease.Reset();
 	if (UAbilitySystemComponent* AbilitySystem = Boss.IsValid() ? Boss->GetAbilitySystemComponent() : nullptr)
 	{
 		AbilitySystem->GetGameplayAttributeValueChangeDelegate(UBasicAttributeSet::GetHealthAttribute()).Remove(BossHealthChangedHandle);
@@ -143,6 +162,158 @@ void AWorldBossRaid::RegisterBoss(AMonsterCharacter& InBoss)
 	BossHealth = AbilitySystem->GetNumericAttribute(UBasicAttributeSet::GetHealthAttribute());
 	MARK_PROPERTY_DIRTY_FROM_NAME(AWorldBossRaid, BossMaxHealth, this);
 	MARK_PROPERTY_DIRTY_FROM_NAME(AWorldBossRaid, BossHealth, this);
+	// 쓰러진 뒤 다시 나온 보스는 등장 연출 없이 바로 싸운다.
+	if (EntranceState == EEntranceState::AwaitingBoss)
+	{
+		BeginEntrance(InBoss);
+	}
+}
+
+// 처음 나온 보스는 등장 연출이 끝날 때까지 숨겨 두고 시퀀스를 불러온다. 연출이 없으면 바로 싸운다.
+void AWorldBossRaid::BeginEntrance(AMonsterCharacter& InBoss)
+{
+	const UEnemyBaseDefinition* Definition = InBoss.GetMonsterDefinition();
+	EntranceSequence = Definition ? Definition->GetMonsterPresentationSettings().EntranceSequence : TSoftObjectPtr<ULevelSequence>();
+	if (EntranceSequence.IsNull())
+	{
+		FinishEntrance();
+		return;
+	}
+	InBoss.HoldForEntrance();
+	EntranceState = EEntranceState::AwaitingPlayer;
+	EntranceSequenceLease = UContentDataSubsystem::AcquireContent({EntranceSequence.ToSoftObjectPath()},
+		FSimpleDelegate::CreateUObject(this, &ThisClass::HandleEntranceSequenceLoaded));
+}
+
+void AWorldBossRaid::HandleEntranceSequenceLoaded()
+{
+	bEntranceSequenceLoadFinished = true;
+	if (!EntranceSequence.Get())
+	{
+		UE_LOG(LogWorldBossRaid, Warning, TEXT("Entrance sequence %s could not be loaded. The world boss starts without it."),
+			*EntranceSequence.ToString());
+		FinishEntrance();
+		return;
+	}
+	TryPlayEntrance();
+}
+
+// 플레이어 화면이 준비되면 등장 연출을 시작할 수 있는지 다시 본다.
+void AWorldBossRaid::WatchPlayerReady(APlayerController* Player)
+{
+	if (APdPlayerController* PdPlayer = Cast<APdPlayerController>(Player); PdPlayer && EntranceState != EEntranceState::Done)
+	{
+		PdPlayer->OnClientPlayReady().AddUObject(this, &ThisClass::HandleClientPlayReady, TWeakObjectPtr<APdPlayerController>(PdPlayer));
+	}
+}
+
+// 연출 도중에 화면이 준비된 플레이어도 남은 연출을 보므로 함께 보호한다.
+void AWorldBossRaid::HandleClientPlayReady(const TWeakObjectPtr<APdPlayerController> Player)
+{
+	if (EntranceState == EEntranceState::Playing && Player.IsValid())
+	{
+		SetWatchingEntrance(*Player, true);
+	}
+	TryPlayEntrance();
+}
+
+// 시퀀스를 다 불러왔고 화면을 볼 플레이어가 하나라도 있으면, 보스가 서 있는 자리를 원점으로 모두에게 재생한다.
+void AWorldBossRaid::TryPlayEntrance()
+{
+	ULevelSequence* Sequence = EntranceSequence.Get();
+	AMonsterCharacter* CurrentBoss = Boss.Get();
+	if (EntranceState != EEntranceState::AwaitingPlayer || !bEntranceSequenceLoadFinished || !Sequence || !CurrentBoss
+		|| !HasPlayReadyPlayer())
+	{
+		return;
+	}
+
+	FActorSpawnParameters SpawnParameters;
+	SpawnParameters.Owner = this;
+	SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	EntranceActor = GetWorld()->SpawnActor<ACinematicSequenceActor>(
+		CurrentBoss->GetActorLocation(), CurrentBoss->GetActorRotation(), SpawnParameters);
+	ULevelSequencePlayer* Player = EntranceActor ? EntranceActor->GetSequencePlayer() : nullptr;
+	if (!Player)
+	{
+		FinishEntrance();
+		return;
+	}
+	EntranceState = EEntranceState::Playing;
+	EntranceActor->SetSequence(Sequence);
+	Player->OnNativeFinished.BindUObject(this, &ThisClass::FinishEntrance);
+	Player->Play();
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		if (const APlayerController* Watcher = It->Get())
+		{
+			SetWatchingEntrance(*Watcher, true);
+		}
+	}
+}
+
+void AWorldBossRaid::SetWatchingEntrance(const APlayerController& Player, const bool bWatching)
+{
+	const ACharacterBase* Character = Cast<ACharacterBase>(Player.GetPawn());
+	if (UAbilitySystemComponent* AbilitySystem = Character ? Character->GetAbilitySystemComponent() : nullptr)
+	{
+		AbilitySystem->SetLooseGameplayTagCount(PdGameplayTags::State_Cinematic, bWatching ? 1 : 0);
+	}
+}
+
+// 연출이 끝나면(또는 연출이 없으면) 보스를 내보내고, 그때까지 들어온 플레이어의 도전을 함께 시작한다.
+// 연출을 본 플레이어는 연출 카메라에서 자기 카메라로 돌아올 때 보스 쪽을 보게 한다. 높낮이는 플레이어가 두던 그대로 둔다.
+void AWorldBossRaid::FinishEntrance()
+{
+	if (EntranceState == EEntranceState::Done)
+	{
+		return;
+	}
+	const bool bEntrancePlayed = EntranceState == EEntranceState::Playing;
+	EntranceState = EEntranceState::Done;
+	EntranceSequenceLease.Reset();
+	AMonsterCharacter* CurrentBoss = Boss.Get();
+	if (CurrentBoss)
+	{
+		CurrentBoss->ReleaseFromEntrance();
+	}
+	if (EntranceActor)
+	{
+		EntranceActor->SetLifeSpan(EntranceActorLingerSeconds);
+		EntranceActor = nullptr;
+	}
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		APlayerController* Player = It->Get();
+		if (!Player)
+		{
+			continue;
+		}
+		const APawn* Pawn = Player->GetPawn();
+		if (bEntrancePlayed)
+		{
+			SetWatchingEntrance(*Player, false);
+		}
+		if (bEntrancePlayed && CurrentBoss && Pawn)
+		{
+			const FVector ToBoss = CurrentBoss->GetActorLocation() - Pawn->GetActorLocation();
+			Player->ClientSetRotation(FRotator(Player->GetControlRotation().Pitch, ToBoss.Rotation().Yaw, 0.0));
+		}
+		BeginAttempt(Player->PlayerState);
+	}
+}
+
+bool AWorldBossRaid::HasPlayReadyPlayer() const
+{
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		const APdPlayerController* Player = Cast<APdPlayerController>(It->Get());
+		if (Player && Player->IsClientPlayReady())
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 // 도전 중인 플레이어의 딜만 순위에 넣는다. 도전이 끝난 뒤(타이틀로 가는 사이)의 딜이나 공격자를 알 수 없는 딜은 전역 체력에만 들어간다.
@@ -185,6 +356,7 @@ void AWorldBossRaid::HandlePostLogin(AGameModeBase* GameMode, APlayerController*
 {
 	if (GameMode && GameMode->GetWorld() == GetWorld() && NewPlayer)
 	{
+		WatchPlayerReady(NewPlayer);
 		BeginAttempt(NewPlayer->PlayerState);
 	}
 }
@@ -283,9 +455,10 @@ void AWorldBossRaid::TickRaid()
 	}
 }
 
+// 등장 연출이 끝나기 전에 들어온 플레이어의 도전은 연출이 끝날 때(FinishEntrance) 시작한다.
 void AWorldBossRaid::BeginAttempt(APlayerState* Player)
 {
-	if (!Player || FindAttempt(Player))
+	if (!Player || FindAttempt(Player) || EntranceState != EEntranceState::Done)
 	{
 		return;
 	}

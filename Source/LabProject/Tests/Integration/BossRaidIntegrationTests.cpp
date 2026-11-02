@@ -8,12 +8,17 @@
 #include "AIController.h"
 #include "BrainComponent.h"
 #include "Character/CharacterBase.h"
+#include "Cinematic/CinematicSequenceActor.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
+#include "Component/Player/ControllerPresentationComponent.h"
 #include "Common/PdGameplayTags.h"
 #include "Definition/Character/EnemyBaseDefinition.h"
 #include "EngineUtils.h"
 #include "GameplayEffect.h"
+#include "LevelSequencePlayer.h"
+#include "Mode/PdPlayerController.h"
 #include "Mode/WorldBossRaid.h"
+#include "UI/Core/UiActionRouter.h"
 #include "UI/HUD/Player/WorldBossBarWidget.h"
 #include "UObject/UObjectIterator.h"
 
@@ -53,6 +58,56 @@ namespace
 		return Raid && Controller ? Raid->FindAttempt(Controller->PlayerState) : nullptr;
 	}
 
+	ACinematicSequenceActor* FindPlayingEntrance()
+	{
+		UWorld* World = IntegrationTest::GetGameWorld();
+		for (TActorIterator<ACinematicSequenceActor> It(World); World && It; ++It)
+		{
+			if (It->GetSequencePlayer() && It->GetSequencePlayer()->IsPlaying())
+			{
+				return *It;
+			}
+		}
+		return nullptr;
+	}
+
+	AMonsterCharacter* GetWorldBoss()
+	{
+		UWorld* World = IntegrationTest::GetGameWorld();
+		for (TActorIterator<AMonsterCharacter> It(World); World && It; ++It)
+		{
+			if (It->IsWorldBoss())
+			{
+				return *It;
+			}
+		}
+		return nullptr;
+	}
+
+	bool IsLocalPlayerInCinematic()
+	{
+		const APdPlayerController* Controller = Cast<APdPlayerController>(IntegrationTest::GetPlayerController());
+		const UControllerPresentationComponent* Presentation = Controller ? Controller->GetControllerPresentationComponent() : nullptr;
+		return Presentation && Presentation->IsInCinematic();
+	}
+
+	bool IsLocalPlayerProtected()
+	{
+		const APlayerController* Controller = IntegrationTest::GetPlayerController();
+		const ACharacterBase* Player = Controller ? Cast<ACharacterBase>(Controller->GetPawn()) : nullptr;
+		const UAbilitySystemComponent* Abilities = Player ? Player->GetAbilitySystemComponent() : nullptr;
+		return Abilities && Abilities->HasMatchingGameplayTag(PdGameplayTags::State_Cinematic);
+	}
+
+	bool IsGameplayInputBlocked()
+	{
+		const APlayerController* Controller = IntegrationTest::GetPlayerController();
+		const UUiActionRouter* Router = Controller && Controller->GetLocalPlayer()
+			? Controller->GetLocalPlayer()->GetSubsystem<UUiActionRouter>()
+			: nullptr;
+		return Router && Router->IsGameplayInputBlocked();
+	}
+
 	/** 보스가 플레이어를 공격하거나 움직이지 않게 한다. */
 	void StopBoss(AMonsterCharacter& Boss)
 	{
@@ -82,6 +137,49 @@ namespace
 		Spec.Data->SetSetByCallerMagnitude(PdGameplayTags::Data_Damage, Damage);
 		PlayerAbilities->ApplyGameplayEffectSpecToTarget(*Spec.Data, Boss->GetAbilitySystemComponent());
 	}
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPdWorldBossEntranceTest, "LabProject.Integration.BossRaid.Entrance",
+	EAutomationTestFlags::ClientContext | EAutomationTestFlags::EngineFilter)
+
+// 들어오면 숨겨 둔 보스의 등장 연출이 재생되고, 그동안 플레이어는 게임 입력이 막히고 피해를 받지 않으며 도전 시간도 흐르지 않는다.
+// 연출이 끝나면 보스가 나와 싸우기 시작하고 도전 시간이 흐른다.
+bool FPdWorldBossEntranceTest::RunTest(const FString& Parameters)
+{
+	IntegrationTest::OpenMap(this, ColosseumMap, 0.f, TEXT("BossRaid=1"));
+	IntegrationTest::WaitUntil(this, TEXT("등장 연출 시작"), 60.f, []() { return FindPlayingEntrance() != nullptr; });
+	IntegrationTest::Step(0.5f, [this]()
+	{
+		const AMonsterCharacter* Boss = GetWorldBoss();
+		if (!TestNotNull(TEXT("월드 보스"), Boss))
+		{
+			return;
+		}
+		TestTrue(TEXT("연출 동안 보스는 숨어 기다린다"), Boss->IsHeldForEntrance() && Boss->IsHidden() && !Boss->IsMonsterReadyForAI());
+		TestNull(TEXT("연출 동안에는 도전 시간이 흐르지 않는다"), GetPlayerAttempt());
+		TestTrue(TEXT("로컬 플레이어가 연출 중이다"), IsLocalPlayerInCinematic());
+		TestTrue(TEXT("연출 동안 게임 입력이 막힌다"), IsGameplayInputBlocked());
+		TestTrue(TEXT("연출 동안 플레이어는 피해를 받지 않는다"), IsLocalPlayerProtected());
+	});
+	IntegrationTest::WaitUntil(this, TEXT("등장 연출 끝"), 30.f, []() { return FindPlayingEntrance() == nullptr; });
+	IntegrationTest::WaitUntil(this, TEXT("보스 전투 시작"), 10.f, []() { return GetLivingWorldBoss() && GetPlayerAttempt(); });
+	// 연출 화면이 닫힌 뒤 입력 라우터가 기본 화면의 입력 설정을 다시 적용하기까지 프레임이 걸린다.
+	IntegrationTest::WaitUntil(this, TEXT("게임 입력이 돌아온다"), 3.f, []() { return !IsGameplayInputBlocked(); });
+	IntegrationTest::Step(0.f, [this]()
+	{
+		const AMonsterCharacter* Boss = GetLivingWorldBoss();
+		const AWorldBossRaid* Raid = GetWorldBossRaid();
+		const FWorldBossAttempt* Attempt = GetPlayerAttempt();
+		if (!TestNotNull(TEXT("월드 보스"), Boss) || !TestNotNull(TEXT("레이드"), Raid) || !TestNotNull(TEXT("플레이어 도전"), Attempt))
+		{
+			return;
+		}
+		TestTrue(TEXT("연출이 끝나면 보스가 보인다"), !Boss->IsHeldForEntrance() && !Boss->IsHidden());
+		TestTrue(TEXT("도전 시간은 연출이 끝난 뒤부터 흐른다"), Raid->GetAttemptSecondsLeft(*Attempt) > 0.0 && !Attempt->bEnded);
+		TestFalse(TEXT("연출 상태가 풀린다"), IsLocalPlayerInCinematic());
+		TestFalse(TEXT("피해 보호가 풀린다"), IsLocalPlayerProtected());
+	});
+	return true;
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPdWorldBossDamageTest, "LabProject.Integration.BossRaid.WorldBossDamage",

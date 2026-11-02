@@ -105,6 +105,14 @@ public:
 
 	bool IsWorldBoss() const { return bWorldBoss; }
 
+	/**
+	 * 서버: 등장 연출이 끝날 때까지 숨기고 멈춰 둔다. 충돌과 이동도 꺼서 그 자리에 그대로 있고 맞지 않는다.
+	 * 연출은 이 몬스터가 서 있는 자리에서 끝나므로, 끝나면 ReleaseFromEntrance로 실제 몬스터를 내보내고 AI를 시작한다.
+	 */
+	void HoldForEntrance();
+	void ReleaseFromEntrance();
+	bool IsHeldForEntrance() const { return bHeldForEntrance; }
+
 	/** 아직 쓰지 않은 페이즈 소환이 있는지. */
 	bool HasPendingPhaseSummon() const { return PhaseSummon.HealthRatio > 0.0f && !bPhaseSummonDone && !bDying; }
 
@@ -313,6 +321,7 @@ private:
 	bool bAttackWindowOpen = false;
 	bool bDying = false;
 	bool bPhaseSummonDone = false;
+	bool bHeldForEntrance = false;
 	bool bHitFlashActive = false;
 	int32 SpawnedMinionCount = 0;
 	int32 MinionCountToSpawn = 0;
