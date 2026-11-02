@@ -78,7 +78,7 @@ Content/**
 !Content/Materials/M_AttackTelegraph.uasset
 !Content/Materials/PP_CombatHighlight.uasset
 
-# Boss raid game feature: same policy as Content, plus the dragon Control Rig and the pounce travel curve.
+# Boss raid game feature: same policy as Content, plus the dragon Control Rig, the pounce travel curve and the entrance sequence.
 Plugins/GameFeatures/GF_BossRaid/Content/**
 !Plugins/GameFeatures/GF_BossRaid/Content/**/
 !Plugins/GameFeatures/GF_BossRaid/Content/GF_BossRaid.uasset
@@ -88,6 +88,7 @@ Plugins/GameFeatures/GF_BossRaid/Content/**
 !Plugins/GameFeatures/GF_BossRaid/Content/**/DA_*.uasset
 !Plugins/GameFeatures/GF_BossRaid/Content/**/CR_*.uasset
 !Plugins/GameFeatures/GF_BossRaid/Content/**/Curve_*.uasset
+!Plugins/GameFeatures/GF_BossRaid/Content/**/LS_*.uasset
 
 # Ignore backup copies of assets
 Content/**/*.pre_restore_*.uasset
