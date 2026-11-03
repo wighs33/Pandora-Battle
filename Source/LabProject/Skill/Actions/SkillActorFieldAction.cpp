@@ -276,6 +276,7 @@ void USkillActorFieldAction::TryCommitAndStartField()
 
 	GetAbility()->ApplyActiveMovementSpeedBonus(MovementSpeedEffectHandle);
 	GetAbility()->StartConfiguredDefaultFX();
+	GetAbility()->StartConfiguredCharacterOverlay();
 	GetAbility()->SpawnConfiguredCharacterDecal();
 	StartFieldDurationMovementLockIfAllowed();
 	StartFieldSpawnSequence();
