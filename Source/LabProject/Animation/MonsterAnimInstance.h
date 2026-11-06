@@ -50,12 +50,29 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "!Monster|ControlRig", meta = (ClampMin = "0.0", ClampMax = "180.0", ForceUnits = "deg"))
 	float LookAtMaxAngle = 110.0f;
 
+	/** 목과 머리가 몸 정면에서 좌우로 돌아가는 한계. 대상이 더 옆에 있어도 여기까지만 돌린다. */
+	UPROPERTY(EditDefaultsOnly, Category = "!Monster|ControlRig", meta = (ClampMin = "0.0", ClampMax = "90.0", ForceUnits = "deg"))
+	float LookAtMaxYaw = 25.0f;
+
+	/** 목과 머리가 위아래로 숙이거나 드는 한계. 대상이 발밑으로 들어와도 여기까지만 숙인다. */
+	UPROPERTY(EditDefaultsOnly, Category = "!Monster|ControlRig", meta = (ClampMin = "0.0", ClampMax = "90.0", ForceUnits = "deg"))
+	float LookAtMaxPitch = 10.0f;
+
+	/** 시선 각도를 재는 기준 뼈. Control Rig에서 가장 먼저 돌리는 목 뼈다. */
+	UPROPERTY(EditDefaultsOnly, Category = "!Monster|ControlRig")
+	FName LookAtOriginBone = TEXT("Neck02");
+
+	/** 시선 목표를 이보다 가까이 두지 않는다. 대상이 코앞을 지나가도 머리가 휙 돌지 않게 한다. */
+	UPROPERTY(EditDefaultsOnly, Category = "!Monster|ControlRig", meta = (ClampMin = "0.0", ForceUnits = "cm"))
+	float LookAtMinDistance = 800.0f;
+
 	/** 가중치가 0과 1 사이를 오가는 시간. */
 	UPROPERTY(EditDefaultsOnly, Category = "!Monster|ControlRig", meta = (ClampMin = "0.01", ForceUnits = "s"))
 	float ControlRigBlendTime = 0.3f;
 
 private:
 	void UpdateControlRigInputs(const APawn& Pawn, const USkeletalMeshComponent& Mesh, float DeltaSeconds);
+	FVector ResolveLookAtLocation(const APawn& Pawn, const USkeletalMeshComponent& Mesh, const FVector& TargetLocation) const;
 
 	float PreviousMeshYaw = 0.0f;
 	bool bHasPreviousMeshYaw = false;

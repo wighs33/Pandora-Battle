@@ -37,10 +37,24 @@ void UMonsterAnimInstance::UpdateControlRigInputs(const APawn& Pawn, const USkel
 		const FVector ToTarget = (Target->GetActorLocation() - Pawn.GetActorLocation()).GetSafeNormal2D();
 		bLookAtTarget = !bMontagePlaying
 			&& FVector::DotProduct(ToTarget, Pawn.GetActorForwardVector().GetSafeNormal2D()) >= FMath::Cos(FMath::DegreesToRadians(LookAtMaxAngle));
-		const FVector TargetLocation = Mesh.GetComponentTransform().InverseTransformPosition(Target->GetActorLocation());
+		const FVector TargetLocation = ResolveLookAtLocation(Pawn, Mesh, Target->GetActorLocation());
 		LookAtLocation = LookAtWeight > 0.0f ? FMath::VInterpTo(LookAtLocation, TargetLocation, DeltaSeconds, 6.0f) : TargetLocation;
 	}
 	const float BlendSpeed = 1.0f / ControlRigBlendTime;
 	LookAtWeight = FMath::FInterpConstantTo(LookAtWeight, bLookAtTarget ? 1.0f : 0.0f, DeltaSeconds, BlendSpeed);
 	FootIKWeight = FMath::FInterpConstantTo(FootIKWeight, bMontagePlaying ? 0.0f : 1.0f, DeltaSeconds, BlendSpeed);
+}
+
+// 대상 방향을 몸 정면 기준의 좁은 범위로 접는다. 대상이 머리 밑이나 옆으로 들어와도 목은 그 한계까지만 꺾인다.
+FVector UMonsterAnimInstance::ResolveLookAtLocation(const APawn& Pawn, const USkeletalMeshComponent& Mesh, const FVector& TargetLocation) const
+{
+	const FVector Origin = Mesh.GetSocketLocation(LookAtOriginBone);
+	const FVector ToTarget = TargetLocation - Origin;
+	const FRotator ToTargetRotation = ToTarget.Rotation();
+	const float BodyYaw = Pawn.GetActorRotation().Yaw;
+	const float Yaw = FMath::Clamp(FRotator::NormalizeAxis(ToTargetRotation.Yaw - BodyYaw), -LookAtMaxYaw, LookAtMaxYaw);
+	const float Pitch = FMath::Clamp(FRotator::NormalizeAxis(ToTargetRotation.Pitch), -LookAtMaxPitch, LookAtMaxPitch);
+	const FVector Direction = FRotator(Pitch, BodyYaw + Yaw, 0.0f).Vector();
+	const FVector LimitedLocation = Origin + Direction * FMath::Max(ToTarget.Size(), LookAtMinDistance);
+	return Mesh.GetComponentTransform().InverseTransformPosition(LimitedLocation);
 }
