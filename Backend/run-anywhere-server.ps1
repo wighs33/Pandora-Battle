@@ -24,9 +24,6 @@ param(
     [string]$Profile = "gamelift-dev",
     [string]$Region = "ap-northeast-2",
     [int]$Port = 7777,
-    # 소스 빌드 엔진은 네트워크 호환 체인지리스트가 0이라, 런처 엔진(5.8) 클라이언트의 접속을 버전 불일치로 거절한다.
-    # 런처 엔진 Engine/Build/Build.version의 CompatibleChangelist로 맞춘다. 엔진을 바꾸면 이 값도 바꾼다.
-    [int]$NetworkVersion = 55116800,
     [string[]]$ExtraArgs = @()
 )
 
@@ -48,6 +45,6 @@ $env:LABPROJECT_SERVER_KEY = & aws ssm get-parameter --name "/labproject/$Stage/
 if ($LASTEXITCODE -ne 0 -or -not $env:LABPROJECT_SERVER_KEY) { throw "Could not read /labproject/$Stage/server-key." }
 
 Write-Host "Starting $ServerExe on port $Port (fleet $FleetId, compute $ComputeName)"
-& $ServerExe -log "-port=$Port" "-networkversionoverride=$NetworkVersion" -glAnywhere `
+& $ServerExe -log "-port=$Port" -glAnywhere `
     "-glAnywhereWebSocketUrl=$Endpoint" "-glAnywhereFleetId=$FleetId" "-glAnywhereHostId=$ComputeName" `
     "-glAnywhereAuthToken=$AuthToken" "-glAnywhereAwsRegion=$Region" @ExtraArgs
