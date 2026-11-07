@@ -2,6 +2,10 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
+#include "Components/EditableTextBox.h"
+#include "Components/TextBlock.h"
+#include "Localization/MenuLocalizationSubsystem.h"
+#include "Luna/LunaChatSubsystem.h"
 #include "Online/OnlineSessionsSubsystem.h"
 #include "UI/Core/LoadingScreenSubsystem.h"
 #include "UI/Guide/GuideWidget.h"
@@ -138,6 +142,85 @@ bool FPdTitleMenuScreensTest::RunTest(const FString& Parameters)
 	ExpectScreenClosesOnBack<UShopWidget>(this, TEXT("상점"), [](UTitleWidget& Title) { ClickTitleButton(Title, TEXT("HandlePandoraShopClicked")); });
 	ExpectScreenClosesOnBack<UGuideWidget>(this, TEXT("가이드"), [](UTitleWidget& Title) { ClickTitleButton(Title, TEXT("HandleGuideClicked")); });
 	ExpectScreenClosesOnBack<URecordWidget>(this, TEXT("전적"), [](UTitleWidget& Title) { ClickTitleButton(Title, TEXT("HandleRecordClicked")); });
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPdLunaChatAvailabilityTest, "LabProject.Integration.Screens.LunaChatAvailability",
+	EAutomationTestFlags::ClientContext | EAutomationTestFlags::EngineFilter)
+
+// 질문 칸은 모델 서버가 준비됐을 때만 열리고, DLC 받기 버튼은 DLC가 없을 때만 보인다. 서버가 멈추면 칸이 닫히고 질문도 받지 않는다.
+bool FPdLunaChatAvailabilityTest::RunTest(const FString& Parameters)
+{
+	OpenTitle(this);
+
+	const auto GetLuna = []() { return IntegrationTest::GetGameWorld()->GetGameInstance()->GetSubsystem<ULunaChatSubsystem>(); };
+	IntegrationTest::WaitUntil(this, TEXT("모델 서버 시작 끝내기"), 60.f, [GetLuna]()
+	{
+		return GetLuna()->GetServerState() != ELunaServerState::Starting;
+	});
+	IntegrationTest::Step(0.2f, [this, GetLuna]()
+	{
+		UTitleWidget* Title = FindActiveScreen<UTitleWidget>();
+		const UEditableTextBox* Input = Title ? Cast<UEditableTextBox>(Title->GetWidgetFromName(TEXT("Input_LunaChat"))) : nullptr;
+		const UWidget* DlcButton = Title ? Title->GetWidgetFromName(TEXT("Btn_LunaDlc")) : nullptr;
+		if (!TestNotNull(TEXT("질문 칸"), Input) || !TestNotNull(TEXT("DLC 받기 버튼"), DlcButton))
+		{
+			return;
+		}
+
+		const auto ExpectWidgets = [this, Input, DlcButton](const FString& What, const bool bCanAsk, const bool bOfferDlc)
+		{
+			TestEqual(What + TEXT(": 질문 칸"), !Input->GetIsReadOnly(), bCanAsk);
+			TestEqual(What + TEXT(": DLC 받기 버튼"), DlcButton->GetVisibility() == ESlateVisibility::Visible, bOfferDlc);
+		};
+
+		ULunaChatSubsystem* Luna = GetLuna();
+		const ELunaServerState RealState = Luna->GetServerState();
+		ExpectWidgets(TEXT("지금 서버 상태"), RealState == ELunaServerState::Ready, RealState == ELunaServerState::NotInstalled);
+
+		Title->SetLunaServerState(ELunaServerState::NotInstalled);
+		ExpectWidgets(TEXT("DLC 미설치"), false, true);
+		Title->SetLunaServerState(ELunaServerState::Starting);
+		ExpectWidgets(TEXT("준비 중"), false, false);
+		Title->SetLunaServerState(ELunaServerState::Failed);
+		ExpectWidgets(TEXT("실패"), false, false);
+		Title->SetLunaServerState(ELunaServerState::Ready);
+		ExpectWidgets(TEXT("준비 완료"), true, false);
+		Title->SetLunaServerState(RealState);
+
+		// 서버가 멈추면 타이틀 HUD가 칸을 닫고, 다시 띄우면 준비될 때까지 막아 둔다.
+		Luna->ReleaseModel();
+		TestFalse(TEXT("서버가 준비되지 않으면 질문을 받지 않는다"), Luna->Ask(TEXT("hello")));
+		TestTrue(TEXT("서버가 멈추면 칸을 닫는다"), Input->GetIsReadOnly());
+		Luna->PrepareModel();
+		TestTrue(TEXT("다시 띄워도 준비될 때까지 칸을 막는다"), Input->GetIsReadOnly());
+	});
+
+	// DLC가 있으면 다시 띄운 서버로 질문이 실제로 가고, 답이 말풍선에 나온다.
+	IntegrationTest::WaitUntil(this, TEXT("모델 서버 다시 띄우기"), 60.f, [GetLuna]()
+	{
+		return GetLuna()->GetServerState() != ELunaServerState::Starting;
+	});
+	IntegrationTest::Step(0.2f, [this, GetLuna]()
+	{
+		ULunaChatSubsystem* Luna = GetLuna();
+		TestNotEqual(TEXT("DLC가 있으면 서버가 뜬다"), Luna->GetServerState(), ELunaServerState::Failed);
+		if (Luna->GetServerState() == ELunaServerState::Ready)
+		{
+			TestTrue(TEXT("준비된 서버는 질문을 받는다"), Luna->Ask(TEXT("판도라는 어떻게 사용해?")));
+		}
+	});
+	IntegrationTest::WaitUntil(this, TEXT("루나의 답 기다리기"), 190.f, [GetLuna]() { return !GetLuna()->IsReplying(); });
+	IntegrationTest::Step(0.2f, [this]()
+	{
+		const UTitleWidget* Title = FindActiveScreen<UTitleWidget>();
+		const UTextBlock* Speech = Title ? Cast<UTextBlock>(Title->GetWidgetFromName(TEXT("Txt_LunaSpeech"))) : nullptr;
+		if (TestNotNull(TEXT("말풍선"), Speech))
+		{
+			TestNotEqual(TEXT("모델 서버가 답한다"), Speech->GetText().ToString(),
+				UMenuLocalizationSubsystem::GetText(TEXT("Title.LunaChatUnavailable")).ToString());
+		}
+	});
 	return true;
 }
 

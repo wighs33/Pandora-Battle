@@ -212,10 +212,13 @@ void ATitleHUD::BindLunaChat()
 		return;
 	}
 	TitleWidget->OnLunaQuestionSubmitted().AddUObject(this, &ATitleHUD::HandleLunaQuestion);
+	TitleWidget->OnLunaDlcRequested().AddUObject(this, &ATitleHUD::HandleLunaDlcRequested);
 	LunaReplyUpdatedHandle = Luna->OnReplyUpdated().AddUObject(this, &ATitleHUD::HandleLunaReplyUpdated);
 	LunaReplyFinishedHandle = Luna->OnReplyFinished().AddUObject(this, &ATitleHUD::HandleLunaReplyFinished);
-	// 함께 배포한 모델이 있으면 타이틀에 머무는 동안만 서버를 띄워 둔다.
+	LunaServerStateHandle = Luna->OnServerStateChanged().AddUObject(this, &ATitleHUD::HandleLunaServerStateChanged);
+	// 타이틀에 머무는 동안만 모델 서버를 띄워 둔다. 상태가 그대로면 알림이 오지 않으므로 띄운 뒤의 상태를 직접 넘긴다.
 	Luna->PrepareModel();
+	TitleWidget->SetLunaServerState(Luna->GetServerState());
 }
 
 void ATitleHUD::UnbindLunaChat()
@@ -223,16 +226,19 @@ void ATitleHUD::UnbindLunaChat()
 	if (TitleWidget)
 	{
 		TitleWidget->OnLunaQuestionSubmitted().RemoveAll(this);
+		TitleWidget->OnLunaDlcRequested().RemoveAll(this);
 	}
 	if (ULunaChatSubsystem* Luna = UGameInstance::GetSubsystem<ULunaChatSubsystem>(GetGameInstance()))
 	{
 		Luna->OnReplyUpdated().Remove(LunaReplyUpdatedHandle);
 		Luna->OnReplyFinished().Remove(LunaReplyFinishedHandle);
+		Luna->OnServerStateChanged().Remove(LunaServerStateHandle);
 		// 스트리밍 중인 답을 보여 줄 대상이 없어지고, 타이틀 밖에서는 모델이 쓰는 메모리를 돌려준다.
 		Luna->ReleaseModel();
 	}
 	LunaReplyUpdatedHandle.Reset();
 	LunaReplyFinishedHandle.Reset();
+	LunaServerStateHandle.Reset();
 }
 
 void ATitleHUD::BindBossRaid()
@@ -403,6 +409,22 @@ void ATitleHUD::HandleLunaReplyFinished(const bool bSucceeded, const FString& Re
 	const float ReadingTime = Line.ToString().Len() * ChatReplySecondsPerCharacter;
 	GetWorldTimerManager().SetTimer(TitleSpeechTimer, this, &ATitleHUD::HideTitleSpeech,
 		FMath::Max(ChatReplyMinDuration, ReadingTime), false);
+}
+
+void ATitleHUD::HandleLunaServerStateChanged(const ELunaServerState NewState)
+{
+	if (TitleWidget)
+	{
+		TitleWidget->SetLunaServerState(NewState);
+	}
+}
+
+void ATitleHUD::HandleLunaDlcRequested()
+{
+	if (const ULunaChatSubsystem* Luna = UGameInstance::GetSubsystem<ULunaChatSubsystem>(GetGameInstance()))
+	{
+		Luna->OpenDlcStorePage();
+	}
 }
 
 void ATitleHUD::ShowLunaChatText(const FText& Text, const bool bSpeaking)

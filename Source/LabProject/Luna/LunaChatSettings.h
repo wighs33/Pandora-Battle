@@ -6,10 +6,7 @@
 
 /**
  * 타이틀의 Luna가 대답할 때 쓰는 로컬 LLM 설정.
- *
- * 설치 폴더의 Luna/에 함께 배포한 모델(llama-server + GGUF)이 있으면 게임이 그 서버를 직접 띄워 쓴다.
- * 없으면 같은 PC에 따로 설치한 Ollama에 묻는다(개발용).
- * ini에서 주소를 바꿀 때는 따옴표로 감싼다(OllamaUrl="http://..."). 따옴표 없는 '//'는 주석으로 잘린다.
+ * 모델(llama-server + GGUF)은 무료 DLC로 받아 설치 폴더의 Luna/에 놓이고, 게임이 그 서버를 직접 띄워 쓴다.
  */
 UCLASS(Config = Game, DefaultConfig, meta = (DisplayName = "Luna Chat"))
 class LABPROJECT_API ULunaChatSettings : public UDeveloperSettings
@@ -21,12 +18,9 @@ public:
 	virtual FName GetCategoryName() const override { return TEXT("Game"); }
 
 	// Public API ------------------------------------------------------------------------------------------------------
-	const FString& GetOllamaUrl() const { return OllamaUrl; }
-	const FString& GetModel() const { return Model; }
 	float GetTemperature() const { return Temperature; }
 	int32 GetMaxReplyTokens() const { return MaxReplyTokens; }
 	float GetRequestTimeoutSeconds() const { return RequestTimeoutSeconds; }
-	const FString& GetKeepAlive() const { return KeepAlive; }
 	int32 GetMaxHistoryTurns() const { return MaxHistoryTurns; }
 	int32 GetMaxQuestionLength() const { return MaxQuestionLength; }
 	const FString& GetLocalBundleFolder() const { return LocalBundleFolder; }
@@ -35,31 +29,20 @@ public:
 	int32 GetLocalContextSize() const { return LocalContextSize; }
 	const FString& GetLocalServerArguments() const { return LocalServerArguments; }
 	float GetLocalServerStartTimeoutSeconds() const { return LocalServerStartTimeoutSeconds; }
+	int32 GetDlcAppId() const { return DlcAppId; }
 
 private:
-	/** Ollama 서버 주소. 기본값은 같은 PC의 기본 포트다. */
-	UPROPERTY(Config, EditAnywhere, Category = "!Ollama")
-	FString OllamaUrl = TEXT("http://127.0.0.1:11434");
-
-	/** `ollama pull`로 받아 둔 모델 이름. 12개 메뉴 언어로 답해야 하므로 다국어 모델을 쓴다. */
-	UPROPERTY(Config, EditAnywhere, Category = "!Ollama")
-	FString Model = TEXT("gemma3:4b");
-
 	/** 가이드에 적힌 내용을 그대로 전하도록 낮게 둔다. 0.6에서는 가이드가 아니라고 한 것도 된다고 답했다. */
-	UPROPERTY(Config, EditAnywhere, Category = "!Ollama", meta = (ClampMin = "0.0", ClampMax = "2.0"))
+	UPROPERTY(Config, EditAnywhere, Category = "!Reply", meta = (ClampMin = "0.0", ClampMax = "2.0"))
 	float Temperature = 0.2f;
 
 	/** 말풍선에 들어갈 짧은 답만 받도록 생성 토큰 수를 제한한다. */
-	UPROPERTY(Config, EditAnywhere, Category = "!Ollama", meta = (ClampMin = "16"))
+	UPROPERTY(Config, EditAnywhere, Category = "!Reply", meta = (ClampMin = "16"))
 	int32 MaxReplyTokens = 160;
 
-	/** 첫 질문은 모델을 메모리에 올리느라 오래 걸릴 수 있다. */
-	UPROPERTY(Config, EditAnywhere, Category = "!Ollama", meta = (ClampMin = "5.0", Units = "s"))
+	/** 답 하나를 기다리는 최대 시간. CPU만 있는 PC는 답이 느리다. */
+	UPROPERTY(Config, EditAnywhere, Category = "!Reply", meta = (ClampMin = "5.0", Units = "s"))
 	float RequestTimeoutSeconds = 90.f;
-
-	/** 마지막 요청 뒤 모델을 메모리에 유지하는 시간. 이어지는 질문의 대기 시간을 줄인다. */
-	UPROPERTY(Config, EditAnywhere, Category = "!Ollama")
-	FString KeepAlive = TEXT("15m");
 
 	/** 문맥으로 함께 보내는 이전 질문·답변 쌍의 수 */
 	UPROPERTY(Config, EditAnywhere, Category = "!Conversation", meta = (ClampMin = "0"))
@@ -68,7 +51,7 @@ private:
 	UPROPERTY(Config, EditAnywhere, Category = "!Conversation", meta = (ClampMin = "1"))
 	int32 MaxQuestionLength = 120;
 
-	/** 함께 배포하는 모델 폴더. 패키지는 설치 폴더, 개발 실행은 프로젝트 폴더 기준이다. */
+	/** DLC가 설치되는 모델 폴더. 패키지는 설치 폴더, 개발 실행은 프로젝트 폴더 기준이다. */
 	UPROPERTY(Config, EditAnywhere, Category = "!Bundled Model")
 	FString LocalBundleFolder = TEXT("Luna");
 
@@ -91,4 +74,8 @@ private:
 	/** 모델을 메모리에 올리는 데 기다리는 최대 시간. 느린 디스크와 CPU만 있는 PC를 고려한다. */
 	UPROPERTY(Config, EditAnywhere, Category = "!Bundled Model", meta = (ClampMin = "5.0", Units = "s"))
 	float LocalServerStartTimeoutSeconds = 120.f;
+
+	/** 모델을 담은 Steam DLC의 앱 ID. 설치하지 않은 플레이어에게 이 상점 페이지를 연다. */
+	UPROPERTY(Config, EditAnywhere, Category = "!Bundled Model")
+	int32 DlcAppId = 5429280;
 };

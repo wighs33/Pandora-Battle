@@ -43,20 +43,16 @@ namespace
 	}
 }
 
-FLunaLocalServer::FLunaLocalServer()
-{
-	FindBundle();
-	State = IsInstalled() ? EState::Stopped : EState::NotInstalled;
-}
-
 FLunaLocalServer::~FLunaLocalServer()
 {
 	Stop();
 }
 
 // 패키지 빌드는 설치 폴더(RootDir) 아래, 에디터와 개발 실행은 프로젝트 폴더 아래의 Luna/를 찾는다.
-void FLunaLocalServer::FindBundle()
+bool FLunaLocalServer::FindBundle()
 {
+	ExecutablePath.Reset();
+	ModelPath.Reset();
 	const ULunaChatSettings* Settings = GetDefault<ULunaChatSettings>();
 	for (const FString& Base : {FPaths::RootDir(), FPaths::ProjectDir()})
 	{
@@ -67,21 +63,24 @@ void FLunaLocalServer::FindBundle()
 		{
 			ExecutablePath = Executable;
 			ModelPath = Model;
-			UE_LOG(LogLunaServer, Log, TEXT("Bundled Luna model found in %s"), *Folder);
-			return;
+			UE_LOG(LogLunaServer, Log, TEXT("Luna DLC found in %s"), *Folder);
+			return true;
 		}
 	}
+	return false;
 }
 
 bool FLunaLocalServer::Start()
 {
-	if (!IsInstalled())
-	{
-		return false;
-	}
-	if (State == EState::Starting || State == EState::Ready)
+	if (State == ELunaServerState::Starting || State == ELunaServerState::Ready)
 	{
 		return true;
+	}
+	// 게임을 켜 둔 채 DLC를 설치하거나 지웠을 수 있으므로, 띄울 때마다 폴더를 다시 본다.
+	if (!FindBundle())
+	{
+		SetState(ELunaServerState::NotInstalled);
+		return false;
 	}
 
 	Port = FindFreeLoopbackPort();
@@ -128,7 +127,7 @@ bool FLunaLocalServer::Start()
 	UE_LOG(LogLunaServer, Log, TEXT("Starting the Luna model server on port %d"), Port);
 	StartTime = FPlatformTime::Seconds();
 	NextHealthCheckTime = StartTime + HealthCheckInterval;
-	SetState(EState::Starting);
+	SetState(ELunaServerState::Starting);
 	if (!TickerHandle.IsValid())
 	{
 		TickerHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FLunaLocalServer::Poll));
@@ -162,9 +161,9 @@ void FLunaLocalServer::Stop()
 		JobHandle = nullptr;
 	}
 #endif
-	if (IsInstalled())
+	if (State != ELunaServerState::NotInstalled)
 	{
-		SetState(EState::Stopped);
+		SetState(ELunaServerState::Stopped);
 	}
 }
 
@@ -183,7 +182,7 @@ bool FLunaLocalServer::Poll(float)
 		Fail(FString::Printf(TEXT("The Luna model server exited (code %d). See Saved/Logs/LunaServer.log."), ReturnCode));
 		return false;
 	}
-	if (State != EState::Starting)
+	if (State != ELunaServerState::Starting)
 	{
 		return true;
 	}
@@ -208,10 +207,10 @@ bool FLunaLocalServer::Poll(float)
 		{
 			HealthRequest.Reset();
 			NextHealthCheckTime = FPlatformTime::Seconds() + HealthCheckInterval;
-			if (State == EState::Starting && bConnectedSuccessfully && Response.IsValid() && EHttpResponseCodes::IsOk(Response->GetResponseCode()))
+			if (State == ELunaServerState::Starting && bConnectedSuccessfully && Response.IsValid() && EHttpResponseCodes::IsOk(Response->GetResponseCode()))
 			{
 				UE_LOG(LogLunaServer, Log, TEXT("The Luna model server is ready (%.1fs)"), FPlatformTime::Seconds() - StartTime);
-				SetState(EState::Ready);
+				SetState(ELunaServerState::Ready);
 			}
 		});
 	HealthRequest->ProcessRequest();
@@ -224,10 +223,10 @@ void FLunaLocalServer::Fail(const FString& Reason)
 	UE_LOG(LogLunaServer, Warning, TEXT("%s"), *Reason);
 	TickerHandle.Reset();
 	Stop();
-	SetState(EState::Failed);
+	SetState(ELunaServerState::Failed);
 }
 
-void FLunaLocalServer::SetState(const EState NewState)
+void FLunaLocalServer::SetState(const ELunaServerState NewState)
 {
 	if (State != NewState)
 	{

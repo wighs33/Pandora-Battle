@@ -10,6 +10,8 @@
 
 class UButton;
 class UAudioVolumeSlider;
+class UCanvasPanel;
+class UCanvasPanelSlot;
 struct FButtonClickBinding;
 class UAudioVolumeControl;
 class UEditableTextBox;
@@ -21,8 +23,10 @@ class UImage;
 class UMaterialInterface;
 class UTextBlock;
 class UWidget;
+enum class ELunaServerState : uint8;
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnLunaQuestionSubmitted, const FString& /*Question*/);
+DECLARE_MULTICAST_DELEGATE(FOnLunaDlcRequested);
 DECLARE_MULTICAST_DELEGATE(FOnBossRaidRequested);
 
 UCLASS(Blueprintable, BlueprintType)
@@ -47,6 +51,12 @@ public:
 
 	/** 플레이어가 Luna 아래 질문 칸에서 Enter를 눌렀다. */
 	FOnLunaQuestionSubmitted& OnLunaQuestionSubmitted() { return LunaQuestionSubmitted; }
+
+	/** 플레이어가 질문 칸 옆의 DLC 받기 버튼을 눌렀다. */
+	FOnLunaDlcRequested& OnLunaDlcRequested() { return LunaDlcRequested; }
+
+	/** 모델 서버가 준비된 동안에만 질문 칸을 연다. 막은 동안은 칸의 안내 문구가 이유를 알리고, DLC가 없으면 받기 버튼을 보여 준다. */
+	void SetLunaServerState(ELunaServerState State);
 
 	/** 플레이어가 보스 레이드를 눌렀다. 타이틀 HUD가 백엔드에 레이드 자리(보스 레이드 세션)를 요청한다. */
 	FOnBossRaidRequested& OnBossRaidRequested() { return BossRaidRequested; }
@@ -102,11 +112,16 @@ private:
 	UFUNCTION()
 	void HandleLunaChatCommitted(const FText& Text, ETextCommit::Type CommitMethod);
 
+	UFUNCTION()
+	void HandleLunaDlcClicked();
+
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	TArray<FButtonClickBinding, TInlineAllocator<10>> GetMenuButtonBindings() const;
 	void ApplyWidgetDefinitionSettings();
 	void BuildLunaSpeechBubble();
 	void BuildLunaChatInput();
+	void BuildLunaDlcButton(UCanvasPanel& Canvas, const UCanvasPanelSlot& InputSlot);
+	void ApplyLunaChatAvailability();
 	void BuildVersionLabel();
 	void ApplyBossRaidAvailability();
 	FText BuildBossRaidDetails() const;
@@ -227,8 +242,16 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UEditableTextBox> LunaChatInput;
 
+	UPROPERTY(Transient)
+	TObjectPtr<UButton> LunaDlcButton;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> LunaDlcLabel;
+
 	FName LunaSpeechKey;
+	ELunaServerState LunaServerState = {};
 	FOnLunaQuestionSubmitted LunaQuestionSubmitted;
+	FOnLunaDlcRequested LunaDlcRequested;
 	FOnBossRaidRequested BossRaidRequested;
 	bool bBossRaidOpen = false;
 	bool bBossRaidJoining = false;

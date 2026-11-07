@@ -53,7 +53,7 @@ namespace LunaChat
 			return;
 		}
 
-		// llama-server(OpenAI 호환)는 Server-Sent Events로 "data: {...}" 줄을 보내고 "data: [DONE]"으로 끝낸다.
+		// llama-server는 Server-Sent Events로 "data: {...}" 줄을 보내고 "data: [DONE]"으로 끝낸다. 오류 응답은 접두사 없는 JSON이다.
 		if (Text.StartsWith(TEXT("data:")))
 		{
 			Text = Text.RightChop(5).TrimStart();
@@ -84,11 +84,6 @@ namespace LunaChat
 			OutContent += Content;
 		}
 
-		bool bDone = false;
-		if (Json->TryGetBoolField(TEXT("done"), bDone) && bDone)
-		{
-			bOutDone = true;
-		}
 		const TArray<TSharedPtr<FJsonValue>>* Choices = nullptr;
 		FString FinishReason;
 		if (Json->TryGetArrayField(TEXT("choices"), Choices) && !Choices->IsEmpty() && (*Choices)[0]->AsObject().IsValid()
@@ -101,10 +96,6 @@ namespace LunaChat
 	FString ReadError(const FJsonObject& Json)
 	{
 		FString Error;
-		if (Json.TryGetStringField(TEXT("error"), Error))
-		{
-			return Error;
-		}
 		const TSharedPtr<FJsonObject>* ErrorObject = nullptr;
 		if (Json.TryGetObjectField(TEXT("error"), ErrorObject) && ErrorObject && (*ErrorObject)->TryGetStringField(TEXT("message"), Error))
 		{
@@ -115,14 +106,6 @@ namespace LunaChat
 
 	bool ReadMessageContent(const FJsonObject& Json, FString& OutContent)
 	{
-		// Ollama: {"message":{"content":"..."}}
-		const TSharedPtr<FJsonObject>* Message = nullptr;
-		if (Json.TryGetObjectField(TEXT("message"), Message) && Message && (*Message)->TryGetStringField(TEXT("content"), OutContent))
-		{
-			return true;
-		}
-
-		// OpenAI 호환: 스트리밍은 choices[0].delta.content, 한 번에 받을 때는 choices[0].message.content
 		const TArray<TSharedPtr<FJsonValue>>* Choices = nullptr;
 		if (!Json.TryGetArrayField(TEXT("choices"), Choices) || Choices->IsEmpty())
 		{

@@ -4,8 +4,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: Game\n"
-"POT-Creation-Date: 2026-10-27 19:28\n"
-"PO-Revision-Date: 2026-10-27 19:28\n"
+"POT-Creation-Date: 2026-11-07 02:23\n"
+"PO-Revision-Date: 2026-11-07 02:23\n"
 "Language-Team: \n"
 "Language: ko\n"
 "MIME-Version: 1.0\n"
@@ -2436,15 +2436,15 @@ msgid "No GameFeature plugin matches {0}. The GameFeatureData asset name must ma
 msgstr ""
 
 #. Key:	PandoraWeaponSwapDisplayName
-#. SourceLocation:	Source/LabProject/Definition/Player/CharacterActionDefinition.cpp(151)
-#: Source/LabProject/Definition/Player/CharacterActionDefinition.cpp(151)
+#. SourceLocation:	Source/LabProject/Definition/Player/CharacterActionDefinition.cpp(146)
+#: Source/LabProject/Definition/Player/CharacterActionDefinition.cpp(146)
 msgctxt "CharacterActionDefinition,PandoraWeaponSwapDisplayName"
 msgid "Swap"
 msgstr "교체"
 
 #. Key:	GrappleHookDisplayName
-#. SourceLocation:	Source/LabProject/Definition/Player/CharacterActionDefinition.cpp(155)
-#: Source/LabProject/Definition/Player/CharacterActionDefinition.cpp(155)
+#. SourceLocation:	Source/LabProject/Definition/Player/CharacterActionDefinition.cpp(149)
+#: Source/LabProject/Definition/Player/CharacterActionDefinition.cpp(149)
 msgctxt "CharacterActionDefinition,GrappleHookDisplayName"
 msgid "Hook"
 msgstr "갈고리"
@@ -4486,6 +4486,27 @@ msgctxt "MenuText,Title.LunaChatHint"
 msgid "Ask Luna anything (Enter)"
 msgstr "루나에게 물어보세요 (Enter)"
 
+#. Key:	Title.LunaChatNeedsDlc
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Title.LunaChatNeedsDlc"
+msgid "Install the free DLC to chat"
+msgstr "무료 DLC를 설치하면 대화할 수 있어요"
+
+#. Key:	Title.LunaChatOffline
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Title.LunaChatOffline"
+msgid "Luna can't chat right now"
+msgstr "지금은 루나와 대화할 수 없어요"
+
+#. Key:	Title.LunaChatPreparing
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Title.LunaChatPreparing"
+msgid "Luna is getting ready..."
+msgstr "루나가 준비 중이에요…"
+
 #. Key:	Title.LunaChatThinking
 #. SourceLocation:	UI/Localization/StringTables/MenuText.csv
 #: UI/Localization/StringTables/MenuText.csv
@@ -4499,6 +4520,13 @@ msgstr "음… 잠시만 생각해 볼게요."
 msgctxt "MenuText,Title.LunaChatUnavailable"
 msgid "I can't answer right now. Please ask me again in a moment."
 msgstr "지금은 대답하기 어려워요. 잠시 후에 다시 물어봐 주세요."
+
+#. Key:	Title.LunaDlcButton
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Title.LunaDlcButton"
+msgid "Get DLC"
+msgstr "DLC 받기"
 
 #. Key:	Title.LunaGreeting
 #. SourceLocation:	UI/Localization/StringTables/MenuText.csv

@@ -7,6 +7,7 @@
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
 #include "Components/Button.h"
+#include "Components/ButtonSlot.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Components/EditableTextBox.h"
@@ -27,6 +28,7 @@
 #include "Lobby/LobbyRuntimeSubsystem.h"
 #include "Engine/GameInstance.h"
 #include "Localization/MenuLocalizationSubsystem.h"
+#include "Luna/LunaLocalServer.h"
 #include "Profile/PlayerProfileSubsystem.h"
 #include "Online/OnlineSessionsSubsystem.h"
 #include "TimerManager.h"
@@ -44,6 +46,10 @@ DEFINE_LOG_CATEGORY_STATIC(LogTitleWidget, Log, All);
 namespace
 {
 	const FName LunaChatHintKey(TEXT("Title.LunaChatHint"));
+	const FName LunaChatNeedsDlcKey(TEXT("Title.LunaChatNeedsDlc"));
+	const FName LunaChatPreparingKey(TEXT("Title.LunaChatPreparing"));
+	const FName LunaChatOfflineKey(TEXT("Title.LunaChatOffline"));
+	const FName LunaDlcButtonKey(TEXT("Title.LunaDlcButton"));
 	const FName BossRaidClosedKey(TEXT("Title.BossRaidClosed"));
 	const FName BossRaidNoAttemptsKey(TEXT("Title.BossRaidNoAttempts"));
 	const FName BossRaidHealthKey(TEXT("Title.BossRaidHealth"));
@@ -53,6 +59,43 @@ namespace
 	// 말풍선 폭에서 꼬리가 놓이는 위치. 꼬리 끝은 Luna 머리에 두고 몸통은 주로 왼쪽으로 커지므로,
 	// 폭을 다 채운 답(줄바꿈 420 + 여백)도 오른쪽 위 게임 설정 버튼 앞에서 끝난다.
 	constexpr float LunaSpeechTailFraction = 0.75f;
+
+	/** 질문 칸과 그 오른쪽 DLC 받기 버튼 사이의 간격 */
+	constexpr float LunaDlcButtonGap = 12.f;
+
+	// Luna 말풍선과 질문 칸의 색은 타이틀 메뉴를 따른다: 패널 외곽선과 안내 문구 색.
+	const FLinearColor LunaPanelColor(0.955f, 0.896f, 0.776f);
+	const FLinearColor LunaOutlineColor(0.701f, 0.474f, 0.195f);
+	const FLinearColor LunaAccentColor(0.905f, 0.640f, 0.260f);
+	const FLinearColor LunaClosedColor(0.018f, 0.011f, 0.032f, 0.92f);
+	const FLinearColor LunaTextColor(0.130f, 0.056f, 0.021f);
+
+	FSlateBrush MakeLunaBrush(const FLinearColor& Fill, const FLinearColor& Outline, const float OutlineWidth, const float CornerRadius)
+	{
+		FSlateBrush Brush;
+		Brush.DrawAs = ESlateBrushDrawType::RoundedBox;
+		Brush.TintColor = FSlateColor(Fill);
+		Brush.OutlineSettings.Color = FSlateColor(Outline);
+		Brush.OutlineSettings.Width = OutlineWidth;
+		Brush.OutlineSettings.RoundingType = ESlateBrushRoundingType::FixedRadius;
+		Brush.OutlineSettings.CornerRadii = FVector4(CornerRadius, CornerRadius, CornerRadius, CornerRadius);
+		return Brush;
+	}
+
+	FName GetLunaChatHintKey(const ELunaServerState State)
+	{
+		switch (State)
+		{
+		case ELunaServerState::Ready:
+			return LunaChatHintKey;
+		case ELunaServerState::NotInstalled:
+			return LunaChatNeedsDlcKey;
+		case ELunaServerState::Starting:
+			return LunaChatPreparingKey;
+		default:
+			return LunaChatOfflineKey;
+		}
+	}
 }
 
 void UTitleWidget::SetTitleCharacterMaterial(UMaterialInterface* Material)
@@ -110,10 +153,7 @@ void UTitleWidget::OnMenuLanguageChanged()
 	{
 		LunaSpeechText->SetText(MenuText(LunaSpeechKey));
 	}
-	if (LunaChatInput)
-	{
-		LunaChatInput->SetHintText(MenuText(LunaChatHintKey));
-	}
+	ApplyLunaChatAvailability();
 	ApplyBossRaidAvailability();
 }
 
@@ -351,15 +391,8 @@ void UTitleWidget::BuildLunaSpeechBubble()
 		return;
 	}
 
-	// 색은 타이틀 메뉴를 따른다: 패널 외곽선과 안내 문구 색.
-	FSlateBrush TailBrush;
-	TailBrush.DrawAs = ESlateBrushDrawType::RoundedBox;
-	TailBrush.TintColor = FSlateColor(FLinearColor(0.955f, 0.896f, 0.776f));
-	TailBrush.OutlineSettings.Color = FSlateColor(FLinearColor(0.701f, 0.474f, 0.195f));
-	TailBrush.OutlineSettings.Width = 2.f;
-	TailBrush.OutlineSettings.RoundingType = ESlateBrushRoundingType::FixedRadius;
-	FSlateBrush BodyBrush = TailBrush;
-	BodyBrush.OutlineSettings.CornerRadii = FVector4(14.f, 14.f, 14.f, 14.f);
+	const FSlateBrush TailBrush = MakeLunaBrush(LunaPanelColor, LunaOutlineColor, 2.f, 0.f);
+	const FSlateBrush BodyBrush = MakeLunaBrush(LunaPanelColor, LunaOutlineColor, 2.f, 14.f);
 
 	UOverlay* Bubble = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass(), TEXT("LunaSpeechBubble"));
 
@@ -398,7 +431,7 @@ void UTitleWidget::BuildLunaSpeechBubble()
 	FSlateFontInfo Font = LunaSpeechText->GetFont();
 	Font.Size = 18;
 	LunaSpeechText->SetFont(Font);
-	LunaSpeechText->SetColorAndOpacity(FSlateColor(FLinearColor(0.130f, 0.056f, 0.021f)));
+	LunaSpeechText->SetColorAndOpacity(FSlateColor(LunaTextColor));
 	LunaSpeechText->SetWrapTextAt(420.f);
 	Body->SetContent(LunaSpeechText);
 
@@ -426,16 +459,9 @@ void UTitleWidget::BuildLunaChatInput()
 
 	// UE 5.8의 SetWidgetStyle은 Slate 위젯이 생긴 뒤에는 인자의 주소를 Slate에 넘긴다.
 	// 여기서는 Slate 위젯이 아직 없으므로 스타일을 UMG 멤버에만 복사한다.
-	FSlateBrush Background;
-	Background.DrawAs = ESlateBrushDrawType::RoundedBox;
-	Background.TintColor = FSlateColor(FLinearColor(0.955f, 0.896f, 0.776f));
-	Background.OutlineSettings.Color = FSlateColor(FLinearColor(0.701f, 0.474f, 0.195f));
-	Background.OutlineSettings.Width = 2.f;
-	Background.OutlineSettings.RoundingType = ESlateBrushRoundingType::FixedRadius;
-	Background.OutlineSettings.CornerRadii = FVector4(12.f, 12.f, 12.f, 12.f);
-	FSlateBrush FocusedBackground = Background;
-	FocusedBackground.OutlineSettings.Color = FSlateColor(FLinearColor(0.905f, 0.640f, 0.260f));
-	FocusedBackground.OutlineSettings.Width = 3.f;
+	const FSlateBrush Background = MakeLunaBrush(LunaPanelColor, LunaOutlineColor, 2.f, 12.f);
+	const FSlateBrush FocusedBackground = MakeLunaBrush(LunaPanelColor, LunaAccentColor, 3.f, 12.f);
+	const FSlateBrush ClosedBackground = MakeLunaBrush(LunaClosedColor, LunaOutlineColor, 2.f, 12.f);
 
 	// 플레이어는 어떤 언어로든 입력할 수 있으므로, 메뉴 언어와 상관없이 라틴 문자도 담은 CJK 글꼴을 쓴다.
 	FEditableTextBoxStyle Style = LunaChatInput->GetWidgetStyle();
@@ -450,13 +476,12 @@ void UTitleWidget::BuildLunaChatInput()
 		}
 	}
 	Font.Size = 16;
-	const FSlateColor TextColor(FLinearColor(0.130f, 0.056f, 0.021f));
+	const FSlateColor TextColor(LunaTextColor);
 	Style.SetBackgroundImageNormal(Background).SetBackgroundImageHovered(Background)
-		.SetBackgroundImageFocused(FocusedBackground).SetBackgroundImageReadOnly(Background)
+		.SetBackgroundImageFocused(FocusedBackground).SetBackgroundImageReadOnly(ClosedBackground)
 		.SetPadding(FMargin(16.f, 10.f)).SetFont(Font).SetForegroundColor(TextColor)
-		.SetFocusedForegroundColor(TextColor);
+		.SetFocusedForegroundColor(TextColor).SetReadOnlyForegroundColor(FSlateColor(FLinearColor::White));
 	LunaChatInput->SetWidgetStyle(Style);
-	LunaChatInput->SetHintText(MenuText(LunaChatHintKey));
 	LunaChatInput->SetClearKeyboardFocusOnCommit(false);
 	LunaChatInput->OnTextCommitted.AddDynamic(this, &ThisClass::HandleLunaChatCommitted);
 
@@ -468,6 +493,60 @@ void UTitleWidget::BuildLunaChatInput()
 	InputSlot->SetPosition(PortraitTopLeft + FVector2D(PortraitSize.X * 0.5f, PortraitSize.Y - 24.f));
 	InputSlot->SetSize(FVector2D(FMath::Min(420.f, PortraitSize.X * 0.9f), 48.f));
 	InputSlot->SetZOrder(PortraitSlot->GetZOrder() + 2);
+
+	BuildLunaDlcButton(*Canvas, *InputSlot);
+	ApplyLunaChatAvailability();
+}
+
+// 질문 칸 폭을 줄이지 않도록 칸의 오른쪽 바깥에 둔다. 문구 길이가 언어마다 달라 폭은 글자에 맞춘다.
+void UTitleWidget::BuildLunaDlcButton(UCanvasPanel& Canvas, const UCanvasPanelSlot& InputSlot)
+{
+	LunaDlcButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("Btn_LunaDlc"));
+	FButtonStyle Style = LunaDlcButton->GetStyle();
+	Style.SetNormal(MakeLunaBrush(LunaAccentColor, LunaOutlineColor, 2.f, 12.f));
+	Style.SetHovered(MakeLunaBrush(LunaPanelColor, LunaAccentColor, 3.f, 12.f));
+	Style.SetPressed(MakeLunaBrush(LunaOutlineColor, LunaOutlineColor, 2.f, 12.f));
+	LunaDlcButton->SetStyle(Style);
+	LunaDlcButton->OnClicked.AddDynamic(this, &ThisClass::HandleLunaDlcClicked);
+
+	LunaDlcLabel = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("Txt_LunaDlc"));
+	FSlateFontInfo Font = LunaDlcLabel->GetFont();
+	Font.Size = 16;
+	LunaDlcLabel->SetFont(Font);
+	LunaDlcLabel->SetColorAndOpacity(FSlateColor(LunaTextColor));
+	Cast<UButtonSlot>(LunaDlcButton->AddChild(LunaDlcLabel))->SetPadding(FMargin(16.f, 8.f));
+
+	UCanvasPanelSlot* ButtonSlot = Canvas.AddChildToCanvas(LunaDlcButton);
+	ButtonSlot->SetAnchors(InputSlot.GetAnchors());
+	ButtonSlot->SetAlignment(FVector2D(0.f, 1.f));
+	ButtonSlot->SetPosition(InputSlot.GetPosition() + FVector2D(InputSlot.GetSize().X * 0.5f + LunaDlcButtonGap, 0.f));
+	ButtonSlot->SetAutoSize(true);
+	ButtonSlot->SetZOrder(InputSlot.GetZOrder());
+}
+
+void UTitleWidget::SetLunaServerState(const ELunaServerState State)
+{
+	LunaServerState = State;
+	ApplyLunaChatAvailability();
+}
+
+void UTitleWidget::ApplyLunaChatAvailability()
+{
+	if (!LunaChatInput || !LunaDlcButton)
+	{
+		return;
+	}
+	const bool bCanAsk = LunaServerState == ELunaServerState::Ready;
+	// 안내 문구는 칸이 비어 있어야 보이므로, 막을 때 쓰던 글을 지운다.
+	if (!bCanAsk)
+	{
+		LunaChatInput->SetText(FText::GetEmpty());
+	}
+	// SetIsEnabled로 막으면 Slate가 칸 전체를 흐리게 그려 이유를 적은 안내 문구가 읽히지 않는다.
+	LunaChatInput->SetIsReadOnly(!bCanAsk);
+	LunaChatInput->SetHintText(MenuText(GetLunaChatHintKey(LunaServerState)));
+	LunaDlcLabel->SetText(MenuText(LunaDlcButtonKey));
+	LunaDlcButton->SetVisibility(LunaServerState == ELunaServerState::NotInstalled ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 }
 
 void UTitleWidget::HandleLunaChatCommitted(const FText& Text, const ETextCommit::Type CommitMethod)
@@ -480,6 +559,11 @@ void UTitleWidget::HandleLunaChatCommitted(const FText& Text, const ETextCommit:
 
 	LunaChatInput->SetText(FText::GetEmpty());
 	LunaQuestionSubmitted.Broadcast(Question);
+}
+
+void UTitleWidget::HandleLunaDlcClicked()
+{
+	LunaDlcRequested.Broadcast();
 }
 
 void UTitleWidget::HandleRoomListClicked()

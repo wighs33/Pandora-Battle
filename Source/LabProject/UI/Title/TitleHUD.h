@@ -13,6 +13,7 @@ class UPointLightComponent;
 class UMaterialInterface;
 class UTextureRenderTarget2D;
 class UAnimSequenceBase;
+enum class ELunaServerState : uint8;
 
 UCLASS()
 class LABPROJECT_API ATitleHUD : public AHUD
@@ -47,11 +48,14 @@ private:
 	void HandleLunaQuestion(const FString& Question);
 	void HandleLunaReplyUpdated(const FString& ReplySoFar);
 	void HandleLunaReplyFinished(bool bSucceeded, const FString& Reply);
+	void HandleLunaServerStateChanged(ELunaServerState NewState);
+	void HandleLunaDlcRequested();
 	void ShowLunaChatText(const FText& Text, bool bSpeaking);
 	/** true인 동안 팁 순환을 멈춘다. 다음 팁은 SpeechHiddenInterval 대신 ChatTipResumeDelay만큼 기다린다. */
 	bool bLunaChatActive = false;
 	FDelegateHandle LunaReplyUpdatedHandle;
 	FDelegateHandle LunaReplyFinishedHandle;
+	FDelegateHandle LunaServerStateHandle;
 
 	// 보스 레이드: Luna가 진행 상황을 알리는 동안 백엔드가 플레이어를 GameLift 보스 레이드 세션에 넣는다.
 	void BindBossRaid();
