@@ -103,20 +103,6 @@ struct FStateTreePdMovementParametersTaskInstanceData
 	UPROPERTY(EditAnywhere, Category = Parameter, meta = (ClampMin = "0.0", ForceUnits = "cm/s^2"))
 	float AccelerationWhileActive = 500.0f;
 
-	// 기존 StateTree 애셋이 예전 값을 역직렬화할 수 있도록만 남겨 둔다.
-	// 실행 중 복원은 태스크에 들어갈 때 잡아 둔 값을 쓴다.
-	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "The movement values present on task entry are restored automatically."))
-	float WalkSpeedOnExit = 200.0f;
-
-	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "The movement values present on task entry are restored automatically."))
-	float RotationRateOnExit = 360.0f;
-
-	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "The movement values present on task entry are restored automatically."))
-	float GroundFrictionOnExit = 8.0f;
-
-	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "The movement values present on task entry are restored automatically."))
-	float AccelerationOnExit = 5000.0f;
-
 	UPROPERTY(Transient)
 	TWeakObjectPtr<UCharacterMovementComponent> SavedMovementComponent;
 

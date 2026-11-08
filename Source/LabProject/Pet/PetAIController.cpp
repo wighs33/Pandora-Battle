@@ -1,7 +1,5 @@
 #include "Pet/PetAIController.h"
 
-#include "BehaviorTree/BehaviorTree.h"
-#include "BehaviorTree/BlackboardComponent.h"
 #include "Engine/World.h"
 #include "Navigation/PathFollowingComponent.h"
 #include "Pet/PetCharacter.h"
@@ -37,18 +35,6 @@ void APetAIController::OnPossess(APawn* InPawn)
 		}
 	}
 
-	bBehaviorTreeRunning = false;
-	if (BehaviorTreeAsset)
-	{
-		UBlackboardComponent* LocalBlackboard = nullptr;
-		if (BehaviorTreeAsset->BlackboardAsset && UseBlackboard(BehaviorTreeAsset->BlackboardAsset, LocalBlackboard))
-		{
-			const APetCharacter* Pet = Cast<APetCharacter>(InPawn);
-			LocalBlackboard->SetValueAsObject(FollowTargetActorKeyName, Pet ? Pet->GetFollowTargetActor() : nullptr);
-			bBehaviorTreeRunning = RunBehaviorTree(BehaviorTreeAsset);
-		}
-	}
-
 	RefreshFollowTarget();
 	StartFollowTargetRefreshTimer();
 }
@@ -56,15 +42,9 @@ void APetAIController::OnPossess(APawn* InPawn)
 void APetAIController::OnUnPossess()
 {
 	StopFollowTargetRefreshTimer();
-	bBehaviorTreeRunning = false;
 	bDirectFollowFallbackActive = false;
 	SetActorTickEnabled(false);
 	StopMovement();
-
-	if (UBlackboardComponent* LocalBlackboard = GetBlackboardComponent())
-	{
-		LocalBlackboard->ClearValue(FollowTargetActorKeyName);
-	}
 
 	Super::OnUnPossess();
 }
@@ -73,20 +53,7 @@ void APetAIController::RefreshFollowTarget()
 {
 	const APetCharacter* Pet = Cast<APetCharacter>(GetPawn());
 	AActor* FollowTarget = Pet ? Pet->GetFollowTargetActor() : nullptr;
-	UBlackboardComponent* LocalBlackboard = GetBlackboardComponent();
-	if (LocalBlackboard)
-	{
-		if (FollowTarget)
-		{
-			LocalBlackboard->SetValueAsObject(FollowTargetActorKeyName, FollowTarget);
-		}
-		else
-		{
-			LocalBlackboard->ClearValue(FollowTargetActorKeyName);
-		}
-	}
-
-	if (!bBehaviorTreeRunning && FollowTarget)
+	if (FollowTarget)
 	{
 		EPathFollowingRequestResult::Type MoveResult = MoveToActor(FollowTarget, DirectMoveAcceptanceRadius, true,
 			bUsePathfindingForFollow, true);
@@ -102,10 +69,7 @@ void APetAIController::RefreshFollowTarget()
 	{
 		bDirectFollowFallbackActive = false;
 		SetActorTickEnabled(false);
-		if (!FollowTarget)
-		{
-			StopMovement();
-		}
+		StopMovement();
 	}
 }
 

@@ -297,7 +297,6 @@ void AMonsterCharacter::BeginPlay()
 	ApplyMeshOptimizations();
 	RefreshHighlightStencil();
 	EnsureHighlightPostProcess();
-	DeactivateDamageSphere();
 	DeactivateAttackSphere();
 	BeginMonsterContentPreload();
 	if (UMonsterSignificanceSubsystem* Significance = GetWorld()->GetSubsystem<UMonsterSignificanceSubsystem>())
@@ -382,7 +381,6 @@ void AMonsterCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		MonsterController->StopMonsterAI();
 	}
 	DeactivateAttackSphere();
-	DeactivateDamageSphere();
 	GetWorldTimerManager().ClearTimer(DeathDestroyTimerHandle);
 	GetWorldTimerManager().ClearTimer(MinionSpawnTimerHandle);
 	MonsterContentLease.Reset();
@@ -535,7 +533,6 @@ void AMonsterCharacter::HandleDeath_Implementation()
 	{
 		MonsterController->StopMonsterAI();
 	}
-	DeactivateDamageSphere();
 	if (HasAuthority())
 	{
 		if (APdPlayerState* RewardPlayerState = LastDamagingPlayerState.Get())
@@ -994,10 +991,6 @@ void AMonsterCharacter::CacheCollisionComponents()
 		{
 			AttackComponent = Component;
 		}
-		if (Component->GetFName() == DamageComponentName)
-		{
-			LegacyDamageComponent = Component;
-		}
 	}
 	if (UPrimitiveComponent* Collision = AttackComponent.Get())
 	{
@@ -1078,17 +1071,6 @@ bool AMonsterCharacter::ApplyMonsterDamageToCharacter(ACharacterBase* TargetChar
 	}
 	Spec.Data->SetSetByCallerMagnitude(DamageTag, AttackDamageMagnitude);
 	return SourceASC->ApplyGameplayEffectSpecToTarget(*Spec.Data.Get(), TargetASC).WasSuccessfullyApplied();
-}
-
-// 과거 BP의 상시 접촉 피해 충돌은 비활성화해 공격 판정과 중복되지 않게 한다.
-void AMonsterCharacter::DeactivateDamageSphere()
-{
-	if (UPrimitiveComponent* Collision = LegacyDamageComponent.Get())
-	{
-		Collision->OnComponentBeginOverlap.RemoveAll(this);
-		Collision->SetGenerateOverlapEvents(false);
-		Collision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	}
 }
 
 // 판정을 여는 순간 이미 범위 안에 있던 대상도 포함해 타격한다. 닫는 시점은 호출한 쪽이 정한다.
