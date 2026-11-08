@@ -46,12 +46,6 @@ public:
 	UFUNCTION(BlueprintPure, Category = "!UI|ActionSlot")
 	int32 GetSlotIndex() const { return SlotIndex; }
 
-	UFUNCTION(BlueprintPure, Category = "!UI|ActionSlot")
-	ECharacterActionType GetActionType() const { return ActionType; }
-
-	UFUNCTION(BlueprintPure, Category = "!UI|ActionSlot")
-	const UCharacterActionDefinition* GetActionDefinition() const { return ActionDefinition; }
-
 	// Event Handlers --------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "!UI|ActionSlot|Cooldown")
 	void UpdateCooldownProgress();

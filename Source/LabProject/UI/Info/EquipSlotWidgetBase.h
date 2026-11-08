@@ -39,25 +39,10 @@ public:
 	void SetText(const FText& InText);
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|EquipSlot")
-	void SetIcon(UTexture2D* InIconTexture);
-
-	UFUNCTION(BlueprintCallable, Category = "!UI|EquipSlot")
-	void SetHoverIcon(UTexture2D* InIconTexture);
-
-	UFUNCTION(BlueprintCallable, Category = "!UI|EquipSlot")
 	void SetSelected(bool bInSelected);
 
 	UFUNCTION(BlueprintPure, Category = "!UI|EquipSlot")
 	bool IsSelected() const { return bIsSelected; }
-
-	UFUNCTION(BlueprintPure, Category = "!UI|EquipSlot")
-	FText GetSlotText() const { return SlotText; }
-
-	UFUNCTION(BlueprintPure, Category = "!UI|EquipSlot")
-	UTexture2D* GetSlotIconTexture() const { return SlotIconTexture; }
-
-	UFUNCTION(BlueprintPure, Category = "!UI|EquipSlot")
-	UTexture2D* GetSlotHoverIconTexture() const { return SlotHoverIconTexture; }
 
 	UFUNCTION(BlueprintPure, Category = "!UI|EquipSlot", meta = (Categories = "Item,Skin"))
 	FGameplayTag GetEquipTypeTag() const { return EquipTypeTag; }

@@ -17,9 +17,6 @@ namespace PdGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Notifier_Attack_DamageWindowClose, "Notifier.Attack.DamageWindowClose", "Attack damage window closed.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Notifier_Attack_NextCombo, "Notifier.Attack.NextCombo", "Attack montage timing event for jumping to the next combo section.");
 
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_ActivateAbility, "Event.ActivateAbility", "Root gameplay event tag for ability activation.");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_ActivateAbility_Dash, "Event.ActivateAbility.Dash", "Gameplay event used to activate dash with payload data.");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Effect_StackCountChanged, "Event.Effect.StackCountChanged", "Gameplay event sent to status UI when a debuff stack count changes.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Montage_Trigger, "Event.Montage.Trigger", "Gameplay event sent by montage notifies to trigger delayed ability work.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_ShootProjectile, "Event.ShootProjectile", "Gameplay event used by montage notifies to spawn a projectile.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayAbility, "GameplayAbility", "Root gameplay ability tag.");
@@ -44,11 +41,8 @@ namespace PdGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayAbility_Defensive_Shield, "GameplayAbility.Defensive.Shield", "Shield defensive ability tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayAbility_Defensive_Shield_Active, "GameplayAbility.Defensive.Shield.Active", "Shield defensive ability active tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayAbility_Defensive_ShieldBubble, "GameplayAbility.Defensive.ShieldBubble", "Shield bubble defensive ability tag.");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayAbility_Defensive_FillShield, "GameplayAbility.Defensive.FillShield", "Fill shield defensive ability tag.");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayAbility_Defensive_FillShield_Active, "GameplayAbility.Defensive.FillShield.Active", "Fill shield defensive ability active tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayCue_Dash_Active, "GameplayCue.Dash.Active", "Active dash gameplay cue tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Ability, "Input.Ability", "Root tag for input-bound gameplay abilities.");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Ability_Movement_Dash, "Input.Ability.Movement.Dash", "Dash ability input tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Ability_Movement_Grapple, "Input.Ability.Movement.Grapple", "Grapple ability input tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Ability_Skill1, "Input.Ability.Skill1", "Pandora skill slot 1 input tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Ability_Skill2, "Input.Ability.Skill2", "Pandora skill slot 2 input tag.");
@@ -61,12 +55,7 @@ namespace PdGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Dash, "Cooldown.Dash", "Dash cooldown tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Grapple, "Cooldown.Grapple", "Grapple cooldown tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_EquipWeapon, "Cooldown.EquipWeapon", "Equip weapon cooldown tag.");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_AOEAttack, "Cooldown.AOEAttack", "Area targeting attack cooldown tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Shield, "Cooldown.Shield", "Shield cooldown tag.");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Skill1, "Cooldown.Skill1", "Pandora skill slot 1 cooldown tag.");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Skill2, "Cooldown.Skill2", "Pandora skill slot 2 cooldown tag.");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Skill3, "Cooldown.Skill3", "Pandora skill slot 3 cooldown tag.");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Skill4, "Cooldown.Skill4", "Pandora skill slot 4 cooldown tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_StaminaRegen, "Status.StaminaRegen", "Stamina regeneration status tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Burning, "Status.Burning", "Burning status effect tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Status_Frostbite, "Status.Frostbite", "Frostbite status effect tag.");

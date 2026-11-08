@@ -75,19 +75,10 @@ public:
 	void SpendPointOnPandora(const UPandoraDefinition* Pandora);
 
 	UFUNCTION(BlueprintPure, Category = "!PandoraTree")
-	bool FindGrantedPandora(const UPandoraDefinition* Pandora, FGrantedPandora& OutGrantedPandora) const;
-
-	UFUNCTION(BlueprintPure, Category = "!PandoraTree")
 	bool HasGrantedPandora(const UPandoraDefinition* Pandora) const;
 
 	UFUNCTION(BlueprintPure, Category = "!PandoraTree")
 	bool IsPandoraUnlockedForTree(const UPandoraDefinition* Pandora) const;
-
-	UFUNCTION(BlueprintPure, Category = "!PandoraTree")
-	bool CanGivePandora(const UPandoraDefinition* Pandora, int32 StartingLevel = 1, bool bIgnorePointCost = false) const;
-
-	UFUNCTION(BlueprintPure, Category = "!PandoraTree")
-	bool CanLevelUpPandora(const UPandoraDefinition* Pandora) const;
 
 	UFUNCTION(BlueprintPure, Category = "!PandoraTree")
 	bool CanSpendPointOnPandora(const UPandoraDefinition* Pandora) const;
@@ -108,9 +99,6 @@ public:
 	UFUNCTION(BlueprintPure, Category = "!PandoraTree")
 	int32 GetCurrentPandoraLevel(const UPandoraDefinition* Pandora) const;
 
-	UFUNCTION(BlueprintPure, Category = "!PandoraTree")
-	int32 GetMaxPandoraLevel(const UPandoraDefinition* Pandora) const;
-
 	UFUNCTION(BlueprintCallable, Category = "!PandoraTree")
 	void ResetPandora();
 
@@ -125,9 +113,6 @@ public:
 
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "!PandoraTree|Soul Dust")
 	void SetSoulDust(int32 NewSoulDust);
-
-	UFUNCTION(BlueprintPure, Category = "!PandoraTree|Soul Dust")
-	int32 GetSoulDust() const { return PointsAvailable; }
 
 	// Network RPCs ----------------------------------------------------------------------------------------------------
 	UFUNCTION(Server, Reliable, BlueprintCallable, Category = "!PandoraTree")

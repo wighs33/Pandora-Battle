@@ -81,9 +81,6 @@ public:
 	UFUNCTION(BlueprintPure, Category = "!Character|Presentation")
 	UCharacterPresentationComponent* GetCharacterPresentationComponent() const { return CharacterPresentationComponent; }
 
-	UFUNCTION(BlueprintPure, Category = "!AbilitySystem|StatusEffect")
-	UStatusEffectReplicationComponent* GetStatusEffectReplicationComponent() const { return StatusEffectReplicationComponent; }
-
 	ICharacterHealthBarInterface* GetHealthBar() const;
 	UWidgetComponent* GetHealthBarWidget() const { return HealthBarWidget; }
 

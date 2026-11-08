@@ -272,11 +272,6 @@ void UPandoraComponent::ClearAllPandoras()
 	}
 }
 
-bool UPandoraComponent::RequestPandoraSelection(const UPandoraDefinition* PandoraDefinition)
-{
-	return RequestPandoraSelectionForDirection(EEnum_Direction::Center, PandoraDefinition);
-}
-
 bool UPandoraComponent::RequestPandoraSelectionForDirection(const EEnum_Direction Direction,
 	const UPandoraDefinition* PandoraDefinition)
 {

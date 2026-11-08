@@ -42,18 +42,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!ViewModel")
 	bool ApplyStatusViewModelToWidgetTree(UUserWidget* RootWidget);
 
-	UFUNCTION(BlueprintPure, Category = "!ViewModel")
-	UStatusViewModel* GetStatusViewModel() const { return StatusViewModel; }
-
 	/** 로컬 플레이어마다 현재 UI 구성을 한 번 저장한다. */
 	void SetWidgetClassDefinition(UWidgetClassDefinition* InWidgetClassDefinition);
 	void ClearWidgetClassDefinition(const UWidgetClassDefinition* ExpectedWidgetClassDefinition);
 	UWidgetClassDefinition* GetWidgetClassDefinition() const { return WidgetClassDefinition; }
 	void BeginConfiguredWidgetDefinitionPreload();
-	bool IsConfiguredWidgetContentReady() const
-	{
-		return bConfiguredWidgetContentReady;
-	}
 	bool IsConfiguredWidgetContentPreloadPending() const { return bConfiguredWidgetContentPreloadPending; }
 	/** 로비 진입 때 붙잡은 로비 화면 콘텐츠를 아직 불러오는 중인지. */
 	bool IsLobbyContentLoading() const;

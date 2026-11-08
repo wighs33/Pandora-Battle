@@ -25,9 +25,6 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "!Interaction")
 	bool Interact(AActor* InteractingActor);
 
-	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "!Interaction")
-	FText GetInteractText(AActor* InteractingActor);
-
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "!Interaction|Reward")
 	void GetRewardItems(TArray<FPrimaryAssetId>& OutItemDefinitionList);
 

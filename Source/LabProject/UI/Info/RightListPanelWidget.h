@@ -48,9 +48,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!UI|Info|List")
 	void SetTileView(const TArray<UObject*>& InListItems);
 
-	UFUNCTION(BlueprintCallable, Category = "!UI|Info|List")
-	void ClearTileViewItemClicked();
-
 	UFUNCTION(BlueprintPure, Category = "!UI|Info|List")
 	UTileView* GetTileView() const { return TileView; }
 

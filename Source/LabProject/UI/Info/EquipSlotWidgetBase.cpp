@@ -123,30 +123,6 @@ void UEquipSlotWidgetBase::SetText(const FText& InText)
 	ApplySlotVisual();
 }
 
-void UEquipSlotWidgetBase::SetIcon(UTexture2D* InIconTexture)
-{
-	SlotIconTexture = InIconTexture;
-
-	if (!HasSlotContent())
-	{
-		ResetSlotIcons();
-	}
-
-	ApplySlotVisual();
-}
-
-void UEquipSlotWidgetBase::SetHoverIcon(UTexture2D* InIconTexture)
-{
-	SlotHoverIconTexture = InIconTexture;
-
-	if (!HasSlotContent())
-	{
-		CurrentHoverIconTexture = SlotHoverIconTexture ? SlotHoverIconTexture.Get() : CurrentIconTexture.Get();
-	}
-
-	ApplySlotVisual();
-}
-
 void UEquipSlotWidgetBase::SetSelected(const bool bInSelected)
 {
 	if (bIsSelected == bInSelected)

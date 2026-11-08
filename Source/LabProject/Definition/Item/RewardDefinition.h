@@ -57,28 +57,6 @@ public:
 };
 
 USTRUCT(BlueprintType)
-struct LABPROJECT_API FRewardGoldRange
-{
-	GENERATED_BODY()
-
-public:
-	// Public API ------------------------------------------------------------------------------------------------------
-	int32 RollReward() const;
-
-public:
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Reward|Gold")
-	bool bGrantRandomGold = false;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Reward|Gold",
-		meta = (ClampMin = "0", UIMin = "0", EditCondition = "bGrantRandomGold"))
-	int32 MinGoldReward = 0;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Reward|Gold",
-		meta = (ClampMin = "0", UIMin = "0", EditCondition = "bGrantRandomGold"))
-	int32 MaxGoldReward = 0;
-};
-
-USTRUCT(BlueprintType)
 struct LABPROJECT_API FRewardRandomPotionDrop
 {
 	GENERATED_BODY()
@@ -152,16 +130,6 @@ public:
 };
 
 USTRUCT(BlueprintType)
-struct LABPROJECT_API FGameVictoryRewardCategory
-{
-	GENERATED_BODY()
-
-public:
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Reward|Game Victory")
-	FRewardGoldRange Gold;
-};
-
-USTRUCT(BlueprintType)
 struct LABPROJECT_API FRewardNotificationCategory
 {
 	GENERATED_BODY()
@@ -211,9 +179,6 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Reward|Player Kill")
 	FPlayerKillRewardCategory PlayerKillReward;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Reward|Game Victory")
-	FGameVictoryRewardCategory GameVictoryReward;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Reward|Notification")
 	FRewardNotificationCategory Notification;

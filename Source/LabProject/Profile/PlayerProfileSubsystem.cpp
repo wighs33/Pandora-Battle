@@ -171,26 +171,6 @@ int32 UPlayerProfileSubsystem::AddGold(const int32 Amount, const bool bSaveImmed
 	return SaveGameObject->Gold;
 }
 
-bool UPlayerProfileSubsystem::SpendGold(const int32 Amount, const bool bSaveImmediately)
-{
-	if (Amount <= 0)
-	{
-		return true;
-	}
-
-	UPdSaveGame* SaveGameObject = GetOrCreateProfile();
-	if (!IsValid(SaveGameObject) || SaveGameObject->Gold < Amount)
-	{
-		return false;
-	}
-
-	SaveGameObject->Gold -= Amount;
-	RequestProfileSave(bSaveImmediately);
-
-	ProfileProgressChanged.Broadcast();
-	return true;
-}
-
 bool UPlayerProfileSubsystem::ResetPurchasedProgress(const bool bSaveImmediately)
 {
 	UPdSaveGame* SaveGameObject = GetOrCreateProfile();

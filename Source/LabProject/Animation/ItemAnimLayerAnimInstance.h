@@ -16,13 +16,6 @@ public:
 	virtual void NativeInitializeAnimation() override;
 	virtual void NativeUpdateAnimation(float DeltaSeconds) override;
 
-	// Public API ------------------------------------------------------------------------------------------------------
-	UFUNCTION(BlueprintPure, Category = "!Animation|Item")
-	APdPlayer* GetCachedPlayer() const { return CachedPlayer.Get(); }
-
-	UFUNCTION(BlueprintPure, Category = "!Animation|Item")
-	bool IsAiming() const { return bIsAiming; }
-
 protected:
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void RefreshCachedPlayer();

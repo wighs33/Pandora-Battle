@@ -111,9 +111,6 @@ public:
 	bool HasPandoraDefinition(const UPandoraDefinition* PandoraDefinition) const;
 
 	UFUNCTION(BlueprintCallable, Category = "!Pandora|Skill")
-	bool RequestPandoraSelection(const UPandoraDefinition* PandoraDefinition);
-
-	UFUNCTION(BlueprintCallable, Category = "!Pandora|Skill")
 	bool RequestPandoraSelectionForDirection(EEnum_Direction Direction, const UPandoraDefinition* PandoraDefinition);
 
 	UFUNCTION(BlueprintCallable, Category = "!Pandora|Loadout")

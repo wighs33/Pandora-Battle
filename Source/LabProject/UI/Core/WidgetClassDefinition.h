@@ -611,9 +611,6 @@ struct LABPROJECT_API FSkinWidgetSettings
 	int32 SkinSlotCount = 40;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Skin|Filter", meta = (Categories = "Skin"))
-	FGameplayTag PandoraTypeTag;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Skin|Filter", meta = (Categories = "Skin"))
 	FGameplayTag CosmeticsTypeTag;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Skin|Filter", meta = (Categories = "Skin"))

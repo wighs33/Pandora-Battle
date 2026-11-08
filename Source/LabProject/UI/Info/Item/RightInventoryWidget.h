@@ -30,9 +30,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!UI|Inventory")
 	void SelectInventorySlot(UInventorySlotViewData* SlotViewData);
 
-	UFUNCTION(BlueprintPure, Category = "!UI|Inventory")
-	int32 GetInventorySlotCount() const { return InventorySlotCount; }
-
 	UFUNCTION(BlueprintCallable, Category = "!UI|Inventory")
 	void SetInventorySlotCount(int32 InInventorySlotCount);
 

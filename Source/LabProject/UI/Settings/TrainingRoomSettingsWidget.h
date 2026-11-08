@@ -46,9 +46,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!Training|Bot")
 	void SelectWeaponOption(int32 OptionIndex);
 
-	UFUNCTION(BlueprintPure, Category = "!Training|Bot")
-	int32 GetSelectedWeaponOptionIndex() const { return SelectedOptionIndex; }
-
 private:
 	// Event Handlers --------------------------------------------------------------------------------------------------
 	UFUNCTION()

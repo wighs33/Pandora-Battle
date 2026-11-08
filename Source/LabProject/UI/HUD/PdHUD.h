@@ -63,12 +63,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!UI|Info")
 	void CloseInfoUi();
 
-	UFUNCTION(BlueprintCallable, Category = "!UI|Info")
-	void ToggleInfoUi();
-
-	UFUNCTION(BlueprintCallable, Category = "!UI|Pandora")
-	void OpenPandoraTreeUi();
-
 	UFUNCTION(BlueprintCallable, Category = "!UI|Pandora")
 	void ClosePandoraTreeUi();
 

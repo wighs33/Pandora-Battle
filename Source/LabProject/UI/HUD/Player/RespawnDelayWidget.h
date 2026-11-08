@@ -28,12 +28,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!Respawn")
 	void RefreshUI();
 
-	UFUNCTION(BlueprintPure, Category = "!Respawn")
-	float GetRemainingSeconds() const { return RemainingSeconds; }
-
-	UFUNCTION(BlueprintPure, Category = "!Respawn")
-	bool IsRespawnDelayActive() const { return bRespawnDelayActive; }
-
 protected:
 	// Event Handlers --------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintImplementableEvent, Category = "!Respawn", meta = (DisplayName = "On Respawn Delay Started"))

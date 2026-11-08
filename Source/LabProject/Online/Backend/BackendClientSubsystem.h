@@ -208,9 +208,6 @@ public:
 	bool IsLoggedIn() const { return LoginState == EBackendLoginState::LoggedIn; }
 
 	UFUNCTION(BlueprintPure, Category = "!Backend")
-	EBackendLoginState GetLoginState() const { return LoginState; }
-
-	UFUNCTION(BlueprintPure, Category = "!Backend")
 	const FString& GetPlayerId() const { return PlayerId; }
 
 	UFUNCTION(BlueprintPure, Category = "!Backend")
