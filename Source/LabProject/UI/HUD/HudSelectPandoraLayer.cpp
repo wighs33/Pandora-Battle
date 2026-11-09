@@ -148,19 +148,17 @@ void UHudSelectPandoraLayer::UpdateDirectionFromMouse()
 	const FVector2D ViewportCenter(static_cast<double>(ViewportSizeX) / 2.0, static_cast<double>(ViewportSizeY) / 2.0);
 	const FVector2D DirectionFromCenter = MousePosition - ViewportCenter;
 
+	const double SegmentAngle = SelectPandoraSettings.SegmentAngle;
 	if (DirectionFromCenter.Size() < SelectPandoraSettings.DeadZoneRadius)
 	{
 		DirectionIndex = -1;
-		return;
 	}
-
-	const double SegmentAngle = SelectPandoraSettings.SegmentAngle;
-	if (FMath::IsNearlyZero(SegmentAngle))
+	else if (!FMath::IsNearlyZero(SegmentAngle))
 	{
-		return;
+		const double DirectionAngle = FMath::RadiansToDegrees(FMath::Atan2(DirectionFromCenter.Y, DirectionFromCenter.X));
+		const double NormalizedAngle = FMath::Fmod(DirectionAngle + 450.0 + (SegmentAngle / 2.0), 360.0);
+		DirectionIndex = FMath::FloorToInt(NormalizedAngle / SegmentAngle);
 	}
-
-	const double DirectionAngle = FMath::RadiansToDegrees(FMath::Atan2(DirectionFromCenter.Y, DirectionFromCenter.X));
-	const double NormalizedAngle = FMath::Fmod(DirectionAngle + 450.0 + (SegmentAngle / 2.0), 360.0);
-	DirectionIndex = FMath::FloorToInt(NormalizedAngle / SegmentAngle);
+	// 고르는 동안에도 어느 칸을 가리키는지 휠에 보인다.
+	Widget->SetHoveredDirection(DirectionIndex);
 }
