@@ -4,8 +4,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: Game\n"
-"POT-Creation-Date: 2026-11-07 02:23\n"
-"PO-Revision-Date: 2026-11-07 02:23\n"
+"POT-Creation-Date: 2026-11-09 03:20\n"
+"PO-Revision-Date: 2026-11-09 03:20\n"
 "Language-Team: \n"
 "Language: de\n"
 "MIME-Version: 1.0\n"
@@ -4345,13 +4345,6 @@ msgstr "Punkt investieren"
 msgctxt "MenuText,Status.InvestmentBonus"
 msgid "Invested + bonus"
 msgstr "Investiert + Bonus"
-
-#. Key:	Status.Remaining
-#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
-#: UI/Localization/StringTables/MenuText.csv
-msgctxt "MenuText,Status.Remaining"
-msgid "Left"
-msgstr "Übrig"
 
 #. Key:	Team.Blue
 #. SourceLocation:	UI/Localization/StringTables/MenuText.csv
