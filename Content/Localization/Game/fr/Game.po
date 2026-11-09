@@ -4,8 +4,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: Game\n"
-"POT-Creation-Date: 2026-11-09 03:20\n"
-"PO-Revision-Date: 2026-11-09 03:20\n"
+"POT-Creation-Date: 2026-11-09 10:26\n"
+"PO-Revision-Date: 2026-11-09 10:26\n"
 "Language-Team: \n"
 "Language: fr\n"
 "MIME-Version: 1.0\n"
@@ -2183,6 +2183,104 @@ msgctxt ",752D6606A22541C2881825BCBFA10B25"
 msgid "Plasma Beam"
 msgstr "Rayon de plasma"
 
+#. Key:	00034EFBC7D385A94C93D899DF157E71
+#. SourceLocation:	/Game/Skin/Cosmetics/AlohaBottom/DA_AlohaBottom.DA_AlohaBottom.Description
+#: /Game/Skin/Cosmetics/AlohaBottom/DA_AlohaBottom.DA_AlohaBottom.Description
+msgctxt ",00034EFBC7D385A94C93D899DF157E71"
+msgid "Khaki shorts with a flap cargo pocket on each side. A match for the Aloha shirt."
+msgstr "Un short kaki avec une poche cargo à rabat de chaque côté. Assorti à la chemise Aloha."
+
+#. Key:	00034EFBC7D385A94C93D8990D295E43
+#. SourceLocation:	/Game/Skin/Cosmetics/AlohaBottom/DA_AlohaBottom.DA_AlohaBottom.DisplayName
+#: /Game/Skin/Cosmetics/AlohaBottom/DA_AlohaBottom.DA_AlohaBottom.DisplayName
+msgctxt ",00034EFBC7D385A94C93D8990D295E43"
+msgid "Aloha Cargo Shorts"
+msgstr "Short cargo Aloha"
+
+#. Key:	6B44078C592EB41D4C93D899DF157E71
+#. SourceLocation:	/Game/Skin/Cosmetics/AlohaTop/DA_AlohaTop.DA_AlohaTop.Description
+#: /Game/Skin/Cosmetics/AlohaTop/DA_AlohaTop.DA_AlohaTop.Description
+msgctxt ",6B44078C592EB41D4C93D899DF157E71"
+msgid "A teal short-sleeve shirt covered in hibiscus flowers and palm leaves, with an open collar and a chest pocket."
+msgstr "Une chemise à manches courtes bleu canard couverte d'hibiscus et de feuilles de palmier, avec col ouvert et poche poitrine."
+
+#. Key:	6B44078C592EB41D4C93D8990D295E43
+#. SourceLocation:	/Game/Skin/Cosmetics/AlohaTop/DA_AlohaTop.DA_AlohaTop.DisplayName
+#: /Game/Skin/Cosmetics/AlohaTop/DA_AlohaTop.DA_AlohaTop.DisplayName
+msgctxt ",6B44078C592EB41D4C93D8990D295E43"
+msgid "Aloha Shirt"
+msgstr "Chemise Aloha"
+
+#. Key:	D366D9F9FC07298A4C93D899DF157E71
+#. SourceLocation:	/Game/Skin/Cosmetics/BucketHat/DA_BucketHat.DA_BucketHat.Description
+#: /Game/Skin/Cosmetics/BucketHat/DA_BucketHat.DA_BucketHat.Description
+msgctxt ",D366D9F9FC07298A4C93D899DF157E71"
+msgid "A khaki canvas bucket hat with a brown band, a soft sloping brim and a navy P on the front."
+msgstr "Un bob en toile kaki avec un ruban marron, un bord souple incliné et un P bleu marine devant."
+
+#. Key:	D366D9F9FC07298A4C93D8990D295E43
+#. SourceLocation:	/Game/Skin/Cosmetics/BucketHat/DA_BucketHat.DA_BucketHat.DisplayName
+#: /Game/Skin/Cosmetics/BucketHat/DA_BucketHat.DA_BucketHat.DisplayName
+msgctxt ",D366D9F9FC07298A4C93D8990D295E43"
+msgid "Bucket Hat"
+msgstr "Bob"
+
+#. Key:	2AA3FD5A288BF9DF4C93D899DF157E71
+#. SourceLocation:	/Game/Skin/Cosmetics/CampusBottom/DA_CampusBottom.DA_CampusBottom.Description
+#: /Game/Skin/Cosmetics/CampusBottom/DA_CampusBottom.DA_CampusBottom.Description
+msgctxt ",2AA3FD5A288BF9DF4C93D899DF157E71"
+msgid "A pleated tartan mini skirt in navy and green with red and yellow lines. A match for the Campus jacket."
+msgstr "Une minijupe plissée écossaise bleu marine et verte, à lignes rouges et jaunes. Assortie à la veste Campus."
+
+#. Key:	2AA3FD5A288BF9DF4C93D8990D295E43
+#. SourceLocation:	/Game/Skin/Cosmetics/CampusBottom/DA_CampusBottom.DA_CampusBottom.DisplayName
+#: /Game/Skin/Cosmetics/CampusBottom/DA_CampusBottom.DA_CampusBottom.DisplayName
+msgctxt ",2AA3FD5A288BF9DF4C93D8990D295E43"
+msgid "Campus Pleated Skirt"
+msgstr "Jupe plissée Campus"
+
+#. Key:	28E8F4034254C99B4C93D899DF157E71
+#. SourceLocation:	/Game/Skin/Cosmetics/CampusTop/DA_CampusTop.DA_CampusTop.Description
+#: /Game/Skin/Cosmetics/CampusTop/DA_CampusTop.DA_CampusTop.Description
+msgctxt ",28E8F4034254C99B4C93D899DF157E71"
+msgid "A navy varsity jacket with cream sleeves, gold-striped ribbing, a letter P on the chest and PANDORA across the back."
+msgstr "Une veste universitaire bleu marine aux manches crème, avec bords côtelés rayés d'or, un P sur la poitrine et PANDORA dans le dos."
+
+#. Key:	28E8F4034254C99B4C93D8990D295E43
+#. SourceLocation:	/Game/Skin/Cosmetics/CampusTop/DA_CampusTop.DA_CampusTop.DisplayName
+#: /Game/Skin/Cosmetics/CampusTop/DA_CampusTop.DA_CampusTop.DisplayName
+msgctxt ",28E8F4034254C99B4C93D8990D295E43"
+msgid "Campus Varsity Jacket"
+msgstr "Veste universitaire Campus"
+
+#. Key:	7F5E17335B3E46D44C93D899DF157E71
+#. SourceLocation:	/Game/Skin/Cosmetics/CourtBottom/DA_CourtBottom.DA_CourtBottom.Description
+#: /Game/Skin/Cosmetics/CourtBottom/DA_CourtBottom.DA_CourtBottom.Description
+msgctxt ",7F5E17335B3E46D44C93D899DF157E71"
+msgid "Wide red knee-length shorts with white side panels and a navy waistband. A match for the Court jersey."
+msgstr "Un short rouge large à hauteur du genou, avec empiècements latéraux blancs et ceinture bleu marine. Assorti au maillot Court."
+
+#. Key:	7F5E17335B3E46D44C93D8990D295E43
+#. SourceLocation:	/Game/Skin/Cosmetics/CourtBottom/DA_CourtBottom.DA_CourtBottom.DisplayName
+#: /Game/Skin/Cosmetics/CourtBottom/DA_CourtBottom.DA_CourtBottom.DisplayName
+msgctxt ",7F5E17335B3E46D44C93D8990D295E43"
+msgid "Court Basketball Shorts"
+msgstr "Short de basket Court"
+
+#. Key:	622A7394DE75DC314C93D899DF157E71
+#. SourceLocation:	/Game/Skin/Cosmetics/CourtTop/DA_CourtTop.DA_CourtTop.Description
+#: /Game/Skin/Cosmetics/CourtTop/DA_CourtTop.DA_CourtTop.Description
+msgctxt ",622A7394DE75DC314C93D899DF157E71"
+msgid "A red sleeveless jersey with white trim, PANDORA across the chest and the number 23 on the front and back."
+msgstr "Un maillot rouge sans manches à liserés blancs, avec PANDORA sur la poitrine et le numéro 23 devant et derrière."
+
+#. Key:	622A7394DE75DC314C93D8990D295E43
+#. SourceLocation:	/Game/Skin/Cosmetics/CourtTop/DA_CourtTop.DA_CourtTop.DisplayName
+#: /Game/Skin/Cosmetics/CourtTop/DA_CourtTop.DA_CourtTop.DisplayName
+msgctxt ",622A7394DE75DC314C93D8990D295E43"
+msgid "Court Basketball Jersey"
+msgstr "Maillot de basket Court"
+
 #. Key:	1549DCAE4480ABD7F28D14A95556E771
 #. SourceLocation:	/Game/Skin/Cosmetics/DA_CowboyHat.DA_CowboyHat.Description
 #: /Game/Skin/Cosmetics/DA_CowboyHat.DA_CowboyHat.Description
@@ -2239,6 +2337,20 @@ msgctxt ",4934647D45B6E78A1D2088BDB8C0D7F8"
 msgid "Wizard Hat"
 msgstr "Chapeau de sorcier"
 
+#. Key:	F24BCD7E0FC850DE4C93D899DF157E71
+#. SourceLocation:	/Game/Skin/Cosmetics/DinoOnesie/DA_DinoOnesie.DA_DinoOnesie.Description
+#: /Game/Skin/Cosmetics/DinoOnesie/DA_DinoOnesie.DA_DinoOnesie.Description
+msgctxt ",F24BCD7E0FC850DE4C93D899DF157E71"
+msgid "A cozy dinosaur suit with a toothy hood, back spikes and a tail. Goes in the top slot and also covers the bottom and hat slots."
+msgstr "Une combinaison dino douillette avec capuche à dents, piquants dans le dos et queue. Se porte en Haut et occupe aussi les emplacements Bas et Chapeau."
+
+#. Key:	F24BCD7E0FC850DE4C93D8990D295E43
+#. SourceLocation:	/Game/Skin/Cosmetics/DinoOnesie/DA_DinoOnesie.DA_DinoOnesie.DisplayName
+#: /Game/Skin/Cosmetics/DinoOnesie/DA_DinoOnesie.DA_DinoOnesie.DisplayName
+msgctxt ",F24BCD7E0FC850DE4C93D8990D295E43"
+msgid "Dino Onesie"
+msgstr "Combinaison dino"
+
 #. Key:	6DC345BE4DC1F5CD43EC18833C8A06C6
 #. SourceLocation:	/Game/Skin/Cosmetics/Jean/DA_Jean.DA_Jean.Description
 #: /Game/Skin/Cosmetics/Jean/DA_Jean.DA_Jean.Description
@@ -2253,6 +2365,132 @@ msgctxt ",AACBB5304E363C96D1D1B9A897864AE8"
 msgid "Jean"
 msgstr "Jean"
 
+#. Key:	0DF035975CCCB3514C93D899DF157E71
+#. SourceLocation:	/Game/Skin/Cosmetics/MarineBottom/DA_MarineBottom.DA_MarineBottom.Description
+#: /Game/Skin/Cosmetics/MarineBottom/DA_MarineBottom.DA_MarineBottom.Description
+msgctxt ",0DF035975CCCB3514C93D899DF157E71"
+msgid "Navy wide-leg sailor pants with gold buttons at the front and a white stripe at the hem. A match for the Marine tee."
+msgstr "Un pantalon marin large bleu marine avec des boutons dorés devant et une bande blanche à l'ourlet. Assorti au t-shirt Marine."
+
+#. Key:	0DF035975CCCB3514C93D8990D295E43
+#. SourceLocation:	/Game/Skin/Cosmetics/MarineBottom/DA_MarineBottom.DA_MarineBottom.DisplayName
+#: /Game/Skin/Cosmetics/MarineBottom/DA_MarineBottom.DA_MarineBottom.DisplayName
+msgctxt ",0DF035975CCCB3514C93D8990D295E43"
+msgid "Marine Sailor Pants"
+msgstr "Pantalon marin Marine"
+
+#. Key:	D2F983E825F8189F4C93D899DF157E71
+#. SourceLocation:	/Game/Skin/Cosmetics/MarineTop/DA_MarineTop.DA_MarineTop.Description
+#: /Game/Skin/Cosmetics/MarineTop/DA_MarineTop.DA_MarineTop.Description
+msgctxt ",D2F983E825F8189F4C93D899DF157E71"
+msgid "A white three-quarter-sleeve tee with navy stripes and a small red anchor stitched on the chest."
+msgstr "Un t-shirt blanc à manches trois-quarts, à rayures bleu marine, avec une petite ancre rouge brodée sur la poitrine."
+
+#. Key:	D2F983E825F8189F4C93D8990D295E43
+#. SourceLocation:	/Game/Skin/Cosmetics/MarineTop/DA_MarineTop.DA_MarineTop.DisplayName
+#: /Game/Skin/Cosmetics/MarineTop/DA_MarineTop.DA_MarineTop.DisplayName
+msgctxt ",D2F983E825F8189F4C93D8990D295E43"
+msgid "Marine Striped Tee"
+msgstr "T-shirt rayé Marine"
+
+#. Key:	D36650AAD19A2C574C93D899DF157E71
+#. SourceLocation:	/Game/Skin/Cosmetics/NightRaidBottom/DA_NightRaidBottom.DA_NightRaidBottom.Description
+#: /Game/Skin/Cosmetics/NightRaidBottom/DA_NightRaidBottom.DA_NightRaidBottom.Description
+msgctxt ",D36650AAD19A2C574C93D899DF157E71"
+msgid "Charcoal joggers with a gold side stripe and a small crowned skull on the thigh. A match for the Night Raid tee."
+msgstr "Un jogging anthracite avec une bande dorée sur le côté et un petit crâne couronné sur la cuisse. Assorti au t-shirt Night Raid."
+
+#. Key:	D36650AAD19A2C574C93D8990D295E43
+#. SourceLocation:	/Game/Skin/Cosmetics/NightRaidBottom/DA_NightRaidBottom.DA_NightRaidBottom.DisplayName
+#: /Game/Skin/Cosmetics/NightRaidBottom/DA_NightRaidBottom.DA_NightRaidBottom.DisplayName
+msgctxt ",D36650AAD19A2C574C93D8990D295E43"
+msgid "Night Raid Joggers"
+msgstr "Jogging Night Raid"
+
+#. Key:	02B62B5E81EDCC5B4C93D899DF157E71
+#. SourceLocation:	/Game/Skin/Cosmetics/NightRaidTop/DA_NightRaidTop.DA_NightRaidTop.Description
+#: /Game/Skin/Cosmetics/NightRaidTop/DA_NightRaidTop.DA_NightRaidTop.Description
+msgctxt ",02B62B5E81EDCC5B4C93D899DF157E71"
+msgid "A black long-sleeve tee with a worn gold crowned skull on the chest and the Pandora Battle logo on the back. Gold stripes circle the cuffs."
+msgstr "Un t-shirt noir à manches longues avec un crâne couronné doré usé sur la poitrine et le logo Pandora Battle dans le dos. Des bandes dorées ornent les poignets."
+
+#. Key:	02B62B5E81EDCC5B4C93D8990D295E43
+#. SourceLocation:	/Game/Skin/Cosmetics/NightRaidTop/DA_NightRaidTop.DA_NightRaidTop.DisplayName
+#: /Game/Skin/Cosmetics/NightRaidTop/DA_NightRaidTop.DA_NightRaidTop.DisplayName
+msgctxt ",02B62B5E81EDCC5B4C93D8990D295E43"
+msgid "Night Raid Long Tee"
+msgstr "T-shirt manches longues Night Raid"
+
+#. Key:	80E48517C2A2B4294C93D899DF157E71
+#. SourceLocation:	/Game/Skin/Cosmetics/PandoraCap/DA_PandoraCap.DA_PandoraCap.Description
+#: /Game/Skin/Cosmetics/PandoraCap/DA_PandoraCap.DA_PandoraCap.Description
+msgctxt ",80E48517C2A2B4294C93D899DF157E71"
+msgid "A navy six-panel cap with a gold embroidered P on the front and PANDORA stitched on the back."
+msgstr "Une casquette six panneaux bleu marine avec un P doré brodé devant et PANDORA brodé derrière."
+
+#. Key:	80E48517C2A2B4294C93D8990D295E43
+#. SourceLocation:	/Game/Skin/Cosmetics/PandoraCap/DA_PandoraCap.DA_PandoraCap.DisplayName
+#: /Game/Skin/Cosmetics/PandoraCap/DA_PandoraCap.DA_PandoraCap.DisplayName
+msgctxt ",80E48517C2A2B4294C93D8990D295E43"
+msgid "Pandora Cap"
+msgstr "Casquette Pandora"
+
+#. Key:	3E32A3A0F5F415574C93D899DF157E71
+#. SourceLocation:	/Game/Skin/Cosmetics/PenguinOnesie/DA_PenguinOnesie.DA_PenguinOnesie.Description
+#: /Game/Skin/Cosmetics/PenguinOnesie/DA_PenguinOnesie.DA_PenguinOnesie.Description
+msgctxt ",3E32A3A0F5F415574C93D899DF157E71"
+msgid "A cozy penguin suit with a hood, beak and tail. Goes in the top slot and also covers the bottom and hat slots."
+msgstr "Une combinaison pingouin douillette avec capuche, bec et queue. Se porte en Haut et occupe aussi les emplacements Bas et Chapeau."
+
+#. Key:	3E32A3A0F5F415574C93D8990D295E43
+#. SourceLocation:	/Game/Skin/Cosmetics/PenguinOnesie/DA_PenguinOnesie.DA_PenguinOnesie.DisplayName
+#: /Game/Skin/Cosmetics/PenguinOnesie/DA_PenguinOnesie.DA_PenguinOnesie.DisplayName
+msgctxt ",3E32A3A0F5F415574C93D8990D295E43"
+msgid "Penguin Onesie"
+msgstr "Combinaison pingouin"
+
+#. Key:	D0EC52A38E0C4ED44C93D899DF157E71
+#. SourceLocation:	/Game/Skin/Cosmetics/PomBeanie/DA_PomBeanie.DA_PomBeanie.Description
+#: /Game/Skin/Cosmetics/PomBeanie/DA_PomBeanie.DA_PomBeanie.Description
+msgctxt ",D0EC52A38E0C4ED44C93D899DF157E71"
+msgid "A mustard knit beanie with a cream cuff, a fluffy pom-pom and a small Pandora Battle label."
+msgstr "Un bonnet en maille moutarde avec un revers crème, un pompon tout doux et une petite étiquette Pandora Battle."
+
+#. Key:	D0EC52A38E0C4ED44C93D8990D295E43
+#. SourceLocation:	/Game/Skin/Cosmetics/PomBeanie/DA_PomBeanie.DA_PomBeanie.DisplayName
+#: /Game/Skin/Cosmetics/PomBeanie/DA_PomBeanie.DA_PomBeanie.DisplayName
+msgctxt ",D0EC52A38E0C4ED44C93D8990D295E43"
+msgid "Pom-Pom Beanie"
+msgstr "Bonnet à pompon"
+
+#. Key:	FD60F26581E55A284C93D899DF157E71
+#. SourceLocation:	/Game/Skin/Cosmetics/RiderBottom/DA_RiderBottom.DA_RiderBottom.Description
+#: /Game/Skin/Cosmetics/RiderBottom/DA_RiderBottom.DA_RiderBottom.Description
+msgctxt ",FD60F26581E55A284C93D899DF157E71"
+msgid "Faded blue jeans with a torn knee, a ripped thigh and orange topstitching. A match for the Rider jacket."
+msgstr "Un jean bleu délavé avec un genou déchiré, une cuisse lacérée et des surpiqûres orange. Assorti au blouson Rider."
+
+#. Key:	FD60F26581E55A284C93D8990D295E43
+#. SourceLocation:	/Game/Skin/Cosmetics/RiderBottom/DA_RiderBottom.DA_RiderBottom.DisplayName
+#: /Game/Skin/Cosmetics/RiderBottom/DA_RiderBottom.DA_RiderBottom.DisplayName
+msgctxt ",FD60F26581E55A284C93D8990D295E43"
+msgid "Rider Ripped Jeans"
+msgstr "Jean déchiré Rider"
+
+#. Key:	35887E0D738E904C4C93D899DF157E71
+#. SourceLocation:	/Game/Skin/Cosmetics/RiderTop/DA_RiderTop.DA_RiderTop.Description
+#: /Game/Skin/Cosmetics/RiderTop/DA_RiderTop.DA_RiderTop.Description
+msgctxt ",35887E0D738E904C4C93D899DF157E71"
+msgid "A black leather jacket with a center zip, a stand collar and a buckled belt at the hem. A silver Pandora Battle logo sits on the back."
+msgstr "Un blouson en cuir noir avec fermeture éclair centrale, col montant et ceinture à boucle à l'ourlet. Un logo Pandora Battle argenté orne le dos."
+
+#. Key:	35887E0D738E904C4C93D8990D295E43
+#. SourceLocation:	/Game/Skin/Cosmetics/RiderTop/DA_RiderTop.DA_RiderTop.DisplayName
+#: /Game/Skin/Cosmetics/RiderTop/DA_RiderTop.DA_RiderTop.DisplayName
+msgctxt ",35887E0D738E904C4C93D8990D295E43"
+msgid "Rider Leather Jacket"
+msgstr "Blouson en cuir Rider"
+
 #. Key:	67FE9EEF4E492C2AE9BC47BBFF569401
 #. SourceLocation:	/Game/Skin/Cosmetics/Shirt/DA_Shirt.DA_Shirt.Description
 #: /Game/Skin/Cosmetics/Shirt/DA_Shirt.DA_Shirt.Description
@@ -2266,6 +2504,34 @@ msgstr "Une chemise orange simple, vive et lumineuse. Une tenue décontractée p
 msgctxt ",A80B74CA4DB52834FC5AFEB935519C9C"
 msgid "Orange Shirt"
 msgstr "Chemise orange"
+
+#. Key:	F2E9540526F4641C4C93D899DF157E71
+#. SourceLocation:	/Game/Skin/Cosmetics/SummerHeartBottom/DA_SummerHeartBottom.DA_SummerHeartBottom.Description
+#: /Game/Skin/Cosmetics/SummerHeartBottom/DA_SummerHeartBottom.DA_SummerHeartBottom.Description
+msgctxt ",F2E9540526F4641C4C93D899DF157E71"
+msgid "Sky-blue shorts with white side stripes and a heart stitched above the hem. A match for the Summer Heart tee."
+msgstr "Un short bleu ciel avec des bandes blanches sur les côtés et un cœur brodé au-dessus de l'ourlet. Assorti au t-shirt Summer Heart."
+
+#. Key:	F2E9540526F4641C4C93D8990D295E43
+#. SourceLocation:	/Game/Skin/Cosmetics/SummerHeartBottom/DA_SummerHeartBottom.DA_SummerHeartBottom.DisplayName
+#: /Game/Skin/Cosmetics/SummerHeartBottom/DA_SummerHeartBottom.DA_SummerHeartBottom.DisplayName
+msgctxt ",F2E9540526F4641C4C93D8990D295E43"
+msgid "Summer Heart Shorts"
+msgstr "Short Summer Heart"
+
+#. Key:	9A2C16617942A68A4C93D899DF157E71
+#. SourceLocation:	/Game/Skin/Cosmetics/SummerHeartTop/DA_SummerHeartTop.DA_SummerHeartTop.Description
+#: /Game/Skin/Cosmetics/SummerHeartTop/DA_SummerHeartTop.DA_SummerHeartTop.Description
+msgctxt ",9A2C16617942A68A4C93D899DF157E71"
+msgid "A cream tee covered in coral hearts and little stars, with a Pandora Battle patch on the chest."
+msgstr "Un t-shirt crème couvert de cœurs corail et de petites étoiles, avec un écusson Pandora Battle sur la poitrine."
+
+#. Key:	9A2C16617942A68A4C93D8990D295E43
+#. SourceLocation:	/Game/Skin/Cosmetics/SummerHeartTop/DA_SummerHeartTop.DA_SummerHeartTop.DisplayName
+#: /Game/Skin/Cosmetics/SummerHeartTop/DA_SummerHeartTop.DA_SummerHeartTop.DisplayName
+msgctxt ",9A2C16617942A68A4C93D8990D295E43"
+msgid "Summer Heart Tee"
+msgstr "T-shirt Summer Heart"
 
 #. Key:	53F1B9CA4644B44D1BFE288CA5E20678
 #. SourceLocation:	/Game/Skin/Gesture/DA_Greeting.DA_Greeting.Description
@@ -2455,13 +2721,6 @@ msgstr "Grappin"
 msgctxt "RecordDefinition,DefaultTierNameFormat"
 msgid "Tier {0}"
 msgstr "Palier {0}"
-
-#. Key:	OpenChestInteractText
-#. SourceLocation:	Source/LabProject/Item/RewardChest.cpp(140)
-#: Source/LabProject/Item/RewardChest.cpp(140)
-msgctxt "RewardChest,OpenChestInteractText"
-msgid "Open"
-msgstr "Ouvrir"
 
 #. Key:	KickedByHost
 #. SourceLocation:	Source/LabProject/Lobby/Contents/LobbyGameMode.cpp(305)
