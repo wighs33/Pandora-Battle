@@ -253,14 +253,15 @@ void UPandoraWidget::SetPandoraInfo()
 	{
 		Icon->SetRenderOpacity(ViewData.bCanSpend ? 0.85f : ViewData.ContentOpacity);
 	}
+	// 판도라 그림은 완전한 원이 아니라(아래 끝이 뾰족한 메달) 잠김·포인트 부족 덮개도 원 대신 같은 그림의 모양으로 칠한다.
+	if (UImage* StateOverlay = Cast<UImage>(GetWidgetFromName(TEXT("DisabledOverlay"))))
+	{
+		StateOverlay->SetBrushResourceObject(ViewData.IconResource);
+	}
 
 	if (UWidget* Ready = GetWidgetFromName(TEXT("GrowthReady")))
 	{
 		Ready->SetVisibility(ViewData.bCanSpend ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
-	}
-	if (UWidget* ReadyRing = GetWidgetFromName(TEXT("GrowthReadyRing")))
-	{
-		ReadyRing->SetVisibility(ViewData.bCanSpend ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 	}
 	RefreshEquipHintState(IsHovered());
 }
