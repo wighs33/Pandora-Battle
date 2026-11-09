@@ -145,9 +145,13 @@ void UEquipSlotWidget::ApplySlotVisual()
 		const bool bShowQuantity = Quantity > 0 && bHasItemIcon && IsCurrentItemConsumable();
 		QuantityTextBlock->SetText(FText::AsNumber(FMath::Max(0, Quantity)));
 		QuantityTextBlock->SetVisibility(bShowQuantity ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+		if (Img_QuantityShade)
+		{
+			Img_QuantityShade->SetVisibility(bShowQuantity ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+		}
 	}
 
-	ApplySelectionBorder();
+	ApplySlotFrame();
 }
 
 void UEquipSlotWidget::ApplyButtonBackgroundStyle()

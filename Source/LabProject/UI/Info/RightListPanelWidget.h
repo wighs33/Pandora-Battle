@@ -97,8 +97,9 @@ protected:
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "!UI|Info|List")
 	TArray<TObjectPtr<UButton>> FilterButtonList;
 
+	/** 고른 필터 버튼의 바탕. 평소·마우스 올림·누름에 같이 쓴다. 비어 있으면 고른 버튼을 따로 그리지 않는다. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Info|List|Filter")
-	FLinearColor SelectedFilterAccentColor = FLinearColor(0.0f, 0.45f, 1.0f, 1.0f);
+	FSlateBrush SelectedFilterBrush;
 
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Info|List", meta = (BindWidget))
 	TObjectPtr<UTileView> TileView;

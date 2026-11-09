@@ -14,7 +14,7 @@ class UTexture2D;
 
 /**
  * Info 화면 왼쪽 장비 슬롯(아이템·스킨)의 공통 흐름.
- * 버튼 연결, 호버·드래그 강조, 빈 슬롯 아이콘, 선택 테두리, 상세 팝업 열고 닫기를 맡는다.
+ * 버튼 연결, 호버·드래그 강조, 빈 슬롯 아이콘, 선택·채움 테두리, 상세 팝업 열고 닫기를 맡는다.
  * 슬롯이 담는 데이터와 상세 내용, 받을 수 있는 드롭, 데이터가 있을 때의 그리기는 파생 클래스가 정한다.
  */
 UCLASS(Abstract)
@@ -99,7 +99,8 @@ protected:
 
 	void ResetSlotIcons();
 	void ApplySlotText(bool bHasAnyIcon);
-	void ApplySelectionBorder();
+	/** 선택 테두리와, 칸이 찼을 때만 켜는 채움 테두리를 지금 상태로 맞춘다. */
+	void ApplySlotFrame();
 	FButtonStyle MakeSlotIconButtonStyle(FButtonStyle ButtonStyle, float Opacity) const;
 	static FSlateBrush MakeSolidBrush(const FSlateBrush& SourceBrush, const FLinearColor& TintColor);
 
@@ -154,6 +155,10 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|EquipSlot|Bind")
 	TObjectPtr<UImage> SelectionBorderImage;
+
+	/** 칸에 아이템이나 스킨이 들어 있을 때만 보이는 테두리. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|EquipSlot|Bind")
+	TObjectPtr<UImage> Img_FilledEdge;
 
 	UPROPERTY(Transient)
 	FText SlotText;

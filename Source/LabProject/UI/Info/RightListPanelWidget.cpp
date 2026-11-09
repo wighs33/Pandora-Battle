@@ -38,7 +38,7 @@ void URightListPanelWidget::NativeConstruct()
 			TypeFilterClickRelays.Add(ClickRelay);
 		}
 	}
-	FilterButtonHighlightState.Initialize(FilterButtonList, AllButton, SelectedFilterAccentColor);
+	FilterButtonHighlightState.Initialize(FilterButtonList, AllButton, SelectedFilterBrush);
 }
 
 void URightListPanelWidget::NativeDestruct()
@@ -67,7 +67,7 @@ void URightListPanelWidget::NativeDestruct()
 
 void URightListPanelWidget::SelectAllFilter()
 {
-	FilterButtonHighlightState.Select(AllButton, SelectedFilterAccentColor);
+	FilterButtonHighlightState.Select(AllButton);
 	OnClicked_FilterAllButton.Broadcast();
 }
 
@@ -80,7 +80,7 @@ void URightListPanelWidget::SelectTypeFilter(const FGameplayTag TypeTag)
 		{
 			if (UButton* SelectedButton = TypeFilters[FilterIndex].Button.Get())
 			{
-				FilterButtonHighlightState.Select(SelectedButton, SelectedFilterAccentColor);
+				FilterButtonHighlightState.Select(SelectedButton);
 			}
 			break;
 		}
@@ -102,7 +102,7 @@ void URightListPanelWidget::SetFilterButtonsEnabled(const bool bEnabled)
 
 void URightListPanelWidget::ResetFilterHighlightToAll()
 {
-	FilterButtonHighlightState.Select(AllButton, SelectedFilterAccentColor);
+	FilterButtonHighlightState.Select(AllButton);
 }
 
 void URightListPanelWidget::SetTileView(const TArray<UObject*>& InListItems)

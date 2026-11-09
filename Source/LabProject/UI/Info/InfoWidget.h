@@ -3,6 +3,7 @@
 #include "UI/Core/ScreenWidget.h"
 #include "GameplayTagContainer.h"
 #include "Common/InfoUiTypes.h"
+#include "Styling/SlateTypes.h"
 #include "UI/Info/Item/LeftEquipmentWidget.h"
 #include "UI/Info/Pandora/LeftPandoraWidget.h"
 #include "UI/Info/Status/LeftProfileWidget.h"
@@ -190,6 +191,8 @@ private:
 	void SetCanvasExportButtonVisible(bool bVisible) const;
 	void SetPandoraUpgradeButtonVisible(bool bVisible);
 	void RefreshDragHintVisibility() const;
+	// 지금 탭(FocusedSection)의 꼬리표만 고른 탭 바탕으로 바꾸고 탭 띠 위로 띄운다.
+	void RefreshBottomTabs();
 	void RefreshPandoraDrawerLabel();
 	void ClosePandoraDrawerForNavigation();
 	void BindLeftSkinPaintCanvasEvents();
@@ -282,6 +285,11 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Info", meta = (BindWidgetOptional))
 	TObjectPtr<UButton> Btn_Close;
 
+	/** 고른 탭의 바탕. 평소·마우스 올림·누름에 같이 쓴다. 비어 있으면 고른 탭을 따로 그리지 않는다.
+	 *  서류철 탭 그림은 고른 탭이 더 높고 아래가 탭 띠와 이어지게 그려져 있어 위치는 옮기지 않는다. */
+	UPROPERTY(EditDefaultsOnly, Category = "!UI|Info|Tab")
+	FSlateBrush SelectedTabBrush;
+
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Info", meta = (BindWidgetOptional))
 	TObjectPtr<UButton> Btn_PandoraUpgrade;
 
@@ -362,4 +370,6 @@ private:
 	TWeakObjectPtr<UPandoraTreeWidget> AttachedPandoraTree;
 	bool bPandoraDrawerExpanded = false;
 	EInfoUiSection FocusedSection = EInfoUiSection::Profile;
+	FButtonStyle DefaultTabStyle;
+	bool bHasDefaultTabStyle = false;
 };

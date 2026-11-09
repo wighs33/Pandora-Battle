@@ -211,12 +211,17 @@ void UEquipSlotWidgetBase::ApplySlotText(const bool bHasAnyIcon)
 	}
 }
 
-void UEquipSlotWidgetBase::ApplySelectionBorder()
+void UEquipSlotWidgetBase::ApplySlotFrame()
 {
 	if (SelectionBorderImage)
 	{
 		SelectionBorderImage->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 		SelectionBorderImage->SetColorAndOpacity(bIsSelected ? SelectionBorderSelectedColor : SelectionBorderDefaultColor);
+	}
+
+	if (Img_FilledEdge)
+	{
+		Img_FilledEdge->SetVisibility(HasSlotContent() ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 	}
 }
 

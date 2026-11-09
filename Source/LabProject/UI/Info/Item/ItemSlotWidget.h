@@ -10,6 +10,7 @@ class UImage;
 class UInventorySlotViewData;
 class UDragItemVisualWidget;
 class UTextBlock;
+class UWidget;
 class UInventoryComponent;
 class UDragDropOperation;
 
@@ -85,8 +86,16 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Inventory|Bind")
 	TObjectPtr<UTextBlock> Txt_Assigned;
 
+	/** "장착 중" 글자 뒤의 리본. 글자와 함께 켜고 끈다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Inventory|Bind")
+	TObjectPtr<UWidget> Img_AssignedBadge;
+
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Inventory|Bind")
 	TObjectPtr<UTextBlock> Txt_Quantity;
+
+	/** 수량 숫자 뒤의 옅은 그림자(밝은 아이콘 위에서도 숫자가 읽히게). 숫자와 함께 켜고 끈다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Inventory|Bind")
+	TObjectPtr<UWidget> Img_QuantityShade;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Inventory|Bind")
 	TObjectPtr<UTextBlock> Txt_Upgrade;

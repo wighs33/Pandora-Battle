@@ -74,6 +74,10 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Equipment|Bind")
 	TObjectPtr<UTextBlock> QuantityTextBlock;
 
+	/** 수량 숫자 뒤의 옅은 그림자(밝은 아이콘 위에서도 숫자가 읽히게). 숫자와 함께 켜고 끈다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Equipment|Bind")
+	TObjectPtr<UWidget> Img_QuantityShade;
+
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Equipment|Bind")
 	TObjectPtr<UImage> ItemImage;
 

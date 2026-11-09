@@ -113,6 +113,7 @@ void UInfoWidget::NativeConstruct()
 	SetCanvasExportButtonVisible(false);
 	SetPandoraUpgradeButtonVisible(FocusedSection == EInfoUiSection::Pandora);
 	RefreshDragHintVisibility();
+	RefreshBottomTabs();
 	MapPanel->RefreshButtonEnabledState();
 	MapPanel->HideImmediately();
 }
@@ -315,6 +316,7 @@ void UInfoWidget::SelectMapTab()
 	FocusedSection = EInfoUiSection::Map;
 	SetPandoraUpgradeButtonVisible(false);
 	RefreshDragHintVisibility();
+	RefreshBottomTabs();
 	HideDetailWidgets();
 	HideSkinPaintCanvasGroup();
 	PlaySidePanelsSlideOutAnimation();
@@ -643,6 +645,7 @@ void UInfoWidget::SelectSidePanelSection(const EInfoUiSection Section, UWidget* 
 	FocusedSection = Section;
 	SetPandoraUpgradeButtonVisible(Section == EInfoUiSection::Pandora);
 	RefreshDragHintVisibility();
+	RefreshBottomTabs();
 	if (MapPanel)
 	{
 		MapPanel->PlaySlideOut();
@@ -669,6 +672,40 @@ void UInfoWidget::SelectInfoCenterPage(UWidget* LeftWidget, UWidget* RightWidget
 	}
 
 	OnClickedInfoCenterButton.Broadcast(LeftUiTag, RightUiTag);
+}
+
+void UInfoWidget::RefreshBottomTabs()
+{
+	const TPair<EInfoUiSection, UButton*> Tabs[] = {
+		{ EInfoUiSection::Profile, ProfileTabButton },
+		{ EInfoUiSection::Item, ItemTabButton },
+		{ EInfoUiSection::Skin, SkinButton },
+		{ EInfoUiSection::Pandora, PandoraButton },
+		{ EInfoUiSection::Map, MapButton },
+	};
+	if (!bHasDefaultTabStyle && ProfileTabButton)
+	{
+		// 탭은 모두 같은 스타일이다. 첫 탭의 스타일을 고르지 않은 탭의 모양으로 둔다.
+		DefaultTabStyle = ProfileTabButton->GetStyle();
+		bHasDefaultTabStyle = true;
+	}
+	if (!bHasDefaultTabStyle || !SelectedTabBrush.GetResourceObject())
+	{
+		return;
+	}
+
+	FButtonStyle SelectedTabStyle = DefaultTabStyle;
+	SelectedTabStyle.SetNormal(SelectedTabBrush);
+	SelectedTabStyle.SetHovered(SelectedTabBrush);
+	SelectedTabStyle.SetPressed(SelectedTabBrush);
+	for (const TPair<EInfoUiSection, UButton*>& Tab : Tabs)
+	{
+		if (UButton* Button = Tab.Value)
+		{
+			const bool bSelected = Tab.Key == FocusedSection;
+			Button->SetStyle(bSelected ? SelectedTabStyle : DefaultTabStyle);
+		}
+	}
 }
 
 void UInfoWidget::HideSkinPaintCanvasGroup()

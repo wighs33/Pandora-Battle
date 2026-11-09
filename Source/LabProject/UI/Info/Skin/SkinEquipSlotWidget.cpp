@@ -139,7 +139,7 @@ void USkinEquipSlotWidget::ApplySlotVisual()
 	}
 
 	ApplySlotText(bHasIcon || bHasSkinIcon);
-	ApplySelectionBorder();
+	ApplySlotFrame();
 }
 
 void USkinEquipSlotWidget::ApplyButtonBackgroundStyle()

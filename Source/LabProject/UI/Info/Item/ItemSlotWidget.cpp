@@ -244,12 +244,16 @@ void UItemSlotWidget::ApplyItemVisual(const FItemViewData& ViewData)
 				: ESlateVisibility::Collapsed);
 	}
 
+	const ESlateVisibility AssignedVisibility = bAssigned && ViewData.HasContent()
+		? ESlateVisibility::SelfHitTestInvisible
+		: ESlateVisibility::Collapsed;
 	if (Txt_Assigned)
 	{
-		Txt_Assigned->SetVisibility(
-			bAssigned && ViewData.HasContent()
-				? ESlateVisibility::SelfHitTestInvisible
-				: ESlateVisibility::Collapsed);
+		Txt_Assigned->SetVisibility(AssignedVisibility);
+	}
+	if (Img_AssignedBadge)
+	{
+		Img_AssignedBadge->SetVisibility(AssignedVisibility);
 	}
 
 	if (Txt_Quantity)
@@ -257,6 +261,10 @@ void UItemSlotWidget::ApplyItemVisual(const FItemViewData& ViewData)
 		const bool bShowQuantity = IsCachedItemConsumable() && ViewData.Quantity > 0 && ViewData.HasContent();
 		Txt_Quantity->SetText(FText::AsNumber(FMath::Max(0, ViewData.Quantity)));
 		Txt_Quantity->SetVisibility(bShowQuantity ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+		if (Img_QuantityShade)
+		{
+			Img_QuantityShade->SetVisibility(bShowQuantity ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+		}
 	}
 
 	if (Txt_Upgrade)
