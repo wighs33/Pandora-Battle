@@ -1,0 +1,118 @@
+{
+  "name": "CanalTown",
+  "bounds": [96, 72],
+  "ground": { "surface": "grass", "z": 0.0 },
+  "boundary": { "wall_height": 4.0, "block_height": 30.0 },
+  "zones": [
+    { "id": "upper_town", "rect": [0, 0, 22, 72], "surface": "grass", "z": 3.0 },
+    { "id": "plaza", "rect": [32, 22, 24, 26], "surface": "paving", "z": 0.0 }
+  ],
+  "roads": [
+    { "id": "upper_road", "rect": [7, 0, 6, 72] },
+    { "id": "upper_link_main", "rect": [13, 32, 3, 6] },
+    { "id": "upper_link_north", "rect": [13, 53, 3, 4] },
+    { "id": "south_street", "rect": [22, 6, 40, 5] },
+    { "id": "north_street", "rect": [22, 60, 40, 5] },
+    { "id": "main_street_west", "rect": [22, 32, 10, 6] },
+    { "id": "main_street_east", "rect": [56, 32, 4, 6] },
+    { "id": "north_link", "rect": [22, 53, 4, 4] },
+    { "id": "west_lane", "rect": [26, 6, 4, 59] },
+    { "id": "quay", "rect": [58, 6, 4, 59] },
+    { "id": "plaza_south_lane", "rect": [42, 11, 4, 11] },
+    { "id": "plaza_north_lane", "rect": [42, 48, 4, 12] },
+    { "id": "east_road", "rect": [72, 4, 6, 64] },
+    { "id": "east_street", "rect": [78, 33, 18, 5] }
+  ],
+  "water": [
+    { "id": "canal", "rect": [62, 0, 8, 72], "bed_z": -2.4, "level_z": -1.8, "parapet": true }
+  ],
+  "stairs": [
+    { "id": "main_stairs", "rect": [16, 32, 6, 6], "up": "W", "low_z": 0.0, "high_z": 3.0 },
+    { "id": "north_stairs", "rect": [16, 53, 6, 4], "up": "W", "low_z": 0.0, "high_z": 3.0 },
+    { "id": "canal_exit_a", "rect": [62, 1, 5, 3], "up": "W", "low_z": -2.4, "high_z": 0.0 },
+    { "id": "canal_exit_b", "rect": [65, 20, 5, 3], "up": "E", "low_z": -2.4, "high_z": 0.0 },
+    { "id": "canal_exit_c", "rect": [62, 48, 5, 3], "up": "W", "low_z": -2.4, "high_z": 0.0 },
+    { "id": "canal_exit_d", "rect": [65, 67, 5, 3], "up": "E", "low_z": -2.4, "high_z": 0.0 }
+  ],
+  "ramps": [
+    { "id": "south_ramp", "rect": [13, 14, 9, 4], "up": "W", "low_z": 0.0, "high_z": 3.0 }
+  ],
+  "bridges": [
+    { "id": "main_bridge", "rect": [60, 32, 12, 6], "axis": "E", "z": 0.0 },
+    { "id": "south_bridge", "rect": [60, 8, 12, 4], "axis": "E", "z": 0.0 },
+    { "id": "north_bridge", "rect": [60, 61, 12, 4], "axis": "E", "z": 0.0 }
+  ],
+  "buildings": [
+    { "id": "b01", "rect": [32, 13, 9, 9], "front": "N", "floors": 2, "ridge": "depth", "wall": "PlasterCream", "roof": "RoofRed", "seed": 1 },
+    { "id": "b02", "rect": [47, 13, 9, 9], "front": "N", "floors": 3, "ridge": "width", "wall": "PlasterOchre", "roof": "RoofSlate", "seed": 2 },
+    { "id": "b03", "rect": [32, 48, 9, 9], "front": "S", "floors": 3, "ridge": "width", "wall": "PlasterRose", "roof": "RoofRed", "seed": 3 },
+    { "id": "b04", "rect": [47, 48, 9, 9], "front": "S", "floors": 2, "ridge": "depth", "wall": "PlasterCream", "roof": "RoofSlate", "seed": 4 },
+    { "id": "b05", "rect": [13, 41, 8, 10], "front": "W", "floors": 2, "ridge": "depth", "wall": "PlasterOchre", "roof": "RoofRed", "seed": 5 },
+    { "id": "b06", "rect": [13, 21, 8, 9], "front": "W", "floors": 2, "ridge": "width", "wall": "PlasterCream", "roof": "RoofSlate", "seed": 6 },
+    { "id": "b07", "rect": [1, 12, 6, 10], "front": "E", "floors": 3, "ridge": "width", "wall": "PlasterRose", "roof": "RoofRed", "seed": 7 },
+    { "id": "b08", "rect": [1, 29, 6, 9], "front": "E", "floors": 2, "ridge": "depth", "wall": "PlasterCream", "roof": "RoofSlate", "seed": 8 },
+    { "id": "b09", "rect": [1, 45, 6, 10], "front": "E", "floors": 3, "ridge": "width", "wall": "PlasterOchre", "roof": "RoofRed", "seed": 9 },
+    { "id": "b10", "rect": [13, 60, 8, 9], "front": "W", "floors": 2, "ridge": "depth", "wall": "PlasterRose", "roof": "RoofSlate", "seed": 10 },
+    { "id": "b11", "rect": [78, 38, 10, 9], "front": "S", "floors": 3, "ridge": "width", "wall": "PlasterCream", "roof": "RoofRed", "seed": 11 },
+    { "id": "b12", "rect": [78, 24, 10, 9], "front": "N", "floors": 2, "ridge": "depth", "wall": "PlasterOchre", "roof": "RoofSlate", "seed": 12 },
+    { "id": "b13", "rect": [78, 8, 9, 9], "front": "W", "floors": 2, "ridge": "width", "wall": "PlasterRose", "roof": "RoofRed", "seed": 13 },
+    { "id": "b14", "rect": [78, 54, 9, 9], "front": "W", "floors": 3, "ridge": "depth", "wall": "PlasterCream", "roof": "RoofSlate", "seed": 14 },
+    { "id": "b15", "rect": [32, 0, 9, 6], "front": "N", "floors": 2, "ridge": "width", "wall": "PlasterOchre", "roof": "RoofRed", "seed": 15 },
+    { "id": "b16", "rect": [46, 0, 9, 6], "front": "N", "floors": 2, "ridge": "width", "wall": "PlasterRose", "roof": "RoofSlate", "seed": 16 },
+    { "id": "b17", "rect": [32, 65, 9, 6], "front": "S", "floors": 2, "ridge": "width", "wall": "PlasterCream", "roof": "RoofRed", "seed": 17 },
+    { "id": "b18", "rect": [46, 65, 9, 6], "front": "S", "floors": 2, "ridge": "width", "wall": "PlasterOchre", "roof": "RoofSlate", "seed": 18 }
+  ],
+  "props": [
+    { "kit": "fountain", "at": [44, 35], "yaw": 0 },
+    { "kit": "lantern", "at": [34, 24], "yaw": 0 },
+    { "kit": "lantern", "at": [54, 24], "yaw": 0 },
+    { "kit": "lantern", "at": [34, 46], "yaw": 0 },
+    { "kit": "lantern", "at": [54, 46], "yaw": 0 },
+    { "kit": "lantern", "at": [59, 31], "yaw": 0 },
+    { "kit": "lantern", "at": [59, 39], "yaw": 0 },
+    { "kit": "lantern", "at": [73, 31], "yaw": 0 },
+    { "kit": "lantern", "at": [73, 39], "yaw": 0 },
+    { "kit": "lantern", "at": [8, 31], "yaw": 0 },
+    { "kit": "lantern", "at": [8, 39], "yaw": 0 },
+    { "kit": "cart", "at": [37, 41], "yaw": 25 },
+    { "kit": "cart", "at": [85, 36], "yaw": -70 },
+    { "kit": "crate", "at": [52, 28], "yaw": 15 },
+    { "kit": "crate", "at": [53, 29], "yaw": 40 },
+    { "kit": "barrel", "at": [51, 42], "yaw": 0 },
+    { "kit": "barrel", "at": [52, 43], "yaw": 80 },
+    { "kit": "crate_large", "at": [36, 29], "yaw": 70 },
+    { "kit": "bench", "at": [44, 25], "yaw": 0 },
+    { "kit": "bench", "at": [44, 45], "yaw": 180 },
+    { "kit": "crate", "at": [28, 44], "yaw": 10 },
+    { "kit": "barrel", "at": [75, 50], "yaw": 0 },
+    { "kit": "tree_round", "at": [18, 9], "yaw": 40 },
+    { "kit": "tree_round", "at": [18, 68], "yaw": 130 },
+    { "kit": "tree_wide", "at": [3, 66], "yaw": 80 },
+    { "kit": "tree_cypress", "at": [24, 26], "yaw": 0 },
+    { "kit": "tree_cypress", "at": [24, 44], "yaw": 60 },
+    { "kit": "tree_round", "at": [90, 47], "yaw": 200 },
+    { "kit": "tree_round", "at": [92, 20], "yaw": 310 },
+    { "kit": "bush", "at": [31, 26], "yaw": 0 },
+    { "kit": "bush", "at": [31, 44], "yaw": 120 },
+    { "kit": "bush", "at": [24, 21], "yaw": 200 },
+    { "kit": "bush", "at": [24, 58], "yaw": 40 }
+  ],
+  "spawns": [
+    { "tag": "Spawn_0", "at": [10, 12], "yaw": 45 },
+    { "tag": "Spawn_1", "at": [10, 60], "yaw": -45 },
+    { "tag": "Spawn_2", "at": [75, 12], "yaw": 135 },
+    { "tag": "Spawn_3", "at": [75, 60], "yaw": -135 },
+    { "tag": "Spawn_4", "at": [44, 8], "yaw": 90 },
+    { "tag": "Spawn_5", "at": [44, 62], "yaw": -90 },
+    { "tag": "Respawn", "at": [28, 35], "yaw": 0 },
+    { "tag": "Respawn", "at": [92, 35], "yaw": 180 },
+    { "tag": "Respawn", "at": [10, 35], "yaw": 0 },
+    { "tag": "Respawn", "at": [60, 22], "yaw": 180 }
+  ],
+  "cameras": [
+    { "id": "plaza", "at": [33, 26, 1.7], "look": [50, 40, 2.5] },
+    { "id": "canal", "at": [66, 26, 1.0], "look": [66, 60, 2.0] },
+    { "id": "stairs", "at": [29, 35, 1.7], "look": [8, 35, 5.0] },
+    { "id": "upper", "at": [10, 8, 4.7], "look": [10, 50, 5.0] }
+  ]
+}

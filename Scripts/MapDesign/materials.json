@@ -1,0 +1,23 @@
+{
+  "Grass": { "texture": "Grass", "tile_m": 9.0, "tint": [1.0, 1.0, 1.0], "roughness": 0.95 },
+  "CanalBed": { "texture": "Dirt", "tile_m": 6.0, "tint": [0.7, 0.68, 0.6], "roughness": 0.9 },
+  "Cobble": { "texture": "Cobble", "tile_m": 3.4, "tint": [1.0, 1.0, 1.0], "roughness": 0.8 },
+  "Paving": { "texture": "Paving", "tile_m": 4.5, "tint": [1.0, 1.0, 1.0], "roughness": 0.85 },
+  "Curb": { "texture": "Ashlar", "tile_m": 1.6, "tint": [0.82, 0.82, 0.84], "roughness": 0.85 },
+  "Retaining": { "texture": "Ashlar", "tile_m": 4.0, "tint": [0.9, 0.88, 0.84], "roughness": 0.9 },
+  "Coping": { "texture": "Plaster", "tile_m": 2.0, "tint": [0.56, 0.54, 0.5], "roughness": 0.85 },
+  "Stone": { "texture": "Ashlar", "tile_m": 2.6, "tint": [1.0, 0.97, 0.92], "roughness": 0.85 },
+  "PlasterCream": { "texture": "Plaster", "tile_m": 3.0, "tint": [0.98, 0.9, 0.74], "roughness": 0.9 },
+  "PlasterOchre": { "texture": "Plaster", "tile_m": 3.0, "tint": [0.9, 0.69, 0.4], "roughness": 0.9 },
+  "PlasterRose": { "texture": "Plaster", "tile_m": 3.0, "tint": [0.86, 0.58, 0.5], "roughness": 0.9 },
+  "RoofRed": { "texture": "RoofRed", "tile_m": 2.4, "tint": [1.0, 1.0, 1.0], "roughness": 0.7 },
+  "RoofSlate": { "texture": "RoofSlate", "tile_m": 2.4, "tint": [1.0, 1.0, 1.0], "roughness": 0.65 },
+  "Wood": { "texture": "Wood", "tile_m": 1.4, "tint": [1.0, 1.0, 1.0], "roughness": 0.75 },
+  "Bark": { "texture": "Bark", "tile_m": 2.0, "tint": [1.0, 1.0, 1.0], "roughness": 0.9 },
+  "Leaves": { "texture": "Leaves", "tile_m": 2.2, "tint": [1.0, 1.0, 1.0], "roughness": 0.8 },
+  "Glass": { "texture": "Flat", "tile_m": 4.0, "tint": [0.1, 0.17, 0.22], "roughness": 0.12 },
+  "Iron": { "texture": "Flat", "tile_m": 2.0, "tint": [0.05, 0.05, 0.06], "roughness": 0.45 },
+  "LampGlow": { "texture": "Flat", "tile_m": 1.0, "tint": [1.0, 0.72, 0.36], "roughness": 0.4, "emissive": 6.0 },
+  "Water": { "texture": "WaterRipple", "tile_m": 7.0, "tint": [0.12, 0.3, 0.36], "roughness": 0.08, "shader": "water" },
+  "WaterFlow": { "texture": "WaterFlow", "tile_m": 1.2, "tint": [0.8, 0.9, 0.94], "roughness": 0.05, "opacity": 0.7, "emissive": 0.25, "shader": "flow" }
+}
