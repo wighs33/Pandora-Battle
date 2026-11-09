@@ -25,9 +25,6 @@ public:
 	UFUNCTION(BlueprintPure, Category = "!ForceMoveGate")
 	bool ShouldRaiseWhenForceMoveTriggered() const { return bRaiseWhenForceMoveTriggered; }
 
-	UFUNCTION(BlueprintPure, Category = "!ForceMoveGate")
-	bool IsGateRaised() const { return bGateRaised; }
-
 private:
 	// Network RPCs ----------------------------------------------------------------------------------------------------
 	UFUNCTION(NetMulticast, Reliable)
@@ -73,9 +70,6 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!ForceMoveGate", meta = (ClampMin = "0.0"))
 	float RaiseDuration = 1.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!ForceMoveGate")
-	bool bLogGateMovement = true;
 
 private:
 	UPROPERTY(ReplicatedUsing = OnRep_GateRaised)

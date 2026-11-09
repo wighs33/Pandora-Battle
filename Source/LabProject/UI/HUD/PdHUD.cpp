@@ -160,24 +160,6 @@ void APdHUD::CloseInfoUi()
 	}
 }
 
-void APdHUD::ToggleInfoUi()
-{
-	EnsureUiRouter();
-	if (UHudScreenLayer* ScreenLayer = GetScreenLayer())
-	{
-		ScreenLayer->ToggleInfo();
-	}
-}
-
-void APdHUD::OpenPandoraTreeUi()
-{
-	EnsureUiRouter();
-	if (UHudScreenLayer* ScreenLayer = GetScreenLayer())
-	{
-		ScreenLayer->OpenPandoraTree();
-	}
-}
-
 void APdHUD::ClosePandoraTreeUi()
 {
 	if (UHudScreenLayer* ScreenLayer = GetScreenLayer())

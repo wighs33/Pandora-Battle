@@ -85,13 +85,6 @@ public:
 	virtual bool ShouldConfirmTargetingOnInputRelease() const override;
 	virtual bool UsesInputRelease(const FGameplayAbilitySpec& Spec) const override;
 
-	// SkillAction이 사용할 피해 EffectSpec을 현재 스킬의 피해 보정값으로 생성한다.
-	FGameplayEffectSpecHandle MakeActionDamageSpec(
-		const FSkillGameplayEffectConfig& Damage) const;
-
-	// SkillAction이 사용할 상태 이상 EffectSpec을 현재 SkillDefinition으로 생성한다.
-	FGameplayEffectSpecHandle MakeActionStatusSpec() const;
-
 	// 현재 시전이 Action을 계속 실행할 수 있는 상태인지 확인한다.
 	bool CanRunActions() const;
 

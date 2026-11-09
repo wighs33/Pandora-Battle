@@ -125,13 +125,6 @@ void UHudTimerWidget::ResetTimer()
 	RefreshUI();
 }
 
-bool UHudTimerWidget::IsTimerRunning() const
-{
-	const UWorld* World = GetWorld();
-	const AExperienceGameState* ExperienceGameState = World ? World->GetGameState<AExperienceGameState>() : nullptr;
-	return ExperienceGameState && ExperienceGameState->GetMatchTimerPhase() == EMatchTimerPhase::Running;
-}
-
 void UHudTimerWidget::RefreshUI()
 {
 	if (!Txt_Timer)

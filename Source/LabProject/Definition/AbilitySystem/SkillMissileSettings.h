@@ -19,14 +19,6 @@ struct LABPROJECT_API FMissileSkillConfig
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Missile|Targeting")
 	TSubclassOf<AGameplayAbilityTargetActor> TargetActorClass;
 
-	/** 미사일의 자동 표적 탐색 반경(cm). */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Missile|Targeting", meta = (ClampMin = "0.0", ForceUnits = "cm"))
-	double AutoTargetSearchRadius = 3000.0;
-
-	/** 자동 표적 탐색 중심을 시전자 전방으로 옮길 거리(cm). */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Missile|Targeting", meta = (ForceUnits = "cm"))
-	double AutoTargetForwardOffset = 0.0;
-
 	/** 조준 위치와 표적 검증에 사용하는 최대 거리(cm). */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Missile|Targeting", meta = (ClampMin = "0.0", ForceUnits = "cm"))
 	double TargetingMaxRange = 3000.0;

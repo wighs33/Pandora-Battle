@@ -177,7 +177,6 @@ private:
 	bool IsValidMonsterDamageTarget(const AActor* OtherActor) const;
 	void ApplyAttackDamageToCharacter(ACharacterBase* TargetCharacter);
 	bool ApplyMonsterDamageToCharacter(ACharacterBase* TargetCharacter);
-	void DeactivateDamageSphere();
 	void ActivateAttackSphere();
 	void ActivateTelegraphAreaDamage();
 	void ApplyTelegraphAreaDamage();
@@ -206,12 +205,6 @@ private:
 protected:
 	UPROPERTY(Transient)
 	TWeakObjectPtr<UPrimitiveComponent> AttackComponent;
-
-	UPROPERTY(Transient)
-	TWeakObjectPtr<UPrimitiveComponent> LegacyDamageComponent;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "!AI|Monster|Collision")
-	FName DamageComponentName = TEXT("DamageSphere");
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "!AI|Monster|Collision")
 	FName AttackComponentName = TEXT("AttackSphere");

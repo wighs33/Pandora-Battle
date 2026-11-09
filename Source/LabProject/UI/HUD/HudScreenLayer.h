@@ -36,7 +36,6 @@ public:
 	void OpenInfo();
 	void OpenInfo(EInfoUiSection InitialSection);
 	void CloseInfo(bool bSuppressCameraReturn = false, bool bImmediate = false);
-	void ToggleInfo();
 
 	void OpenPandoraTree();
 	void ClosePandoraTree(bool bSuppressCameraReturn = false, bool bImmediate = false);

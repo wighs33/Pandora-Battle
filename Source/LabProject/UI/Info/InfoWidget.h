@@ -79,8 +79,6 @@ public:
 
 	/** 이 화면을 바꾸지 않고 오른쪽 공간에 성장 서랍을 붙인다. */
 	bool AttachPandoraTree(UPandoraTreeWidget* Tree);
-	UFUNCTION(BlueprintPure, Category="!UI|Info|Pandora")
-	bool IsPandoraDrawerExpanded() const { return bPandoraDrawerExpanded; }
 
 	void FocusSection(EInfoUiSection Section, bool bAnimateTransition);
 	EInfoUiSection GetFocusedSection() const { return FocusedSection; }
@@ -99,9 +97,6 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "!UI|Info|Character Preview")
 	float GetPreviewCameraShowBlendTime() const { return 0.0f; }
-
-	UFUNCTION(BlueprintPure, Category = "!UI|Info|Character Preview")
-	float GetPreviewCameraHideBlendTime() const { return 0.0f; }
 
 	URightInventoryWidget* GetRightInventoryWidget() const;
 

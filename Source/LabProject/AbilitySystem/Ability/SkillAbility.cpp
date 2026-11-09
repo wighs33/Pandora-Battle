@@ -348,16 +348,6 @@ float USkillAbility::GetDamageBonusPercent() const
 		: DamageBonusPercent;
 }
 
-FGameplayEffectSpecHandle USkillAbility::MakeActionDamageSpec(const FSkillGameplayEffectConfig& Damage) const
-{
-	return MakeConfiguredDamageEffectSpec(Damage, CalculateDamageMagnitude(Damage));
-}
-
-FGameplayEffectSpecHandle USkillAbility::MakeActionStatusSpec() const
-{
-	return MakeConfiguredStatusEffectSpec(ResolveSkill(CurrentSpecHandle, CurrentActorInfo));
-}
-
 bool USkillAbility::CommitAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 	const FGameplayAbilityActivationInfo ActivationInfo, FGameplayTagContainer* OptionalRelevantTags)
 {

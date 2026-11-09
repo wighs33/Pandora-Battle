@@ -42,7 +42,6 @@ public:
 	void Start(USkillAbility* InAbility, const FSkillActionContext& InContext);
 	void Cancel();
 	bool IsRunning() const { return bRunning; }
-	const FSkillActionContext& GetResultContext() const { return ExecutionContext; }
 
 protected:
 	// Event Handlers --------------------------------------------------------------------------------------------------
@@ -53,7 +52,6 @@ protected:
 	void Finish(bool bSucceeded = true);
 	USkillAbility* GetAbility() const { return OwningAbility.Get(); }
 	const FSkillActionContext& GetContext() const { return ExecutionContext; }
-	void SetContext(const FSkillActionContext& InContext) { ExecutionContext = InContext; }
 
 	/** HitActor가 시전자가 피해를 줄 수 있는 살아 있는 다른 팀 캐릭터면 양쪽 ASC를 채운다. */
 	static bool ResolveDamageableCharacterTarget(
@@ -78,51 +76,4 @@ private:
 	FSkillActionContext ExecutionContext;
 
 	bool bRunning = false;
-};
-
-/** 자식 기능을 앞에서부터 실행한다. 앞 단계의 실패는 뒤 단계 실행을 막는다. */
-UCLASS(meta = (DisplayName = "Sequence"))
-class LABPROJECT_API USkillSequenceAction : public USkillAction
-{
-	GENERATED_BODY()
-
-public:
-	UPROPERTY(EditAnywhere, Instanced, Category = "!Skill")
-	TArray<TObjectPtr<USkillAction>> Actions;
-
-protected:
-	// Event Handlers --------------------------------------------------------------------------------------------------
-	virtual void OnStart() override;
-	virtual void OnStop() override;
-
-private:
-	void ChildFinished(USkillAction* Child, bool bSucceeded);
-
-	// Internal Helpers ------------------------------------------------------------------------------------------------
-	void StartNext();
-
-private:
-	int32 NextIndex = 0;
-};
-
-/** 자식 기능을 모두 시작하고 모두 끝날 때 완료한다. 하나가 실패하면 나머지도 정리한다. */
-UCLASS(meta = (DisplayName = "Parallel"))
-class LABPROJECT_API USkillParallelAction : public USkillAction
-{
-	GENERATED_BODY()
-
-public:
-	UPROPERTY(EditAnywhere, Instanced, Category = "!Skill")
-	TArray<TObjectPtr<USkillAction>> Actions;
-
-protected:
-	// Event Handlers --------------------------------------------------------------------------------------------------
-	virtual void OnStart() override;
-	virtual void OnStop() override;
-
-private:
-	void ChildFinished(USkillAction* Child, bool bSucceeded);
-
-private:
-	int32 Remaining = 0;
 };

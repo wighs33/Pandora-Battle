@@ -466,10 +466,6 @@ void ASkillProjectile::HandleImpact(AActor* OtherActor, UPrimitiveComponent* Oth
 	MulticastExecuteImpactGameplayCue(FVector_NetQuantize(ImpactLocation), HitFX.Get(), bSpawnHitNiagaraOnGround,
 		ImpactGameplayCueTag, bKeepProjectileAfterImpact, StuckCharacter, StuckBoneName);
 
-	FHitResult SkillHit = Hit;
-	SkillHit.ImpactPoint = ImpactLocation;
-	OnSkillImpact.Broadcast(DamageTargetActor, SkillHit);
-
 	if (bKeepProjectileAfterImpact)
 	{
 		SetLifeSpan(PostImpactLifeSpan);

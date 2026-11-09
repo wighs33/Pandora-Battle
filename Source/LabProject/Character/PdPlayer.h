@@ -57,7 +57,6 @@ public:
 
 	UGrappleComponent* GetGrappleComponent() const { return GrappleComponent; }
 	UPlayerActionComponent* GetPlayerActionComponent() const { return PlayerActionComponent; }
-	UPlayerAimComponent* GetPlayerAimComponent() const { return PlayerAimComponent; }
 	UPlayerCameraComponent* GetPlayerCameraComponent() const { return PlayerCameraComponent; }
 	UPlayerInteractionComponent* GetPlayerInteractionComponent() const { return PlayerInteractionComponent; }
 

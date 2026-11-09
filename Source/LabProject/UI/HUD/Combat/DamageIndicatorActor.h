@@ -45,9 +45,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!DamageIndicator")
 	void InitializeDamageIndicator(const FDamageIndicatorPayload& InPayload);
 
-	UFUNCTION(BlueprintPure, Category = "!DamageIndicator")
-	const FDamageIndicatorPayload& GetDamageIndicatorPayload() const { return Payload; }
-
 protected:
 	// Event Handlers --------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintImplementableEvent, Category = "!DamageIndicator", meta = (DisplayName = "On Damage Indicator Initialized"))

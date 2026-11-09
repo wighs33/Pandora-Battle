@@ -21,11 +21,6 @@ protected:
 	virtual void ApplyWidgetDefinitionSettings() override;
 	virtual void RebuildTileView() override;
 
-public:
-	// Public API ------------------------------------------------------------------------------------------------------
-	UFUNCTION(BlueprintPure, Category = "!UI|Skin")
-	int32 GetSkinSlotCount() const { return SkinSlotCount; }
-
 private:
 	// Event Handlers --------------------------------------------------------------------------------------------------
 	UFUNCTION()

@@ -134,13 +134,6 @@ bool ARewardChest::Interact_Implementation(AActor* InteractingActor)
 	return false;
 }
 
-FText ARewardChest::GetInteractText_Implementation(AActor* InteractingActor)
-{
-	return CanInteract_Implementation(InteractingActor)
-		? NSLOCTEXT("RewardChest", "OpenChestInteractText", "Open")
-		: FText::GetEmpty();
-}
-
 void ARewardChest::GetRewardItems_Implementation(TArray<FPrimaryAssetId>& OutItemDefinitionList)
 {
 	OutItemDefinitionList.Reset();

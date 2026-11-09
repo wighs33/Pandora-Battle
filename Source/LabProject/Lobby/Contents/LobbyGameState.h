@@ -44,18 +44,12 @@ public:
 	FName GetSelectedMapKey() const { return SelectedMapOption.MapKey; }
 
 	UFUNCTION(BlueprintPure, Category = "!Lobby|Map")
-	int32 GetSelectedMapMaxPlayerCount() const { return FMath::Max(SelectedMapOption.MaxPlayerCount, 1); }
-
-	UFUNCTION(BlueprintPure, Category = "!Lobby|Map")
 	bool IsSelectedMapImageReady() const;
 
 	void SetGameStartPending(bool bInStartPending, double InStartEndServerTimeSeconds);
 
 	UFUNCTION(BlueprintPure, Category = "!Lobby|Start")
 	bool IsGameStartPending() const { return bStartPending; }
-
-	UFUNCTION(BlueprintPure, Category = "!Lobby|Start")
-	double GetGameStartEndServerTimeSeconds() const { return GameStartEndServerTimeSeconds; }
 
 	UFUNCTION(BlueprintPure, Category = "!Lobby|Start")
 	float GetGameStartRemainingSeconds() const;

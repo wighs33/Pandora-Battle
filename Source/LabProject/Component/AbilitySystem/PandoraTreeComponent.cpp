@@ -126,18 +126,6 @@ bool UPandoraTreeComponent::SpendPointOnPandoraInternal(const UPandoraDefinition
 	return HasGrantedPandora(Pandora) ? LevelUpGrantedPandora(Pandora) : GrantPandora(Pandora);
 }
 
-bool UPandoraTreeComponent::FindGrantedPandora(const UPandoraDefinition* Pandora, FGrantedPandora& OutGrantedPandora) const
-{
-	const int32 Index = FindGrantedPandoraIndex(Pandora);
-	if (Index == INDEX_NONE)
-	{
-		OutGrantedPandora = FGrantedPandora();
-		return false;
-	}
-	OutGrantedPandora = GrantedPandoras[Index];
-	return true;
-}
-
 bool UPandoraTreeComponent::HasGrantedPandora(const UPandoraDefinition* Pandora) const
 {
 	return FindGrantedPandoraIndex(Pandora) != INDEX_NONE;
@@ -152,20 +140,6 @@ bool UPandoraTreeComponent::IsPandoraUnlockedForTree(const UPandoraDefinition* P
 bool UPandoraTreeComponent::IsPandoraAvailableForInvestment(const UPandoraDefinition* Pandora) const
 {
 	return IsValid(Pandora) && (HasGrantedPandora(Pandora) || IsPandoraUnlockedForTree(Pandora) || ArePandoraUnlockRulesMet(Pandora));
-}
-
-bool UPandoraTreeComponent::CanGivePandora(const UPandoraDefinition* Pandora, int32 StartingLevel, bool bIgnorePointCost) const
-{
-	int32 Cost = 0;
-	return !HasGrantedPandora(Pandora)
-		&& TryGetInvestmentCost(Pandora, 0, ClampPandoraLevel(Pandora, StartingLevel), bIgnorePointCost, Cost);
-}
-
-bool UPandoraTreeComponent::CanLevelUpPandora(const UPandoraDefinition* Pandora) const
-{
-	const int32 CurrentLevel = GetCurrentPandoraLevel(Pandora);
-	int32 Cost = 0;
-	return CurrentLevel > 0 && TryGetInvestmentCost(Pandora, CurrentLevel, CurrentLevel + 1, false, Cost);
 }
 
 bool UPandoraTreeComponent::CanSpendPointOnPandora(const UPandoraDefinition* Pandora) const
@@ -207,11 +181,6 @@ int32 UPandoraTreeComponent::GetCurrentPandoraLevel(const UPandoraDefinition* Pa
 {
 	const int32 Index = FindGrantedPandoraIndex(Pandora);
 	return Index != INDEX_NONE ? ClampPandoraLevel(Pandora, GrantedPandoras[Index].Level) : 0;
-}
-
-int32 UPandoraTreeComponent::GetMaxPandoraLevel(const UPandoraDefinition* Pandora) const
-{
-	return IsValid(Pandora) ? Pandora->GetMaxLevel() : 0;
 }
 
 void UPandoraTreeComponent::ResetPandora()

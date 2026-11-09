@@ -44,7 +44,6 @@ public:
 	// Interface Implementations ---------------------------------------------------------------------------------------
 	virtual bool CanInteract_Implementation(AActor* InteractingActor) override;
 	virtual bool Interact_Implementation(AActor* InteractingActor) override;
-	virtual FText GetInteractText_Implementation(AActor* InteractingActor) override;
 	virtual void GetRewardItems_Implementation(TArray<FPrimaryAssetId>& OutItemDefinitionList) override;
 	virtual void GetRewardSkins_Implementation(TArray<FPrimaryAssetId>& OutSkinDefinitionList) override;
 	virtual void GetRewardPandoras_Implementation(TArray<FPrimaryAssetId>& OutPandoraDefinitionList) override;
@@ -58,12 +57,6 @@ public:
 
 	/** 쓰지 않은 배치 상자를 숨긴 스폰 위치 기준점으로 남긴다. */
 	void DeactivateForSpawnPool();
-
-	UFUNCTION(BlueprintPure, Category = "!Reward Chest")
-	bool IsOpened() const { return ChestState != ERewardChestState::Closed; }
-
-	UFUNCTION(BlueprintPure, Category = "!Reward Chest")
-	ERewardChestState GetChestState() const { return ChestState; }
 
 	TSoftObjectPtr<URewardDefinition> GetRewardDefinitionAsset() const { return RewardDefinition; }
 	bool IsRewardContentReady() const { return bRewardContentReady; }

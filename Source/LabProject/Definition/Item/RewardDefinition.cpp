@@ -39,20 +39,6 @@ int32 FRewardSoulDustRange::RollReward() const
 	return Reward;
 }
 
-int32 FRewardGoldRange::RollReward() const
-{
-	if (!bGrantRandomGold)
-	{
-		return 0;
-	}
-
-	const int32 MinReward = FMath::Max(0, FMath::Min(MinGoldReward, MaxGoldReward));
-	const int32 MaxReward = FMath::Max(0, FMath::Max(MinGoldReward, MaxGoldReward));
-	const int32 Reward = MaxReward > MinReward ? FMath::RandRange(MinReward, MaxReward) : MinReward;
-
-	return Reward;
-}
-
 FPrimaryAssetId FRewardRandomPotionDrop::RollReward() const
 {
 	if (!bGrantRandomPotion)

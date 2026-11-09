@@ -116,14 +116,6 @@ void URightListPanelWidget::SetTileView(const TArray<UObject*>& InListItems)
 	RebuildTileView();
 }
 
-void URightListPanelWidget::ClearTileViewItemClicked()
-{
-	if (TileView)
-	{
-		TileView->OnItemClicked().Clear();
-	}
-}
-
 void URightListPanelWidget::AddTypeFilter(UButton* Button, const FGameplayTag TagOverride, const FDefaultTypeTagGetter DefaultTag)
 {
 	TypeFilters.Add({Button, TagOverride, DefaultTag});

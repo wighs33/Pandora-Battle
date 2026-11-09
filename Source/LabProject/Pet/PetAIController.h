@@ -4,8 +4,6 @@
 #include "TimerManager.h"
 #include "PetAIController.generated.h"
 
-class UBehaviorTree;
-
 UCLASS(Blueprintable)
 class LABPROJECT_API APetAIController : public AAIController
 {
@@ -29,9 +27,6 @@ private:
 	void StopFollowTargetRefreshTimer();
 
 protected:
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!AI|Pet")
-	TObjectPtr<UBehaviorTree> BehaviorTreeAsset;
-
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!AI|Pet", meta = (ClampMin = "0.05", ForceUnits = "s"))
 	float FollowTargetRefreshInterval = 0.2f;
 
@@ -47,10 +42,6 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!AI|Pet", meta = (ClampMin = "0.0", ForceUnits = "cm"))
 	float DirectFollowTeleportDistance = 2500.0f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!AI|Blackboard")
-	FName FollowTargetActorKeyName = TEXT("FollowTargetActor");
-
 	FTimerHandle FollowTargetRefreshTimerHandle;
-	bool bBehaviorTreeRunning = false;
 	bool bDirectFollowFallbackActive = false;
 };

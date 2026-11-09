@@ -36,12 +36,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!Timer")
 	void RefreshUI();
 
-	UFUNCTION(BlueprintPure, Category = "!Timer")
-	float GetCurrentTimerSeconds() const { return CurrentTimerSeconds; }
-
-	UFUNCTION(BlueprintPure, Category = "!Timer")
-	bool IsTimerRunning() const;
-
 	const UMatchRuleDefinition* GetMatchRuleDefinition() const;
 	bool ShouldSuppressTimer() const;
 	bool ShouldSuppressTimerForCurrentMap() const;

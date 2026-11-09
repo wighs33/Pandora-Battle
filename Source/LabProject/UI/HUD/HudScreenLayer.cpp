@@ -203,25 +203,6 @@ void UHudScreenLayer::CloseInfo(const bool bSuppressCameraReturn, const bool bIm
 	FinishCloseInfo();
 }
 
-void UHudScreenLayer::ToggleInfo()
-{
-	if (PendingScreenRequest == EPendingScreenRequest::Info)
-	{
-		PendingScreenRequest = EPendingScreenRequest::None;
-		ReleaseInfoContentIfUnused();
-		return;
-	}
-	if (IsInfoOpen())
-	{
-		if (!bInfoClosing)
-		{
-			CloseInfo();
-		}
-		return;
-	}
-	OpenInfo();
-}
-
 void UHudScreenLayer::OpenPandoraTree()
 {
 	APdHUD* Hud = OwnerHud.Get();

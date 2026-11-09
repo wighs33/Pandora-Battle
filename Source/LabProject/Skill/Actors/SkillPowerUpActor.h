@@ -55,14 +55,6 @@ private:
 	UPROPERTY(ReplicatedUsing = OnRep_PresentationSettings)
 	FSkillPowerUpPresentationSettings PresentationSettings;
 
-	UPROPERTY(
-		EditAnywhere,
-		Category = "!Skill|Power Up|Overlay",
-		meta = (
-			DeprecatedProperty,
-			DeprecationMessage = "Skill overlays now always restore the character's team outline when they end."))
-	bool bRestoreTeamOverlayOnEnd = true;
-
 	UPROPERTY(EditAnywhere, Category = "!Skill|Power Up|Niagara")
 	FName NiagaraActivateParameterName = TEXT("FX_Activate");
 

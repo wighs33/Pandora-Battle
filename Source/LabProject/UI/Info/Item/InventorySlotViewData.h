@@ -30,9 +30,6 @@ public:
 	bool IsEmpty() const { return ItemInstance == nullptr; }
 
 	UFUNCTION(BlueprintPure, Category = "!UI|Inventory")
-	FItemViewData GetViewData() const { return ViewData; }
-
-	UFUNCTION(BlueprintPure, Category = "!UI|Inventory")
 	bool IsDuplicateWeaponOrEquipment() const { return bDuplicateWeaponOrEquipment; }
 
 	UFUNCTION(BlueprintPure, Category = "!UI|Inventory")

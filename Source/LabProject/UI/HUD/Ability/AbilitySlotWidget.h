@@ -51,12 +51,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "!UI|Ability")
 	void SetSkillSlotIndex(int32 InSkillSlotIndex);
 
-	UFUNCTION(BlueprintPure, Category = "!UI|Ability")
-	FGameplayAbilitySpecHandle GetAbilitySpecHandle() const { return AbilitySpecHandle; }
-
-	UFUNCTION(BlueprintPure, Category = "!UI|Ability")
-	int32 GetSkillSlotIndex() const { return SkillSlotIndex; }
-
 	UFUNCTION(BlueprintCallable, Category = "!UI|Ability")
 	void SetAbilityImage();
 
