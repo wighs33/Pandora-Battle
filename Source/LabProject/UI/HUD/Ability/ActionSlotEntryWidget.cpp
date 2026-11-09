@@ -55,6 +55,13 @@ void UActionSlotEntryWidget::NativeConstruct()
 		FOnAbilitySystemAvailabilityChanged::FDelegate::CreateUObject(this, &ThisClass::HandlePossessedCharacterReady));
 }
 
+void UActionSlotEntryWidget::NativeTick(const FGeometry& MyGeometry, const float InDeltaTime)
+{
+	Super::NativeTick(MyGeometry, InDeltaTime);
+
+	ReadyPulse.Tick(InDeltaTime, ReadyRing, IconImage);
+}
+
 void UActionSlotEntryWidget::NativeDestruct()
 {
 	PossessedCharacterReadySubscription.Reset();
@@ -216,6 +223,8 @@ void UActionSlotEntryWidget::UpdateCooldownProgress()
 
 void UActionSlotEntryWidget::ShowCooldownReady()
 {
+	const bool bWasCoolingDown = TotalCooldownTime > 0.0;
+	TotalCooldownTime = 0.0;
 	ClearCooldownTimer();
 	SlotCooldownDisplay::ShowReady(CooldownTimerContainer, CooldownProgress, TimerText);
 	if (TimerText)
@@ -224,6 +233,10 @@ void UActionSlotEntryWidget::ShowCooldownReady()
 	}
 
 	SetInputKeyRenderOpacity(ReadyInputKeyOpacity);
+	if (bWasCoolingDown)
+	{
+		ReadyPulse.Play(ReadyRing, IconImage);
+	}
 }
 
 void UActionSlotEntryWidget::BindAbilityCooldownChanged()

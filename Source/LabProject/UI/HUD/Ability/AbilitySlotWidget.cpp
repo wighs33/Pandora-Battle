@@ -42,12 +42,17 @@ void UAbilitySlotWidget::NativeConstruct()
 
 	if (CooldownProgress)
 	{
-		CooldownProgress->SetPercent(1.0f);
+		CooldownProgress->SetPercent(0.0f);
 	}
 
 	if (CooldownTimerContainer)
 	{
 		CooldownTimerContainer->SetVisibility(ESlateVisibility::Collapsed);
+	}
+
+	if (ReadyRing)
+	{
+		ReadyRing->SetVisibility(ESlateVisibility::Collapsed);
 	}
 
 	if (AbilityActiveFrame)
@@ -72,6 +77,13 @@ void UAbilitySlotWidget::NativeConstruct()
 	// 입력 정의는 비동기로 적용되므로 지금 한 번 그리고, 적용될 때마다 다시 그린다.
 	BindInputDefinitionApplied();
 	SetInputKeyIcon();
+}
+
+void UAbilitySlotWidget::NativeTick(const FGeometry& MyGeometry, const float InDeltaTime)
+{
+	Super::NativeTick(MyGeometry, InDeltaTime);
+
+	ReadyPulse.Tick(InDeltaTime, ReadyRing, AbilityImage);
 }
 
 void UAbilitySlotWidget::NativeDestruct()
@@ -151,7 +163,8 @@ void UAbilitySlotWidget::SetAbilityImage()
 {
 	if (AbilityImage)
 	{
-		AbilityImage->SetBrush(MakeImageBrush(ResolveAbilityImage()));
+		// 그리기 방식(원형 둥근 상자로 잘라 그리기 등)은 위젯 애셋이 정한 것을 두고 그림만 바꾼다.
+		AbilityImage->SetBrush(InputKeyIconResolver::MakeImageBrushFromExisting(AbilityImage->GetBrush(), ResolveAbilityImage(), AbilityIconSize));
 	}
 }
 
@@ -248,10 +261,16 @@ void UAbilitySlotWidget::UpdateCooldownProgress()
 
 	if (TimeRemaining <= 0.0f)
 	{
+		const bool bWasCoolingDown = TotalCooldownTime > 0.0;
 		ClearCooldownTimer();
 		TotalCooldownTime = 0.0;
 		SlotCooldownDisplay::ShowReady(CooldownTimerContainer, CooldownProgress, TimerText);
 		SetInputKeyRenderOpacity(bAbilitySlotEnabled ? ReadyInputKeyOpacity : DisabledSlotOpacity);
+		SetReadyGlowVisible(bAbilitySlotEnabled);
+		if (bWasCoolingDown && bAbilitySlotEnabled)
+		{
+			ReadyPulse.Play(ReadyRing, AbilityImage);
+		}
 		return;
 	}
 
@@ -266,6 +285,7 @@ void UAbilitySlotWidget::UpdateCooldownProgress()
 		CooldownTimerContainer->SetVisibility(ESlateVisibility::Visible);
 	}
 	SetInputKeyRenderOpacity(CooldownInputKeyOpacity);
+	SetReadyGlowVisible(false);
 	SlotCooldownDisplay::ShowRemaining(CooldownProgress, TimerText, TimeRemaining, TotalCooldownTime, bShowCooldownTimeRemaining);
 }
 
@@ -415,6 +435,14 @@ void UAbilitySlotWidget::HandleManaChanged(const FOnAttributeChangeData& ChangeD
 	CheckForManaAvailability();
 }
 
+void UAbilitySlotWidget::SetReadyGlowVisible(const bool bVisible) const
+{
+	if (ReadyGlow)
+	{
+		ReadyGlow->SetVisibility(bVisible ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	}
+}
+
 void UAbilitySlotWidget::SetInputKeyRenderOpacity(float InOpacity) const
 {
 	if (InputKeyOverlay)
@@ -553,12 +581,4 @@ UObject* UAbilitySlotWidget::ResolveInputIconObject() const
 	return InputKeyIconResolver::ResolveInputDefinitionIconObject(GetOwningPlayer(), ResolveInputAction());
 }
 
-FSlateBrush UAbilitySlotWidget::MakeImageBrush(UObject* ResourceObject)
-{
-	FSlateBrush Brush;
-	Brush.DrawAs = ESlateBrushDrawType::Image;
-	Brush.ImageSize = FVector2D(64.0f, 64.0f);
-	Brush.SetResourceObject(ResourceObject);
-	return Brush;
-}
 

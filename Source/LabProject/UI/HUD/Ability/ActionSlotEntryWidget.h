@@ -5,6 +5,7 @@
 #include "Component/Character/AbilitySystemReadySubscription.h"
 #include "GameplayTagContainer.h"
 #include "Definition/Player/CharacterActionDefinition.h"
+#include "UI/HUD/Ability/SlotReadyPulse.h"
 #include "ActionSlotEntryWidget.generated.h"
 
 class ACharacterBase;
@@ -30,6 +31,7 @@ protected:
 	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void NativePreConstruct() override;
 	virtual void NativeConstruct() override;
+	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 	virtual void NativeDestruct() override;
 
 public:
@@ -138,6 +140,10 @@ private:
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UWidget> ActionActiveFrame;
 
+	/** 쿨다운이 끝날 때 칸 밖으로 퍼지며 사라지는 고리. 평소에는 접혀 있다. */
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UWidget> ReadyRing;
+
 	TWeakObjectPtr<UAbilitySystemComponent> BoundAbilitySystemComponent;
 	FGameplayTag BoundAbilityCooldownTag;
 	FDelegateHandle AbilityCooldownChangedHandle;
@@ -145,4 +151,5 @@ private:
 	FDelegateHandle AbilityCooldownEffectRemovedHandle;
 	FTimerHandle UpdateCooldownTimerHandle;
 	FAbilitySystemReadySubscription PossessedCharacterReadySubscription;
+	FSlotReadyPulse ReadyPulse;
 };

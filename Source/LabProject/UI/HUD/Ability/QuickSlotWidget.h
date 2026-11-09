@@ -56,6 +56,10 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|QuickSlot", meta = (AllowPrivateAccess = "true", ClampMin = "1"))
 	int32 SlotCount = 8;
 
+	/** 한 줄에 놓는 칸 수. 넘치는 칸은 다음 줄로 간다. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|QuickSlot", meta = (AllowPrivateAccess = "true", ClampMin = "1"))
+	int32 GridColumns = 4;
+
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UUniformGridPanel> UniformGridPanel;
 

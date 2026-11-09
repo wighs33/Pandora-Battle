@@ -92,6 +92,10 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Abilities", meta = (AllowPrivateAccess = "true"))
 	FMargin SlotPadding = FMargin(5.0f);
 
+	/** 칸 순서대로 위쪽 여백에 더할 값(px). 더한 만큼 칸이 아래로 내려간다. 비어 있거나 모자라면 0이다. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Abilities", meta = (AllowPrivateAccess = "true"))
+	TArray<float> SlotTopOffsets;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Abilities|Classes", meta = (AllowPrivateAccess = "true"))
 	TSubclassOf<UAbilitySlotWidget> AbilityWidgetClass;
 

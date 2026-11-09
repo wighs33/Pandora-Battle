@@ -25,7 +25,6 @@ namespace
 {
 	constexpr int32 RequiredQuickSlotCount = 8;
 	constexpr int32 ConsumableQuickSlotCount = 4;
-	constexpr int32 QuickSlotGridColumns = 4;
 }
 
 void UQuickSlotWidget::NativePreConstruct()
@@ -278,8 +277,9 @@ void UQuickSlotWidget::AddWidgetToBar(UWidget* Widget, const int32 SlotIndex) co
 		return;
 	}
 
-	const int32 Row = SlotIndex / QuickSlotGridColumns;
-	const int32 Column = SlotIndex % QuickSlotGridColumns;
+	const int32 Columns = FMath::Max(GridColumns, 1);
+	const int32 Row = SlotIndex / Columns;
+	const int32 Column = SlotIndex % Columns;
 	UUniformGridSlot* GridSlot = UniformGridPanel->AddChildToUniformGrid(Widget, Row, Column);
 	if (GridSlot)
 	{

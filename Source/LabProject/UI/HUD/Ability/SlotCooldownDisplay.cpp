@@ -3,26 +3,26 @@
 #include "Components/ProgressBar.h"
 #include "Components/TextBlock.h"
 
-float SlotCooldownDisplay::CalculatePercent(const float TimeRemaining, const double CooldownDuration)
+float SlotCooldownDisplay::CalculateRemainingFraction(const float TimeRemaining, const double CooldownDuration)
 {
 	if (CooldownDuration <= UE_SMALL_NUMBER)
 	{
-		return 1.0f;
+		return 0.0f;
 	}
 
-	return FMath::Clamp(1.0f - static_cast<float>(TimeRemaining / CooldownDuration), 0.0f, 1.0f);
+	return FMath::Clamp(static_cast<float>(TimeRemaining / CooldownDuration), 0.0f, 1.0f);
 }
 
-void SlotCooldownDisplay::ShowReady(UWidget* TimerContainer, UProgressBar* Progress, UTextBlock* TimerText)
+void SlotCooldownDisplay::ShowReady(UWidget* TimerContainer, UProgressBar* Shade, UTextBlock* TimerText)
 {
 	if (TimerContainer)
 	{
 		TimerContainer->SetVisibility(ESlateVisibility::Collapsed);
 	}
 
-	if (Progress)
+	if (Shade)
 	{
-		Progress->SetPercent(1.0f);
+		Shade->SetPercent(0.0f);
 	}
 
 	if (TimerText)
@@ -31,12 +31,12 @@ void SlotCooldownDisplay::ShowReady(UWidget* TimerContainer, UProgressBar* Progr
 	}
 }
 
-void SlotCooldownDisplay::ShowRemaining(UProgressBar* Progress, UTextBlock* TimerText, const float TimeRemaining,
+void SlotCooldownDisplay::ShowRemaining(UProgressBar* Shade, UTextBlock* TimerText, const float TimeRemaining,
 	const double CooldownDuration, const bool bShowTimeRemaining)
 {
-	if (Progress)
+	if (Shade)
 	{
-		Progress->SetPercent(CalculatePercent(TimeRemaining, CooldownDuration));
+		Shade->SetPercent(CalculateRemainingFraction(TimeRemaining, CooldownDuration));
 	}
 
 	if (TimerText)

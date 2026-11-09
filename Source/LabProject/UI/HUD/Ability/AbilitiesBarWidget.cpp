@@ -276,10 +276,13 @@ void UAbilitiesBarWidget::AddWidgetToBar(UUserWidget* Widget, bool bApplyPadding
 		return;
 	}
 
+	const int32 SlotIndex = ContainerHorizontalBox->GetChildrenCount();
 	UHorizontalBoxSlot* HorizontalBoxSlot = ContainerHorizontalBox->AddChildToHorizontalBox(Widget);
 	if (HorizontalBoxSlot && bApplyPadding)
 	{
-		HorizontalBoxSlot->SetPadding(SlotPadding);
+		FMargin SlotMargin = SlotPadding;
+		SlotMargin.Top += SlotTopOffsets.IsValidIndex(SlotIndex) ? SlotTopOffsets[SlotIndex] : 0.f;
+		HorizontalBoxSlot->SetPadding(SlotMargin);
 	}
 }
 

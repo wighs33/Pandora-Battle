@@ -26,6 +26,7 @@
 #include "UI/HUD/Player/HudTimerWidget.h"
 #include "UI/Info/InfoWidget.h"
 #include "UI/HUD/Match/KillLogWidget.h"
+#include "UI/HUD/Player/PlayerHudWidget.h"
 #include "UI/HUD/Player/PlayerVitalsWidget.h"
 #include "UI/Pandora/PandoraTreeWidget.h"
 #include "UI/HUD/Notification/RightNotificationsWidget.h"
@@ -866,10 +867,13 @@ void APdHUD::RefreshPlayerHudVisibility()
 		return;
 	}
 
-	CachedPlayerHUD->SetVisibility(
-		IsPlayerHudSuppressedByUi()
-			? ESlateVisibility::Collapsed
-			: ESlateVisibility::Visible);
+	const ESlateVisibility NewVisibility = IsPlayerHudSuppressedByUi() ? ESlateVisibility::Collapsed : ESlateVisibility::Visible;
+	const bool bRevealing = CachedPlayerHUD->GetVisibility() == ESlateVisibility::Collapsed && NewVisibility == ESlateVisibility::Visible;
+	CachedPlayerHUD->SetVisibility(NewVisibility);
+	if (UPlayerHudWidget* PlayerHud = Cast<UPlayerHudWidget>(CachedPlayerHUD); PlayerHud && bRevealing)
+	{
+		PlayerHud->PlayEntrance();
+	}
 }
 
 void APdHUD::RemoveAllUiWidgets()

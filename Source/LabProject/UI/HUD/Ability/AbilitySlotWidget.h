@@ -4,6 +4,7 @@
 #include "Blueprint/UserWidget.h"
 #include "GameplayAbilitySpecHandle.h"
 #include "GameplayTagContainer.h"
+#include "UI/HUD/Ability/SlotReadyPulse.h"
 #include "AbilitySlotWidget.generated.h"
 
 class APdPlayerController;
@@ -27,6 +28,7 @@ class LABPROJECT_API UAbilitySlotWidget : public UUserWidget
 protected:
 	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void NativeConstruct() override;
+	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 	virtual void NativeDestruct() override;
 
 public:
@@ -89,6 +91,7 @@ private:
 	void UnbindInputDefinitionApplied();
 	void ClearCooldownTimer();
 	void SetInputKeyRenderOpacity(float InOpacity) const;
+	void SetReadyGlowVisible(bool bVisible) const;
 	void ApplyAbilitySlotEnabledState();
 
 	UObject* ResolveAbilityImage() const;
@@ -97,7 +100,6 @@ private:
 	UInputAction* ResolveInputAction() const;
 	UObject* ResolveInputIconObject() const;
 
-	static FSlateBrush MakeImageBrush(UObject* ResourceObject);
 
 private:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Ability", meta = (ExposeOnSpawn = "true", AllowPrivateAccess = "true"))
@@ -120,6 +122,10 @@ private:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Ability", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UTexture2D> DefaultAbilityImage;
+
+	/** 기술 그림의 붓 크기. 칸 크기는 위젯 애셋의 자리(슬롯)가 정하므로 그림 해상도에만 쓰인다. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Ability", meta = (AllowPrivateAccess = "true"))
+	FVector2D AbilityIconSize = FVector2D(64.0f, 64.0f);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Ability|Cooldown", meta = (AllowPrivateAccess = "true"))
 	bool bShowCooldownTimeRemaining = true;
@@ -160,6 +166,14 @@ private:
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UWidget> AbilityActiveFrame;
 
+	/** 쿨다운이 끝날 때 칸 밖으로 퍼지며 사라지는 고리. 평소에는 접혀 있다. */
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UWidget> ReadyRing;
+
+	/** 쓸 수 있는 동안 소켓의 이 틈에서 새는 원소 빛. 쿨다운 중이거나 칸이 꺼지면 접힌다. */
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UWidget> ReadyGlow;
+
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UWidget> AbilityDisableFrame;
 
@@ -183,4 +197,5 @@ private:
 	TWeakObjectPtr<APdPlayerController> InputDefinitionController;
 	FDelegateHandle InputDefinitionAppliedHandle;
 	FTimerHandle UpdateCooldownTimerHandle;
+	FSlotReadyPulse ReadyPulse;
 };

@@ -24,11 +24,28 @@
 #include "Mode/WorldBossRaid.h"
 #include "Online/AchievementSubsystem.h"
 #include "UI/Common/TeamColorUtils.h"
+#include "UI/Common/UiMotion.h"
 #include "UI/HUD/Match/KillBoxWidget.h"
 #include "UI/HUD/Player/WorldBossBarWidget.h"
 #include "UI/Core/WidgetClassDefinition.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PlayerHudWidget)
+
+UPlayerHudWidget::UPlayerHudWidget(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// 체력, 기술, 퀵 슬롯이 먼저 붙은 가장자리에서 들어오고, 위쪽 안내와 점수가 뒤따른다.
+	constexpr float EdgeSlide = 28.f;
+	constexpr float TopSlide = 16.f;
+	EntranceGroups = {
+		{TEXT("WBP_PlayerVitals"), FVector2D(-EdgeSlide, 0.f)},
+		{TEXT("CombatHudScale"), FVector2D(0.f, EdgeSlide)},
+		{TEXT("QuickHudScale"), FVector2D(EdgeSlide, 0.f)},
+		{TEXT("ShortcutHints"), FVector2D(0.f, -TopSlide)},
+		{TEXT("WBP_HudTimer"), FVector2D(0.f, -TopSlide)},
+		{TEXT("HorizontalBox_KillBox"), FVector2D(0.f, -TopSlide)},
+	};
+}
 
 void UPlayerHudWidget::InitializePlayerHud(UWidgetClassDefinition* InWidgetClassDefinition)
 {
@@ -66,6 +83,48 @@ void UPlayerHudWidget::NativeConstruct()
 	{
 		CenterKillBoxContainer();
 		RebuildKillBox();
+	}
+	PlayEntrance();
+}
+
+void UPlayerHudWidget::NativeTick(const FGeometry& MyGeometry, const float InDeltaTime)
+{
+	Super::NativeTick(MyGeometry, InDeltaTime);
+
+	StepEntrance(InDeltaTime);
+}
+
+void UPlayerHudWidget::PlayEntrance()
+{
+	EntranceElapsed = 0.f;
+	StepEntrance(0.f);
+}
+
+void UPlayerHudWidget::StepEntrance(const float DeltaSeconds)
+{
+	if (!EntranceElapsed.IsSet())
+	{
+		return;
+	}
+	EntranceElapsed = EntranceElapsed.GetValue() + DeltaSeconds;
+
+	bool bAllArrived = true;
+	for (int32 Index = 0; Index < EntranceGroups.Num(); ++Index)
+	{
+		const FHudEntranceGroup& Group = EntranceGroups[Index];
+		UWidget* Widget = GetWidgetFromName(Group.WidgetName);
+		if (!Widget)
+		{
+			continue;
+		}
+		const float Alpha = FMath::Clamp((EntranceElapsed.GetValue() - Index * EntranceStaggerSeconds) / EntranceSeconds, 0.f, 1.f);
+		bAllArrived &= Alpha >= 1.f;
+		Widget->SetRenderTranslation(Group.StartOffset * (1.f - UiMotion::EaseOutExpo(Alpha)));
+		Widget->SetRenderOpacity(UiMotion::EaseOutCubic(Alpha));
+	}
+	if (bAllArrived)
+	{
+		EntranceElapsed.Reset();
 	}
 }
 

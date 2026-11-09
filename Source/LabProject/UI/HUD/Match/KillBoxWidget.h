@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "UI/Common/LocalizedMenuWidget.h"
+#include "UI/Common/UiMotion.h"
 #include "KillBoxWidget.generated.h"
 
 class UBorder;
@@ -15,6 +16,7 @@ class LABPROJECT_API UKillBoxWidget : public ULocalizedMenuWidget
 public:
 	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void NativeConstruct() override;
+	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
 	// Public API ------------------------------------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "!UI|KillBox")
@@ -47,4 +49,9 @@ private:
 	FText TeamName;
 	FLinearColor TeamColor = FLinearColor::White;
 	int32 KillCount = 0;
+
+	// 처치 수가 오르면 숫자가 튀었다가 돌아온다. 처음 받은 값은 튀지 않는다.
+	UiMotion::FSpring CountScale{1.f, 0.f};
+	bool bHasKillCount = false;
+	bool bCountSettling = false;
 };

@@ -7,6 +7,10 @@
 
 namespace
 {
+	// 처치 수가 오를 때 숫자에 주는 처음 속도와 되돌아오는 스프링(감쇠비 약 0.4).
+	constexpr float KillCountKickVelocity = 5.f;
+	const UiMotion::FSpringSettings KillCountSpring{420.f, 16.f};
+
 	void ApplyBorderTint(UBorder* Border, const FLinearColor& TintColor)
 	{
 		if (!Border)
@@ -46,9 +50,36 @@ void UKillBoxWidget::SetTeamInfo(const int32 InTeamColorIndex, const FText& InTe
 	RefreshUI();
 }
 
+void UKillBoxWidget::NativeTick(const FGeometry& MyGeometry, const float InDeltaTime)
+{
+	Super::NativeTick(MyGeometry, InDeltaTime);
+
+	if (!bCountSettling)
+	{
+		return;
+	}
+	CountScale.Step(1.f, InDeltaTime, KillCountSpring);
+	if (CountScale.IsSettled(1.f))
+	{
+		CountScale.Snap(1.f);
+		bCountSettling = false;
+	}
+	if (Txt_KillCount)
+	{
+		Txt_KillCount->SetRenderScale(FVector2D(CountScale.Value));
+	}
+}
+
 void UKillBoxWidget::SetKillCount(const int32 InKillCount)
 {
-	KillCount = FMath::Max(InKillCount, 0);
+	const int32 NewKillCount = FMath::Max(InKillCount, 0);
+	if (bHasKillCount && NewKillCount > KillCount)
+	{
+		CountScale.Velocity = KillCountKickVelocity;
+		bCountSettling = true;
+	}
+	bHasKillCount = true;
+	KillCount = NewKillCount;
 	RefreshUI();
 }
 
