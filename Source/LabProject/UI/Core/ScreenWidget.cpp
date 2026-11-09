@@ -5,6 +5,7 @@
 #include "Engine/LocalPlayer.h"
 #include "Localization/MenuLocalizationSubsystem.h"
 #include "UI/Common/MenuLocalizationExtension.h"
+#include "UI/Common/UiMotion.h"
 #include "UI/Core/UiSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ScreenWidget)
@@ -17,6 +18,39 @@ namespace
 		Config.bIgnoreMoveInput = Config.bIgnoreLookInput = true;
 		return Config;
 	}
+}
+
+void UScreenWidget::NativeOnActivated()
+{
+	Super::NativeOnActivated();
+	IntroElapsed = 0.f;
+	ApplyIntroMotion(0.f);
+}
+
+void UScreenWidget::NativeTick(const FGeometry& MyGeometry, const float InDeltaTime)
+{
+	Super::NativeTick(MyGeometry, InDeltaTime);
+	if (!IntroElapsed.IsSet())
+	{
+		return;
+	}
+	const float Alpha = FMath::Clamp((IntroElapsed.GetValue() + InDeltaTime) / IntroDuration, 0.f, 1.f);
+	ApplyIntroMotion(Alpha);
+	if (Alpha >= 1.f)
+	{
+		IntroElapsed.Reset();
+	}
+	else
+	{
+		IntroElapsed = IntroElapsed.GetValue() + InDeltaTime;
+	}
+}
+
+// 투명도는 빠르게 차오르고, 위치는 처음에 크게 움직였다가 길게 가라앉는다.
+void UScreenWidget::ApplyIntroMotion(const float Alpha)
+{
+	SetRenderOpacity(UiMotion::EaseOutCubic(Alpha));
+	SetRenderTranslation(FVector2D(0.f, IntroRise * (1.f - UiMotion::EaseOutExpo(Alpha))));
 }
 
 UScreenWidget::UScreenWidget(const FObjectInitializer& ObjectInitializer)

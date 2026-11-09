@@ -6,10 +6,12 @@
 #include "FindSessionsCallbackProxy.h"
 #include "Types/SlateEnums.h"
 #include "Online/Backend/BackendClientSubsystem.h"
+#include "UI/Common/MenuHoverHighlight.h"
 #include "TitleWidget.generated.h"
 
 class UButton;
 class UAudioVolumeSlider;
+class UProgressBar;
 class UCanvasPanel;
 class UCanvasPanelSlot;
 struct FButtonClickBinding;
@@ -35,13 +37,19 @@ class LABPROJECT_API UTitleWidget : public UScreenWidget
 	GENERATED_BODY()
 
 public:
+	UTitleWidget(const FObjectInitializer& ObjectInitializer);
+
 	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void NativeOnInitialized() override;
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
+	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
 	// Public API ------------------------------------------------------------------------------------------------------
 	void SetTitleCharacterMaterial(UMaterialInterface* Material);
+
+	/** 메뉴 버튼이 마우스 오버로 강조된 정도(0~1). */
+	float GetMenuHoverProgress(const UWidget* Button) const;
 
 	/** Luna의 번역된 대사를 머리 위에 보여 준다. HeadTopUV는 Img_TitleCharacter 텍스처 공간의 점이다. */
 	bool ShowLunaSpeech(FName TextKey, const FVector2D& HeadTopUV);
@@ -123,6 +131,9 @@ private:
 	void BuildLunaDlcButton(UCanvasPanel& Canvas, const UCanvasPanelSlot& InputSlot);
 	void ApplyLunaChatAvailability();
 	void BuildVersionLabel();
+	void BuildMenuHoverHighlight();
+	void BuildBossRaidSummary();
+	void ApplyBossRaidSummary();
 	void ApplyBossRaidAvailability();
 	FText BuildBossRaidDetails() const;
 	FString GetResolvedLobbyTravelMapName() const;
@@ -202,6 +213,26 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Lobby|UI")
 	TSubclassOf<URecordWidget> RecordWidgetClass;
 
+	/** 판 없는 글자 목록 메뉴에 마우스를 올렸을 때의 강조 모양 */
+	UPROPERTY(EditDefaultsOnly, Category = "!Lobby|UI")
+	FMenuHoverHighlightStyle MenuHoverStyle;
+
+	/** 메뉴 뒤 봉인(마법진)의 바깥 글자 띠. 반시계 방향으로 아주 느리게 돈다. */
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UWidget> Img_SealRunes;
+
+	/** 봉인의 안쪽 글자 고리. 바깥 띠와 반대 방향으로 돈다. */
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UWidget> Img_SealInner;
+
+	/** 바깥 글자 띠가 한 바퀴 도는 시간(초). Docs/UI_Design_Plan.md 5장. */
+	UPROPERTY(EditDefaultsOnly, Category = "!Lobby|UI", meta = (ClampMin = "1.0"))
+	float SealRunesTurnSeconds = 240.f;
+
+	/** 안쪽 글자 고리가 한 바퀴 도는 시간(초). */
+	UPROPERTY(EditDefaultsOnly, Category = "!Lobby|UI", meta = (ClampMin = "1.0"))
+	float SealInnerTurnSeconds = 120.f;
+
 private:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Lobby|QuickMatch", meta = (AllowPrivateAccess = "true", ClampMin = "1"))
 	int32 QuickMatchMaxSearchResults = 50;
@@ -248,6 +279,22 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> LunaDlcLabel;
 
+	UPROPERTY(Transient)
+	TObjectPtr<UMenuHoverHighlight> MenuHoverHighlight;
+
+	/** 보스 레이드 줄 오른쪽의 보스 이름, 남은 체력 막대와 비율 */
+	UPROPERTY(Transient)
+	TObjectPtr<UWidget> BossRaidSummary;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> BossRaidNameText;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UProgressBar> BossRaidHealthBar;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> BossRaidHealthText;
+
 	FName LunaSpeechKey;
 	ELunaServerState LunaServerState = {};
 	FOnLunaQuestionSubmitted LunaQuestionSubmitted;
@@ -257,4 +304,5 @@ private:
 	bool bBossRaidJoining = false;
 	FBackendBossRaidStatus BossRaidStatus;
 	FBackendBossRaidStanding BossRaidStanding;
+	float SealElapsedSeconds = 0.f;
 };

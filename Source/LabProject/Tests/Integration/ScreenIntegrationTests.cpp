@@ -4,6 +4,7 @@
 
 #include "Components/EditableTextBox.h"
 #include "Components/TextBlock.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Localization/MenuLocalizationSubsystem.h"
 #include "Luna/LunaChatSubsystem.h"
 #include "Online/OnlineSessionsSubsystem.h"
@@ -142,6 +143,44 @@ bool FPdTitleMenuScreensTest::RunTest(const FString& Parameters)
 	ExpectScreenClosesOnBack<UShopWidget>(this, TEXT("상점"), [](UTitleWidget& Title) { ClickTitleButton(Title, TEXT("HandlePandoraShopClicked")); });
 	ExpectScreenClosesOnBack<UGuideWidget>(this, TEXT("가이드"), [](UTitleWidget& Title) { ClickTitleButton(Title, TEXT("HandleGuideClicked")); });
 	ExpectScreenClosesOnBack<URecordWidget>(this, TEXT("전적"), [](UTitleWidget& Title) { ClickTitleButton(Title, TEXT("HandleRecordClicked")); });
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPdTitleMenuHoverTest, "LabProject.Integration.Screens.TitleMenuHover",
+	EAutomationTestFlags::ClientContext | EAutomationTestFlags::EngineFilter)
+
+// 판 없는 타이틀 메뉴는 마우스를 올린 줄만 강조하고, 마우스가 떠나면 강조를 거둔다.
+bool FPdTitleMenuHoverTest::RunTest(const FString& Parameters)
+{
+	OpenTitle(this);
+
+	const auto GetHoverProgress = [](const TCHAR* ButtonName)
+	{
+		const UTitleWidget* Title = FindActiveScreen<UTitleWidget>();
+		return Title ? Title->GetMenuHoverProgress(Title->GetWidgetFromName(ButtonName)) : -1.f;
+	};
+	IntegrationTest::Step(0.2f, []()
+	{
+		const UTitleWidget* Title = FindActiveScreen<UTitleWidget>();
+		if (const UWidget* RoomList = Title ? Title->GetWidgetFromName(TEXT("Btn_RoomList")) : nullptr)
+		{
+			const FGeometry& Geometry = RoomList->GetCachedGeometry();
+			FSlateApplication::Get().SetCursorPos(Geometry.LocalToAbsolute(Geometry.GetLocalSize() * 0.5f));
+		}
+	});
+	IntegrationTest::WaitUntil(this, TEXT("방 목록 강조"), 3.f, [GetHoverProgress]()
+	{
+		return GetHoverProgress(TEXT("Btn_RoomList")) >= 1.f;
+	});
+	IntegrationTest::Step(0.1f, [this, GetHoverProgress]()
+	{
+		TestTrue(TEXT("마우스가 없는 빠른 매칭은 강조하지 않는다"), FMath::IsNearlyZero(GetHoverProgress(TEXT("Btn_QuickMatch"))));
+		FSlateApplication::Get().SetCursorPos(FVector2D::ZeroVector);
+	});
+	IntegrationTest::WaitUntil(this, TEXT("마우스가 떠난 방 목록의 강조 거두기"), 3.f, [GetHoverProgress]()
+	{
+		return FMath::IsNearlyZero(GetHoverProgress(TEXT("Btn_RoomList")));
+	});
 	return true;
 }
 

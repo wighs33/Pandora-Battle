@@ -16,6 +16,8 @@
 #include "Components/Image.h"
 #include "Components/Overlay.h"
 #include "Components/OverlaySlot.h"
+#include "Components/ProgressBar.h"
+#include "Components/SizeBox.h"
 #include "Components/Spacer.h"
 #include "Components/TextBlock.h"
 #include "Definition/Level/LevelDefinition.h"
@@ -55,6 +57,7 @@ namespace
 	const FName BossRaidHealthKey(TEXT("Title.BossRaidHealth"));
 	const FName BossRaidAttemptsLeftKey(TEXT("Title.BossRaidAttemptsLeft"));
 	const FName BossRaidMyRankKey(TEXT("Title.BossRaidMyRank"));
+	const FName WorldBossNameKey(TEXT("HUD.WorldBossName"));
 
 	// 말풍선 폭에서 꼬리가 놓이는 위치. 꼬리 끝은 Luna 머리에 두고 몸통은 주로 왼쪽으로 커지므로,
 	// 폭을 다 채운 답(줄바꿈 420 + 여백)도 오른쪽 위 게임 설정 버튼 앞에서 끝난다.
@@ -63,14 +66,32 @@ namespace
 	/** 질문 칸과 그 오른쪽 DLC 받기 버튼 사이의 간격 */
 	constexpr float LunaDlcButtonGap = 12.f;
 
-	// Luna 말풍선과 질문 칸의 색은 타이틀 메뉴를 따른다: 패널 외곽선과 안내 문구 색.
-	const FLinearColor LunaPanelColor(0.955f, 0.896f, 0.776f);
-	const FLinearColor LunaOutlineColor(0.701f, 0.474f, 0.195f);
-	const FLinearColor LunaAccentColor(0.905f, 0.640f, 0.260f);
-	const FLinearColor LunaClosedColor(0.018f, 0.011f, 0.032f, 0.92f);
-	const FLinearColor LunaTextColor(0.130f, 0.056f, 0.021f);
+	// 타이틀 색: 먹색 판, 상아색 글자, 금색 강조. 말풍선은 종이색에 금색 선이다.
+	const FLinearColor TitleInkColor = FLinearColor::FromSRGBColor(FColor(0x0E, 0x0D, 0x12));
+	const FLinearColor TitleIvoryColor = FLinearColor::FromSRGBColor(FColor(0xEF, 0xE8, 0xD8));
+	const FLinearColor TitleGoldColor = FLinearColor::FromSRGBColor(FColor(0xD6, 0xB0, 0x64));
+	const FLinearColor TitleHealthColor = FLinearColor::FromSRGBColor(FColor(0xD9, 0x49, 0x3E));
+	const FLinearColor LunaPaperColor = FLinearColor::FromSRGBColor(FColor(0xF4, 0xED, 0xDD));
+	const FLinearColor LunaTextColor = FLinearColor::FromSRGBColor(FColor(0x1D, 0x19, 0x13));
+	const FLinearColor LunaInputColor = TitleInkColor.CopyWithNewOpacity(0.78f);
+	const FLinearColor LunaClosedColor = TitleInkColor.CopyWithNewOpacity(0.92f);
+	const FLinearColor LunaHoverColor = FLinearColor::FromSRGBColor(FColor(0x24, 0x1F, 0x19));
+	const FLinearColor TitleDimTextColor = TitleIvoryColor.CopyWithNewOpacity(0.62f);
+	const FLinearColor TitleFaintLineColor = TitleIvoryColor.CopyWithNewOpacity(0.18f);
+	const FLinearColor LunaIdleOutlineColor = TitleGoldColor.CopyWithNewOpacity(0.55f);
+	const FLinearColor LunaClosedOutlineColor = TitleGoldColor.CopyWithNewOpacity(0.3f);
 
-	FSlateBrush MakeLunaBrush(const FLinearColor& Fill, const FLinearColor& Outline, const float OutlineWidth, const float CornerRadius)
+	/** 타이틀의 판과 선은 모서리를 둥글리지 않는다. */
+	constexpr float TitleCornerRadius = 0.f;
+	constexpr float TitleLineWidth = 1.f;
+
+	// 보스 레이드 줄 오른쪽 요약: 강조 화살표 자리를 비우고, 보스 이름 · 체력 막대 · 비율 순서로 둔다.
+	constexpr float BossRaidSummaryRightInset = 44.f;
+	constexpr float BossRaidSummaryGap = 12.f;
+	const FVector2D BossRaidHealthBarSize(110.f, 4.f);
+	constexpr int32 BossRaidSummaryFontSize = 14;
+
+	FSlateBrush MakeTitleBrush(const FLinearColor& Fill, const FLinearColor& Outline, const float OutlineWidth, const float CornerRadius)
 	{
 		FSlateBrush Brush;
 		Brush.DrawAs = ESlateBrushDrawType::RoundedBox;
@@ -96,6 +117,13 @@ namespace
 			return LunaChatOfflineKey;
 		}
 	}
+}
+
+UTitleWidget::UTitleWidget(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// 화면 전체를 덮는 타이틀은 떠오르지 않고 나타나기만 한다.
+	IntroRise = 0.f;
 }
 
 void UTitleWidget::SetTitleCharacterMaterial(UMaterialInterface* Material)
@@ -164,6 +192,9 @@ void UTitleWidget::NativeOnInitialized()
 	BuildLunaSpeechBubble();
 	BuildLunaChatInput();
 	BuildVersionLabel();
+	// 요약을 먼저 넣어, 강조가 보스 레이드 줄의 다른 내용과 함께 요약도 밀게 한다.
+	BuildBossRaidSummary();
+	BuildMenuHoverHighlight();
 
 	// 브라우저를 열 수 없는 플랫폼에서는 웹사이트 버튼을 보이지 않는다.
 	if (Btn_Website && !FPlatformProcess::CanLaunchURL(*OfficialWebsiteUrl))
@@ -207,6 +238,7 @@ void UTitleWidget::ApplyBossRaidAvailability()
 		Tooltip = Tooltip.IsEmpty() ? Details : FText::Format(INVTEXT("{0}\n\n{1}"), Tooltip, Details);
 	}
 	SetHoverTooltip(Btn_BossRaid, Tooltip);
+	ApplyBossRaidSummary();
 }
 
 void UTitleWidget::SetBossRaidDetails(const FBackendBossRaidStatus& Status, const FBackendBossRaidStanding& Standing)
@@ -279,6 +311,31 @@ void UTitleWidget::NativeConstruct()
 				&ThisClass::HandleQuickMatchRequestComplete);
 		}
 	}
+}
+
+void UTitleWidget::NativeTick(const FGeometry& MyGeometry, const float InDeltaTime)
+{
+	Super::NativeTick(MyGeometry, InDeltaTime);
+	if (MenuHoverHighlight)
+	{
+		MenuHoverHighlight->Tick(InDeltaTime);
+	}
+
+	// 봉인의 두 글자 고리는 서로 반대로 돈다. 한 바퀴를 넘으면 되감아 각도가 커지지 않게 한다.
+	SealElapsedSeconds = FMath::Fmod(SealElapsedSeconds + InDeltaTime, SealRunesTurnSeconds * SealInnerTurnSeconds);
+	if (Img_SealRunes)
+	{
+		Img_SealRunes->SetRenderTransformAngle(-360.f * SealElapsedSeconds / SealRunesTurnSeconds);
+	}
+	if (Img_SealInner)
+	{
+		Img_SealInner->SetRenderTransformAngle(360.f * SealElapsedSeconds / SealInnerTurnSeconds);
+	}
+}
+
+float UTitleWidget::GetMenuHoverProgress(const UWidget* Button) const
+{
+	return MenuHoverHighlight ? MenuHoverHighlight->GetProgress(Button) : 0.f;
 }
 
 void UTitleWidget::NativeDestruct()
@@ -381,6 +438,100 @@ void UTitleWidget::BuildVersionLabel()
 	LabelSlot->SetAutoSize(true);
 }
 
+// 큰 줄은 왼쪽 막대와 화살표로, 작은 글자 버튼은 밑줄로 강조한다.
+void UTitleWidget::BuildMenuHoverHighlight()
+{
+	if (MenuHoverHighlight)
+	{
+		return;
+	}
+	MenuHoverHighlight = NewObject<UMenuHoverHighlight>(this);
+	MenuHoverHighlight->SetStyle(MenuHoverStyle);
+	for (UButton* Row : { Btn_QuickMatch.Get(), Btn_RoomList.Get(), Btn_TrainingMode.Get(), Btn_BossRaid.Get() })
+	{
+		if (Row)
+		{
+			MenuHoverHighlight->Decorate(Row, EMenuHoverMarker::SideBar);
+		}
+	}
+	for (UButton* Small : { Btn_PandoraShop.Get(), Btn_Guide.Get(), Btn_Record.Get(), Btn_Exit.Get(), Btn_GameSettings.Get(),
+		Btn_Website.Get() })
+	{
+		if (Small)
+		{
+			MenuHoverHighlight->Decorate(Small, EMenuHoverMarker::Underline);
+		}
+	}
+}
+
+// 보스 레이드 줄 오른쪽에 보스 이름, 남은 체력 막대, 비율을 둔다. 회차가 열려 있을 때만 보인다.
+void UTitleWidget::BuildBossRaidSummary()
+{
+	UCanvasPanel* Row = Btn_BossRaid ? Cast<UCanvasPanel>(Btn_BossRaid->GetContent()) : nullptr;
+	if (!Row || !WidgetTree || BossRaidSummary)
+	{
+		return;
+	}
+
+	auto MakeSummaryText = [this]()
+	{
+		UTextBlock* Text = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
+		FSlateFontInfo Font = Text->GetFont();
+		Font.Size = BossRaidSummaryFontSize;
+		Text->SetFont(Font);
+		Text->SetColorAndOpacity(FSlateColor(TitleDimTextColor));
+		return Text;
+	};
+	UHorizontalBox* Summary = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("BossRaidSummary"));
+	BossRaidNameText = MakeSummaryText();
+	Summary->AddChildToHorizontalBox(BossRaidNameText)->SetVerticalAlignment(VAlign_Center);
+
+	BossRaidHealthBar = WidgetTree->ConstructWidget<UProgressBar>(UProgressBar::StaticClass());
+	FProgressBarStyle BarStyle = BossRaidHealthBar->GetWidgetStyle();
+	BarStyle.SetBackgroundImage(MakeTitleBrush(TitleFaintLineColor, FLinearColor::Transparent, 0.f, TitleCornerRadius));
+	BarStyle.SetFillImage(MakeTitleBrush(FLinearColor::White, FLinearColor::Transparent, 0.f, TitleCornerRadius));
+	BossRaidHealthBar->SetWidgetStyle(BarStyle);
+	BossRaidHealthBar->SetFillColorAndOpacity(TitleHealthColor);
+	USizeBox* BarBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
+	BarBox->SetWidthOverride(BossRaidHealthBarSize.X);
+	BarBox->SetHeightOverride(BossRaidHealthBarSize.Y);
+	BarBox->SetContent(BossRaidHealthBar);
+	UHorizontalBoxSlot* BarSlot = Summary->AddChildToHorizontalBox(BarBox);
+	BarSlot->SetVerticalAlignment(VAlign_Center);
+	BarSlot->SetPadding(FMargin(BossRaidSummaryGap, 0.f));
+
+	BossRaidHealthText = MakeSummaryText();
+	Summary->AddChildToHorizontalBox(BossRaidHealthText)->SetVerticalAlignment(VAlign_Center);
+
+	Summary->SetVisibility(ESlateVisibility::Collapsed);
+	UCanvasPanelSlot* SummarySlot = Row->AddChildToCanvas(Summary);
+	SummarySlot->SetAnchors(FAnchors(1.f, 0.5f));
+	SummarySlot->SetAlignment(FVector2D(1.f, 0.5f));
+	SummarySlot->SetPosition(FVector2D(-BossRaidSummaryRightInset, 0.f));
+	SummarySlot->SetAutoSize(true);
+	BossRaidSummary = Summary;
+}
+
+void UTitleWidget::ApplyBossRaidSummary()
+{
+	if (!BossRaidSummary)
+	{
+		return;
+	}
+	const bool bShow = bBossRaidOpen && BossRaidStatus.bHasRaid && BossRaidStatus.MaxHealth > 0;
+	BossRaidSummary->SetVisibility(bShow ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	if (!bShow)
+	{
+		return;
+	}
+	const double HealthFraction = FMath::Clamp(static_cast<double>(BossRaidStatus.Health) / BossRaidStatus.MaxHealth, 0.0, 1.0);
+	FNumberFormattingOptions WholePercent;
+	WholePercent.MaximumFractionalDigits = 0;
+	BossRaidNameText->SetText(MenuText(WorldBossNameKey));
+	BossRaidHealthBar->SetPercent(static_cast<float>(HealthFraction));
+	BossRaidHealthText->SetText(FText::AsPercent(HealthFraction, &WholePercent));
+}
+
 void UTitleWidget::BuildLunaSpeechBubble()
 {
 	// Luna 초상화와 같은 캔버스에서 한 층 위에 두어, 말풍선이 타이틀의 반응형 크기를 따른다.
@@ -391,8 +542,7 @@ void UTitleWidget::BuildLunaSpeechBubble()
 		return;
 	}
 
-	const FSlateBrush TailBrush = MakeLunaBrush(LunaPanelColor, LunaOutlineColor, 2.f, 0.f);
-	const FSlateBrush BodyBrush = MakeLunaBrush(LunaPanelColor, LunaOutlineColor, 2.f, 14.f);
+	const FSlateBrush BubbleBrush = MakeTitleBrush(LunaPaperColor, TitleGoldColor, TitleLineWidth, TitleCornerRadius);
 
 	UOverlay* Bubble = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass(), TEXT("LunaSpeechBubble"));
 
@@ -400,7 +550,7 @@ void UTitleWidget::BuildLunaSpeechBubble()
 	// 양쪽 여백 위젯이 글 길이와 상관없이 꼬리를 폭의 LunaSpeechTailFraction 위치에 둔다.
 	UHorizontalBox* TailRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("LunaSpeechTailRow"));
 	UImage* Tail = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), TEXT("LunaSpeechTail"));
-	Tail->SetBrush(TailBrush);
+	Tail->SetBrush(BubbleBrush);
 	Tail->SetDesiredSizeOverride(FVector2D(20.f, 20.f));
 	Tail->SetRenderTransformAngle(45.f);
 	auto AddTailSpacer = [this, TailRow](const float Fill)
@@ -420,7 +570,7 @@ void UTitleWidget::BuildLunaSpeechBubble()
 	TailSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 4.f));
 
 	UBorder* Body = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("LunaSpeechBody"));
-	Body->SetBrush(BodyBrush);
+	Body->SetBrush(BubbleBrush);
 	Body->SetPadding(FMargin(22.f, 14.f));
 	UOverlaySlot* BodySlot = Bubble->AddChildToOverlay(Body);
 	BodySlot->SetHorizontalAlignment(HAlign_Fill);
@@ -459,9 +609,10 @@ void UTitleWidget::BuildLunaChatInput()
 
 	// UE 5.8의 SetWidgetStyle은 Slate 위젯이 생긴 뒤에는 인자의 주소를 Slate에 넘긴다.
 	// 여기서는 Slate 위젯이 아직 없으므로 스타일을 UMG 멤버에만 복사한다.
-	const FSlateBrush Background = MakeLunaBrush(LunaPanelColor, LunaOutlineColor, 2.f, 12.f);
-	const FSlateBrush FocusedBackground = MakeLunaBrush(LunaPanelColor, LunaAccentColor, 3.f, 12.f);
-	const FSlateBrush ClosedBackground = MakeLunaBrush(LunaClosedColor, LunaOutlineColor, 2.f, 12.f);
+	// 질문 칸은 먹색 판에 금색 선이다. 글을 쓰는 동안 선이 진해지고, 막힌 동안은 판이 더 어둡고 선이 옅다.
+	const FSlateBrush Background = MakeTitleBrush(LunaInputColor, LunaIdleOutlineColor, TitleLineWidth, TitleCornerRadius);
+	const FSlateBrush FocusedBackground = MakeTitleBrush(LunaInputColor, TitleGoldColor, TitleLineWidth, TitleCornerRadius);
+	const FSlateBrush ClosedBackground = MakeTitleBrush(LunaClosedColor, LunaClosedOutlineColor, TitleLineWidth, TitleCornerRadius);
 
 	// 플레이어는 어떤 언어로든 입력할 수 있으므로, 메뉴 언어와 상관없이 라틴 문자도 담은 CJK 글꼴을 쓴다.
 	FEditableTextBoxStyle Style = LunaChatInput->GetWidgetStyle();
@@ -476,11 +627,11 @@ void UTitleWidget::BuildLunaChatInput()
 		}
 	}
 	Font.Size = 16;
-	const FSlateColor TextColor(LunaTextColor);
+	const FSlateColor TextColor(TitleIvoryColor);
 	Style.SetBackgroundImageNormal(Background).SetBackgroundImageHovered(Background)
 		.SetBackgroundImageFocused(FocusedBackground).SetBackgroundImageReadOnly(ClosedBackground)
 		.SetPadding(FMargin(16.f, 10.f)).SetFont(Font).SetForegroundColor(TextColor)
-		.SetFocusedForegroundColor(TextColor).SetReadOnlyForegroundColor(FSlateColor(FLinearColor::White));
+		.SetFocusedForegroundColor(TextColor).SetReadOnlyForegroundColor(FSlateColor(TitleDimTextColor));
 	LunaChatInput->SetWidgetStyle(Style);
 	LunaChatInput->SetClearKeyboardFocusOnCommit(false);
 	LunaChatInput->OnTextCommitted.AddDynamic(this, &ThisClass::HandleLunaChatCommitted);
@@ -503,9 +654,9 @@ void UTitleWidget::BuildLunaDlcButton(UCanvasPanel& Canvas, const UCanvasPanelSl
 {
 	LunaDlcButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("Btn_LunaDlc"));
 	FButtonStyle Style = LunaDlcButton->GetStyle();
-	Style.SetNormal(MakeLunaBrush(LunaAccentColor, LunaOutlineColor, 2.f, 12.f));
-	Style.SetHovered(MakeLunaBrush(LunaPanelColor, LunaAccentColor, 3.f, 12.f));
-	Style.SetPressed(MakeLunaBrush(LunaOutlineColor, LunaOutlineColor, 2.f, 12.f));
+	Style.SetNormal(MakeTitleBrush(LunaInputColor, TitleGoldColor, TitleLineWidth, TitleCornerRadius));
+	Style.SetHovered(MakeTitleBrush(LunaHoverColor, TitleGoldColor, TitleLineWidth, TitleCornerRadius));
+	Style.SetPressed(MakeTitleBrush(TitleGoldColor.CopyWithNewOpacity(0.35f), TitleGoldColor, TitleLineWidth, TitleCornerRadius));
 	LunaDlcButton->SetStyle(Style);
 	LunaDlcButton->OnClicked.AddDynamic(this, &ThisClass::HandleLunaDlcClicked);
 
@@ -513,7 +664,7 @@ void UTitleWidget::BuildLunaDlcButton(UCanvasPanel& Canvas, const UCanvasPanelSl
 	FSlateFontInfo Font = LunaDlcLabel->GetFont();
 	Font.Size = 16;
 	LunaDlcLabel->SetFont(Font);
-	LunaDlcLabel->SetColorAndOpacity(FSlateColor(LunaTextColor));
+	LunaDlcLabel->SetColorAndOpacity(FSlateColor(TitleIvoryColor));
 	Cast<UButtonSlot>(LunaDlcButton->AddChild(LunaDlcLabel))->SetPadding(FMargin(16.f, 8.f));
 
 	UCanvasPanelSlot* ButtonSlot = Canvas.AddChildToCanvas(LunaDlcButton);

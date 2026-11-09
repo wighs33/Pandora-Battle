@@ -23,6 +23,8 @@ public:
 	virtual void NativeOnInitialized() override;
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
+	virtual void NativeOnActivated() override;
+	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 	virtual TOptional<FUIInputConfig> GetDesiredInputConfig() const override;
 	virtual UWidget* NativeGetDesiredFocusTarget() const override;
 	virtual bool NativeOnHandleBackAction() override;
@@ -51,6 +53,9 @@ protected:
 	FText MenuTextOrFallback(FName Key, const FText& Fallback) const;
 	void SetHoverTooltip(UWidget* Widget, const FText& Text);
 
+private:
+	void ApplyIntroMotion(float Alpha);
+
 protected:
 	/** 아래 연결 표는 ULocalizedMenuWidget과 이름이 같아, 패널에서 화면으로 바꾼 위젯 애셋이 값을 그대로 쓴다. */
 	UPROPERTY(EditDefaultsOnly, Category="!UI|Localization")
@@ -65,10 +70,21 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta=(BindWidgetOptional), Category="!UI|Settings")
 	TObjectPtr<UButton> Btn_GameSettings;
 
+	/** 화면이 뜰 때 이만큼 아래에서 떠오르며 나타난다. 화면 전체를 덮는 화면은 0으로 두어 나타나기만 한다. */
+	UPROPERTY(EditDefaultsOnly, Category="!UI|Motion")
+	float IntroRise = 16.f;
+
+	/** 화면이 다 나타나는 시간. 들어올 때는 빠르게 출발해 길게 가라앉는다. */
+	UPROPERTY(EditDefaultsOnly, Category="!UI|Motion", meta=(ClampMin="0.01", Units="s"))
+	float IntroDuration = 0.24f;
+
 private:
 	FUIInputConfig ScreenInputConfig;
 	TWeakObjectPtr<UWidget> ScreenFocusTarget;
 	FSimpleDelegate ScreenBackAction;
+
+	/** 등장 움직임이 진행 중일 때 지난 시간 */
+	TOptional<float> IntroElapsed;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UMenuLocalizationExtension> MenuLocalization;
