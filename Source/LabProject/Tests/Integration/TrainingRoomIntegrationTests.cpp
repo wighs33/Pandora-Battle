@@ -10,6 +10,7 @@
 #include "Character/EnemyBase.h"
 #include "Character/LagCompensationSubsystem.h"
 #include "Common/InfoUiTypes.h"
+#include "Common/PdGameplayTags.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
 #include "Component/Player/CombatComponent.h"
 #include "Component/Player/ControllerPresentationComponent.h"
@@ -18,8 +19,12 @@
 #include "Component/Player/EquipmentEffectComponent.h"
 #include "Component/Player/PlayerMatchComponent.h"
 #include "Component/Player/PlayerSpawnComponent.h"
+#include "Component/Skin/SkinComponent.h"
+#include "Component/Skin/SkinEquipmentComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Definition/Item/ItemDefinition.h"
 #include "Definition/Player/ControllerInputDefinition.h"
+#include "Definition/Skin/SkinDefinition.h"
 #include "EngineUtils.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
@@ -41,6 +46,9 @@ namespace
 	const FString TrainingRoomMap = TEXT("/Game/Map/LV_TrainingRoom");
 	const TCHAR* BowPath = TEXT("/Game/Item/Weapon/LoyalBow/DA_LoyalBow.DA_LoyalBow");
 	const TCHAR* GreatswordPath = TEXT("/Game/Item/Weapon/Greatsword/DA_Greatsword.DA_Greatsword");
+	const TCHAR* PenguinOnesiePath = TEXT("/Game/Skin/Cosmetics/PenguinOnesie/DA_PenguinOnesie.DA_PenguinOnesie");
+	const TCHAR* NightRaidBottomPath = TEXT("/Game/Skin/Cosmetics/NightRaidBottom/DA_NightRaidBottom.DA_NightRaidBottom");
+	const TCHAR* PandoraCapPath = TEXT("/Game/Skin/Cosmetics/PandoraCap/DA_PandoraCap.DA_PandoraCap");
 	// 키를 누르고 있을 때 보낼 반복 이벤트 수와 간격. 첫 반복이 핵심이라 몇 번이면 충분하다.
 	constexpr int32 HeldKeyRepeatEvents = 3;
 	constexpr float KeyRepeatIntervalSeconds = 0.05f;
@@ -55,6 +63,40 @@ namespace
 	{
 		const ACharacterBase* Player = GetPlayerCharacter();
 		return Player ? Player->GetEquipmentComponent() : nullptr;
+	}
+
+	USkinEquipmentComponent* GetPlayerSkinEquipment()
+	{
+		const ACharacterBase* Player = GetPlayerCharacter();
+		return Player ? Player->GetSkinEquipmentComponent() : nullptr;
+	}
+
+	USkinDefinition* LoadSkin(const TCHAR* DefinitionPath)
+	{
+		return LoadObject<USkinDefinition>(nullptr, DefinitionPath);
+	}
+
+	/** Definition의 스킨 액터가 캐릭터에 붙어 몸 메시의 포즈를 따르는지(리더 포즈). 외형은 비동기로 준비되므로 기다려서 본다. */
+	bool IsSkinWornOnBody(const TCHAR* DefinitionPath)
+	{
+		const ACharacterBase* Player = GetPlayerCharacter();
+		const USkinDefinition* Definition = LoadSkin(DefinitionPath);
+		const UClass* ActorClass = Definition ? Definition->ActorClass.Get() : nullptr;
+		if (!Player || !ActorClass)
+		{
+			return false;
+		}
+		TArray<AActor*> AttachedActors;
+		Player->GetAttachedActors(AttachedActors);
+		for (const AActor* Actor : AttachedActors)
+		{
+			const USkeletalMeshComponent* SkinMesh = Actor && Actor->IsA(ActorClass) ? Actor->FindComponentByClass<USkeletalMeshComponent>() : nullptr;
+			if (SkinMesh && SkinMesh->GetSkeletalMeshAsset() && SkinMesh->LeaderPoseComponent.Get() == Player->GetMesh())
+			{
+				return true;
+			}
+		}
+		return false;
 	}
 
 	APdHUD* GetHud()
@@ -860,6 +902,80 @@ bool FPdLagCompensationRewindTest::RunTest(const FString& Parameters)
 			FVector::Dist2D(RewoundHitLocation, Move->OldCenter) < FVector::Dist2D(RewoundHitLocation, Move->NewCenter));
 		TestFalse(TEXT("옮기기 전 시각에는 새 위치에 봇이 없다"), HitsBot(Move->OldTime, Move->NewCenter));
 		TestTrue(TEXT("지금 시각으로 판정하면 새 위치의 봇을 맞힌다"), HitsBot(Bot->GetWorld()->GetTimeSeconds(), Move->NewCenter));
+	});
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPdOnesieCoversBottomAndHatTest, "LabProject.Integration.TrainingRoom.OnesieCoversBottomAndHat",
+	EAutomationTestFlags::ClientContext | EAutomationTestFlags::EngineFilter)
+
+// 한 벌 옷은 상의 칸에 입고 하의 칸과 모자 칸을 막는다. 입으면 입던 하의와 모자를 벗기고, 벗을 때까지 둘 다 입지 못한다
+// (스킨 정의 → 장착 → 외형 액터).
+bool FPdOnesieCoversBottomAndHatTest::RunTest(const FString& Parameters)
+{
+	const FGameplayTag Top = PdGameplayTags::Skin_Cosmetics_Top;
+	const FGameplayTag Bottom = PdGameplayTags::Skin_Cosmetics_Bottom;
+	const FGameplayTag Hat = PdGameplayTags::Skin_Cosmetics_Hat;
+
+	IntegrationTest::OpenMap(this, TrainingRoomMap);
+	IntegrationTest::Step(0.f, [this, Bottom, Hat]()
+	{
+		USkinDefinition* Onesie = LoadSkin(PenguinOnesiePath);
+		USkinDefinition* Joggers = LoadSkin(NightRaidBottomPath);
+		USkinDefinition* Cap = LoadSkin(PandoraCapPath);
+		TestTrue(TEXT("한 벌 옷 정의가 하의 칸을 막는다"), Onesie && Onesie->CoveredSlotTags.HasTagExact(Bottom));
+		TestTrue(TEXT("한 벌 옷 정의가 모자 칸을 막는다"), Onesie && Onesie->CoveredSlotTags.HasTagExact(Hat));
+		const APlayerController* Controller = IntegrationTest::GetPlayerController();
+		const APdPlayerState* PlayerState = Controller ? Controller->GetPlayerState<APdPlayerState>() : nullptr;
+		USkinComponent* OwnedSkins = PlayerState ? PlayerState->GetSkinComponent() : nullptr;
+		USkinEquipmentComponent* Equipment = GetPlayerSkinEquipment();
+		if (!TestTrue(TEXT("스킨 정의와 스킨 컴포넌트가 있다"), Onesie && Joggers && Cap && OwnedSkins && Equipment))
+		{
+			return;
+		}
+		OwnedSkins->AddSkinDefinitions({Onesie, Joggers, Cap});
+		TestTrue(TEXT("하의를 입는다"), Equipment->RequestEquipSkinDefinition(Joggers, Bottom));
+		TestTrue(TEXT("모자를 쓴다"), Equipment->RequestEquipSkinDefinition(Cap, Hat));
+	});
+	IntegrationTest::WaitUntil(this, TEXT("하의와 모자가 몸 포즈를 따르는 액터로 붙는다"), 10.f, []()
+	{
+		return IsSkinWornOnBody(NightRaidBottomPath) && IsSkinWornOnBody(PandoraCapPath);
+	});
+	IntegrationTest::Step(0.f, [this, Top, Bottom, Hat]()
+	{
+		USkinEquipmentComponent* Equipment = GetPlayerSkinEquipment();
+		const USkinDefinition* Onesie = LoadSkin(PenguinOnesiePath);
+		if (!Equipment || !TestTrue(TEXT("한 벌 옷을 상의 칸에 입는다"), Equipment->RequestEquipSkinDefinition(Onesie, Top)))
+		{
+			return;
+		}
+		TestNull(TEXT("한 벌 옷을 입으면 하의 칸이 빈다"), Equipment->GetEquippedSkinDefinition(Bottom));
+		TestNull(TEXT("한 벌 옷을 입으면 모자 칸이 빈다"), Equipment->GetEquippedSkinDefinition(Hat));
+		TestTrue(TEXT("하의 칸을 막은 스킨은 한 벌 옷이다"), Equipment->FindCoveringSkinDefinition(Bottom) == Onesie);
+		TestTrue(TEXT("모자 칸을 막은 스킨은 한 벌 옷이다"), Equipment->FindCoveringSkinDefinition(Hat) == Onesie);
+		TestFalse(TEXT("한 벌 옷을 입은 동안 하의를 입지 못한다"), Equipment->RequestEquipSkinDefinition(LoadSkin(NightRaidBottomPath), Bottom));
+		TestFalse(TEXT("한 벌 옷을 입은 동안 모자를 쓰지 못한다"), Equipment->RequestEquipSkinDefinition(LoadSkin(PandoraCapPath), Hat));
+	});
+	IntegrationTest::WaitUntil(this, TEXT("한 벌 옷이 붙고 하의와 모자 액터가 사라진다"), 10.f, []()
+	{
+		return IsSkinWornOnBody(PenguinOnesiePath) && !IsSkinWornOnBody(NightRaidBottomPath) && !IsSkinWornOnBody(PandoraCapPath);
+	});
+	IntegrationTest::Step(0.f, [this, Top, Bottom, Hat]()
+	{
+		USkinEquipmentComponent* Equipment = GetPlayerSkinEquipment();
+		if (!Equipment)
+		{
+			return;
+		}
+		TestTrue(TEXT("한 벌 옷을 벗는다"), Equipment->RequestUnequipSkinSlot(Top));
+		TestNull(TEXT("벗으면 하의 칸이 막히지 않는다"), Equipment->FindCoveringSkinDefinition(Bottom));
+		TestNull(TEXT("벗으면 모자 칸이 막히지 않는다"), Equipment->FindCoveringSkinDefinition(Hat));
+		TestTrue(TEXT("벗은 뒤에는 하의를 다시 입는다"), Equipment->RequestEquipSkinDefinition(LoadSkin(NightRaidBottomPath), Bottom));
+		TestTrue(TEXT("벗은 뒤에는 모자를 다시 쓴다"), Equipment->RequestEquipSkinDefinition(LoadSkin(PandoraCapPath), Hat));
+	});
+	IntegrationTest::WaitUntil(this, TEXT("다시 입은 하의와 모자가 붙는다"), 10.f, []()
+	{
+		return IsSkinWornOnBody(NightRaidBottomPath) && IsSkinWornOnBody(PandoraCapPath);
 	});
 	return true;
 }

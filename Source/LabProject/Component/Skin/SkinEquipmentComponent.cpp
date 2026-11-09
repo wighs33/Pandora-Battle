@@ -92,6 +92,18 @@ const USkinDefinition* USkinEquipmentComponent::GetEquippedSkinDefinition(const 
 	return SlotIndex != INDEX_NONE ? EquippedSkins[SlotIndex].SkinDefinition.Get() : nullptr;
 }
 
+const USkinDefinition* USkinEquipmentComponent::FindCoveringSkinDefinition(const FGameplayTag SlotTag) const
+{
+	for (const FEquippedSkinSlot& Slot : EquippedSkins)
+	{
+		if (Slot.SlotTag != SlotTag && Slot.SkinDefinition && Slot.SkinDefinition->CoveredSlotTags.HasTagExact(SlotTag))
+		{
+			return Slot.SkinDefinition;
+		}
+	}
+	return nullptr;
+}
+
 void USkinEquipmentComponent::GetEquippedSkinSlots(TArray<FEquippedSkinSlot>& OutEquippedSkins) const
 {
 	OutEquippedSkins = EquippedSkins;
@@ -218,6 +230,11 @@ bool USkinEquipmentComponent::EquipSkinDefinition(const USkinDefinition* SkinDef
 		NewSlot.SlotTag = SlotTag;
 		NewSlot.SkinDefinition = SkinDefinition;
 	}
+	// 새 스킨이 막는 칸(한 벌 옷의 하의 칸 등)에 입고 있던 스킨은 벗긴다.
+	EquippedSkins.RemoveAll([SkinDefinition, SlotTag](const FEquippedSkinSlot& Slot)
+	{
+		return Slot.SlotTag != SlotTag && SkinDefinition->CoveredSlotTags.HasTagExact(Slot.SlotTag);
+	});
 
 	MARK_PROPERTY_DIRTY_FROM_NAME(USkinEquipmentComponent, EquippedSkins, this);
 	GetOwner()->ForceNetUpdate();
@@ -265,6 +282,12 @@ bool USkinEquipmentComponent::CanEquipSkinDefinition(const USkinDefinition* Skin
 		? UProjectTagDefinition::Get(this)->GetSkinGestureTypeTag()
 		: SlotTag;
 	if (!SkinDefinition->IdTag.MatchesTag(RequiredSkinTag))
+	{
+		return false;
+	}
+
+	// 다른 칸의 스킨이 이 칸을 막고 있으면 입히지 않는다. 클라이언트도 복제된 장착 목록으로 미리 거른다.
+	if (FindCoveringSkinDefinition(SlotTag))
 	{
 		return false;
 	}

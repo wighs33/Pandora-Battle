@@ -49,6 +49,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "!Skin|Equipment")
 	const USkinDefinition* GetEquippedSkinDefinition(FGameplayTag SlotTag) const;
 
+	/** 다른 칸에 입은 스킨이 SlotTag 칸을 막고 있으면(한 벌 옷의 하의 칸 등) 그 스킨을, 아니면 nullptr를 돌려준다. */
+	UFUNCTION(BlueprintPure, Category = "!Skin|Equipment")
+	const USkinDefinition* FindCoveringSkinDefinition(FGameplayTag SlotTag) const;
+
 	UFUNCTION()
 	void GetEquippedSkinSlots(TArray<FEquippedSkinSlot>& OutEquippedSkins) const;
 

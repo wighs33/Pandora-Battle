@@ -60,7 +60,7 @@ void ULeftSkinWidget::InitialzeEquipSlots()
 	{
 		if (SkinEquipSlot)
 		{
-			SkinEquipSlot->SetIsEnabled(true);
+			SkinEquipSlot->SetIsEnabled(IsEquipSlotAvailable(SkinEquipSlot));
 			SkinEquipSlot->SetSelected(false);
 		}
 	}
@@ -83,7 +83,7 @@ void ULeftSkinWidget::SelectSkinEquipSlot(FGameplayTag EquipTypeTag, USkinEquipS
 	{
 		if (SkinEquipSlot)
 		{
-			SkinEquipSlot->SetIsEnabled(true);
+			SkinEquipSlot->SetIsEnabled(IsEquipSlotAvailable(SkinEquipSlot));
 			SkinEquipSlot->SetSelected(false);
 		}
 	}
@@ -94,6 +94,7 @@ void ULeftSkinWidget::SelectSkinEquipSlot(FGameplayTag EquipTypeTag, USkinEquipS
 void ULeftSkinWidget::RefreshEquippedSkinSlots(const USkinEquipmentComponent* SkinEquipmentComponent)
 {
 	RebuildSkinEquipSlotList();
+	CoveredEquipTypeTags.Reset();
 
 	for (USkinEquipSlotWidget* SkinEquipSlot : SkinEquipSlotList)
 	{
@@ -106,8 +107,13 @@ void ULeftSkinWidget::RefreshEquippedSkinSlots(const USkinEquipmentComponent* Sk
 		const USkinDefinition* SkinDefinition = SkinEquipmentComponent && SlotTag.IsValid()
 			? SkinEquipmentComponent->GetEquippedSkinDefinition(SlotTag)
 			: nullptr;
+		if (SkinEquipmentComponent && SlotTag.IsValid() && SkinEquipmentComponent->FindCoveringSkinDefinition(SlotTag))
+		{
+			CoveredEquipTypeTags.Add(SlotTag);
+		}
 
 		SkinEquipSlot->SetSkinDefinition(SkinDefinition);
+		SkinEquipSlot->SetIsEnabled(IsEquipSlotAvailable(SkinEquipSlot));
 	}
 }
 
@@ -121,7 +127,7 @@ USkinEquipSlotWidget* ULeftSkinWidget::FindFirstCompatibleSkinEquipSlot(const US
 	USkinEquipSlotWidget* FirstCompatibleSlot = nullptr;
 	for (USkinEquipSlotWidget* SkinEquipSlot : SkinEquipSlotList)
 	{
-		if (!SkinEquipSlot)
+		if (!SkinEquipSlot || !IsEquipSlotAvailable(SkinEquipSlot))
 		{
 			continue;
 		}
@@ -285,6 +291,12 @@ void ULeftSkinWidget::ApplyResolvedEquipTypeTags()
 			SkinEquipSlot->SetResolvedEquipTypeTag(ResolveSkinEquipTypeTagForSlot(SkinEquipSlot));
 		}
 	}
+}
+
+// 한 벌 옷처럼 다른 칸의 스킨이 막은 칸은 고르거나 끌어 놓을 수 없다.
+bool ULeftSkinWidget::IsEquipSlotAvailable(const USkinEquipSlotWidget* SkinEquipSlot) const
+{
+	return !CoveredEquipTypeTags.Contains(ResolveSkinEquipTypeTagForSlot(SkinEquipSlot));
 }
 
 FGameplayTag ULeftSkinWidget::ResolveSkinEquipTypeTagForSlot(const USkinEquipSlotWidget* SkinEquipSlot) const

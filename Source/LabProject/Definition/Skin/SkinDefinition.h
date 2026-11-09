@@ -43,6 +43,11 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skin|Equip")
 	bool bUseOwnerMeshAsLeaderPose = true;
 
+	/** 이 스킨을 입는 동안 함께 막는 다른 장착 칸. 입으면 그 칸의 스킨을 벗기고, 이 스킨을 벗을 때까지 그 칸에 입히지 못한다.
+	 *  예: 상의 칸에 입는 한 벌 옷은 하의 칸을 막는다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skin|Equip", meta = (Categories = "Skin.Cosmetics"))
+	FGameplayTagContainer CoveredSlotTags;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skin|Gesture")
 	TObjectPtr<UAnimMontage> GestureMontage = nullptr;
 

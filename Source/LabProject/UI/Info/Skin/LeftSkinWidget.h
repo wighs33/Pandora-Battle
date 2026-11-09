@@ -82,6 +82,7 @@ private:
 	APdPlayer* GetOwningPdPlayer() const;
 
 	FGameplayTag ResolveSkinEquipTypeTagForSlot(const USkinEquipSlotWidget* SkinEquipSlot) const;
+	bool IsEquipSlotAvailable(const USkinEquipSlotWidget* SkinEquipSlot) const;
 
 public:
 	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "!UI|Skin")
@@ -150,4 +151,8 @@ protected:
 
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "!UI|Skin", meta = (DisplayName = "IsSelectedAnySlot?"))
 	bool bIsSelectedAnySlot = false;
+
+private:
+	/** 다른 칸에 입은 스킨(한 벌 옷 등)에 막혀 비활성으로 두는 칸. RefreshEquippedSkinSlots가 채운다. */
+	TSet<FGameplayTag> CoveredEquipTypeTags;
 };
