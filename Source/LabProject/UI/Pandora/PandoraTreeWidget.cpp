@@ -9,7 +9,6 @@
 #include "Camera/CameraComponent.h"
 #include "Components/Button.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "Common/Ticker.h"
 #include "EnhancedInputSubsystems.h"
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/Actor.h"
@@ -398,17 +397,6 @@ void UPandoraTreeWidget::HandleResetPandoraClicked()
 	ResetPandora();
 }
 
-void UPandoraTreeWidget::HandleLoadoutClicked()
-{
-	if (APlayerController* PlayerController = GetOwningPlayer())
-	{
-		if (APdHUD* Hud = PlayerController->GetHUD<APdHUD>())
-		{
-			Ticker::RunNextTick(Hud, [Hud]() { Hud->ClosePandoraTreeUi(); });
-		}
-	}
-}
-
 void UPandoraTreeWidget::HandlePandoraDescriptionRequested(UPandoraWidget* PandoraWidget)
 {
 	if (!IsValid(PandoraWidget))
@@ -515,12 +503,6 @@ void UPandoraTreeWidget::BindButtonEvents()
 		ResetPandoraButton->OnClicked.RemoveDynamic(this, &ThisClass::HandleResetPandoraClicked);
 		ResetPandoraButton->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleResetPandoraClicked);
 	}
-
-	if (Btn_Loadout)
-	{
-		Btn_Loadout->OnClicked.RemoveDynamic(this, &ThisClass::HandleLoadoutClicked);
-		Btn_Loadout->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleLoadoutClicked);
-	}
 }
 
 void UPandoraTreeWidget::UnbindButtonEvents()
@@ -528,11 +510,6 @@ void UPandoraTreeWidget::UnbindButtonEvents()
 	if (ResetPandoraButton)
 	{
 		ResetPandoraButton->OnClicked.RemoveDynamic(this, &ThisClass::HandleResetPandoraClicked);
-	}
-
-	if (Btn_Loadout)
-	{
-		Btn_Loadout->OnClicked.RemoveDynamic(this, &ThisClass::HandleLoadoutClicked);
 	}
 }
 

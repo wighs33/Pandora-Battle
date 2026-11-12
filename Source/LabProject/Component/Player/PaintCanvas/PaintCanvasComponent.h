@@ -26,6 +26,10 @@ struct LABPROJECT_API FPaintCanvasStroke
 
 	UPROPERTY()
 	bool bStartsNewStroke = true;
+
+	/** 이 획의 물감 색(sRGB). 다른 클라이언트도 이 색으로 다시 그린다. */
+	UPROPERTY()
+	FColor Color = FColor::Black;
 };
 
 UCLASS(BlueprintType, Blueprintable, ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
@@ -46,6 +50,8 @@ public:
 	bool BeginPaintCanvasUiSession();
 	bool PaintAtNormalizedLocation(const FVector2D& DrawLocation);
 	void ResetPaintStroke();
+	/** 다음 칠부터 쓸 물감 색. 이어 그리던 획은 끊어 다음 칠이 새 획으로 시작한다. */
+	void SetBrushColor(FColor InBrushColor);
 	void HidePaintCanvas();
 	bool HasActivePaintCanvas() const;
 
@@ -165,6 +171,8 @@ private:
 	TArray<FPaintCanvasStroke> LocalPaintStrokes;
 
 	bool bHasPreviousPaintLocation = false;
+
+	FColor BrushColor = FColor::Black;
 
 	double LastPaintExportServerTime = -1.0e30;
 	double LastPaintFaceDecalServerTime = -1.0e30;

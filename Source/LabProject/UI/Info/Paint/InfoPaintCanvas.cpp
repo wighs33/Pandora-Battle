@@ -31,6 +31,15 @@ void UInfoPaintCanvas::Initialize(UInfoWidget* InOwnerWidget, UPaintCanvasWidget
 	OpaqueCanvasDisplayMaterial = WidgetDefinition
 		? WidgetDefinition->GetSkinWidgetSettings().PaintCanvasDisplayMaterial.Get()
 		: nullptr;
+
+	if (PaintCanvasWidget)
+	{
+		if (WidgetDefinition)
+		{
+			PaintCanvasWidget->SetPalette(WidgetDefinition->GetSkinWidgetSettings().PaintPalette);
+		}
+		PaintCanvasWidget->OnPaintColorPicked().AddUObject(this, &ThisClass::HandlePaintColorPicked);
+	}
 }
 
 void UInfoPaintCanvas::Shutdown()
@@ -44,6 +53,7 @@ void UInfoPaintCanvas::Shutdown()
 	HideActiveCanvas();
 	if (PaintCanvasWidget)
 	{
+		PaintCanvasWidget->OnPaintColorPicked().RemoveAll(this);
 		PaintCanvasWidget->SetVisibility(ESlateVisibility::Collapsed);
 	}
 
@@ -112,10 +122,20 @@ bool UInfoPaintCanvas::SetVisible(const bool bVisible)
 	{
 		Preview->Show(PlayerCharacter, PaintCanvasWidget, RenderTarget, Definition->GetSkinWidgetSettings());
 	}
+	PaintCanvasComponent->SetBrushColor(PaintCanvasWidget->GetSelectedColor());
 	PaintCanvasImage->SetVisibility(ESlateVisibility::Visible);
 	PaintCanvasWidget->SetIsEnabled(true);
 	PaintCanvasWidget->SetVisibility(ESlateVisibility::Visible);
 	return true;
+}
+
+void UInfoPaintCanvas::HandlePaintColorPicked(const FColor Color)
+{
+	APdPlayer* PlayerCharacter = GetPlayerCharacter();
+	if (UPaintCanvasComponent* PaintCanvasComponent = PlayerCharacter ? PlayerCharacter->GetPaintCanvasComponent() : nullptr)
+	{
+		PaintCanvasComponent->SetBrushColor(Color);
+	}
 }
 
 bool UInfoPaintCanvas::BeginStroke(const FVector2D& ScreenSpacePosition)

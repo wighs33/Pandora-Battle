@@ -85,9 +85,6 @@ private:
 	void HandleResetPandoraClicked();
 
 	UFUNCTION()
-	void HandleLoadoutClicked();
-
-	UFUNCTION()
 	void HandlePandoraDescriptionRequested(UPandoraWidget* PandoraWidget);
 
 	UFUNCTION()
@@ -137,9 +134,6 @@ public:
 protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional, DisplayName = "Reset Pandora Button"), Category = "!UI|Pandora|Widgets")
 	TObjectPtr<UButton> ResetPandoraButton;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Pandora|Widgets")
-	TObjectPtr<UButton> Btn_Loadout;
 
 	UPROPERTY(Transient, BlueprintReadOnly, meta = (BindWidgetAnimOptional), Category = "!UI|Pandora|Animation")
 	TObjectPtr<UWidgetAnimation> SlideInLeft;

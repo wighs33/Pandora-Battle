@@ -15,8 +15,6 @@
 #include "GameFramework/PlayerController.h"
 #include "InputCoreTypes.h"
 #include "Item/ItemInstance.h"
-#include "Engine/GameInstance.h"
-#include "Profile/PlayerProfileSubsystem.h"
 #include "UI/Common/ButtonClickBinding.h"
 #include "UI/HUD/PdHUD.h"
 #include "Definition/Pandora/PandoraDefinition.h"
@@ -538,27 +536,6 @@ void UInfoWidget::OnFaceDecalButtonClicked()
 	SetCanvasExportButtonVisible(PaintCanvas->HasActiveCanvas());
 }
 
-void UInfoWidget::OnDebugButtonClicked()
-{
-	UPlayerProfileSubsystem* ProfileSubsystem = UGameInstance::GetSubsystem<UPlayerProfileSubsystem>(GetGameInstance());
-	if (!ProfileSubsystem)
-	{
-		return;
-	}
-
-	constexpr int32 DebugVictoryGold = 123;
-	FMatchRecord VictoryRecord;
-	VictoryRecord.bWin = true;
-	VictoryRecord.Reward = DebugVictoryGold;
-	ProfileSubsystem->AddMatchRecord(VictoryRecord, false);
-	ProfileSubsystem->AddGold(DebugVictoryGold, true);
-
-	if (WB_LeftProfile)
-	{
-		WB_LeftProfile->RefreshTierImage();
-	}
-}
-
 void UInfoWidget::ApplyWidgetDefinitionSettings()
 {
 	if (const UWidgetClassDefinition* WidgetDefinition = UWidgetClassDefinition::ResolveWidgetClassDefinition(this))
@@ -634,7 +611,6 @@ TArray<FButtonClickBinding, TInlineAllocator<12>> UInfoWidget::GetButtonBindings
 		{ Btn_PandoraUpgrade, GET_FUNCTION_NAME_CHECKED(ThisClass, OnPandoraUpgradeButtonClicked) },
 		{ Btn_CanvasExport, GET_FUNCTION_NAME_CHECKED(ThisClass, OnCanvasExportButtonClicked) },
 		{ Btn_FaceDecal, GET_FUNCTION_NAME_CHECKED(ThisClass, OnFaceDecalButtonClicked) },
-		{ Btn_Debug, GET_FUNCTION_NAME_CHECKED(ThisClass, OnDebugButtonClicked) },
 		{ Btn_ClosePaint, GET_FUNCTION_NAME_CHECKED(ThisClass, OnClosePaintClicked) },
 	};
 }

@@ -77,7 +77,7 @@ public:
 
 	void ResetLocalLobbyPaintCanvasCache();
 	void CacheLocalLobbyPaintCanvasStroke(
-		UTexture2D* BrushTexture, double BrushSize, const FVector2D& DrawLocation, bool bStartsNewStroke = true);
+		UTexture2D* BrushTexture, double BrushSize, const FVector2D& DrawLocation, FColor Color, bool bStartsNewStroke = true);
 	void CacheLocalLobbyPaintCanvasFaceDecal(
 		UMaterialInterface* FaceDecalMaterial,
 		FName AttachSocketName,

@@ -9,6 +9,7 @@
 #include "Character/CharacterBase.h"
 #include "Character/EnemyBase.h"
 #include "Character/LagCompensationSubsystem.h"
+#include "Character/PdPlayer.h"
 #include "Common/InfoUiTypes.h"
 #include "Common/PdGameplayTags.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
@@ -17,24 +18,31 @@
 #include "Component/Player/ControllerInputComponent.h"
 #include "Component/Player/EquipmentComponent.h"
 #include "Component/Player/EquipmentEffectComponent.h"
+#include "Component/Player/PaintCanvas/PaintCanvasComponent.h"
 #include "Component/Player/PlayerMatchComponent.h"
 #include "Component/Player/PlayerSpawnComponent.h"
 #include "Component/Skin/SkinComponent.h"
 #include "Component/Skin/SkinEquipmentComponent.h"
+#include "Components/Button.h"
+#include "Components/PanelWidget.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Definition/Item/ItemDefinition.h"
 #include "Definition/Player/ControllerInputDefinition.h"
 #include "Definition/Skin/SkinDefinition.h"
 #include "EngineUtils.h"
+#include "Engine/TextureRenderTarget2D.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/GameModeBase.h"
 #include "InputAction.h"
+#include "Kismet/KismetRenderingLibrary.h"
 #include "Mode/PdPlayerController.h"
 #include "Mode/PdPlayerState.h"
 #include "UI/HUD/PdHUD.h"
 #include "UI/Info/InfoWidget.h"
+#include "UI/Info/Paint/PaintCanvasWidget.h"
+#include "UI/Info/Skin/LeftSkinWidget.h"
 #include "UI/Match/GameResultWidget.h"
 #include "UObject/UObjectIterator.h"
 #include "Weapon/Bow.h"
@@ -976,6 +984,103 @@ bool FPdOnesieCoversBottomAndHatTest::RunTest(const FString& Parameters)
 	IntegrationTest::WaitUntil(this, TEXT("다시 입은 하의와 모자가 붙는다"), 10.f, []()
 	{
 		return IsSkinWornOnBody(NightRaidBottomPath) && IsSkinWornOnBody(PandoraCapPath);
+	});
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPdPaintBrushColorTest, "LabProject.Integration.TrainingRoom.PaintBrushColor",
+	EAutomationTestFlags::ClientContext | EAutomationTestFlags::EngineFilter)
+
+// 정보 창 스킨 탭의 페인트 작업실에서 물감 칸을 누르면 그 색으로 칠한다(물감 칸 → 페인트 컴포넌트 → 렌더 타깃).
+bool FPdPaintBrushColorTest::RunTest(const FString& Parameters)
+{
+	// 물감 칸 순서는 DA_Widget의 Paint Palette(검정, 흰색, 빨강, …, 파랑 순)를 따른다.
+	constexpr int32 RedPigment = 2;
+	constexpr int32 BluePigment = 6;
+	const FVector2D RedSpot(0.25, 0.5);
+	const FVector2D BlueSpot(0.75, 0.5);
+	const FVector2D UntouchedSpot(0.5, 0.1);
+
+	const auto FindVisibleWidget = [](const UClass* WidgetClass) -> UUserWidget*
+	{
+		const UWorld* World = IntegrationTest::GetGameWorld();
+		for (TObjectIterator<UUserWidget> It; It; ++It)
+		{
+			if (It->IsA(WidgetClass) && It->GetWorld() == World && It->IsVisible())
+			{
+				return *It;
+			}
+		}
+		return nullptr;
+	};
+	const auto GetPaintCanvasComponent = []()
+	{
+		const APdPlayer* Player = Cast<APdPlayer>(GetPlayerCharacter());
+		return Player ? Player->GetPaintCanvasComponent() : nullptr;
+	};
+	const auto ClickPigment = [this, FindVisibleWidget](const int32 PigmentIndex)
+	{
+		UUserWidget* Workshop = FindVisibleWidget(UPaintCanvasWidget::StaticClass());
+		const UPanelWidget* Pigments = Workshop ? Cast<UPanelWidget>(Workshop->GetWidgetFromName(TEXT("PigmentList"))) : nullptr;
+		UButton* Pigment = Pigments ? Cast<UButton>(Pigments->GetChildAt(PigmentIndex)) : nullptr;
+		if (TestNotNull(TEXT("물감 칸이 있다"), Pigment))
+		{
+			Pigment->OnClicked.Broadcast();
+		}
+	};
+	const auto ReadCanvas = [GetPaintCanvasComponent](const FVector2D& Spot)
+	{
+		const UPaintCanvasComponent* PaintCanvas = GetPaintCanvasComponent();
+		UTextureRenderTarget2D* RenderTarget = PaintCanvas ? PaintCanvas->GetActivePaintCanvasRenderTarget() : nullptr;
+		return RenderTarget
+			? UKismetRenderingLibrary::ReadRenderTargetRawPixel(IntegrationTest::GetGameWorld(), RenderTarget,
+				FMath::RoundToInt(Spot.X * RenderTarget->SizeX), FMath::RoundToInt(Spot.Y * RenderTarget->SizeY))
+			: FLinearColor::Transparent;
+	};
+
+	IntegrationTest::OpenMap(this, TrainingRoomMap);
+	IntegrationTest::Step(0.f, []()
+	{
+		const APlayerController* Controller = IntegrationTest::GetPlayerController();
+		if (APdHUD* Hud = Controller ? Controller->GetHUD<APdHUD>() : nullptr)
+		{
+			Hud->OpenInfoUiFocused(EInfoUiSection::Skin);
+		}
+	});
+	IntegrationTest::Step(1.f, [this, FindVisibleWidget]()
+	{
+		UUserWidget* Skin = FindVisibleWidget(ULeftSkinWidget::StaticClass());
+		UButton* DrawButton = Skin ? Cast<UButton>(Skin->GetWidgetFromName(TEXT("DrawButton"))) : nullptr;
+		if (TestNotNull(TEXT("스킨 탭에 그리기 단추가 있다"), DrawButton))
+		{
+			DrawButton->OnClicked.Broadcast();
+		}
+	});
+	IntegrationTest::Step(0.5f, [this, FindVisibleWidget, GetPaintCanvasComponent, ClickPigment, RedSpot, BlueSpot]()
+	{
+		UPaintCanvasComponent* PaintCanvas = GetPaintCanvasComponent();
+		if (!TestNotNull(TEXT("페인트 작업실이 열린다"), FindVisibleWidget(UPaintCanvasWidget::StaticClass())) || !PaintCanvas)
+		{
+			return;
+		}
+		ClickPigment(RedPigment);
+		TestTrue(TEXT("빨강으로 칠한다"), PaintCanvas->PaintAtNormalizedLocation(RedSpot));
+		ClickPigment(BluePigment);
+		TestTrue(TEXT("파랑으로 칠한다"), PaintCanvas->PaintAtNormalizedLocation(BlueSpot));
+	});
+	IntegrationTest::Step(0.2f, [this, ReadCanvas, RedSpot, BlueSpot, UntouchedSpot]()
+	{
+		const FLinearColor Red = ReadCanvas(RedSpot);
+		const FLinearColor Blue = ReadCanvas(BlueSpot);
+		const FLinearColor Untouched = ReadCanvas(UntouchedSpot);
+		TestTrue(FString::Printf(TEXT("빨강 칸으로 칠한 곳은 빨갛다 %s"), *Red.ToString()), Red.R > 0.5f && Red.G < 0.2f && Red.B < 0.2f);
+		TestTrue(FString::Printf(TEXT("파랑 칸으로 칠한 곳은 파랗다 %s"), *Blue.ToString()), Blue.B > 0.5f && Blue.R < 0.2f);
+		TestTrue(FString::Printf(TEXT("칠하지 않은 곳은 흰 바탕이다 %s"), *Untouched.ToString()), Untouched.GetMin() > 0.9f);
+		const APlayerController* Controller = IntegrationTest::GetPlayerController();
+		if (APdHUD* Hud = Controller ? Controller->GetHUD<APdHUD>() : nullptr)
+		{
+			Hud->CloseInfoUi();
+		}
 	});
 	return true;
 }

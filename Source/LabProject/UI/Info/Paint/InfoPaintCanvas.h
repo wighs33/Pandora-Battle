@@ -35,6 +35,9 @@ public:
 	void HideActiveCanvas();
 
 private:
+	// Event Handlers --------------------------------------------------------------------------------------------------
+	void HandlePaintColorPicked(FColor Color);
+
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	APdPlayer* GetPlayerCharacter() const;
 	bool PaintAtScreenPosition(const FVector2D& ScreenSpacePosition);

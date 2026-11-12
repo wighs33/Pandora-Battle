@@ -17,7 +17,6 @@ DEFINE_LOG_CATEGORY_STATIC(LogPaintCanvasComponent, Log, All);
 
 namespace
 {
-	const FLinearColor OpaqueBlackBrushColor(0.0f, 0.0f, 0.0f, 1.0f);
 	constexpr double PaintBrushSpacingRatio = 0.25;
 	/** 획 목록을 RPC 하나로 보낼 때 담을 수 있는 획 수의 상한. */
 	constexpr int32 MaxStrokeHistoryCap = 8192;
@@ -129,11 +128,6 @@ bool UPaintCanvasComponent::EnsurePaintCanvasRenderResources(const bool bResetCa
 		if (UMaterialInterface* BrushMaterialParent = BrushMaterial.LoadSynchronous())
 		{
 			PaintBrushMaterial = UMaterialInstanceDynamic::Create(BrushMaterialParent, this);
-			if (PaintBrushMaterial)
-			{
-				PaintBrushMaterial->SetVectorParameterValue(BrushColorParameterName, OpaqueBlackBrushColor);
-				PaintBrushMaterial->SetVectorParameterValue(TEXT("BaseColor"), OpaqueBlackBrushColor);
-			}
 		}
 	}
 
@@ -188,10 +182,13 @@ bool UPaintCanvasComponent::DrawBrushToRenderTarget(UTexture2D* InBrushTexture, 
 
 bool UPaintCanvasComponent::DrawPaintStroke(const FPaintCanvasStroke& Stroke, const FPaintCanvasStroke* PreviousStroke)
 {
-	if (!PaintCanvasRenderTarget)
+	if (!PaintCanvasRenderTarget || !PaintBrushMaterial)
 	{
 		return false;
 	}
+
+	// 물감은 늘 불투명하게 칠한다(지우개는 바탕과 같은 흰 물감).
+	PaintBrushMaterial->SetVectorParameterValue(BrushColorParameterName, FLinearColor(Stroke.Color.WithAlpha(MAX_uint8)));
 
 	const FVector2D EndLocation(Stroke.DrawLocation);
 	const FVector2D StartLocation = PreviousStroke && !Stroke.bStartsNewStroke
@@ -226,6 +223,7 @@ bool UPaintCanvasComponent::PaintAtNormalizedLocation(const FVector2D& DrawLocat
 	Stroke.BrushSize = static_cast<float>(ClampBrushSize(BrushSize, MaxReplicatedPaintBrushSize));
 	Stroke.DrawLocation = FVector2f(DrawLocation);
 	Stroke.bStartsNewStroke = !bHasPreviousPaintLocation;
+	Stroke.Color = BrushColor;
 	const FPaintCanvasStroke* PreviousStroke = LocalPaintStrokes.IsEmpty() ? nullptr : &LocalPaintStrokes.Last();
 	if (!DrawPaintStroke(Stroke, PreviousStroke))
 	{
@@ -240,6 +238,12 @@ bool UPaintCanvasComponent::PaintAtNormalizedLocation(const FVector2D& DrawLocat
 void UPaintCanvasComponent::ResetPaintStroke()
 {
 	bHasPreviousPaintLocation = false;
+}
+
+void UPaintCanvasComponent::SetBrushColor(const FColor InBrushColor)
+{
+	BrushColor = InBrushColor.WithAlpha(MAX_uint8);
+	ResetPaintStroke();
 }
 
 void UPaintCanvasComponent::HidePaintCanvas()
@@ -435,7 +439,7 @@ void UPaintCanvasComponent::CacheLocalPaintCanvasFaceDecalForTravel(UMaterialInt
 		for (const FPaintCanvasStroke& Stroke : LocalPaintStrokes)
 		{
 			LobbySubsystem->CacheLocalLobbyPaintCanvasStroke(
-				BrushTexture.Get(), Stroke.BrushSize, FVector2D(Stroke.DrawLocation), Stroke.bStartsNewStroke);
+				BrushTexture.Get(), Stroke.BrushSize, FVector2D(Stroke.DrawLocation), Stroke.Color, Stroke.bStartsNewStroke);
 		}
 		LobbySubsystem->CacheLocalLobbyPaintCanvasFaceDecal(FaceDecalMaterial, AttachSocketName,
 			FaceDecalTransformOffset, FaceDecalSize, TextureParameterName);
@@ -572,6 +576,7 @@ void UPaintCanvasComponent::RestoreCachedLobbyPaintCanvasFaceDecal()
 		Stroke.BrushSize = static_cast<float>(ClampBrushSize(CachedStroke.BrushSize, MaxReplicatedPaintBrushSize));
 		Stroke.DrawLocation = FVector2f(CachedStroke.DrawLocation);
 		Stroke.bStartsNewStroke = CachedStroke.bStartsNewStroke;
+		Stroke.Color = CachedStroke.Color;
 	}
 
 	if (IsValidPaintCanvasStrokes(LocalPaintStrokes) && ReplayPaintCanvasStrokes(LocalPaintStrokes))

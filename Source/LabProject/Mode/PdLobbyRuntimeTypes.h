@@ -37,6 +37,9 @@ struct LABPROJECT_API FLobbyPaintCanvasStrokeCache
 
 	UPROPERTY()
 	bool bStartsNewStroke = true;
+
+	UPROPERTY()
+	FColor Color = FColor::Black;
 };
 
 USTRUCT(BlueprintType)

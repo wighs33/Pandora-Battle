@@ -164,9 +164,6 @@ private:
 	void OnFaceDecalButtonClicked();
 
 	UFUNCTION()
-	void OnDebugButtonClicked();
-
-	UFUNCTION()
 	void HandlePaintCanvasGroupVisibilityChanged(bool bVisible);
 
 protected:
@@ -300,9 +297,6 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Info", meta = (BindWidgetOptional))
 	TObjectPtr<UButton> Btn_FaceDecal;
-
-	UPROPERTY(BlueprintReadOnly, Category = "!UI|Info", meta = (BindWidgetOptional))
-	TObjectPtr<UButton> Btn_Debug;
 
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Info|Paint", meta = (BindWidget))
 	TObjectPtr<UPaintCanvasWidget> Canvas;

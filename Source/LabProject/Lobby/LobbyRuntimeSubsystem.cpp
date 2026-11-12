@@ -405,7 +405,7 @@ void ULobbyRuntimeSubsystem::ResetLocalLobbyPaintCanvasCache()
 }
 
 void ULobbyRuntimeSubsystem::CacheLocalLobbyPaintCanvasStroke(
-	UTexture2D* BrushTexture, const double BrushSize, const FVector2D& DrawLocation, const bool bStartsNewStroke)
+	UTexture2D* BrushTexture, const double BrushSize, const FVector2D& DrawLocation, const FColor Color, const bool bStartsNewStroke)
 {
 	if (BrushSize <= 0.0)
 	{
@@ -417,6 +417,7 @@ void ULobbyRuntimeSubsystem::CacheLocalLobbyPaintCanvasStroke(
 	Stroke.BrushSize = BrushSize;
 	Stroke.DrawLocation = DrawLocation;
 	Stroke.bStartsNewStroke = bStartsNewStroke;
+	Stroke.Color = Color;
 }
 
 void ULobbyRuntimeSubsystem::CacheLocalLobbyPaintCanvasFaceDecal(UMaterialInterface* FaceDecalMaterial,

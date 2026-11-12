@@ -567,6 +567,15 @@ struct LABPROJECT_API FSkinWidgetSettings
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Skin|Paint", meta = (DisplayName = "Canvas Display Material"))
 	TSoftObjectPtr<UMaterialInterface> PaintCanvasDisplayMaterial;
 
+	/**
+	 * 페인트 작업실 물감 칸의 색(sRGB, 위 칸부터). 첫 색을 처음에 고른다. 흰색은 바탕과 같아 지우개로 쓴다.
+	 * 얼굴 무늬는 흰색에 가까울수록 투명해지므로(M_FaceDecal) 아주 옅은 색은 넣지 않는다.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Skin|Paint", meta = (DisplayName = "Paint Palette"))
+	TArray<FColor> PaintPalette = {
+		FColor(0, 0, 0), FColor(255, 255, 255), FColor(217, 73, 62), FColor(240, 138, 46),
+		FColor(242, 201, 76), FColor(79, 174, 90), FColor(60, 127, 214), FColor(142, 91, 208)};
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Skin|Face Decal", meta = (DisplayName = "Face Decal Material"))
 	TSoftObjectPtr<UMaterialInterface> PaintCanvasFaceDecalMaterial;
 
