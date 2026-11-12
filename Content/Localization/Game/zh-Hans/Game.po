@@ -4,8 +4,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: Game\n"
-"POT-Creation-Date: 2026-11-09 10:26\n"
-"PO-Revision-Date: 2026-11-09 10:26\n"
+"POT-Creation-Date: 2026-11-09 15:58\n"
+"PO-Revision-Date: 2026-11-09 15:58\n"
 "Language-Team: \n"
 "Language: zh-Hans\n"
 "MIME-Version: 1.0\n"
@@ -3051,6 +3051,20 @@ msgctxt "MenuText,HUD.WorldBossName"
 msgid "Usurper Dragon"
 msgstr "篡夺者巨龙"
 
+#. Key:	HUD.WorldBossPracticeDefeated
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,HUD.WorldBossPracticeDefeated"
+msgid "The boss has fallen! Practice complete. Returning to the title screen."
+msgstr "首领已被击败！练习结束，即将返回标题画面。"
+
+#. Key:	HUD.WorldBossPracticeName
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,HUD.WorldBossPracticeName"
+msgid "{Name} · Practice"
+msgstr "{Name} · 练习"
+
 #. Key:	Info.Accessories
 #. SourceLocation:	UI/Localization/StringTables/MenuText.csv
 #: UI/Localization/StringTables/MenuText.csv
@@ -3660,6 +3674,13 @@ msgctxt "MenuText,Info.Windmill"
 msgid "Windmill"
 msgstr "风车"
 
+#. Key:	Lobby.EmptySeat
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Lobby.EmptySeat"
+msgid "Empty seat"
+msgstr "空位"
+
 #. Key:	Lobby.Invite
 #. SourceLocation:	UI/Localization/StringTables/MenuText.csv
 #: UI/Localization/StringTables/MenuText.csv
@@ -3736,6 +3757,13 @@ msgstr "请平衡各队人数"
 msgctxt "MenuText,Lobby.Title"
 msgid "Lobby"
 msgstr "大厅"
+
+#. Key:	Map.CanalTown
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Map.CanalTown"
+msgid "Canal Town"
+msgstr "运河小镇"
 
 #. Key:	Map.Colosseum
 #. SourceLocation:	UI/Localization/StringTables/MenuText.csv
@@ -4703,6 +4731,20 @@ msgctxt "MenuText,Title.BossRaidNoAttempts"
 msgid "You've used all of today's attempts. Come back tomorrow!"
 msgstr "今天的挑战次数已用完。明天再来吧！"
 
+#. Key:	Title.BossRaidPractice
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Title.BossRaidPractice"
+msgid "Raid Practice"
+msgstr "突袭练习"
+
+#. Key:	Title.BossRaidPracticeHint
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Title.BossRaidPracticeHint"
+msgid "Fight the boss alone on this PC. It uses no attempts and nothing is recorded or rewarded."
+msgstr "在本机独自挑战首领。不消耗挑战次数，也不会留下记录或奖励。"
+
 #. Key:	Title.BossRaidResult
 #. SourceLocation:	UI/Localization/StringTables/MenuText.csv
 #: UI/Localization/StringTables/MenuText.csv
@@ -4786,6 +4828,20 @@ msgstr "获取 DLC"
 msgctxt "MenuText,Title.LunaGreeting"
 msgid "Welcome, visitor! I’m Luna, your guide to Pandora Battle."
 msgstr "欢迎光临，尊敬的访客！我是潘多拉战斗的向导——露娜。"
+
+#. Key:	Title.LunaOutfitDress
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Title.LunaOutfitDress"
+msgid "Angel Dress"
+msgstr "天使连衣裙"
+
+#. Key:	Title.LunaOutfitJacket
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Title.LunaOutfitJacket"
+msgid "Jacket and Shorts"
+msgstr "夹克和短裤"
 
 #. Key:	Title.LunaTip01
 #. SourceLocation:	UI/Localization/StringTables/MenuText.csv

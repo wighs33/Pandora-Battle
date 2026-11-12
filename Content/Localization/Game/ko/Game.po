@@ -4,8 +4,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: Game\n"
-"POT-Creation-Date: 2026-11-09 10:26\n"
-"PO-Revision-Date: 2026-11-09 10:26\n"
+"POT-Creation-Date: 2026-11-09 15:58\n"
+"PO-Revision-Date: 2026-11-09 15:58\n"
 "Language-Team: \n"
 "Language: ko\n"
 "MIME-Version: 1.0\n"
@@ -3051,6 +3051,20 @@ msgctxt "MenuText,HUD.WorldBossName"
 msgid "Usurper Dragon"
 msgstr "찬탈자 드래곤"
 
+#. Key:	HUD.WorldBossPracticeDefeated
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,HUD.WorldBossPracticeDefeated"
+msgid "The boss has fallen! Practice complete. Returning to the title screen."
+msgstr "보스를 쓰러뜨렸어요! 연습을 마치고 타이틀로 돌아갑니다."
+
+#. Key:	HUD.WorldBossPracticeName
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,HUD.WorldBossPracticeName"
+msgid "{Name} · Practice"
+msgstr "{Name} · 연습"
+
 #. Key:	Info.Accessories
 #. SourceLocation:	UI/Localization/StringTables/MenuText.csv
 #: UI/Localization/StringTables/MenuText.csv
@@ -3660,6 +3674,13 @@ msgctxt "MenuText,Info.Windmill"
 msgid "Windmill"
 msgstr "풍차"
 
+#. Key:	Lobby.EmptySeat
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Lobby.EmptySeat"
+msgid "Empty seat"
+msgstr "빈 자리"
+
 #. Key:	Lobby.Invite
 #. SourceLocation:	UI/Localization/StringTables/MenuText.csv
 #: UI/Localization/StringTables/MenuText.csv
@@ -3736,6 +3757,13 @@ msgstr "팀 인원을 균등하게 맞춰 주세요"
 msgctxt "MenuText,Lobby.Title"
 msgid "Lobby"
 msgstr "대기실"
+
+#. Key:	Map.CanalTown
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Map.CanalTown"
+msgid "Canal Town"
+msgstr "캐널타운"
 
 #. Key:	Map.Colosseum
 #. SourceLocation:	UI/Localization/StringTables/MenuText.csv
@@ -4703,6 +4731,20 @@ msgctxt "MenuText,Title.BossRaidNoAttempts"
 msgid "You've used all of today's attempts. Come back tomorrow!"
 msgstr "오늘 도전 횟수를 모두 썼어요. 내일 다시 와 주세요!"
 
+#. Key:	Title.BossRaidPractice
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Title.BossRaidPractice"
+msgid "Raid Practice"
+msgstr "레이드 연습"
+
+#. Key:	Title.BossRaidPracticeHint
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Title.BossRaidPracticeHint"
+msgid "Fight the boss alone on this PC. It uses no attempts and nothing is recorded or rewarded."
+msgstr "이 PC에서 혼자 보스와 싸워 봐요. 도전 횟수를 쓰지 않고, 기록과 보상도 남지 않아요."
+
 #. Key:	Title.BossRaidResult
 #. SourceLocation:	UI/Localization/StringTables/MenuText.csv
 #: UI/Localization/StringTables/MenuText.csv
@@ -4786,6 +4828,20 @@ msgstr "DLC 받기"
 msgctxt "MenuText,Title.LunaGreeting"
 msgid "Welcome, visitor! I’m Luna, your guide to Pandora Battle."
 msgstr "어서오세요 방문자님 저는 판도라 배틀의 안내자, 루나입니다."
+
+#. Key:	Title.LunaOutfitDress
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Title.LunaOutfitDress"
+msgid "Angel Dress"
+msgstr "천사 드레스"
+
+#. Key:	Title.LunaOutfitJacket
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Title.LunaOutfitJacket"
+msgid "Jacket and Shorts"
+msgstr "재킷과 반바지"
 
 #. Key:	Title.LunaTip01
 #. SourceLocation:	UI/Localization/StringTables/MenuText.csv

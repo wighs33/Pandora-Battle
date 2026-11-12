@@ -4,8 +4,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: Game\n"
-"POT-Creation-Date: 2026-11-09 10:26\n"
-"PO-Revision-Date: 2026-11-09 10:26\n"
+"POT-Creation-Date: 2026-11-09 15:58\n"
+"PO-Revision-Date: 2026-11-09 15:58\n"
 "Language-Team: \n"
 "Language: ru\n"
 "MIME-Version: 1.0\n"
@@ -3051,6 +3051,20 @@ msgctxt "MenuText,HUD.WorldBossName"
 msgid "Usurper Dragon"
 msgstr "Дракон-узурпатор"
 
+#. Key:	HUD.WorldBossPracticeDefeated
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,HUD.WorldBossPracticeDefeated"
+msgid "The boss has fallen! Practice complete. Returning to the title screen."
+msgstr "Босс повержен! Тренировка завершена. Возвращаемся на титульный экран."
+
+#. Key:	HUD.WorldBossPracticeName
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,HUD.WorldBossPracticeName"
+msgid "{Name} · Practice"
+msgstr "{Name} · Тренировка"
+
 #. Key:	Info.Accessories
 #. SourceLocation:	UI/Localization/StringTables/MenuText.csv
 #: UI/Localization/StringTables/MenuText.csv
@@ -3660,6 +3674,13 @@ msgctxt "MenuText,Info.Windmill"
 msgid "Windmill"
 msgstr "Мельница"
 
+#. Key:	Lobby.EmptySeat
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Lobby.EmptySeat"
+msgid "Empty seat"
+msgstr "Свободное место"
+
 #. Key:	Lobby.Invite
 #. SourceLocation:	UI/Localization/StringTables/MenuText.csv
 #: UI/Localization/StringTables/MenuText.csv
@@ -3736,6 +3757,13 @@ msgstr "Уравняйте число игроков в командах"
 msgctxt "MenuText,Lobby.Title"
 msgid "Lobby"
 msgstr "Лобби"
+
+#. Key:	Map.CanalTown
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Map.CanalTown"
+msgid "Canal Town"
+msgstr "Город каналов"
 
 #. Key:	Map.Colosseum
 #. SourceLocation:	UI/Localization/StringTables/MenuText.csv
@@ -4703,6 +4731,20 @@ msgctxt "MenuText,Title.BossRaidNoAttempts"
 msgid "You've used all of today's attempts. Come back tomorrow!"
 msgstr "Попытки на сегодня закончились. Возвращайтесь завтра!"
 
+#. Key:	Title.BossRaidPractice
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Title.BossRaidPractice"
+msgid "Raid Practice"
+msgstr "Тренировка рейда"
+
+#. Key:	Title.BossRaidPracticeHint
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Title.BossRaidPracticeHint"
+msgid "Fight the boss alone on this PC. It uses no attempts and nothing is recorded or rewarded."
+msgstr "Сразитесь с боссом в одиночку на этом ПК. Попытки не тратятся, ничего не записывается и не награждается."
+
 #. Key:	Title.BossRaidResult
 #. SourceLocation:	UI/Localization/StringTables/MenuText.csv
 #: UI/Localization/StringTables/MenuText.csv
@@ -4786,6 +4828,20 @@ msgstr "Получить DLC"
 msgctxt "MenuText,Title.LunaGreeting"
 msgid "Welcome, visitor! I’m Luna, your guide to Pandora Battle."
 msgstr "Добро пожаловать, гость! Я Луна, ваш гид по Pandora Battle."
+
+#. Key:	Title.LunaOutfitDress
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Title.LunaOutfitDress"
+msgid "Angel Dress"
+msgstr "Платье ангела"
+
+#. Key:	Title.LunaOutfitJacket
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Title.LunaOutfitJacket"
+msgid "Jacket and Shorts"
+msgstr "Куртка и шорты"
 
 #. Key:	Title.LunaTip01
 #. SourceLocation:	UI/Localization/StringTables/MenuText.csv
