@@ -124,14 +124,8 @@ void UShopEntryWidget::RefreshUI()
 
 void UShopEntryWidget::ApplySelectionVisual()
 {
-	if (!SelectionBorderImage)
+	if (SelectionBorderImage)
 	{
-		return;
+		SelectionBorderImage->SetVisibility(bIsSelected ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 	}
-
-	SelectionBorderImage->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
-	FSlateBrush SelectionBrush = SelectionBorderImage->GetBrush();
-	SelectionBrush.OutlineSettings.Color = FSlateColor(bIsSelected ? SelectionBorderSelectedColor : SelectionBorderDefaultColor);
-	SelectionBorderImage->SetBrush(SelectionBrush);
-	SelectionBorderImage->SetColorAndOpacity(FLinearColor::White);
 }

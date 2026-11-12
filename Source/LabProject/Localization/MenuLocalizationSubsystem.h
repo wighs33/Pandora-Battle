@@ -59,5 +59,7 @@ private:
 
 	UPROPERTY(Transient) TObjectPtr<UFont> CjkFont;
 	UPROPERTY(Transient) TObjectPtr<UFont> LatinFont;
+	/** 언어 글꼴로 바꾸지 않는 표시용 글꼴(UMenuLocalizationSettings::DisplayFonts). */
+	UPROPERTY(Transient) TArray<TObjectPtr<UFont>> DisplayFonts;
 	FDelegateHandle CultureChangedHandle;
 };

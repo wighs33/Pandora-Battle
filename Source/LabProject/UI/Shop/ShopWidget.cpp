@@ -399,6 +399,7 @@ void UShopWidget::BindWidgets()
 		WBP_ShopPreviewPanel->OnBuyRequested.AddUniqueDynamic(this, &ThisClass::HandleBuyRequested);
 	}
 
+	CategoryHighlight.Initialize({PandoraCategoryButton, SkinCategoryButton}, nullptr, SelectedCategoryBrush);
 	bWidgetsBound = true;
 }
 
@@ -439,6 +440,7 @@ void UShopWidget::UnbindWidgets()
 		WBP_ShopPreviewPanel->OnBuyRequested.RemoveDynamic(this, &ThisClass::HandleBuyRequested);
 	}
 
+	CategoryHighlight.Reset();
 	bWidgetsBound = false;
 }
 
@@ -459,17 +461,9 @@ void UShopWidget::SetActiveCategory(const EShopProductType NewCategory)
 	RefreshUI();
 }
 
-void UShopWidget::RefreshCategoryButtonStates() const
+void UShopWidget::RefreshCategoryButtonStates()
 {
-	if (PandoraCategoryButton)
-	{
-		PandoraCategoryButton->SetIsEnabled(ActiveCategory != EShopProductType::Pandora);
-	}
-
-	if (SkinCategoryButton)
-	{
-		SkinCategoryButton->SetIsEnabled(ActiveCategory != EShopProductType::Skin);
-	}
+	CategoryHighlight.Select(ActiveCategory == EShopProductType::Pandora ? PandoraCategoryButton : SkinCategoryButton);
 }
 
 void UShopWidget::RebuildEntryData()

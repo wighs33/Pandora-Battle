@@ -268,16 +268,8 @@ void ULobbyWidget::RefreshUI()
 			continue;
 		}
 
-		if (LobbyPlayerStates.IsValidIndex(Index))
-		{
-			LobbyUserWidget->SetVisibility(ESlateVisibility::Visible);
-			LobbyUserWidget->SetInfo(LobbyPlayerStates[Index]);
-		}
-		else
-		{
-			LobbyUserWidget->SetInfo(nullptr);
-			LobbyUserWidget->SetVisibility(ESlateVisibility::Collapsed);
-		}
+		// 줄이 자기 보임을 정한다: 사람이 있으면 그 사람, 없으면 빈 자리(정원만큼 줄이 있다).
+		LobbyUserWidget->SetInfo(LobbyPlayerStates.IsValidIndex(Index) ? LobbyPlayerStates[Index] : nullptr);
 	}
 
 	const bool bIsServer = GetWorld() && GetWorld()->GetAuthGameMode() != nullptr;
@@ -512,7 +504,16 @@ void ULobbyWidget::RefreshSelectedMapUI()
 
 	if (UTextBlock* PlayerCountText = Txt_SelectedMapPlayerCount)
 	{
-		PlayerCountText->SetText(FText::Format(INVTEXT("{0} / {1}"), FText::AsNumber(ActivePlayers), FText::AsNumber(MaxPlayers)));
+		// 정원 글자가 따로 있으면 지금 인원만 크게 쓰고 정원은 그 옆에 작게 쓴다.
+		if (UTextBlock* CapacityText = Txt_SelectedMapCapacity)
+		{
+			PlayerCountText->SetText(FText::AsNumber(ActivePlayers));
+			CapacityText->SetText(FText::Format(INVTEXT("/ {0}"), FText::AsNumber(MaxPlayers)));
+		}
+		else
+		{
+			PlayerCountText->SetText(FText::Format(INVTEXT("{0} / {1}"), FText::AsNumber(ActivePlayers), FText::AsNumber(MaxPlayers)));
+		}
 		if (!bHasDefaultSelectedMapPlayerCountColor)
 		{
 			DefaultSelectedMapPlayerCountColor = PlayerCountText->GetColorAndOpacity();

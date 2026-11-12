@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UI/Common/ButtonHighlightState.h"
 #include "UI/Core/ScreenWidget.h"
 #include "Definition/UI/GuideDefinition.h"
 #include "Fonts/SlateFontInfo.h"
@@ -108,12 +109,17 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Guide|Bind")
 	TArray<FName> GuideButtonWidgetNames;
 
+	/** 목차에서 지금 보고 있는 장 버튼의 바탕. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "!Guide|Style")
+	FSlateBrush SelectedChapterBrush;
+
 private:
 	UPROPERTY(Transient)
 	TArray<FGuidePageEntry> CachedPages;
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UButton>> BoundGuideButtons;
+	FButtonHighlightState ChapterHighlight;
 
 	int32 CurrentPageIndex = INDEX_NONE;
 	ESlateVisibility DefaultBackgroundPatternVisibility = ESlateVisibility::Visible;

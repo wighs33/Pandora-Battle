@@ -1,8 +1,8 @@
-#include "UI/Info/FilterButtonHighlight.h"
+#include "UI/Common/ButtonHighlightState.h"
 
 #include "Components/Button.h"
 
-void FFilterButtonHighlightState::Initialize(const TArray<TObjectPtr<UButton>>& InButtons,
+void FButtonHighlightState::Initialize(const TArray<TObjectPtr<UButton>>& InButtons,
 	UButton* InitialSelectedButton, const FSlateBrush& InSelectedBrush)
 {
 	Reset();
@@ -20,7 +20,7 @@ void FFilterButtonHighlightState::Initialize(const TArray<TObjectPtr<UButton>>& 
 	Select(InitialSelectedButton);
 }
 
-void FFilterButtonHighlightState::Select(UButton* SelectedButton)
+void FButtonHighlightState::Select(UButton* SelectedButton)
 {
 	const bool bHasSelectedBrush = SelectedBrush.GetResourceObject() != nullptr;
 	for (int32 ButtonIndex = 0; ButtonIndex < Buttons.Num(); ++ButtonIndex)
@@ -42,7 +42,7 @@ void FFilterButtonHighlightState::Select(UButton* SelectedButton)
 	}
 }
 
-void FFilterButtonHighlightState::Reset()
+void FButtonHighlightState::Reset()
 {
 	for (int32 ButtonIndex = 0; ButtonIndex < Buttons.Num(); ++ButtonIndex)
 	{

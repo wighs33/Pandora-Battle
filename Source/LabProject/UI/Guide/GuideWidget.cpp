@@ -282,6 +282,8 @@ void UGuideWidget::BindGuideButtons()
 
 		BindGuideButton(PageIndex, Button);
 	}
+
+	ChapterHighlight.Initialize(BoundGuideButtons, nullptr, SelectedChapterBrush);
 }
 
 void UGuideWidget::UnbindGuideButtons()
@@ -294,6 +296,7 @@ void UGuideWidget::UnbindGuideButtons()
 		}
 	}
 
+	ChapterHighlight.Reset();
 	BoundGuideButtons.Reset();
 }
 
@@ -449,11 +452,5 @@ void UGuideWidget::ApplyImage(UTexture2D* Texture)
 
 void UGuideWidget::SelectBoundGuideButton(const int32 PageIndex)
 {
-	for (int32 ButtonIndex = 0; ButtonIndex < BoundGuideButtons.Num(); ++ButtonIndex)
-	{
-		if (UButton* Button = BoundGuideButtons[ButtonIndex])
-		{
-			Button->SetIsEnabled(ButtonIndex != PageIndex);
-		}
-	}
+	ChapterHighlight.Select(BoundGuideButtons.IsValidIndex(PageIndex) ? BoundGuideButtons[PageIndex].Get() : nullptr);
 }

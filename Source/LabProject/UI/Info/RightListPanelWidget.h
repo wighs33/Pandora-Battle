@@ -2,8 +2,8 @@
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
+#include "UI/Common/ButtonHighlightState.h"
 #include "UI/Common/LocalizedMenuWidget.h"
-#include "UI/Info/FilterButtonHighlight.h"
 #include "RightListPanelWidget.generated.h"
 
 class UButton;
@@ -126,5 +126,5 @@ private:
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UButtonClickRelay>> TypeFilterClickRelays;
 
-	FFilterButtonHighlightState FilterButtonHighlightState;
+	FButtonHighlightState FilterButtonHighlightState;
 };

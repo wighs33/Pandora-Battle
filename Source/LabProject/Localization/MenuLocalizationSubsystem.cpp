@@ -39,6 +39,13 @@ void UMenuLocalizationSubsystem::Initialize(FSubsystemCollectionBase& Collection
 	// 항상 필요한 작은 UI 리소스라 첫 화면을 만들기 전에 한 번 동기 로드한다.
 	CjkFont = Settings->CjkFont.LoadSynchronous();
 	LatinFont = Settings->LatinFont.LoadSynchronous();
+	for (const TSoftObjectPtr<UFont>& DisplayFont : Settings->DisplayFonts)
+	{
+		if (UFont* Font = DisplayFont.LoadSynchronous())
+		{
+			DisplayFonts.Add(Font);
+		}
+	}
 	if (!FStringTableRegistry::Get().FindStringTable(MenuTextTableId))
 	{
 		UE_LOG(LogMenuLocalization, Error, TEXT("String table '%s' is not registered."), *MenuTextTableId.ToString());
@@ -111,11 +118,13 @@ UFont* UMenuLocalizationSubsystem::GetFontForLanguage(const FString& Culture) co
 void UMenuLocalizationSubsystem::ApplyLanguageFont(UTextBlock& Text) const
 {
 	UFont* Font = GetCurrentFont();
-	if (!Font)
+	FSlateFontInfo Info = Text.GetFont();
+	// 표시용 글꼴은 모든 언어의 글자를 갖고 있어 위젯에 정한 그대로 둔다.
+	const UObject* CurrentFont = Info.FontObject;
+	if (!Font || DisplayFonts.ContainsByPredicate([CurrentFont](const TObjectPtr<UFont>& DisplayFont) { return DisplayFont.Get() == CurrentFont; }))
 	{
 		return;
 	}
-	FSlateFontInfo Info = Text.GetFont();
 	Info.FontObject = Font;
 	Info.TypefaceFontName = NAME_None;
 	Text.SetFont(Info);

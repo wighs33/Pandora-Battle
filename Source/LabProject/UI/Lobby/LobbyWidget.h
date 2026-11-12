@@ -126,6 +126,10 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Lobby|Bind")
 	TObjectPtr<UTextBlock> Txt_SelectedMapPlayerCount;
 
+	/** 고른 맵의 정원("/ 6"). 있으면 Txt_SelectedMapPlayerCount는 지금 인원만 쓴다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Lobby|Bind")
+	TObjectPtr<UTextBlock> Txt_SelectedMapCapacity;
+
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Lobby|Bind")
 	TObjectPtr<UImage> Img_SelectedMapThumbnail;
 

@@ -2,6 +2,7 @@
 
 #include "UI/Core/ScreenWidget.h"
 #include "CoreMinimal.h"
+#include "UI/Common/ButtonHighlightState.h"
 #include "UI/Shop/ShopEntryUiData.h"
 #include "ShopWidget.generated.h"
 
@@ -61,7 +62,7 @@ private:
 	void BeginCatalogPresentationPreload();
 	void ReleaseContentPreloads();
 	void SetActiveCategory(EShopProductType NewCategory);
-	void RefreshCategoryButtonStates() const;
+	void RefreshCategoryButtonStates();
 	void RebuildEntryData();
 	TArray<FShopCatalogEntry> BuildEffectiveCatalog() const;
 
@@ -100,6 +101,10 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Shop|Bind")
 	TObjectPtr<UButton> Btn_ResetShopSave = nullptr;
 
+	/** 고른 분류 버튼(판도라·스킨)의 바탕. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "!Shop|Style")
+	FSlateBrush SelectedCategoryBrush;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Shop|Catalog")
 	TObjectPtr<UShopCatalogDefinition> ShopCatalogDefinition = nullptr;
 
@@ -133,6 +138,7 @@ private:
 	TObjectPtr<UShopEntryViewData> SelectedEntryData = nullptr;
 
 	EShopProductType ActiveCategory = EShopProductType::Pandora;
+	FButtonHighlightState CategoryHighlight;
 
 	bool bWidgetsBound = false;
 

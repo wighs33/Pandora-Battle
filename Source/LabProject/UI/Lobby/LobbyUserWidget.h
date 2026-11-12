@@ -54,6 +54,8 @@ private:
 	void EnsureTeamColorOptions();
 	void RefreshTeamColorUI();
 	void SetColorBorderByTeamColorIndex(int32 TeamColorIndex);
+	/** 사람이 앉은 자리와 빈 자리 가운데 하나만 보인다. */
+	void SetSeatOccupied(bool bOccupied) const;
 	bool IsRepresentingLocalPlayer() const;
 	bool CanLocalPlayerKick() const;
 	bool IsLobbyOwnerPlayer() const;
@@ -84,6 +86,18 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Lobby|Bind")
 	TObjectPtr<UBorder> ColorBorder;
+
+	/** 사람이 앉은 자리의 내용(판, 깃발, 이름, 팀, 단추). 빈 자리에서는 접힌다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Lobby|Bind")
+	TObjectPtr<UWidget> SeatContent;
+
+	/** 정원 안의 빈 자리 표시. 없으면 빈 자리 줄은 통째로 접힌다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Lobby|Bind")
+	TObjectPtr<UWidget> EmptySeat;
+
+	/** 내 줄을 두르는 금 테. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Lobby|Bind")
+	TObjectPtr<UWidget> Img_LocalFrame;
 
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "!Lobby|UI")
 	TObjectPtr<APdPlayerState> PlayerState;

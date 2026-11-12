@@ -59,6 +59,7 @@ void UGameSettingsWidget::NativeConstruct()
 	Btn_TabTrainingRoom->OnClicked.AddUniqueDynamic(this, &ThisClass::ShowTrainingRoomPage);
 	SettingsTabs->SetVisibility(ULevelDefinition::IsTrainingRoomWorld(this)
 		? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+	TabHighlight.Initialize({Btn_TabGeneral, Btn_TabTrainingRoom}, nullptr, SelectedTabBrush);
 	ShowPage(GeneralPageIndex);
 	OnMenuLanguageChanged();
 }
@@ -87,6 +88,7 @@ void UGameSettingsWidget::NativeDestruct()
 	Btn_Guide->OnClicked.RemoveDynamic(this, &ThisClass::OpenGuide);
 	Btn_TabGeneral->OnClicked.RemoveDynamic(this, &ThisClass::ShowGeneralPage);
 	Btn_TabTrainingRoom->OnClicked.RemoveDynamic(this, &ThisClass::ShowTrainingRoomPage);
+	TabHighlight.Reset();
 	CloseGuide();
 	Super::NativeDestruct();
 }
@@ -241,8 +243,7 @@ void UGameSettingsWidget::ShowTrainingRoomPage()
 void UGameSettingsWidget::ShowPage(int32 PageIndex)
 {
 	Switcher_SettingsPages->SetActiveWidgetIndex(PageIndex);
-	Btn_TabGeneral->SetBackgroundColor(PageIndex == GeneralPageIndex ? SelectedTabColor : UnselectedTabColor);
-	Btn_TabTrainingRoom->SetBackgroundColor(PageIndex == TrainingRoomPageIndex ? SelectedTabColor : UnselectedTabColor);
+	TabHighlight.Select(PageIndex == GeneralPageIndex ? Btn_TabGeneral : Btn_TabTrainingRoom);
 }
 
 void UGameSettingsWidget::CloseSettings()

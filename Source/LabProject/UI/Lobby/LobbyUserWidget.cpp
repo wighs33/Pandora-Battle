@@ -158,11 +158,19 @@ void ULobbyUserWidget::RefreshUI()
 {
 	if (!PlayerState)
 	{
-		SetVisibility(ESlateVisibility::Collapsed);
+		// 정원 안의 빈 자리는 새긴 칸으로 남겨 몇 자리가 비었는지 보이게 한다.
+		SetVisibility(EmptySeat ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+		SetSeatOccupied(false);
 		return;
 	}
 
+	SetVisibility(ESlateVisibility::Visible);
+	SetSeatOccupied(true);
 	const bool bLocalPlayer = IsRepresentingLocalPlayer();
+	if (Img_LocalFrame)
+	{
+		Img_LocalFrame->SetVisibility(bLocalPlayer ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	}
 	const bool bCanKick = CanLocalPlayerKick() && !bLocalPlayer;
 	uint64 ParsedSteamId = 0;
 	const bool bCanAddFriend = !bLocalPlayer && TryParseSteamId64(GetRepresentedSteamIdString(), ParsedSteamId);
@@ -404,6 +412,18 @@ void ULobbyUserWidget::RefreshTeamColorUI()
 	}
 
 	SetColorBorderByTeamColorIndex(TeamColorIndex);
+}
+
+void ULobbyUserWidget::SetSeatOccupied(const bool bOccupied) const
+{
+	if (SeatContent)
+	{
+		SeatContent->SetVisibility(bOccupied ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+	}
+	if (EmptySeat)
+	{
+		EmptySeat->SetVisibility(bOccupied ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
+	}
 }
 
 void ULobbyUserWidget::SetColorBorderByTeamColorIndex(const int32 TeamColorIndex)

@@ -57,17 +57,12 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Shop|Bind")
 	TObjectPtr<UImage> IconImage = nullptr;
 
+	/** 고른 상품에만 보이는 표시(메달 뒤 후광과 이름 밑줄). */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Shop|Bind")
 	TObjectPtr<UImage> SelectionBorderImage = nullptr;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Shop|Bind")
 	TObjectPtr<UButton> Btn_Select = nullptr;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Shop|Style")
-	FLinearColor SelectionBorderDefaultColor = FLinearColor(1.0f, 1.0f, 1.0f, 0.35f);
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!Shop|Style")
-	FLinearColor SelectionBorderSelectedColor = FLinearColor(0.0f, 0.45f, 1.0f, 1.0f);
 
 private:
 	UPROPERTY(Transient)

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UI/Common/ButtonHighlightState.h"
 #include "UI/Core/ScreenWidget.h"
 #include "Components/ComboBoxString.h"
 #include "GameSettingsWidget.generated.h"
@@ -64,12 +65,13 @@ protected:
 	/** 0번은 일반 설정, 1번은 훈련장 설정 페이지. */
 	UPROPERTY(meta=(BindWidget)) TObjectPtr<UWidgetSwitcher> Switcher_SettingsPages;
 
-	UPROPERTY(EditDefaultsOnly, Category="!UI|Settings") FLinearColor SelectedTabColor = FLinearColor::White;
-	UPROPERTY(EditDefaultsOnly, Category="!UI|Settings") FLinearColor UnselectedTabColor = FLinearColor(0.45f, 0.4f, 0.5f, 1.f);
+	/** 지금 보고 있는 탭 버튼의 바탕. */
+	UPROPERTY(EditDefaultsOnly, Category="!UI|Settings") FSlateBrush SelectedTabBrush;
 
 private:
 	UPROPERTY(Transient) TObjectPtr<UAudioVolumeControl> SoundButtonControl;
 	UPROPERTY(Transient) TObjectPtr<UGuideWidget> ActiveGuideWidget;
+	FButtonHighlightState TabHighlight;
 
 	FDelegateHandle VolumeChangedHandle;
 	bool bSynchronizing = false;

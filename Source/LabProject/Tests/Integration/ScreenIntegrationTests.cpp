@@ -3,13 +3,18 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Components/EditableTextBox.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Components/TextBlock.h"
+#include "Definition/Level/LevelDefinition.h"
 #include "Framework/Application/SlateApplication.h"
+#include "GameFramework/HUD.h"
+#include "Lobby/Contents/LobbyGameState.h"
 #include "Localization/MenuLocalizationSubsystem.h"
 #include "Luna/LunaChatSubsystem.h"
 #include "Online/OnlineSessionsSubsystem.h"
 #include "UI/Core/LoadingScreenSubsystem.h"
 #include "UI/Guide/GuideWidget.h"
+#include "UI/Lobby/LobbyUserWidget.h"
 #include "UI/Lobby/LobbyWidget.h"
 #include "UI/Record/RecordWidget.h"
 #include "UI/Room/RoomListWidget.h"
@@ -111,6 +116,19 @@ namespace
 	void OpenTitle(FAutomationTestBase* Test)
 	{
 		OpenMenuMap<UTitleWidget>(Test, TitleMap, []() { UGameplayStatics::OpenLevel(IntegrationTest::GetGameWorld(), FName(*TitleMap)); });
+	}
+
+	/** 타이틀 HUD에서 Luna의 몸 자세를 따르는 메시, 곧 옷 메시 */
+	USkeletalMeshComponent* FindTitleLunaOutfitMesh()
+	{
+		const APlayerController* Controller = IntegrationTest::GetPlayerController();
+		const AHUD* Hud = Controller ? Controller->GetHUD() : nullptr;
+		const TInlineComponentArray<USkeletalMeshComponent*> Meshes(Hud);
+		USkeletalMeshComponent* const* Outfit = Meshes.FindByPredicate([](const USkeletalMeshComponent* Mesh)
+		{
+			return Mesh->LeaderPoseComponent.IsValid();
+		});
+		return Outfit ? *Outfit : nullptr;
 	}
 }
 
@@ -267,6 +285,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPdRoomAndLobbyScreensTest, "LabProject.Integra
 	EAutomationTestFlags::ClientContext | EAutomationTestFlags::EngineFilter)
 
 // 방 목록과, 방장으로 연 로비가 화면 층에 뜬다. 로딩 화면은 로비 화면이 뜬 것을 보고 내려간다.
+// 대기실은 고른 맵의 정원만큼 자리를 두고, 사람이 없는 자리는 빈 자리로 남긴다(혼자 연 방이라 한 자리만 찬다).
 bool FPdRoomAndLobbyScreensTest::RunTest(const FString& Parameters)
 {
 	OpenMenuMap<URoomListWidget>(this, RoomMap, []() { UGameplayStatics::OpenLevel(IntegrationTest::GetGameWorld(), FName(*RoomMap)); });
@@ -278,7 +297,81 @@ bool FPdRoomAndLobbyScreensTest::RunTest(const FString& Parameters)
 			Sessions->TravelToListenMap(LobbyMap);
 		}
 	});
+	IntegrationTest::Step(0.5f, [this]()
+	{
+		const UWorld* World = IntegrationTest::GetGameWorld();
+		const ALobbyGameState* LobbyState = World ? World->GetGameState<ALobbyGameState>() : nullptr;
+		const ULevelDefinition* Levels = ULevelDefinition::ResolveDefaultDefinition();
+		FLobbyMatchMapOption MapOption;
+		if (!TestNotNull(TEXT("대기실 상태"), LobbyState)
+			|| !TestTrue(TEXT("고른 맵이 맵 목록에 있다"), Levels && Levels->FindIngameLevel(LobbyState->GetSelectedMapKey(), MapOption)))
+		{
+			return;
+		}
+		int32 Seats = 0;
+		int32 EmptySeats = 0;
+		for (TObjectIterator<ULobbyUserWidget> It; It; ++It)
+		{
+			if (It->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject) || It->GetWorld() != World || !It->IsVisible())
+			{
+				continue;
+			}
+			++Seats;
+			const UWidget* EmptySeat = It->GetWidgetFromName(TEXT("EmptySeat"));
+			EmptySeats += EmptySeat && EmptySeat->IsVisible() ? 1 : 0;
+		}
+		TestEqual(TEXT("고른 맵의 정원만큼 자리가 보인다"), Seats, MapOption.MaxPlayerCount);
+		TestEqual(TEXT("나 말고는 빈 자리다"), EmptySeats, MapOption.MaxPlayerCount - 1);
+	});
 	OpenTitle(this);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPdTitleLunaOutfitTest, "LabProject.Integration.Screens.TitleLunaOutfit",
+	EAutomationTestFlags::ClientContext | EAutomationTestFlags::EngineFilter)
+
+// 타이틀의 옷 버튼을 누르면 Luna가 몸의 자세를 따르는 옷 메시를 갈아입고, 타이틀을 다시 열어도 고른 옷으로 시작한다.
+// 끝나면 처음 입고 있던 옷으로 되돌린다.
+bool FPdTitleLunaOutfitTest::RunTest(const FString& Parameters)
+{
+	// 맵을 다시 열면 옷 메시 에셋도 다시 불러올 수 있어, 고른 옷은 객체가 아니라 경로로 기억한다.
+	struct FOutfits
+	{
+		int32 InitialIndex = 0;
+		FSoftObjectPath Picked;
+	};
+	TSharedRef<FOutfits> Outfits = MakeShared<FOutfits>();
+
+	OpenTitle(this);
+	IntegrationTest::Step(0.f, [this, Outfits]()
+	{
+		UTitleWidget* Title = FindActiveScreen<UTitleWidget>();
+		USkeletalMeshComponent* Outfit = FindTitleLunaOutfitMesh();
+		if (!TestNotNull(TEXT("타이틀"), Title) || !TestNotNull(TEXT("Luna의 몸 자세를 따르는 옷 메시"), Outfit))
+		{
+			return;
+		}
+		const USkeletalMesh* Initial = Outfit->GetSkeletalMeshAsset();
+		Title->SelectLunaOutfit(0);
+		const USkeletalMesh* First = Outfit->GetSkeletalMeshAsset();
+		Title->SelectLunaOutfit(1);
+		const USkeletalMesh* Second = Outfit->GetSkeletalMeshAsset();
+		Outfits->Picked = FSoftObjectPath(Second);
+		Outfits->InitialIndex = Initial == First ? 0 : 1;
+		TestTrue(TEXT("처음부터 옷을 입고 있다"), Initial != nullptr);
+		TestTrue(TEXT("다른 옷 버튼을 누르면 옷 메시가 바뀐다"), First && Second && First != Second);
+	});
+	OpenTitle(this);
+	IntegrationTest::Step(0.f, [this, Outfits]()
+	{
+		const USkeletalMeshComponent* Outfit = FindTitleLunaOutfitMesh();
+		TestEqual(TEXT("타이틀을 다시 열면 고른 옷으로 시작한다"),
+			FSoftObjectPath(Outfit ? Outfit->GetSkeletalMeshAsset() : nullptr).ToString(), Outfits->Picked.ToString());
+		if (UTitleWidget* Title = FindActiveScreen<UTitleWidget>())
+		{
+			Title->SelectLunaOutfit(Outfits->InitialIndex);
+		}
+	});
 	return true;
 }
 
