@@ -26,6 +26,8 @@ namespace
 	const FName AttemptKey(TEXT("HUD.WorldBossAttempt"));
 	const FName AttemptEndedKey(TEXT("HUD.WorldBossAttemptEnded"));
 	const FName DefeatedKey(TEXT("HUD.WorldBossDefeated"));
+	const FName PracticeNameKey(TEXT("HUD.WorldBossPracticeName"));
+	const FName PracticeDefeatedKey(TEXT("HUD.WorldBossPracticeDefeated"));
 
 	// 1920 x 1080 기준. 화면 가운데 위쪽, 다른 HUD와 겹치지 않는 폭이다.
 	constexpr float BarWidth = 900.0f;
@@ -110,10 +112,15 @@ void UWorldBossBarWidget::NativeDestruct()
 	Super::NativeDestruct();
 }
 
+// 연습이면 보스 이름에 연습임을 붙인다. 레이드는 HUD에 붙기 전에 정해지므로(SetWorldBossRaid) 여기서 알 수 있다.
 void UWorldBossBarWidget::HandleLanguageChanged()
 {
 	ApplyLanguageFonts();
-	NameText->SetText(UMenuLocalizationSubsystem::GetText(BossNameKey));
+	const AWorldBossRaid* CurrentRaid = Raid.Get();
+	const FText BossName = UMenuLocalizationSubsystem::GetText(BossNameKey);
+	NameText->SetText(CurrentRaid && CurrentRaid->IsPractice()
+		? FText::FormatNamed(UMenuLocalizationSubsystem::GetText(PracticeNameKey), TEXT("Name"), BossName)
+		: BossName);
 	Shown = FShownValues();
 	RefreshTexts();
 }
@@ -175,7 +182,8 @@ void UWorldBossBarWidget::RefreshTexts()
 		AttemptText->SetText(FText::Format(UMenuLocalizationSubsystem::GetText(AttemptEndedKey), Arguments));
 		break;
 	case EAttemptPhase::BossDefeated:
-		AttemptText->SetText(UMenuLocalizationSubsystem::GetText(DefeatedKey));
+		// 연습에는 받을 보상이 없다.
+		AttemptText->SetText(UMenuLocalizationSubsystem::GetText(CurrentRaid->IsPractice() ? PracticeDefeatedKey : DefeatedKey));
 		break;
 	case EAttemptPhase::None:
 		AttemptText->SetText(FText::GetEmpty());

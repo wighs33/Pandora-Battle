@@ -66,6 +66,16 @@ namespace
 	/** 질문 칸과 그 오른쪽 DLC 받기 버튼 사이의 간격 */
 	constexpr float LunaDlcButtonGap = 12.f;
 
+	/** 질문 칸의 아래 가장자리가 초상화 아래 가장자리에서 떨어진 거리 */
+	constexpr float LunaChatInputBottomInset = 24.f;
+
+	// Luna 옷 버튼: 초상화 오른쪽에 세로로 쌓고, 맨 아래 버튼을 질문 칸 아래 가장자리에 맞춘다.
+	constexpr float LunaOutfitButtonSize = 76.f;
+	constexpr float LunaOutfitButtonGap = 10.f;
+	constexpr float LunaOutfitColumnGap = 16.f;
+	constexpr float LunaOutfitIconPadding = 6.f;
+	constexpr float LunaOutfitSelectedLineWidth = 2.f;
+
 	// 타이틀 색: 먹색 판, 상아색 글자, 금색 강조. 말풍선은 종이색에 금색 선이다.
 	const FLinearColor TitleInkColor = FLinearColor::FromSRGBColor(FColor(0x0E, 0x0D, 0x12));
 	const FLinearColor TitleIvoryColor = FLinearColor::FromSRGBColor(FColor(0xEF, 0xE8, 0xD8));
@@ -183,6 +193,7 @@ void UTitleWidget::OnMenuLanguageChanged()
 	}
 	ApplyLunaChatAvailability();
 	ApplyBossRaidAvailability();
+	ApplyLunaOutfitTooltips();
 }
 
 void UTitleWidget::NativeOnInitialized()
@@ -368,13 +379,14 @@ void UTitleWidget::NativeDestruct()
 	Super::NativeDestruct();
 }
 
-TArray<FButtonClickBinding, TInlineAllocator<10>> UTitleWidget::GetMenuButtonBindings() const
+TArray<FButtonClickBinding, TInlineAllocator<11>> UTitleWidget::GetMenuButtonBindings() const
 {
 	return {
 		{ Btn_RoomList, GET_FUNCTION_NAME_CHECKED(ThisClass, HandleRoomListClicked) },
 		{ Btn_QuickMatch, GET_FUNCTION_NAME_CHECKED(ThisClass, HandleQuickMatchClicked) },
 		{ Btn_TrainingMode, GET_FUNCTION_NAME_CHECKED(ThisClass, HandleTrainingModeClicked) },
 		{ Btn_BossRaid, GET_FUNCTION_NAME_CHECKED(ThisClass, HandleBossRaidClicked) },
+		{ Btn_BossRaidPractice, GET_FUNCTION_NAME_CHECKED(ThisClass, HandleBossRaidPracticeClicked) },
 		{ Btn_Website, GET_FUNCTION_NAME_CHECKED(ThisClass, HandleWebsiteClicked) },
 		{ Btn_PandoraShop, GET_FUNCTION_NAME_CHECKED(ThisClass, HandlePandoraShopClicked) },
 		{ Btn_Guide, GET_FUNCTION_NAME_CHECKED(ThisClass, HandleGuideClicked) },
@@ -447,7 +459,7 @@ void UTitleWidget::BuildMenuHoverHighlight()
 	}
 	MenuHoverHighlight = NewObject<UMenuHoverHighlight>(this);
 	MenuHoverHighlight->SetStyle(MenuHoverStyle);
-	for (UButton* Row : { Btn_QuickMatch.Get(), Btn_RoomList.Get(), Btn_TrainingMode.Get(), Btn_BossRaid.Get() })
+	for (UButton* Row : { Btn_QuickMatch.Get(), Btn_RoomList.Get(), Btn_TrainingMode.Get(), Btn_BossRaid.Get(), Btn_BossRaidPractice.Get() })
 	{
 		if (Row)
 		{
@@ -641,7 +653,7 @@ void UTitleWidget::BuildLunaChatInput()
 	UCanvasPanelSlot* InputSlot = Canvas->AddChildToCanvas(LunaChatInput);
 	InputSlot->SetAnchors(PortraitSlot->GetAnchors());
 	InputSlot->SetAlignment(FVector2D(0.5f, 1.f));
-	InputSlot->SetPosition(PortraitTopLeft + FVector2D(PortraitSize.X * 0.5f, PortraitSize.Y - 24.f));
+	InputSlot->SetPosition(PortraitTopLeft + FVector2D(PortraitSize.X * 0.5f, PortraitSize.Y - LunaChatInputBottomInset));
 	InputSlot->SetSize(FVector2D(FMath::Min(420.f, PortraitSize.X * 0.9f), 48.f));
 	InputSlot->SetZOrder(PortraitSlot->GetZOrder() + 2);
 
@@ -673,6 +685,95 @@ void UTitleWidget::BuildLunaDlcButton(UCanvasPanel& Canvas, const UCanvasPanelSl
 	ButtonSlot->SetPosition(InputSlot.GetPosition() + FVector2D(InputSlot.GetSize().X * 0.5f + LunaDlcButtonGap, 0.f));
 	ButtonSlot->SetAutoSize(true);
 	ButtonSlot->SetZOrder(InputSlot.GetZOrder());
+}
+
+void UTitleOutfitButtonRelay::Initialize(UTitleWidget& InTitle, const int32 InOutfitIndex)
+{
+	Title = &InTitle;
+	OutfitIndex = InOutfitIndex;
+}
+
+void UTitleOutfitButtonRelay::HandleClicked()
+{
+	if (UTitleWidget* TitleWidget = Title.Get())
+	{
+		TitleWidget->SelectLunaOutfit(OutfitIndex);
+	}
+}
+
+// 질문 칸처럼 초상화와 같은 캔버스·앵커에 두어, 어떤 해상도에서도 버튼이 Luna 오른쪽에 붙어 있다.
+void UTitleWidget::SetLunaOutfits(const TConstArrayView<FTitleCharacterOutfit> Outfits)
+{
+	UCanvasPanel* Canvas = Img_TitleCharacter ? Cast<UCanvasPanel>(Img_TitleCharacter->GetParent()) : nullptr;
+	const UCanvasPanelSlot* PortraitSlot = Img_TitleCharacter ? Cast<UCanvasPanelSlot>(Img_TitleCharacter->Slot) : nullptr;
+	if (!Canvas || !PortraitSlot || !WidgetTree || !LunaOutfitButtons.IsEmpty())
+	{
+		return;
+	}
+
+	const FVector2D PortraitSize = PortraitSlot->GetSize();
+	const FVector2D PortraitTopLeft = PortraitSlot->GetPosition() - PortraitSlot->GetAlignment() * PortraitSize;
+	const float ColumnLeft = PortraitTopLeft.X + PortraitSize.X + LunaOutfitColumnGap;
+	const float ColumnBottom = PortraitTopLeft.Y + PortraitSize.Y - LunaChatInputBottomInset;
+	for (int32 Index = 0; Index < Outfits.Num(); ++Index)
+	{
+		UButton* Button = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
+		UImage* Icon = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
+		Icon->SetBrushFromTexture(Outfits[Index].Icon);
+		UButtonSlot* IconSlot = Cast<UButtonSlot>(Button->AddChild(Icon));
+		IconSlot->SetPadding(FMargin(LunaOutfitIconPadding));
+		IconSlot->SetHorizontalAlignment(HAlign_Fill);
+		IconSlot->SetVerticalAlignment(VAlign_Fill);
+
+		UTitleOutfitButtonRelay* Relay = NewObject<UTitleOutfitButtonRelay>(this);
+		Relay->Initialize(*this, Index);
+		Button->OnClicked.AddDynamic(Relay, &UTitleOutfitButtonRelay::HandleClicked);
+
+		UCanvasPanelSlot* ButtonSlot = Canvas->AddChildToCanvas(Button);
+		ButtonSlot->SetAnchors(PortraitSlot->GetAnchors());
+		ButtonSlot->SetAlignment(FVector2D(0.f, 1.f));
+		const int32 RowsBelow = Outfits.Num() - 1 - Index;
+		ButtonSlot->SetPosition(FVector2D(ColumnLeft, ColumnBottom - RowsBelow * (LunaOutfitButtonSize + LunaOutfitButtonGap)));
+		ButtonSlot->SetSize(FVector2D(LunaOutfitButtonSize));
+		ButtonSlot->SetZOrder(PortraitSlot->GetZOrder() + 2);
+
+		LunaOutfitButtons.Add(Button);
+		LunaOutfitButtonRelays.Add(Relay);
+		LunaOutfitNameKeys.Add(Outfits[Index].NameKey);
+	}
+	ApplyLunaOutfitStyles();
+	ApplyLunaOutfitTooltips();
+}
+
+void UTitleWidget::SetSelectedLunaOutfit(const int32 OutfitIndex)
+{
+	SelectedLunaOutfit = OutfitIndex;
+	ApplyLunaOutfitStyles();
+}
+
+// 지금 입은 옷은 굵은 금색 테두리로, 나머지는 질문 칸과 같은 옅은 금색 선으로 그린다.
+void UTitleWidget::ApplyLunaOutfitStyles()
+{
+	for (int32 Index = 0; Index < LunaOutfitButtons.Num(); ++Index)
+	{
+		const bool bSelected = Index == SelectedLunaOutfit;
+		const float LineWidth = bSelected ? LunaOutfitSelectedLineWidth : TitleLineWidth;
+		FButtonStyle Style = LunaOutfitButtons[Index]->GetStyle();
+		Style.SetNormal(MakeTitleBrush(LunaInputColor, bSelected ? TitleGoldColor : LunaIdleOutlineColor, LineWidth, TitleCornerRadius));
+		Style.SetHovered(MakeTitleBrush(LunaHoverColor, TitleGoldColor, LineWidth, TitleCornerRadius));
+		Style.SetPressed(MakeTitleBrush(TitleGoldColor.CopyWithNewOpacity(0.35f), TitleGoldColor, LineWidth, TitleCornerRadius));
+		Style.SetNormalPadding(FMargin(0.f));
+		Style.SetPressedPadding(FMargin(0.f));
+		LunaOutfitButtons[Index]->SetStyle(Style);
+	}
+}
+
+void UTitleWidget::ApplyLunaOutfitTooltips()
+{
+	for (int32 Index = 0; Index < LunaOutfitButtons.Num(); ++Index)
+	{
+		SetHoverTooltip(LunaOutfitButtons[Index], MenuText(LunaOutfitNameKeys[Index]));
+	}
 }
 
 void UTitleWidget::SetLunaServerState(const ELunaServerState State)
@@ -735,6 +836,11 @@ void UTitleWidget::HandleTrainingModeClicked()
 void UTitleWidget::HandleBossRaidClicked()
 {
 	BossRaidRequested.Broadcast();
+}
+
+void UTitleWidget::HandleBossRaidPracticeClicked()
+{
+	OpenBossRaidPractice();
 }
 
 void UTitleWidget::HandleWebsiteClicked()
@@ -822,6 +928,25 @@ void UTitleWidget::OpenTrainingRoom()
 	}
 	EditorTransaction::ResetIfContainsPieObjects();
 	UGameplayStatics::OpenLevel(this, FName(*TrainingRoomMapName));
+}
+
+// 훈련장처럼 이 PC에서 단독으로 연다. 보스 레이드 맵에 연습 옵션을 붙이면 레이드가 백엔드에 묻지 않는다.
+void UTitleWidget::OpenBossRaidPractice()
+{
+	const ULevelDefinition* Levels = ULevelDefinition::ResolveDefaultDefinition();
+	const FString BossRaidMapName = Levels ? Levels->GetBossRaidTravelMapName() : FString();
+	if (BossRaidMapName.IsEmpty())
+	{
+		return;
+	}
+
+	if (ULobbyRuntimeSubsystem* LobbyRuntimeSubsystem = UGameInstance::GetSubsystem<ULobbyRuntimeSubsystem>(GetGameInstance()))
+	{
+		LobbyRuntimeSubsystem->BeginGameEntryContentPreload();
+	}
+	EditorTransaction::ResetIfContainsPieObjects();
+	UGameplayStatics::OpenLevel(this, FName(*BossRaidMapName), true,
+		FString::Printf(TEXT("%s=1"), PdGameSession::BossRaidPracticeOption));
 }
 
 void UTitleWidget::OpenShop()

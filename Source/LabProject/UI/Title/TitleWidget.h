@@ -7,6 +7,7 @@
 #include "Types/SlateEnums.h"
 #include "Online/Backend/BackendClientSubsystem.h"
 #include "UI/Common/MenuHoverHighlight.h"
+#include "UI/Title/TitleCharacterOutfit.h"
 #include "TitleWidget.generated.h"
 
 class UButton;
@@ -30,6 +31,26 @@ enum class ELunaServerState : uint8;
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnLunaQuestionSubmitted, const FString& /*Question*/);
 DECLARE_MULTICAST_DELEGATE(FOnLunaDlcRequested);
 DECLARE_MULTICAST_DELEGATE(FOnBossRaidRequested);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnLunaOutfitSelected, int32 /*OutfitIndex*/);
+
+class UTitleWidget;
+
+/** Luna 옷 버튼 하나의 클릭을 그 옷 번호와 함께 타이틀에 넘긴다. UButton의 클릭 알림에는 어느 버튼인지가 없다. */
+UCLASS()
+class UTitleOutfitButtonRelay : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	void Initialize(UTitleWidget& InTitle, int32 InOutfitIndex);
+
+	UFUNCTION()
+	void HandleClicked();
+
+private:
+	TWeakObjectPtr<UTitleWidget> Title;
+	int32 OutfitIndex = INDEX_NONE;
+};
 
 UCLASS(Blueprintable, BlueprintType)
 class LABPROJECT_API UTitleWidget : public UScreenWidget
@@ -80,6 +101,14 @@ public:
 	/** 보상 골드처럼 타이틀 밖에서 바뀐 로컬 프로필을 다시 보여 준다. */
 	void RefreshLocalProfile() const { LoadLocalProfile(); }
 
+	/** Luna 초상화 오른쪽에 옷 버튼을 Outfits 순서대로 세운다. 타이틀 HUD가 한 번 부른다. */
+	void SetLunaOutfits(TConstArrayView<FTitleCharacterOutfit> Outfits);
+	/** 지금 입은 옷의 버튼을 굵은 금색 테두리로 표시한다. */
+	void SetSelectedLunaOutfit(int32 OutfitIndex);
+	/** 플레이어가 옷 버튼을 눌렀다. 타이틀 HUD가 Luna에게 그 옷을 입힌다. */
+	FOnLunaOutfitSelected& OnLunaOutfitSelected() { return LunaOutfitSelected; }
+	void SelectLunaOutfit(int32 OutfitIndex) { LunaOutfitSelected.Broadcast(OutfitIndex); }
+
 protected:
 	virtual void OnMenuLanguageChanged() override;
 
@@ -109,6 +138,9 @@ protected:
 	void HandleBossRaidClicked();
 
 	UFUNCTION()
+	void HandleBossRaidPracticeClicked();
+
+	UFUNCTION()
 	void HandleWebsiteClicked();
 
 private:
@@ -124,11 +156,13 @@ private:
 	void HandleLunaDlcClicked();
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
-	TArray<FButtonClickBinding, TInlineAllocator<10>> GetMenuButtonBindings() const;
+	TArray<FButtonClickBinding, TInlineAllocator<11>> GetMenuButtonBindings() const;
 	void ApplyWidgetDefinitionSettings();
 	void BuildLunaSpeechBubble();
 	void BuildLunaChatInput();
 	void BuildLunaDlcButton(UCanvasPanel& Canvas, const UCanvasPanelSlot& InputSlot);
+	void ApplyLunaOutfitStyles();
+	void ApplyLunaOutfitTooltips();
 	void ApplyLunaChatAvailability();
 	void BuildVersionLabel();
 	void BuildMenuHoverHighlight();
@@ -141,6 +175,7 @@ private:
 	FString GetResolvedTrainingRoomTravelMapName() const;
 	void OpenRoomList();
 	void OpenTrainingRoom();
+	void OpenBossRaidPractice();
 	void OpenShop();
 	void OpenGuide();
 	void OpenRecord();
@@ -175,6 +210,10 @@ protected:
 	/** 보스 레이드: 전용 서버의 GameLift 보스 레이드 세션에 들어간다. WBP_Title에서 훈련장 줄을 함께 쓴다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Lobby|Bind")
 	TObjectPtr<UButton> Btn_BossRaid;
+
+	/** 보스 레이드 연습: 백엔드 없이 이 PC에서 보스 레이드 맵을 열어 혼자 보스와 싸운다. 레이드가 닫혀 있어도 열려 있다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Lobby|Bind")
+	TObjectPtr<UButton> Btn_BossRaidPractice;
 
 	/** 공식 웹사이트를 시스템 브라우저로 연다. 브라우저를 열 수 없는 플랫폼에서는 보이지 않는다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Lobby|Bind")
@@ -281,6 +320,17 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UMenuHoverHighlight> MenuHoverHighlight;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UButton>> LunaOutfitButtons;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTitleOutfitButtonRelay>> LunaOutfitButtonRelays;
+
+	/** 옷 버튼마다 마우스를 올리면 보이는 옷 이름(MenuText 키) */
+	TArray<FName> LunaOutfitNameKeys;
+	int32 SelectedLunaOutfit = INDEX_NONE;
+	FOnLunaOutfitSelected LunaOutfitSelected;
 
 	/** 보스 레이드 줄 오른쪽의 보스 이름, 남은 체력 막대와 비율 */
 	UPROPERTY(Transient)

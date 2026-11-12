@@ -65,6 +65,11 @@ void AWorldBossRaid::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 	DOREPLIFETIME_WITH_PARAMS_FAST(AWorldBossRaid, BossMaxHealth, Params);
 	DOREPLIFETIME_WITH_PARAMS_FAST(AWorldBossRaid, bBossDefeated, Params);
 	DOREPLIFETIME_WITH_PARAMS_FAST(AWorldBossRaid, Attempts, Params);
+
+	FDoRepLifetimeParams InitialOnlyParams;
+	InitialOnlyParams.bIsPushBased = true;
+	InitialOnlyParams.Condition = COND_InitialOnly;
+	DOREPLIFETIME_WITH_PARAMS_FAST(AWorldBossRaid, bPractice, InitialOnlyParams);
 }
 
 AWorldBossRaid* AWorldBossRaid::Find(const UObject* WorldContextObject)
@@ -78,7 +83,14 @@ AWorldBossRaid* AWorldBossRaid::Find(const UObject* WorldContextObject)
 	return It ? *It : nullptr;
 }
 
+void AWorldBossRaid::SetPractice(const bool bInPractice)
+{
+	bPractice = bInPractice;
+	MARK_PROPERTY_DIRTY_FROM_NAME(AWorldBossRaid, bPractice, this);
+}
+
 // 이미 들어와 있는 플레이어(단독 실행의 로컬 플레이어)부터 지켜보고, 빈 보고로 지금 회차와 전역 체력을 받아 온다.
+// 연습은 백엔드에 묻지 않는다.
 void AWorldBossRaid::BeginPlay()
 {
 	Super::BeginPlay();
@@ -92,6 +104,11 @@ void AWorldBossRaid::BeginPlay()
 	}
 
 	AttemptSeconds = DefaultAttemptSeconds;
+	if (bPractice)
+	{
+		UE_LOG(LogWorldBossRaid, Log, TEXT("Boss raid practice: the world boss uses this world's health and nothing is reported."));
+		bOffline = true;
+	}
 	PostLoginHandle = FGameModeEvents::OnGameModePostLoginEvent().AddUObject(this, &ThisClass::HandlePostLogin);
 	LogoutHandle = FGameModeEvents::OnGameModeLogoutEvent().AddUObject(this, &ThisClass::HandleLogout);
 	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
@@ -381,8 +398,13 @@ void AWorldBossRaid::HandleBossHealthChanged(const FOnAttributeChangeData& Data)
 	BossHealth = Data.NewValue;
 	MARK_PROPERTY_DIRTY_FROM_NAME(AWorldBossRaid, BossHealth, this);
 	// 이 월드에서 쓰러졌으면 전역 체력도 0 이하다. 다음 보고 간격을 기다리지 않고 마지막 일격을 알린다.
+	// 연습에는 전역 체력이 없으므로 이 월드에서 쓰러진 것이 곧 격파다.
 	if (Data.OldValue > 0.0f && Data.NewValue <= 0.0f)
 	{
+		if (bPractice)
+		{
+			MarkBossDefeated();
+		}
 		SendReport();
 	}
 }
@@ -399,10 +421,11 @@ void AWorldBossRaid::OnRep_Attempts()
 }
 
 // 이 화면의 플레이어가 도전을 시작했으면, 타이틀로 돌아갔을 때 결과를 알리도록 백엔드 클라이언트에 남긴다.
+// 연습은 백엔드 기록에 들어가지 않으므로 알릴 결과가 없다.
 void AWorldBossRaid::NoteLocalPlayerAttempts() const
 {
 	UBackendClientSubsystem* Backend = GetGameInstance() ? GetGameInstance()->GetSubsystem<UBackendClientSubsystem>() : nullptr;
-	if (!Backend)
+	if (!Backend || bPractice)
 	{
 		return;
 	}
@@ -604,13 +627,23 @@ void AWorldBossRaid::ApplyGlobalHealth(const double Health, const double MaxHeal
 	GlobalHealth = Health;
 	GlobalMaxHealth = MaxHealth;
 	ApplyHealthToBoss();
-	if (bDefeated && !bBossDefeated)
+	if (bDefeated)
 	{
-		UE_LOG(LogWorldBossRaid, Log, TEXT("World boss raid %s was defeated."), *RaidId);
-		bBossDefeated = true;
-		MARK_PROPERTY_DIRTY_FROM_NAME(AWorldBossRaid, bBossDefeated, this);
-		DefeatedServerTime = GetServerTime();
+		MarkBossDefeated();
 	}
+}
+
+// 쓰러지는 연출을 본 뒤 모두를 타이틀로 보낸다(TickRaid).
+void AWorldBossRaid::MarkBossDefeated()
+{
+	if (bBossDefeated)
+	{
+		return;
+	}
+	UE_LOG(LogWorldBossRaid, Log, TEXT("World boss raid %s was defeated."), bPractice ? TEXT("practice") : *RaidId);
+	bBossDefeated = true;
+	MARK_PROPERTY_DIRTY_FROM_NAME(AWorldBossRaid, bBossDefeated, this);
+	DefeatedServerTime = GetServerTime();
 }
 
 // 응답의 전역 체력에는 이 서버가 그 뒤에 넣은 딜(아직 보내지 않은 딜)이 빠져 있으므로 그만큼 빼서 적용한다.

@@ -57,6 +57,8 @@ struct FWorldBossAttempt
  * - 플레이어마다 도전을 시작한 순간부터 도전 시간을 재고, 끝나면 남은 딜을 보고한 뒤 타이틀로 보낸다.
  * - 보스가 쓰러지면 쓰러지는 연출을 보여 준 뒤 모두를 타이틀로 보내고 게임 세션을 끝낸다. 보상은 타이틀에서 받는다.
  * - 백엔드 주소나 서버 키가 없거나 열린 회차가 없으면 보고하지 않는다. 보스는 이 월드의 체력으로 싸우고 쓰러지면 다시 나온다.
+ * - 연습(SetPractice)이면 백엔드에 묻지도 보고하지도 않고 이 월드의 체력으로 싸운다. 보스가 쓰러지면 격파한 것으로 보고 타이틀로 보낸다.
+ *   레이드 기록이 아니므로 타이틀에서 알릴 결과(NoteBossRaidPlayed)도 남기지 않는다.
  *
  * 클라이언트: HUD가 이 액터의 복제 값으로 긴 보스 체력바와 도전 시간, 이번 도전 딜을 그린다.
  */
@@ -76,6 +78,10 @@ public:
 
 	/** 이 월드의 월드 보스 레이드. 보스 레이드로 연 월드에만 있다. */
 	static AWorldBossRaid* Find(const UObject* WorldContextObject);
+
+	/** 서버: 스폰할 때(BeginPlay 전에) 연습인지 정한다. */
+	void SetPractice(bool bInPractice);
+	bool IsPractice() const { return bPractice; }
 
 	/** 서버: 월드 보스가 생기면(다시 나오면) 부른다. 알고 있는 전역 체력을 보스에 적용한다. */
 	void RegisterBoss(AMonsterCharacter& Boss);
@@ -113,6 +119,7 @@ private:
 	static void SetWatchingEntrance(const APlayerController& Player, bool bWatching);
 	void ShowBarOnLocalHuds();
 	void NoteLocalPlayerAttempts() const;
+	void MarkBossDefeated();
 	void BeginAttempt(APlayerState* Player);
 	void SendReport();
 	void ApplyGlobalHealth(double Health, double MaxHealth, bool bDefeated);
@@ -143,6 +150,10 @@ private:
 
 	UPROPERTY(Replicated)
 	bool bBossDefeated = false;
+
+	/** HUD가 연습임을 보이도록 처음 한 번 복제한다. */
+	UPROPERTY(Replicated)
+	bool bPractice = false;
 
 	UPROPERTY(ReplicatedUsing = OnRep_Attempts)
 	TArray<FWorldBossAttempt> Attempts;

@@ -37,8 +37,10 @@ public:
 	bool HandlePlayerLogout(const APlayerState* ExitingPlayerState);
 
 	bool IsGameResultShown() const { return bGameResultShown; }
-	/** travel 옵션 BossRaid로 연 보스 레이드 월드. 경기 타이머·결과·이탈 종료가 없다. */
+	/** travel 옵션 BossRaid(또는 BossRaidPractice)로 연 보스 레이드 월드. 경기 타이머·결과·이탈 종료가 없다. */
 	bool IsBossRaid() const { return bBossRaid; }
+	/** travel 옵션 BossRaidPractice로 연 보스 레이드 연습. 백엔드 없이 혼자 싸운다. */
+	bool IsBossRaidPractice() const { return bBossRaidPractice; }
 
 private:
 	// Event Handlers --------------------------------------------------------------------------------------------------
@@ -69,6 +71,7 @@ private:
 	bool bGameResultShown = false;
 	bool bMatchTimerSuppressedByTravelOption = false;
 	bool bBossRaid = false;
+	bool bBossRaidPractice = false;
 	FTimerHandle MatchTimerHandle;
 	FTimerHandle GameResultLobbyReturnTimerHandle;
 	FDelegateHandle KillScoredHandle;

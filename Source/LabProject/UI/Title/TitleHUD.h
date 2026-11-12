@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/HUD.h"
+#include "UI/Title/TitleCharacterOutfit.h"
 #include "TitleHUD.generated.h"
 
 class UTitleWidget;
@@ -36,6 +37,13 @@ private:
 	void InitializeTitleCharacter();
 	void ScheduleTitleBlink();
 	void BeginTitleBlink();
+	void SetTitleBlinkWeight(float Weight);
+	void InitializeTitleOutfits();
+	/** 옷 메시를 바꾸고 타이틀 버튼의 선택 표시를 맞춘다. bSave면 다음 실행에도 이 옷으로 시작한다. */
+	void ApplyTitleOutfit(int32 OutfitIndex, bool bSave);
+	void HandleLunaOutfitSelected(int32 OutfitIndex);
+	/** 저장해 둔 옷. 없거나 지금 목록에 없으면 첫 옷이다. */
+	int32 FindSavedTitleOutfitIndex() const;
 	/** Idle은 메시의 애니메이션 블루프린트가 재생하고, 다른 동작은 그 위에 몽타주로 섞는다. nullptr이면 Idle로 돌아간다. */
 	void PlayTitleAnimation(UAnimSequenceBase* Animation, bool bLoop = true);
 	void ShowTitleSpeech();
@@ -79,6 +87,7 @@ private:
 	FDelegateHandle BossRaidRewardHandle;
 	FTimerHandle TitleBlinkTimer;
 	float TitleBlinkElapsed = -1.f;
+	int32 CurrentTitleOutfit = INDEX_NONE;
 	FTimerHandle TitleSpeechTimer;
 	float TitleMouthElapsed = -1.f;
 	bool bTitleMouthAvailable = false;
@@ -94,6 +103,13 @@ protected:
 	float BlinkIntervalMax = 5.f;
 	UPROPERTY(EditDefaultsOnly, Category = "!Title|Character|Blink", meta = (ClampMin = "0.05", Units = "s"))
 	float BlinkDuration = 0.2f;
+	/** 눈을 감는 모프. 두 눈이 따로 있으면 함께 움직인다. */
+	UPROPERTY(EditDefaultsOnly, Category = "!Title|Character|Blink")
+	TArray<FName> BlinkMorphTargets = {TEXT("eyeBlinkLeft"), TEXT("eyeBlinkRight")};
+
+	/** 평소 표정. 깜빡임과 입 모프는 이 위에 더한다. */
+	UPROPERTY(EditDefaultsOnly, Category = "!Title|Character")
+	TMap<FName, float> RestingMorphTargets = {{TEXT("mouthOpenHappy"), 1.f}};
 
 	/** Luna 안내 말풍선: 줄마다 보이는 시간과 다음 줄까지의 간격. */
 	UPROPERTY(EditDefaultsOnly, Category = "!Title|Character|Speech", meta = (ClampMin = "0.5", Units = "s"))
@@ -103,6 +119,9 @@ protected:
 	/** 말풍선이 보이는 동안 입이 0 -> 1 -> 0으로 한 번 움직이는 시간. */
 	UPROPERTY(EditDefaultsOnly, Category = "!Title|Character|Speech", meta = (ClampMin = "0.05", Units = "s"))
 	float MouthCycleDuration = 0.3f;
+	/** 말하는 동안 여닫는 입 모프 */
+	UPROPERTY(EditDefaultsOnly, Category = "!Title|Character|Speech")
+	FName MouthMorphTarget = TEXT("aa");
 
 	/** Luna의 답은 최소 이 시간만큼, 긴 답이면 더 오래(글자당 읽는 시간) 보인다. */
 	UPROPERTY(EditDefaultsOnly, Category = "!Title|Character|Chat", meta = (ClampMin = "0.5", Units = "s"))
@@ -127,6 +146,14 @@ protected:
 	/** 표시 전용이다. 메시와 상대 변환은 BP_TitleHUD에서 조정한다. */
 	UPROPERTY(VisibleAnywhere, Category = "!Title|Character")
 	TObjectPtr<USkeletalMeshComponent> TitleCharacterMesh;
+
+	/** 고른 옷(Outfits). 몸(TitleCharacterMesh)의 자세를 그대로 따른다. */
+	UPROPERTY(VisibleAnywhere, Category = "!Title|Character")
+	TObjectPtr<USkeletalMeshComponent> TitleCharacterOutfitMesh;
+
+	/** 타이틀에서 갈아입힐 수 있는 옷. 순서대로 버튼이 놓이고, 처음 실행하면 첫 옷을 입는다. */
+	UPROPERTY(EditDefaultsOnly, Category = "!Title|Character|Outfit")
+	TArray<FTitleCharacterOutfit> Outfits;
 
 	/** 상대 위치·회전과 FOV로 초상화 구도를 정한다. */
 	UPROPERTY(VisibleAnywhere, Category = "!Title|Character")

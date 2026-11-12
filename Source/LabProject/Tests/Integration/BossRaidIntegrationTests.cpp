@@ -18,16 +18,39 @@
 #include "LevelSequencePlayer.h"
 #include "Mode/PdPlayerController.h"
 #include "Mode/WorldBossRaid.h"
+#include "Online/Backend/BackendClientSubsystem.h"
 #include "UI/Core/UiActionRouter.h"
 #include "UI/HUD/Player/WorldBossBarWidget.h"
+#include "UI/Title/TitleWidget.h"
 #include "UObject/UObjectIterator.h"
 
-// 보스 레이드 월드에서 월드 보스가 받은 피해가 플레이어의 도전 기록과 HUD 체력바로 이어지는지 본다.
+// 보스 레이드 월드에서 월드 보스가 받은 피해가 플레이어의 도전 기록과 HUD 체력바로 이어지는지,
+// 타이틀에서 연 연습이 백엔드 없이 혼자 보스를 쓰러뜨리고 돌아오는지 본다.
 // -game 프로세스에서 백엔드 없이 돈다. 백엔드가 없으면 보스는 이 월드의 체력으로 싸운다.
 
 namespace
 {
 	const FString ColosseumMap = TEXT("/Game/Map/LV_Colosseum");
+	const FString TitleMap = TEXT("/Game/Map/LV_Title");
+
+	bool IsInMap(const FString& MapPath)
+	{
+		const UWorld* World = IntegrationTest::GetGameWorld();
+		return World && World->HasBegunPlay() && World->GetOutermost()->GetName() == MapPath;
+	}
+
+	UTitleWidget* FindActiveTitle()
+	{
+		const UWorld* World = IntegrationTest::GetGameWorld();
+		for (TObjectIterator<UTitleWidget> It; It; ++It)
+		{
+			if (!It->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject) && It->GetWorld() == World && It->IsActivated())
+			{
+				return *It;
+			}
+		}
+		return nullptr;
+	}
 
 	AWorldBossRaid* GetWorldBossRaid()
 	{
@@ -251,6 +274,55 @@ bool FPdWorldBossDamageTest::RunTest(const FString& Parameters)
 			TestEqual(TEXT("남은 체력을 넘는 피해는 딜에 들어가지 않는다"), Attempt->Damage, double(Health->Max), 0.01);
 		}
 	});
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPdBossRaidPracticeTest, "LabProject.Integration.BossRaid.Practice",
+	EAutomationTestFlags::ClientContext | EAutomationTestFlags::EngineFilter)
+
+// 타이틀에서 레이드 연습을 누르면 보스 레이드 맵이 연습으로 열린다. 연습 도전은 타이틀에 알릴 레이드 기록으로 남지 않고,
+// 보스를 쓰러뜨리면 격파로 보고 타이틀로 돌아간다.
+bool FPdBossRaidPracticeTest::RunTest(const FString& Parameters)
+{
+	IntegrationTest::Step(0.f, []() { UGameplayStatics::OpenLevel(IntegrationTest::GetGameWorld(), FName(*TitleMap)); });
+	IntegrationTest::WaitUntil(this, TEXT("타이틀 열기"), 30.f, []() { return IsInMap(TitleMap) && FindActiveTitle(); });
+	IntegrationTest::Step(1.f, [this]()
+	{
+		UTitleWidget* Title = FindActiveTitle();
+		UFunction* Click = Title ? Title->FindFunction(TEXT("HandleBossRaidPracticeClicked")) : nullptr;
+		if (!TestNotNull(TEXT("레이드 연습 버튼 처리"), Click))
+		{
+			return;
+		}
+		// 같은 프로세스에서 먼저 돈 레이드 테스트가 남긴 참여 표시를 비워, 이번 연습이 남기는지만 본다.
+		if (UBackendClientSubsystem* Backend = UGameInstance::GetSubsystem<UBackendClientSubsystem>(Title->GetGameInstance()))
+		{
+			Backend->ConsumeBossRaidPlayed();
+		}
+		Title->ProcessEvent(Click, nullptr);
+	});
+	// 등장 연출이 끝나야 도전이 시작된다.
+	IntegrationTest::WaitUntil(this, TEXT("연습 보스 전투 시작"), 90.f, []() { return GetLivingWorldBoss() && GetPlayerAttempt(); });
+	IntegrationTest::Step(0.f, [this]()
+	{
+		const AWorldBossRaid* Raid = GetWorldBossRaid();
+		AMonsterCharacter* Boss = GetLivingWorldBoss();
+		if (!TestNotNull(TEXT("레이드"), Raid) || !TestNotNull(TEXT("월드 보스"), Boss))
+		{
+			return;
+		}
+		TestTrue(TEXT("보스 레이드 맵이 연습으로 열린다"), IsInMap(ColosseumMap) && Raid->IsPractice());
+		UBackendClientSubsystem* Backend = UGameInstance::GetSubsystem<UBackendClientSubsystem>(Raid->GetGameInstance());
+		TestFalse(TEXT("연습 도전은 타이틀에 알릴 레이드 기록으로 남지 않는다"), Backend && Backend->ConsumeBossRaidPlayed());
+		StopBoss(*Boss);
+		DamageBossAsPlayer(1.0e6f);
+	});
+	IntegrationTest::WaitUntil(this, TEXT("연습 보스 격파"), 5.f, []()
+	{
+		const AWorldBossRaid* Raid = GetWorldBossRaid();
+		return Raid && Raid->IsBossDefeated();
+	});
+	IntegrationTest::WaitUntil(this, TEXT("격파 뒤 타이틀로 돌아가기"), 30.f, []() { return IsInMap(TitleMap) && FindActiveTitle(); });
 	return true;
 }
 

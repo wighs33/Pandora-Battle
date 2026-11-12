@@ -482,11 +482,18 @@ void AExperienceGameMode::NotifyBossRaidWorldReadyIfNeeded()
 }
 
 // 보스 레이드 월드의 보스는 모든 서버가 체력을 함께 깎는 월드 보스다. 게임 세션을 활성화한 뒤에 만들어 첫 보고가 세션 ID를 쓰게 한다.
+// 연습이면 BeginPlay 전에 알려 백엔드에 한 번도 묻지 않게 한다.
 void AExperienceGameMode::StartWorldBossRaidIfNeeded()
 {
-	if (MatchFlowComponent->IsBossRaid() && !AWorldBossRaid::Find(this))
+	if (!MatchFlowComponent->IsBossRaid() || AWorldBossRaid::Find(this))
 	{
-		GetWorld()->SpawnActor<AWorldBossRaid>();
+		return;
+	}
+	AWorldBossRaid* Raid = GetWorld()->SpawnActorDeferred<AWorldBossRaid>(AWorldBossRaid::StaticClass(), FTransform::Identity);
+	if (Raid)
+	{
+		Raid->SetPractice(MatchFlowComponent->IsBossRaidPractice());
+		Raid->FinishSpawning(FTransform::Identity);
 	}
 }
 

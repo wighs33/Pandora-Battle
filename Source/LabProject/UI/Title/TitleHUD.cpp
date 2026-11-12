@@ -17,6 +17,7 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Engine/SkeletalMesh.h"
 #include "Animation/AnimInstance.h"
+#include "Misc/ConfigCacheIni.h"
 #include "Localization/MenuLocalizationSubsystem.h"
 #include "Luna/LunaChatSubsystem.h"
 #include "Online/Backend/BackendClientSubsystem.h"
@@ -27,10 +28,9 @@
 
 namespace
 {
-	// Blender의 "Key 1"은 Luna에 "Key_1"로 들어온다.
-	const FName TitleBlinkMorph(TEXT("Key_1"));
-	// Blender의 "Key 2"(입)는 Luna에 "Key_2"로 들어온다.
-	const FName TitleMouthMorph(TEXT("Key_2"));
+	// 고른 옷은 이 PC의 사용자 설정(GameUserSettings.ini)에 옷 이름으로 남긴다.
+	const TCHAR* TitleOutfitConfigSection = TEXT("TitleCharacter");
+	const TCHAR* TitleOutfitConfigKey = TEXT("Outfit");
 	// MenuText string table keys: Title.LunaGreeting, then Title.LunaTip01 ... Title.LunaTip20.
 	const FName LunaGreetingKey(TEXT("Title.LunaGreeting"));
 	const FName LunaChatThinkingKey(TEXT("Title.LunaChatThinking"));
@@ -52,6 +52,12 @@ ATitleHUD::ATitleHUD(const FObjectInitializer& ObjectInitializer)
 	TitleCharacterMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	TitleCharacterMesh->SetGenerateOverlapEvents(false);
 	TitleCharacterMesh->SetVisibleInSceneCaptureOnly(true);
+
+	TitleCharacterOutfitMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("TitleCharacterOutfitMesh"));
+	TitleCharacterOutfitMesh->SetupAttachment(TitleCharacterMesh);
+	TitleCharacterOutfitMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	TitleCharacterOutfitMesh->SetGenerateOverlapEvents(false);
+	TitleCharacterOutfitMesh->SetVisibleInSceneCaptureOnly(true);
 
 	TitleCharacterCapture = CreateDefaultSubobject<USceneCaptureComponent2D>(TEXT("TitleCharacterCapture"));
 	TitleCharacterCapture->SetupAttachment(RootComponent);
@@ -107,21 +113,76 @@ void ATitleHUD::InitializeTitleCharacter()
 	TitleCharacterRenderTarget->InitCustomFormat(768, 1024, PF_FloatRGBA, false);
 	TitleCharacterCapture->TextureTarget = TitleCharacterRenderTarget;
 	TitleCharacterCapture->ShowOnlyComponent(TitleCharacterMesh);
+	TitleCharacterCapture->ShowOnlyComponent(TitleCharacterOutfitMesh);
 	UMaterialInstanceDynamic* Material = UMaterialInstanceDynamic::Create(TitleCharacterDisplayMaterial, this);
 	Material->SetTextureParameterValue(TEXT("CharacterTexture"), TitleCharacterRenderTarget);
 	TitleWidget->SetTitleCharacterMaterial(Material);
-	if (TitleCharacterMesh->GetSkeletalMeshAsset()->FindMorphTarget(TitleBlinkMorph))
+
+	for (const TPair<FName, float>& Morph : RestingMorphTargets)
+	{
+		TitleCharacterMesh->SetMorphTarget(Morph.Key, Morph.Value);
+	}
+	const USkeletalMesh* CharacterMesh = TitleCharacterMesh->GetSkeletalMeshAsset();
+	if (BlinkMorphTargets.ContainsByPredicate([CharacterMesh](const FName Morph) { return CharacterMesh->FindMorphTarget(Morph) != nullptr; }))
 	{
 		ScheduleTitleBlink();
 	}
-	bTitleMouthAvailable = TitleCharacterMesh->GetSkeletalMeshAsset()->FindMorphTarget(TitleMouthMorph) != nullptr;
+	bTitleMouthAvailable = CharacterMesh->FindMorphTarget(MouthMorphTarget) != nullptr;
+	InitializeTitleOutfits();
 	ShowTitleSpeech();
+}
+
+// 옷 버튼을 만들고, 지난번에 고른 옷(처음이면 첫 옷)을 입힌다.
+void ATitleHUD::InitializeTitleOutfits()
+{
+	TitleCharacterOutfitMesh->SetLeaderPoseComponent(TitleCharacterMesh);
+	TitleWidget->SetLunaOutfits(Outfits);
+	TitleWidget->OnLunaOutfitSelected().AddUObject(this, &ATitleHUD::HandleLunaOutfitSelected);
+	ApplyTitleOutfit(FindSavedTitleOutfitIndex(), false);
+}
+
+void ATitleHUD::ApplyTitleOutfit(const int32 OutfitIndex, const bool bSave)
+{
+	if (!Outfits.IsValidIndex(OutfitIndex))
+	{
+		return;
+	}
+	CurrentTitleOutfit = OutfitIndex;
+	TitleCharacterOutfitMesh->SetSkeletalMeshAsset(Outfits[OutfitIndex].Mesh);
+	if (TitleWidget)
+	{
+		TitleWidget->SetSelectedLunaOutfit(OutfitIndex);
+	}
+	if (bSave)
+	{
+		GConfig->SetString(TitleOutfitConfigSection, TitleOutfitConfigKey, *Outfits[OutfitIndex].Id.ToString(), GGameUserSettingsIni);
+		GConfig->Flush(false, GGameUserSettingsIni);
+	}
+}
+
+void ATitleHUD::HandleLunaOutfitSelected(const int32 OutfitIndex)
+{
+	if (OutfitIndex != CurrentTitleOutfit)
+	{
+		ApplyTitleOutfit(OutfitIndex, true);
+	}
+}
+
+int32 ATitleHUD::FindSavedTitleOutfitIndex() const
+{
+	FString SavedId;
+	if (!GConfig->GetString(TitleOutfitConfigSection, TitleOutfitConfigKey, SavedId, GGameUserSettingsIni))
+	{
+		return 0;
+	}
+	const FName Id(*SavedId);
+	return FMath::Max(0, Outfits.IndexOfByPredicate([Id](const FTitleCharacterOutfit& Outfit) { return Outfit.Id == Id; }));
 }
 
 void ATitleHUD::ScheduleTitleBlink()
 {
 	TitleBlinkElapsed = -1.f;
-	TitleCharacterMesh->SetMorphTarget(TitleBlinkMorph, 0.f);
+	SetTitleBlinkWeight(0.f);
 	const float MinInterval = FMath::Max(0.1f, BlinkIntervalMin);
 	GetWorldTimerManager().SetTimer(TitleBlinkTimer, this, &ATitleHUD::BeginTitleBlink,
 		FMath::FRandRange(MinInterval, FMath::Max(MinInterval, BlinkIntervalMax)), false);
@@ -130,6 +191,14 @@ void ATitleHUD::ScheduleTitleBlink()
 void ATitleHUD::BeginTitleBlink()
 {
 	TitleBlinkElapsed = 0.f;
+}
+
+void ATitleHUD::SetTitleBlinkWeight(const float Weight)
+{
+	for (const FName Morph : BlinkMorphTargets)
+	{
+		TitleCharacterMesh->SetMorphTarget(Morph, Weight);
+	}
 }
 
 // 새 몽타주는 앞 몽타주(또는 Idle)와 AnimationBlendTime 동안 섞이며 넘어가고, 한 번만 하는 동작은 끝나면 Idle로 섞여 돌아간다.
@@ -196,7 +265,7 @@ void ATitleHUD::HideTitleSpeech()
 		TitleWidget->HideLunaSpeech();
 	}
 	TitleMouthElapsed = -1.f;
-	TitleCharacterMesh->SetMorphTarget(TitleMouthMorph, 0.f);
+	TitleCharacterMesh->SetMorphTarget(MouthMorphTarget, 0.f);
 	PlayTitleAnimation(nullptr);
 	const float NextTipDelay = bLunaChatActive ? ChatTipResumeDelay : SpeechHiddenInterval;
 	bLunaChatActive = false;
@@ -448,7 +517,7 @@ void ATitleHUD::ShowLunaChatText(const FText& Text, const bool bSpeaking)
 	else
 	{
 		TitleMouthElapsed = -1.f;
-		TitleCharacterMesh->SetMorphTarget(TitleMouthMorph, 0.f);
+		TitleCharacterMesh->SetMorphTarget(MouthMorphTarget, 0.f);
 	}
 }
 
@@ -479,7 +548,7 @@ void ATitleHUD::Tick(float DeltaSeconds)
 		// 말풍선이 보이는 동안 주기마다 0 -> 1 -> 0으로 부드럽게 반복한다.
 		TitleMouthElapsed += DeltaSeconds;
 		const float MouthPhase = TitleMouthElapsed / FMath::Max(0.05f, MouthCycleDuration);
-		TitleCharacterMesh->SetMorphTarget(TitleMouthMorph, 0.5f - 0.5f * FMath::Cos(2.f * UE_PI * MouthPhase));
+		TitleCharacterMesh->SetMorphTarget(MouthMorphTarget, 0.5f - 0.5f * FMath::Cos(2.f * UE_PI * MouthPhase));
 	}
 	if (TitleBlinkElapsed < 0.f)
 	{
@@ -496,7 +565,7 @@ void ATitleHUD::Tick(float DeltaSeconds)
 	const float Weight = Phase < 0.5f
 		? FMath::Clamp(Phase / 0.4f, 0.f, 1.f)
 		: FMath::Clamp((1.f - Phase) / 0.5f, 0.f, 1.f);
-	TitleCharacterMesh->SetMorphTarget(TitleBlinkMorph, Weight);
+	SetTitleBlinkWeight(Weight);
 }
 
 void ATitleHUD::BeginPlay()
@@ -535,12 +604,16 @@ void ATitleHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	UnbindLunaChat();
 	UnbindBossRaid();
+	if (TitleWidget)
+	{
+		TitleWidget->OnLunaOutfitSelected().RemoveAll(this);
+	}
 	GetWorldTimerManager().ClearTimer(TitleBlinkTimer);
 	TitleBlinkElapsed = -1.f;
-	TitleCharacterMesh->SetMorphTarget(TitleBlinkMorph, 0.f);
+	SetTitleBlinkWeight(0.f);
 	GetWorldTimerManager().ClearTimer(TitleSpeechTimer);
 	TitleMouthElapsed = -1.f;
-	TitleCharacterMesh->SetMorphTarget(TitleMouthMorph, 0.f);
+	TitleCharacterMesh->SetMorphTarget(MouthMorphTarget, 0.f);
 	if (TitleWidget)
 	{
 		TitleWidget->HideLunaSpeech();

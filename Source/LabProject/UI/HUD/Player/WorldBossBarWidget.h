@@ -10,6 +10,7 @@ class UTextBlock;
 
 /**
  * 보스 레이드 HUD 위쪽의 긴 월드 보스 체력바. 모든 서버가 함께 깎는 체력과 내 도전의 남은 시간, 이번 도전에서 넣은 딜을 보여 준다.
+ * 연습이면 보스 이름에 연습임을 붙이고, 격파 문구에서 보상 안내를 뺀다.
  *
  * 위젯 블루프린트 없이 코드로 구성하고, AWorldBossRaid의 복제 값을 매 프레임 읽는다. 글자는 바뀐 값이 있을 때만 다시 만든다.
  * 체력이 줄면 밝은 잔상 막대가 뒤따라 줄어 방금 깎인 양이 보인다.
@@ -21,6 +22,7 @@ class LABPROJECT_API UWorldBossBarWidget : public UUserWidget
 
 public:
 	// Public API ------------------------------------------------------------------------------------------------------
+	/** HUD에 붙이기(NativeConstruct) 전에 부른다. */
 	void SetWorldBossRaid(AWorldBossRaid* InRaid) { Raid = InRaid; }
 
 protected:
