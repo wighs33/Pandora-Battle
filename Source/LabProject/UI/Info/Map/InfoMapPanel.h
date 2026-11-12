@@ -57,13 +57,13 @@ private:
 	void HandleSlideAnimationFinished();
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
-	void BeginMapWidgetClassPreload();
+	void BeginLevelMapPreload();
 	void CompleteContentPreload();
 	void FailContentPreload();
 	void ReleaseContentPreloads();
 	void ReleaseTotalMapWidget();
 	bool EnsureMapOverlay();
-	TSubclassOf<UMapWidget> ResolveMapWidgetClassForCurrentMap() const;
+	TSubclassOf<UMapWidget> ResolveMapWidgetClass() const;
 
 private:
 	UPROPERTY(Transient)
@@ -92,5 +92,5 @@ private:
 	bool bOpenRequested = false;
 	TSharedPtr<FContentLease> MapContentLease;
 	TSharedPtr<FContentLease> MapRuleLease;
-	TSharedPtr<FContentLease> MapWidgetClassLease;
+	TSharedPtr<FContentLease> LevelMapLease;
 };

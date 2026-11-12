@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Definition/Level/LevelMapLayout.h"
 #include "MapPawnMarkers.generated.h"
 
 class APawn;
@@ -8,12 +9,11 @@ class UImage;
 class UPanelWidget;
 struct FMapMarkImages;
 
-// 지역 평면의 월드 위치와 방향을 지도 그림 좌표와 표식 회전각으로 옮긴다.
+// 보이는 지도 한 장의 월드 사각형으로 월드 위치와 방향을 화면 위 지도 좌표와 표식 회전각으로 옮긴다.
 struct FMapMarkProjection
 {
-	FTransform PlaneTransform = FTransform::Identity;
+	FLevelMapPage Page;
 	FVector2D MapSize = FVector2D::ZeroVector;
-	float PlaneLocalSize = 100.0f;
 	bool bRotateToForward = true;
 	float RotationOffsetDegrees = 0.0f;
 

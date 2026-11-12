@@ -20,28 +20,12 @@ namespace
 
 FVector2D FMapMarkProjection::ToMapPosition(const FVector& WorldLocation) const
 {
-	const FVector PlaneLocalLocation = PlaneTransform.InverseTransformPosition(WorldLocation);
-	const float SafePlaneLocalSize = FMath::Max(PlaneLocalSize, 1.0f);
-	const float NormalizedX = FMath::Clamp((PlaneLocalLocation.X / SafePlaneLocalSize) + 0.5f, 0.0f, 1.0f);
-	const float NormalizedY = FMath::Clamp((PlaneLocalLocation.Y / SafePlaneLocalSize) + 0.5f, 0.0f, 1.0f);
-	return FVector2D(NormalizedX * MapSize.X, NormalizedY * MapSize.Y);
+	return Page.ToMapUV(WorldLocation) * MapSize;
 }
 
 float FMapMarkProjection::ToMarkAngle(const FVector& WorldForward) const
 {
-	float RotationAngle = RotationOffsetDegrees;
-	if (bRotateToForward)
-	{
-		const FVector PlaneLocalForward = PlaneTransform.InverseTransformVectorNoScale(WorldForward);
-		FVector2D ScreenForward(PlaneLocalForward.X, PlaneLocalForward.Y);
-		if (!ScreenForward.Normalize())
-		{
-			ScreenForward = FVector2D(0.0f, 1.0f);
-		}
-
-		RotationAngle += -FMath::RadiansToDegrees(FMath::Atan2(ScreenForward.X, ScreenForward.Y));
-	}
-	return RotationAngle;
+	return RotationOffsetDegrees + (bRotateToForward ? Page.ToMapAngle(WorldForward) : 0.0f);
 }
 
 void FMapPawnMarkers::UpdateSelfMarks(const FMapMarkerCanvas& Canvas, const APawn& OwningPawn,

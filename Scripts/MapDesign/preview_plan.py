@@ -25,6 +25,8 @@ BUILDING_COLOR = (92, 72, 62)
 FRONT_COLOR = (250, 210, 120)
 SPAWN_COLOR = (230, 60, 60)
 RESPAWN_COLOR = (240, 140, 60)
+CHEST_COLOR = (250, 215, 70)
+CHEST_HALF_PX = 6
 TEXT_COLOR = (235, 235, 235)
 PANEL_COLOR = (28, 30, 34)
 ISSUE_COLORS = {"error": (255, 120, 110), "warning": (255, 205, 110)}
@@ -91,6 +93,13 @@ def draw_spawns(plan, draw):
         draw.line([(px, py), (px + math.cos(yaw) * 16, py - math.sin(yaw) * 16)], fill=color, width=3)
 
 
+def draw_chests(plan, draw):
+    for chest in plan.chests:
+        px, py = to_px(plan, *chest["at"])
+        draw.rectangle([px - CHEST_HALF_PX, py - CHEST_HALF_PX, px + CHEST_HALF_PX, py + CHEST_HALF_PX],
+                       fill=CHEST_COLOR, outline=(60, 40, 20), width=2)
+
+
 def draw_grid(plan, draw):
     for x in range(0, plan.width + 1, LABEL_GRID_M):
         px, _ = to_px(plan, x, 0)
@@ -127,6 +136,7 @@ def main():
     draw_links(plan, draw)
     draw_buildings(plan, draw)
     draw_props(plan, draw)
+    draw_chests(plan, draw)
     draw_spawns(plan, draw)
     draw_issues(plan, draw, issues)
     image.save(sys.argv[2])

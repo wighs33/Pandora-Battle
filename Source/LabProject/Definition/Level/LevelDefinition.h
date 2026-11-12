@@ -4,6 +4,7 @@
 #include "Common/GameSessionConstants.h"
 #include "Engine/DataAsset.h"
 #include "Common/PlayerMapRegion.h"
+#include "Definition/Level/LevelMapLayout.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -11,7 +12,6 @@
 
 #include "LevelDefinition.generated.h"
 
-class UMapWidget;
 class UTexture2D;
 class UWorld;
 
@@ -35,8 +35,9 @@ struct LABPROJECT_API FLobbyMatchMapOption
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Ingame Level")
 	TObjectPtr<UTexture2D> Thumbnail = nullptr;
 
+	/** 정보 창 지도 탭에 보이는 이 레벨의 지도. 비면 지도 탭이 꺼진다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Ingame Level|Gameplay Map")
-	TSoftClassPtr<UMapWidget> GameplayMapWidgetClass;
+	FLevelMapLayout MapLayout;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Ingame Level|Gameplay Map",
 		meta = (FormerlySerializedAs = "InitialPlayerMapLayer"))

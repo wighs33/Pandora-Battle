@@ -6,6 +6,7 @@
 좌표: Blender는 오른손, 언리얼은 왼손 좌표계이므로 y를 뒤집고 회전도 반대로 돈다. 미터를 센티미터로 바꾼다.
 """
 import json
+import math
 import os
 import sys
 
@@ -18,6 +19,13 @@ CM_PER_M = 100.0
 
 # 캡슐 반높이보다 조금 높게 놓아 스폰이 바닥에 끼지 않게 한다.
 SPAWN_HEIGHT_CM = 100.0
+# 보상 상자는 다른 맵과 같은 블루프린트다. 보상은 블루프린트 기본값(DA_Reward)이다.
+REWARD_CHEST_CLASS = "/Game/Env/BP_RewardChest.BP_RewardChest_C"
+# 맵 경계를 벗어난 캐릭터를 Respawn 시작점에서 되살리는 구(AOutOfBoundsVolume). 다른 맵의 BP_RespawnTrigger는
+# 정해 둔 한 좌표로 순간이동시키므로 새 맵에서는 쓰지 않는다.
+OUT_OF_BOUNDS_CLASS = "/Game/Env/BP_OutOfBoundsVolume.BP_OutOfBoundsVolume_C"
+# 구는 맵 가운데 바닥에 두고, 막는 벽 꼭대기의 모서리까지 감싼 뒤 이만큼 더 넓힌다.
+OUT_OF_BOUNDS_MARGIN_CM = 500.0
 NAV_BRUSH_SIZE_CM = 200.0
 NAV_MARGIN_CM = 500.0
 NAV_HEIGHT_CM = 3000.0
@@ -356,6 +364,25 @@ def place_spawns(actors, manifest, level_height_of):
         tag(actor, f"Start_{spawn['tag']}_{index}")
 
 
+def place_chests(actors, manifest):
+    """보상 상자. 도면 검사가 자리(평지, 스폰·출입구·소품과의 거리)를 확인했다. 높이는 도면의 땅 높이다."""
+    chest_class = unreal.load_class(None, REWARD_CHEST_CLASS)
+    for index, chest in enumerate(manifest.get("chests", [])):
+        x, y = chest["at"]
+        rotation = unreal.Rotator(0.0, 0.0, to_unreal_yaw(chest["yaw"]))
+        tag(actors.spawn_actor_from_class(chest_class, to_unreal((x, y, chest["z"])), rotation), f"Chest_{index}")
+
+
+def place_out_of_bounds(actors, manifest):
+    """경계 구. 막는 벽을 넘거나 바닥을 뚫고 떨어져 구 밖으로 나가면 Respawn 시작점에서 되살아난다."""
+    width, depth = manifest["bounds"]
+    center = unreal.Vector(width * CM_PER_M / 2, -depth * CM_PER_M / 2, 0.0)
+    reach_m = math.sqrt((width / 2) ** 2 + (depth / 2) ** 2 + manifest["ceiling_z"] ** 2)
+    volume = actors.spawn_actor_from_class(unreal.load_class(None, OUT_OF_BOUNDS_CLASS), center, unreal.Rotator(0, 0, 0))
+    tag(volume, "OutOfBounds")
+    volume.get_component_by_class(unreal.SphereComponent).set_sphere_radius(reach_m * CM_PER_M + OUT_OF_BOUNDS_MARGIN_CM)
+
+
 def place_lighting(actors):
     sun = actors.spawn_actor_from_class(unreal.DirectionalLight, unreal.Vector(0, 0, 3000), SUN_ROTATION)
     tag(sun, "Sun")
@@ -457,6 +484,8 @@ def main():
     place_lamps(actors, manifest)
     heights = ground_heights(manifest)
     place_spawns(actors, manifest, lambda index: heights[index])
+    place_chests(actors, manifest)
+    place_out_of_bounds(actors, manifest)
     place_lighting(actors)
     place_navigation(actors, manifest["bounds"])
     levels.save_current_level()

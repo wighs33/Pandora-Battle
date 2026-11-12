@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Definition/Level/LevelMapLayout.h"
 #include "UI/Common/LocalizedMenuWidget.h"
 #include "UI/Core/WidgetClassDefinition.h"
 #include "UI/Info/Map/MapAreaRegionMarkers.h"
@@ -8,6 +9,7 @@
 #include "MapWidget.generated.h"
 
 class UButton;
+class UButtonClickRelay;
 class UCanvasPanel;
 class UHorizontalBox;
 class UImage;
@@ -17,25 +19,15 @@ class UTextBlock;
 class UTexture2D;
 class APawn;
 
-// 지역 지도와 전체 지도를 바꿔 보여 주는 위젯. 보기 전환·설정·갱신 주기를 맡고,
-// 표식 그림 고르기와 내·다른 플레이어 표식, 전체 지도의 지역별 표식은 각 표식 묶음에 맡긴다.
+// 레벨 지도(FLevelMapLayout)를 보여 주는 위젯. 지역 지도가 여럿이면 전체 지도에서 지역을 고르고, 한 장이면 그 지도만 보인다.
+// 보기 전환·설정·갱신 주기를 맡고, 표식 그림 고르기와 내·다른 플레이어 표식, 전체 지도의 지역별 표식은 각 표식 묶음에 맡긴다.
 UCLASS(Blueprintable, BlueprintType)
 class LABPROJECT_API UMapWidget : public ULocalizedMenuWidget
 {
 	GENERATED_BODY()
 
-public:
-	enum class EMapView : uint8
-	{
-		Area,
-		Windmill,
-		Dome,
-		Temple
-	};
-
 protected:
 	// Engine Overrides ------------------------------------------------------------------------------------------------
-	virtual void NativePreConstruct() override;
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
 
@@ -43,17 +35,20 @@ public:
 	// Public API ------------------------------------------------------------------------------------------------------
 	UMapWidget(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
+	/** 보일 레벨 지도와 레벨 이름(이름 키가 없는 지도에 쓴다). 정보 창이 지도를 열 때 넘긴다. */
+	void SetLevelMap(const FLevelMapLayout& InLayout, const FText& InLevelName);
+
 	UFUNCTION(BlueprintCallable, Category = "!UI|Map")
 	void ShowAreaMap();
 
 	UFUNCTION(BlueprintCallable, Category = "!UI|Map")
-	void ShowWindmillMap();
+	void ShowRegionMap(EPlayerMapRegion Region);
 
-	UFUNCTION(BlueprintCallable, Category = "!UI|Map")
-	void ShowDomeMap();
+	/** 지금 보이는 지도: 전체 지도면 INDEX_NONE, 아니면 레벨 지도의 Pages 번호. */
+	int32 GetShownPageIndex() const { return ShownPageIndex; }
 
-	UFUNCTION(BlueprintCallable, Category = "!UI|Map")
-	void ShowTempleMap();
+	/** 전체 지도에서 그 지역의 빛이 켜져 있는지(지역 단추에 마우스가 올라가 있는지). */
+	bool IsRegionHighlighted(EPlayerMapRegion Region) const;
 
 protected:
 	// Event Handlers --------------------------------------------------------------------------------------------------
@@ -61,28 +56,23 @@ protected:
 
 private:
 	UFUNCTION()
-	void OnWindmillButtonClicked();
-
-	UFUNCTION()
-	void OnDomeButtonClicked();
-
-	UFUNCTION()
-	void OnTempleButtonClicked();
-
-	UFUNCTION()
 	void OnAreaMapButtonClicked();
+
+	void HandleRegionHoverChanged(bool bHovered, EPlayerMapRegion Region);
 	void HandleMapUpdateTick();
 	void RefreshRemotePlayerPawns();
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
-	void ApplyMapView(EMapView NewMapView);
-	void ApplyMapTexture(UTexture2D* Texture);
-	void ApplyTotalSizeBoxSize(const FVector2D& Size);
-	void ResolveDefaultTextures();
 	void ApplyWidgetDefinitionSettings();
-	const FMapWidgetProjectionSettings* FindProjectionOverride(const FMapWidgetSettings& Settings) const;
-	void SetRegionSelectionButtonsVisible(bool bVisible);
-	void SyncMapViewToPlayerMapRegion();
+	void ApplyLevelMap();
+	void ShowPage(int32 PageIndex);
+	void BindRegionButtons();
+	void UnbindRegionButtons();
+	void PlaceAreaRegionWidgets();
+	void SetRegionHighlightVisible(int32 PageIndex, bool bVisible);
+	UButton* GetRegionButton(EPlayerMapRegion Region) const;
+	void SetRegionSelectionVisible(bool bVisible);
+	void SyncShownPageToPlayerRegion();
 	void StartMapUpdateTimers();
 	void StopMapUpdateTimers();
 	void RefreshAreaMapRegionMarkers();
@@ -92,11 +82,10 @@ private:
 	FMapMarkerCanvas MakeMarkerCanvas();
 	UPanelWidget* GetMarkerParentPanel() const;
 	FMapAreaRegionBoxes GetAreaRegionBoxes() const;
-	bool DoesPawnMatchCurrentMapView(const APawn& Pawn) const;
-	UTexture2D* GetMapTexture(EMapView MapView) const;
-	FText GetMapViewName(EMapView MapView) const;
-	const FTransform& GetCurrentPlaneTransform() const;
-	FVector2D GetCurrentTotalSizeBoxSize() const;
+	int32 FindPlayerPageIndex(const APawn& Pawn) const;
+	bool DoesPawnMatchShownPage(const APawn& Pawn) const;
+	FVector2D GetShownViewSize() const;
+	FText GetShownMapName() const;
 
 protected:
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Map", meta = (BindWidgetOptional))
@@ -107,12 +96,6 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Map", meta = (BindWidgetOptional))
 	TObjectPtr<UButton> TempleButton;
-
-	UPROPERTY(BlueprintReadOnly, Category = "!UI|Map", meta = (BindWidgetOptional))
-	TObjectPtr<UButton> SurfaceButton;
-
-	UPROPERTY(BlueprintReadOnly, Category = "!UI|Map", meta = (BindWidgetOptional))
-	TObjectPtr<UButton> UndergroundButton;
 
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Map", meta = (BindWidgetOptional))
 	TObjectPtr<UButton> AreaMapButton;
@@ -147,22 +130,6 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Map", meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> MapName;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Map|Texture")
-	TObjectPtr<UTexture2D> AreaMapTexture;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Map|Texture")
-	TObjectPtr<UTexture2D> WindmillMapTexture;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Map|Texture")
-	TObjectPtr<UTexture2D> DomeMapTexture;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!UI|Map|Texture")
-	TObjectPtr<UTexture2D> TempleMapTexture;
-
-	// 지도별 크기와 지역 평면. 정의 데이터의 위젯별 덮어쓰기나 기본값으로 채운다.
-	UPROPERTY(BlueprintReadOnly, Category = "!UI|Map|Projection")
-	FMapWidgetProjectionSettings ProjectionSettings;
-
 	UPROPERTY(BlueprintReadOnly, Category = "!UI|Map|Marker")
 	bool bShowRemotePlayerMarks = true;
 
@@ -173,6 +140,12 @@ protected:
 	float RemotePlayerListRefreshInterval = 0.5f;
 
 private:
+	FLevelMapLayout Layout;
+	FText LevelName;
+	bool bRotateMarksToPawnForward = true;
+	float MarkerRotationOffsetDegrees = 0.0f;
+	FVector2D MaxMapViewSize = FVector2D(1200.0f, 900.0f);
+
 	UPROPERTY(Transient)
 	FMapPawnMarkers PawnMarkers;
 
@@ -182,11 +155,19 @@ private:
 	UPROPERTY(Transient)
 	TArray<TWeakObjectPtr<APawn>> CachedRemotePlayerPawns;
 
+	/** 지역 단추마다 하나: 누르면 그 지역 지도로, 마우스를 올리면 그 지역 빛을 켠다. */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UButtonClickRelay>> RegionButtonRelays;
+
+	/** 레벨 지도의 Pages 번호마다 전체 지도 위에 덧그리는 지역 빛(없으면 빈 칸). */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UImage>> RegionHighlights;
+
 	FTimerHandle MarkerUpdateTimerHandle;
 	FTimerHandle RemotePlayerListRefreshTimerHandle;
 
-	EMapView CurrentMapView = EMapView::Dome;
-	EMapView LastSyncedPlayerMapView = EMapView::Dome;
-	bool bHasSyncedPlayerMapView = false;
-	bool bHasManualMapViewSelection = false;
+	int32 ShownPageIndex = INDEX_NONE;
+	int32 LastSyncedPlayerPageIndex = INDEX_NONE;
+	bool bHasSyncedPlayerPage = false;
+	bool bHasManualPageSelection = false;
 };

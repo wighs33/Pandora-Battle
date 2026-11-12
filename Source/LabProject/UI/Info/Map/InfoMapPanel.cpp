@@ -70,7 +70,7 @@ bool FindMapOptionForCurrentMap(const UInfoWidget* Widget, FLobbyMatchMapOption&
 		{
 			const FName SelectedMapKey = LobbySubsystem->GetLobbySelectedMapKey();
 			if (!SelectedMapKey.IsNone() && Levels->FindIngameLevel(SelectedMapKey, OutMapOption)
-				&& !OutMapOption.GameplayMapWidgetClass.IsNull() && (!bHasLevelContext
+				&& OutMapOption.MapLayout.HasMap() && (!bHasLevelContext
 				|| DoesMapOptionMatchCurrentLevel(OutMapOption, CurrentPackageName, CurrentLevelName)))
 			{
 				return true;
@@ -80,7 +80,7 @@ bool FindMapOptionForCurrentMap(const UInfoWidget* Widget, FLobbyMatchMapOption&
 
 	for (const FLobbyMatchMapOption& MapOption : Levels->IngameLevels)
 	{
-		if (!MapOption.GameplayMapWidgetClass.IsNull()
+		if (MapOption.MapLayout.HasMap()
 			&& DoesMapOptionMatchCurrentLevel(MapOption, CurrentPackageName, CurrentLevelName))
 		{
 			OutMapOption = MapOption;
@@ -168,12 +168,12 @@ void UInfoMapPanel::HandleUiContentCompletion()
 	const TSoftObjectPtr<ULevelDefinition> Levels = GetDefaultMapUiLevelDefinition();
 	if (Levels.IsNull() || Levels.Get())
 	{
-		BeginMapWidgetClassPreload();
+		BeginLevelMapPreload();
 		return;
 	}
-	// 레벨 정의를 읽지 못해도 기본 맵 위젯으로 열 수 있으므로 결과와 관계없이 다음 단계로 넘어간다.
+	// 레벨 정의를 읽지 못하면 다음 단계에서 지도 그림을 찾지 못해 빈 목록으로 끝난다(지도 탭은 지도 없이 열리지 않는다).
 	MapRuleLease = ContentSubsystem->AcquireContent({Levels.ToSoftObjectPath()},
-		FSimpleDelegate::CreateUObject(this, &ThisClass::BeginMapWidgetClassPreload));
+		FSimpleDelegate::CreateUObject(this, &ThisClass::BeginLevelMapPreload));
 }
 
 void UInfoMapPanel::Shutdown()
@@ -201,8 +201,11 @@ bool UInfoMapPanel::IsDisabledForCurrentMap() const
 		return false;
 	}
 
+	// 레벨 정의를 아직 읽지 못했으면 판단을 미루고 켜 둔다(지도는 읽은 뒤 연다).
 	const ULevelDefinition* Levels = ResolveLoadedMapUiLevelDefinition();
-	return Levels && Levels->IsTrainingRoomMapName(UGameplayStatics::GetCurrentLevelName(OwnerWidget, true));
+	FLobbyMatchMapOption MapOption;
+	return Levels && (Levels->IsTrainingRoomMapName(UGameplayStatics::GetCurrentLevelName(OwnerWidget, true))
+		|| !FindMapOptionForCurrentMap(OwnerWidget, MapOption));
 }
 
 bool UInfoMapPanel::IsOpenOrVisible() const
@@ -230,29 +233,31 @@ void UInfoMapPanel::RefreshButtonEnabledState()
 	}
 }
 
+// 지금 레벨의 지도를 지도 위젯에 넘긴다. 위젯이 없으면(디자이너가 두지 않았으면) 기본 지도 위젯을 만든다.
 void UInfoMapPanel::EnsureTotalMapWidget()
 {
-	if (TotalMap || !bContentReady || !OwnerWidget || !EnsureMapOverlay())
+	FLobbyMatchMapOption MapOption;
+	if (!bContentReady || !OwnerWidget || !EnsureMapOverlay() || !FindMapOptionForCurrentMap(OwnerWidget, MapOption))
 	{
 		return;
 	}
-	TSubclassOf<UMapWidget> MapWidgetClass = ResolveMapWidgetClassForCurrentMap();
-	if (!MapWidgetClass)
-	{
-		return;
-	}
-	TotalMap = CreateWidget<UMapWidget>(OwnerWidget->GetOwningPlayer(), MapWidgetClass);
 	if (!TotalMap)
 	{
-		return;
+		const TSubclassOf<UMapWidget> MapWidgetClass = ResolveMapWidgetClass();
+		TotalMap = MapWidgetClass ? CreateWidget<UMapWidget>(OwnerWidget->GetOwningPlayer(), MapWidgetClass) : nullptr;
+		if (!TotalMap)
+		{
+			return;
+		}
+		OwnerWidget->TotalMap = TotalMap;
+		TotalMap->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+		if (UOverlaySlot* MapSlot = MapOverlay->AddChildToOverlay(TotalMap))
+		{
+			MapSlot->SetHorizontalAlignment(HAlign_Fill);
+			MapSlot->SetVerticalAlignment(VAlign_Fill);
+		}
 	}
-	OwnerWidget->TotalMap = TotalMap;
-	TotalMap->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
-	if (UOverlaySlot* MapSlot = MapOverlay->AddChildToOverlay(TotalMap))
-	{
-		MapSlot->SetHorizontalAlignment(HAlign_Fill);
-		MapSlot->SetVerticalAlignment(VAlign_Fill);
-	}
+	TotalMap->SetLevelMap(MapOption.MapLayout, MapOption.DisplayName);
 }
 
 void UInfoMapPanel::HideImmediately()
@@ -350,7 +355,7 @@ void UInfoMapPanel::PlaySlideOut()
 	}
 }
 
-void UInfoMapPanel::BeginMapWidgetClassPreload()
+void UInfoMapPanel::BeginLevelMapPreload()
 {
 	const UGameInstance* GameInstance = OwnerWidget ? OwnerWidget->GetGameInstance() : nullptr;
 	UContentDataSubsystem* ContentSubsystem = GameInstance
@@ -362,21 +367,17 @@ void UInfoMapPanel::BeginMapWidgetClassPreload()
 		return;
 	}
 
+	// 지금 레벨의 지도 그림(지역 지도, 전체 지도, 지역 빛)만 미리 읽는다.
 	TArray<FSoftObjectPath> ContentPaths;
-	if (const ULevelDefinition* Levels = ResolveLoadedMapUiLevelDefinition())
+	FLobbyMatchMapOption MapOption;
+	if (FindMapOptionForCurrentMap(OwnerWidget, MapOption))
 	{
-		for (const FLobbyMatchMapOption& MapOption : Levels->IngameLevels)
-		{
-			if (!MapOption.GameplayMapWidgetClass.IsNull())
-			{
-				ContentPaths.Add(MapOption.GameplayMapWidgetClass.ToSoftObjectPath());
-			}
-		}
+		MapOption.MapLayout.CollectAssetPaths(ContentPaths);
 	}
-	MapWidgetClassLease = ContentSubsystem->AcquireContent(ContentPaths,
+	LevelMapLease = ContentSubsystem->AcquireContent(ContentPaths,
 		FSimpleDelegate::CreateWeakLambda(this, [this]()
 			{
-				if (MapWidgetClassLease.IsValid() && MapWidgetClassLease->IsReady())
+				if (LevelMapLease.IsValid() && LevelMapLease->IsReady())
 				{
 					CompleteContentPreload();
 				}
@@ -407,7 +408,7 @@ void UInfoMapPanel::FailContentPreload()
 
 void UInfoMapPanel::ReleaseContentPreloads()
 {
-	MapWidgetClassLease.Reset();
+	LevelMapLease.Reset();
 	MapRuleLease.Reset();
 	MapContentLease.Reset();
 	bContentPreloadRequested = false;
@@ -474,22 +475,8 @@ bool UInfoMapPanel::EnsureMapOverlay()
 	return true;
 }
 
-TSubclassOf<UMapWidget> UInfoMapPanel::ResolveMapWidgetClassForCurrentMap() const
+TSubclassOf<UMapWidget> UInfoMapPanel::ResolveMapWidgetClass() const
 {
-	FLobbyMatchMapOption MapOption;
-	if (FindMapOptionForCurrentMap(OwnerWidget, MapOption))
-	{
-		UClass* LoadedWidgetClass = MapOption.GameplayMapWidgetClass.Get();
-		if (LoadedWidgetClass && LoadedWidgetClass->IsChildOf(UMapWidget::StaticClass()))
-		{
-			return LoadedWidgetClass;
-		}
-		if (!MapOption.GameplayMapWidgetClass.IsNull())
-		{
-			return nullptr;
-		}
-	}
-
 	if (DefaultMapWidgetClass)
 	{
 		return DefaultMapWidgetClass;

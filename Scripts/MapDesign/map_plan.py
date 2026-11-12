@@ -43,6 +43,10 @@ PROP_BLOCK_RADIUS_M = {
     "tree_wide": 0.7,
     "tree_cypress": 0.6,
 }
+# 보상 상자(언리얼 BP_RewardChest)가 바닥에서 차지하는 반지름(m). 소품과 이만큼 더 떨어져야 서로 파묻히지 않는다.
+CHEST_RADIUS_M = 0.8
+# 스폰 캡슐이 상자에 끼지 않고, 나오자마자 상자를 여는 일이 없게 스폰에서 떨어뜨린다.
+MIN_CHEST_SPAWN_GAP_M = 4.0
 
 DIRECTIONS = {"E": (1, 0), "W": (-1, 0), "N": (0, 1), "S": (0, -1)}
 OPPOSITE = {"E": "W", "W": "E", "N": "S", "S": "N"}
@@ -158,6 +162,10 @@ class MapPlan:
     @property
     def props(self):
         return self.data.get("props", [])
+
+    @property
+    def chests(self):
+        return self.data.get("chests", [])
 
     def cell(self, ix, iy):
         return self.cells.get((ix, iy))
@@ -340,20 +348,30 @@ def _check_links(plan, issues):
                     break
 
 
-def _check_link_approaches(plan, issues):
-    """계단, 경사로, 다리 양 끝의 바로 앞에 소품이 없는지 본다."""
+def _link_approach_cells(plan):
+    """계단, 경사로, 다리 양 끝 바로 앞(LINK_APPROACH_CELLS 칸)의 칸과 그 출입구의 링크. 수로로 내려가는 계단은 뺀다."""
+    approaches = {}
     for link in plan.links.values():
         if link.low_z < plan.data["ground"]["z"]:
             continue
-        x, y, width, depth = link.rect
         for ix, iy in _rect_cells(link.rect):
             for direction, (dx, dy) in DIRECTIONS.items():
                 if not link.runs_along(direction):
                     continue
                 for distance in range(1, LINK_APPROACH_CELLS + 1):
-                    cell = plan.cell(ix + dx * distance, iy + dy * distance)
-                    if cell and cell.link is not link and cell.prop:
-                        issues.append(Issue("error", f"{link.kind} {link.id}", f"{cell.prop} blocks the way in at ({ix + dx * distance}, {iy + dy * distance})"))
+                    key = (ix + dx * distance, iy + dy * distance)
+                    cell = plan.cell(*key)
+                    if cell and cell.link is not link:
+                        approaches.setdefault(key, link)
+    return approaches
+
+
+def _check_link_approaches(plan, issues):
+    """계단, 경사로, 다리 양 끝의 바로 앞에 소품이 없는지 본다."""
+    for key, link in _link_approach_cells(plan).items():
+        cell = plan.cell(*key)
+        if cell.prop:
+            issues.append(Issue("error", f"{link.kind} {link.id}", f"{cell.prop} blocks the way in at {key}"))
 
 
 def _check_buildings(plan, issues):
@@ -434,6 +452,34 @@ def _check_water_exits(plan, issues):
             issues.append(Issue("error", "water", f"section near {sorted(group)[0]} has no exit stairs"))
 
 
+def _check_chests(plan, issues):
+    """보상 상자가 걸어서 닿는 평지에 있고, 소품·스폰·계단과 다리의 출입구를 막지 않는지 본다."""
+    spawn_keys = [(math.floor(spawn["at"][0]), math.floor(spawn["at"][1])) for spawn in plan.spawns]
+    start = next((key for key in spawn_keys if plan.cell(*key) and plan.cell(*key).walkable), None)
+    reached = plan.reachable_from(start) if start else set()
+    approaches = _link_approach_cells(plan)
+    for index, chest in enumerate(plan.chests):
+        label = f"chest {index} at {chest['at']}"
+        key = (math.floor(chest["at"][0]), math.floor(chest["at"][1]))
+        cell = plan.cell(*key)
+        if cell is None or not cell.walkable or cell.link:
+            issues.append(Issue("error", label, "is not on open walkable ground"))
+            continue
+        if key not in reached:
+            issues.append(Issue("error", label, "cannot be reached on foot from the first spawn"))
+        if key in approaches:
+            link = approaches[key]
+            issues.append(Issue("error", label, f"blocks the way in to {link.kind} {link.id}"))
+        for prop in plan.props:
+            gap = math.dist(chest["at"], prop["at"]) - PROP_BLOCK_RADIUS_M[prop["kit"]]
+            if gap < CHEST_RADIUS_M:
+                issues.append(Issue("error", label, f"overlaps the {prop['kit']} at {prop['at']}"))
+        for spawn in plan.spawns:
+            gap = math.dist(chest["at"], spawn["at"])
+            if gap < MIN_CHEST_SPAWN_GAP_M:
+                issues.append(Issue("error", label, f"is only {gap:.1f} m from {spawn['tag']}"))
+
+
 def validate(plan) -> list:
     issues = []
     _check_roads(plan, issues)
@@ -442,6 +488,7 @@ def validate(plan) -> list:
     _check_buildings(plan, issues)
     _check_spawns_and_routes(plan, issues)
     _check_water_exits(plan, issues)
+    _check_chests(plan, issues)
     return issues
 
 

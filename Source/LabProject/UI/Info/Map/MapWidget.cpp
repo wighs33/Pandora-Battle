@@ -1,7 +1,9 @@
 #include "UI/Info/Map/MapWidget.h"
 
+#include "Blueprint/WidgetTree.h"
 #include "Components/Button.h"
 #include "Components/CanvasPanel.h"
+#include "Components/CanvasPanelSlot.h"
 #include "Components/HorizontalBox.h"
 #include "Components/Image.h"
 #include "Components/PanelWidget.h"
@@ -13,23 +15,30 @@
 #include "GameFramework/Pawn.h"
 #include "Mode/PdPlayerState.h"
 #include "TimerManager.h"
+#include "UI/Common/ButtonClickRelay.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MapWidget)
 
 namespace
 {
-	UMapWidget::EMapView MapRegionToView(const EPlayerMapRegion MapRegion)
+	/** 전체 지도에서 고를 수 있는 지역(지역 단추가 있는 지역). */
+	constexpr EPlayerMapRegion SelectableRegions[] = {EPlayerMapRegion::Windmill, EPlayerMapRegion::Dome, EPlayerMapRegion::Temple};
+
+	/** 지역 빛은 지도 그림 위, 지역 단추와 표식 아래에 그린다. */
+	constexpr int32 RegionHighlightZOrder = 5;
+	constexpr int32 RegionButtonZOrder = 20;
+
+	/** 지역별 표식 줄은 지역 단추 아래에 둔다(단추 가운데에서 표식 줄 위까지, 화면 px). */
+	constexpr float RegionMarkerRowOffsetY = 34.0f;
+
+	void PlaceCentered(UWidget* Widget, const FVector2D& Position, const FVector2D& Alignment, const int32 ZOrder)
 	{
-		switch (MapRegion)
+		if (UCanvasPanelSlot* CanvasSlot = Widget ? Cast<UCanvasPanelSlot>(Widget->Slot) : nullptr)
 		{
-		case EPlayerMapRegion::Dome:
-			return UMapWidget::EMapView::Dome;
-		case EPlayerMapRegion::Temple:
-			return UMapWidget::EMapView::Temple;
-		case EPlayerMapRegion::Windmill:
-			return UMapWidget::EMapView::Windmill;
-		default:
-			return UMapWidget::EMapView::Dome;
+			CanvasSlot->SetAnchors(FAnchors(0.0f, 0.0f));
+			CanvasSlot->SetAlignment(Alignment);
+			CanvasSlot->SetPosition(Position);
+			CanvasSlot->SetZOrder(ZOrder);
 		}
 	}
 }
@@ -39,99 +48,26 @@ UMapWidget::UMapWidget(const FObjectInitializer& ObjectInitializer)
 {
 }
 
-void UMapWidget::NativePreConstruct()
-{
-	Super::NativePreConstruct();
-
-	if (IsDesignTime())
-	{
-		return;
-	}
-
-	ApplyWidgetDefinitionSettings();
-	ResolveDefaultTextures();
-	ApplyMapView(CurrentMapView);
-	HideDesignerMarkerWidgets();
-}
-
 void UMapWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
 	ApplyWidgetDefinitionSettings();
-	ResolveDefaultTextures();
 	HideDesignerMarkerWidgets();
-
-	if (WindmillButton)
-	{
-		WindmillButton->OnClicked.AddUniqueDynamic(this, &ThisClass::OnWindmillButtonClicked);
-	}
-
-	if (DomeButton)
-	{
-		DomeButton->OnClicked.AddUniqueDynamic(this, &ThisClass::OnDomeButtonClicked);
-	}
-
-	if (TempleButton)
-	{
-		TempleButton->OnClicked.AddUniqueDynamic(this, &ThisClass::OnTempleButtonClicked);
-	}
-
-	if (SurfaceButton)
-	{
-		SurfaceButton->OnClicked.AddUniqueDynamic(this, &ThisClass::OnWindmillButtonClicked);
-	}
-
-	if (UndergroundButton)
-	{
-		UndergroundButton->OnClicked.AddUniqueDynamic(this, &ThisClass::OnDomeButtonClicked);
-	}
-
+	BindRegionButtons();
 	if (AreaMapButton)
 	{
 		AreaMapButton->OnClicked.AddUniqueDynamic(this, &ThisClass::OnAreaMapButtonClicked);
 	}
 
-	SyncMapViewToPlayerMapRegion();
-	if (!bHasSyncedPlayerMapView)
-	{
-		ApplyMapView(CurrentMapView);
-	}
-
-	RefreshRemotePlayerPawns();
-	HandleMapUpdateTick();
+	ApplyLevelMap();
 	StartMapUpdateTimers();
 }
 
 void UMapWidget::NativeDestruct()
 {
 	StopMapUpdateTimers();
-
-	if (WindmillButton)
-	{
-		WindmillButton->OnClicked.RemoveDynamic(this, &ThisClass::OnWindmillButtonClicked);
-	}
-
-	if (DomeButton)
-	{
-		DomeButton->OnClicked.RemoveDynamic(this, &ThisClass::OnDomeButtonClicked);
-	}
-
-	if (TempleButton)
-	{
-		TempleButton->OnClicked.RemoveDynamic(this, &ThisClass::OnTempleButtonClicked);
-	}
-
-	if (SurfaceButton)
-	{
-		SurfaceButton->OnClicked.RemoveDynamic(this, &ThisClass::OnWindmillButtonClicked);
-	}
-
-	if (UndergroundButton)
-	{
-		UndergroundButton->OnClicked.RemoveDynamic(this, &ThisClass::OnDomeButtonClicked);
-	}
-
+	UnbindRegionButtons();
 	if (AreaMapButton)
 	{
 		AreaMapButton->OnClicked.RemoveDynamic(this, &ThisClass::OnAreaMapButtonClicked);
@@ -144,43 +80,40 @@ void UMapWidget::NativeDestruct()
 	Super::NativeDestruct();
 }
 
+void UMapWidget::SetLevelMap(const FLevelMapLayout& InLayout, const FText& InLevelName)
+{
+	Layout = InLayout;
+	LevelName = InLevelName;
+	bHasSyncedPlayerPage = false;
+	bHasManualPageSelection = false;
+	if (IsConstructed())
+	{
+		ApplyLevelMap();
+	}
+}
+
 void UMapWidget::ShowAreaMap()
 {
-	bHasManualMapViewSelection = true;
-	ApplyMapView(EMapView::Area);
+	bHasManualPageSelection = true;
+	ShowPage(INDEX_NONE);
 }
 
-void UMapWidget::ShowWindmillMap()
+void UMapWidget::ShowRegionMap(const EPlayerMapRegion Region)
 {
-	bHasManualMapViewSelection = true;
-	ApplyMapView(EMapView::Windmill);
+	const int32 PageIndex = Layout.FindPageIndex(Region);
+	if (PageIndex == INDEX_NONE)
+	{
+		return;
+	}
+	bHasManualPageSelection = true;
+	ShowPage(PageIndex);
 }
 
-void UMapWidget::ShowDomeMap()
+bool UMapWidget::IsRegionHighlighted(const EPlayerMapRegion Region) const
 {
-	bHasManualMapViewSelection = true;
-	ApplyMapView(EMapView::Dome);
-}
-
-void UMapWidget::ShowTempleMap()
-{
-	bHasManualMapViewSelection = true;
-	ApplyMapView(EMapView::Temple);
-}
-
-void UMapWidget::OnWindmillButtonClicked()
-{
-	ShowWindmillMap();
-}
-
-void UMapWidget::OnDomeButtonClicked()
-{
-	ShowDomeMap();
-}
-
-void UMapWidget::OnTempleButtonClicked()
-{
-	ShowTempleMap();
+	const int32 PageIndex = Layout.FindPageIndex(Region);
+	const UImage* Highlight = RegionHighlights.IsValidIndex(PageIndex) ? RegionHighlights[PageIndex].Get() : nullptr;
+	return Highlight && Highlight->IsVisible();
 }
 
 void UMapWidget::OnAreaMapButtonClicked()
@@ -188,23 +121,59 @@ void UMapWidget::OnAreaMapButtonClicked()
 	ShowAreaMap();
 }
 
-// 지역 지도에서는 그 지역의 플레이어 표식을, 전체 지도에서는 지역 선택 버튼과 지역별 표식 줄을 보인다.
-void UMapWidget::ApplyMapView(const EMapView NewMapView)
+void UMapWidget::HandleRegionHoverChanged(const bool bHovered, const EPlayerMapRegion Region)
 {
-	CurrentMapView = NewMapView;
-	ResolveDefaultTextures();
+	SetRegionHighlightVisible(Layout.FindPageIndex(Region), bHovered && ShownPageIndex == INDEX_NONE);
+}
 
-	const bool bAreaView = CurrentMapView == EMapView::Area;
-	ApplyMapTexture(GetMapTexture(CurrentMapView));
-	ApplyTotalSizeBoxSize(GetCurrentTotalSizeBoxSize());
+// 레벨 지도가 바뀌면 전체 지도의 지역 단추·빛을 다시 놓고, 플레이어가 있는 지도(없으면 전체 지도)를 보인다.
+void UMapWidget::ApplyLevelMap()
+{
+	PlaceAreaRegionWidgets();
+	SyncShownPageToPlayerRegion();
+	if (!bHasSyncedPlayerPage)
+	{
+		ShowPage(INDEX_NONE);
+	}
+	RefreshRemotePlayerPawns();
+	HandleMapUpdateTick();
+}
+
+// 전체 지도에서는 지역 단추와 지역별 표식 줄을, 지역 지도에서는 그 지역의 플레이어 표식을 보인다.
+// 전체 지도가 없는 레벨(지도가 한 장)에서 INDEX_NONE을 받으면 그 한 장을 보인다.
+void UMapWidget::ShowPage(const int32 PageIndex)
+{
+	const bool bAreaView = PageIndex == INDEX_NONE && Layout.HasAreaView();
+	ShownPageIndex = bAreaView ? INDEX_NONE : (Layout.Pages.IsValidIndex(PageIndex) ? PageIndex : 0);
+	if (!bAreaView && !Layout.Pages.IsValidIndex(ShownPageIndex))
+	{
+		ShownPageIndex = INDEX_NONE;
+		return;
+	}
+
+	UTexture2D* Texture = bAreaView ? Layout.AreaView.Texture.Get() : Layout.Pages[ShownPageIndex].Texture.Get();
+	if (MapImage && Texture)
+	{
+		MapImage->SetBrushFromTexture(Texture);
+	}
+	if (TotalSizeBox)
+	{
+		const FVector2D ViewSize = GetShownViewSize();
+		TotalSizeBox->SetWidthOverride(ViewSize.X);
+		TotalSizeBox->SetHeightOverride(ViewSize.Y);
+	}
 	if (MapName)
 	{
-		MapName->SetText(GetMapViewName(CurrentMapView));
+		MapName->SetText(GetShownMapName());
 	}
-	SetRegionSelectionButtonsVisible(bAreaView);
+	SetRegionSelectionVisible(bAreaView);
 	if (AreaMapButton)
 	{
-		AreaMapButton->SetVisibility(bAreaView ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
+		AreaMapButton->SetVisibility(Layout.HasAreaView() && !bAreaView ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	}
+	for (int32 HighlightIndex = 0; HighlightIndex < RegionHighlights.Num(); ++HighlightIndex)
+	{
+		SetRegionHighlightVisible(HighlightIndex, false);
 	}
 
 	if (bAreaView)
@@ -221,32 +190,110 @@ void UMapWidget::ApplyMapView(const EMapView NewMapView)
 	UpdateTeamMarks();
 }
 
-void UMapWidget::ApplyMapTexture(UTexture2D* Texture)
+void UMapWidget::BindRegionButtons()
 {
-	if (!MapImage || !Texture)
+	UnbindRegionButtons();
+	for (const EPlayerMapRegion Region : SelectableRegions)
 	{
-		return;
+		if (UButton* Button = GetRegionButton(Region))
+		{
+			UButtonClickRelay* Relay = NewObject<UButtonClickRelay>(this);
+			Relay->Bind(Button, FSimpleDelegate::CreateUObject(this, &ThisClass::ShowRegionMap, Region),
+				UButtonClickRelay::FOnHoverChanged::CreateUObject(this, &ThisClass::HandleRegionHoverChanged, Region));
+			RegionButtonRelays.Add(Relay);
+		}
 	}
-
-	MapImage->SetBrushFromTexture(Texture, true);
 }
 
-void UMapWidget::ApplyTotalSizeBoxSize(const FVector2D& Size)
+void UMapWidget::UnbindRegionButtons()
 {
-	if (!TotalSizeBox)
+	for (UButtonClickRelay* Relay : RegionButtonRelays)
 	{
-		return;
+		if (Relay)
+		{
+			Relay->Unbind();
+		}
 	}
-
-	TotalSizeBox->SetWidthOverride(FMath::Max(Size.X, 1.0f));
-	TotalSizeBox->SetHeightOverride(FMath::Max(Size.Y, 1.0f));
+	RegionButtonRelays.Reset();
 }
 
-void UMapWidget::ResolveDefaultTextures()
+// 지역 단추를 지역 가운데(AreaAnchor)를 전체 지도 카메라로 비춘 자리에 놓고, 지역별 표식 줄을 그 아래에 둔다.
+// 지역 빛은 전체 지도와 같은 크기의 그림이라 지도 그림을 덮도록 깐다.
+void UMapWidget::PlaceAreaRegionWidgets()
 {
-	if (!TempleMapTexture)
+	const FVector2D AreaViewSize(FMath::Min(MaxMapViewSize.X, MaxMapViewSize.Y));
+	const FMapAreaRegionBoxes RegionBoxes = GetAreaRegionBoxes();
+	for (const EPlayerMapRegion Region : SelectableRegions)
 	{
-		TempleMapTexture = WindmillMapTexture;
+		const int32 PageIndex = Layout.FindPageIndex(Region);
+		if (PageIndex == INDEX_NONE || !Layout.HasAreaView())
+		{
+			continue;
+		}
+		const FVector2D Position = Layout.AreaView.ToMapUV(Layout.Pages[PageIndex].AreaAnchor) * AreaViewSize;
+		PlaceCentered(GetRegionButton(Region), Position, FVector2D(0.5f, 0.5f), RegionButtonZOrder);
+		PlaceCentered(RegionBoxes.Resolve(Region), Position + FVector2D(0.0f, RegionMarkerRowOffsetY), FVector2D(0.5f, 0.0f),
+			RegionButtonZOrder);
+	}
+
+	RegionHighlights.SetNum(Layout.Pages.Num());
+	UPanelWidget* Canvas = GetMarkerParentPanel();
+	for (int32 PageIndex = 0; PageIndex < Layout.Pages.Num(); ++PageIndex)
+	{
+		UTexture2D* HighlightTexture = Layout.HasAreaView() ? Layout.Pages[PageIndex].AreaHighlight.Get() : nullptr;
+		if (!HighlightTexture || !Canvas || !WidgetTree)
+		{
+			continue;
+		}
+		UImage* Highlight = RegionHighlights[PageIndex];
+		if (!Highlight)
+		{
+			Highlight = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
+			RegionHighlights[PageIndex] = Highlight;
+			if (UCanvasPanelSlot* HighlightSlot = Cast<UCanvasPanelSlot>(Canvas->AddChild(Highlight)))
+			{
+				HighlightSlot->SetAnchors(FAnchors(0.0f, 0.0f, 1.0f, 1.0f));
+				HighlightSlot->SetOffsets(FMargin(0.0f));
+				HighlightSlot->SetZOrder(RegionHighlightZOrder);
+			}
+		}
+		Highlight->SetBrushFromTexture(HighlightTexture);
+		Highlight->SetVisibility(ESlateVisibility::Collapsed);
+	}
+}
+
+void UMapWidget::SetRegionHighlightVisible(const int32 PageIndex, const bool bVisible)
+{
+	if (UImage* Highlight = RegionHighlights.IsValidIndex(PageIndex) ? RegionHighlights[PageIndex].Get() : nullptr)
+	{
+		Highlight->SetVisibility(bVisible ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	}
+}
+
+UButton* UMapWidget::GetRegionButton(const EPlayerMapRegion Region) const
+{
+	switch (Region)
+	{
+	case EPlayerMapRegion::Windmill:
+		return WindmillButton;
+	case EPlayerMapRegion::Dome:
+		return DomeButton;
+	case EPlayerMapRegion::Temple:
+		return TempleButton;
+	default:
+		return nullptr;
+	}
+}
+
+void UMapWidget::SetRegionSelectionVisible(const bool bVisible)
+{
+	for (const EPlayerMapRegion Region : SelectableRegions)
+	{
+		if (UButton* Button = GetRegionButton(Region))
+		{
+			const bool bHasRegion = Layout.HasAreaView() && Layout.FindPageIndex(Region) != INDEX_NONE;
+			Button->SetVisibility(bVisible && bHasRegion ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+		}
 	}
 }
 
@@ -262,123 +309,43 @@ void UMapWidget::ApplyWidgetDefinitionSettings()
 	}
 
 	const FMapWidgetSettings& Settings = WidgetDefinition->GetMapWidgetSettings();
-	if (UTexture2D* LoadedAreaMapTexture = Settings.AreaMapTexture.Get())
-	{
-		AreaMapTexture = LoadedAreaMapTexture;
-	}
-	if (UTexture2D* LoadedWindmillMapTexture = Settings.WindmillMapTexture.Get())
-	{
-		WindmillMapTexture = LoadedWindmillMapTexture;
-	}
-	if (UTexture2D* LoadedDomeMapTexture = Settings.DomeMapTexture.Get())
-	{
-		DomeMapTexture = LoadedDomeMapTexture;
-	}
-	if (UTexture2D* LoadedTempleMapTexture = Settings.TempleMapTexture.Get())
-	{
-		TempleMapTexture = LoadedTempleMapTexture;
-	}
-
 	bShowRemotePlayerMarks = Settings.bShowRemotePlayerMarks;
 	MarkerUpdateInterval = FMath::Max(Settings.MarkerUpdateInterval, 0.02f);
 	RemotePlayerListRefreshInterval = FMath::Max(Settings.RemotePlayerListRefreshInterval, 0.1f);
+	bRotateMarksToPawnForward = Settings.bRotateMarksToPawnForward;
+	MarkerRotationOffsetDegrees = Settings.MarkerRotationOffsetDegrees;
+	MaxMapViewSize = FVector2D(FMath::Max(Settings.MaxMapViewSize.X, 1.0f), FMath::Max(Settings.MaxMapViewSize.Y, 1.0f));
 	MarkImages.Configure(Settings);
-
-	if (const FMapWidgetProjectionSettings* ProjectionOverride = FindProjectionOverride(Settings))
-	{
-		ProjectionSettings = *ProjectionOverride;
-	}
-	else if (Settings.bUseDefaultProjectionSettings)
-	{
-		ProjectionSettings = Settings.DefaultProjectionSettings;
-	}
 }
 
-const FMapWidgetProjectionSettings* UMapWidget::FindProjectionOverride(const FMapWidgetSettings& Settings) const
-{
-	const UClass* ThisWidgetClass = GetClass();
-	if (!ThisWidgetClass)
-	{
-		return nullptr;
-	}
-
-	for (const FMapWidgetProjectionOverride& ProjectionOverride : Settings.ProjectionOverrides)
-	{
-		UClass* OverrideWidgetClass = ProjectionOverride.MapWidgetClass.Get();
-		if (!OverrideWidgetClass)
-		{
-			continue;
-		}
-
-		if (ThisWidgetClass == OverrideWidgetClass || ThisWidgetClass->IsChildOf(OverrideWidgetClass))
-		{
-			return &ProjectionOverride.ProjectionSettings;
-		}
-	}
-
-	return nullptr;
-}
-
-void UMapWidget::SetRegionSelectionButtonsVisible(const bool bVisible)
-{
-	const ESlateVisibility NewVisibility = bVisible ? ESlateVisibility::Visible : ESlateVisibility::Collapsed;
-
-	if (WindmillButton)
-	{
-		WindmillButton->SetVisibility(NewVisibility);
-	}
-
-	if (DomeButton)
-	{
-		DomeButton->SetVisibility(NewVisibility);
-	}
-
-	if (TempleButton)
-	{
-		TempleButton->SetVisibility(NewVisibility);
-	}
-
-	if (SurfaceButton)
-	{
-		SurfaceButton->SetVisibility(NewVisibility);
-	}
-
-	if (UndergroundButton)
-	{
-		UndergroundButton->SetVisibility(NewVisibility);
-	}
-}
-
-void UMapWidget::SyncMapViewToPlayerMapRegion()
+// 플레이어가 다른 지역으로 옮기면 그 지역 지도로 따라간다. 직접 고른 지도는 플레이어 지역이 바뀔 때까지 둔다.
+void UMapWidget::SyncShownPageToPlayerRegion()
 {
 	const APawn* OwningPawn = GetOwningPlayerPawn();
-	const APdPlayerState* PdPlayerState = OwningPawn ? OwningPawn->GetPlayerState<APdPlayerState>() : nullptr;
-	if (!PdPlayerState)
+	const int32 PlayerPageIndex = OwningPawn ? FindPlayerPageIndex(*OwningPawn) : INDEX_NONE;
+	if (PlayerPageIndex == INDEX_NONE)
 	{
 		return;
 	}
 
-	const EMapView PlayerMapView = MapRegionToView(PdPlayerState->GetPlayerMatchComponent()->GetPlayerMapRegion());
-
-	if (bHasManualMapViewSelection)
+	if (bHasManualPageSelection)
 	{
-		if (bHasSyncedPlayerMapView && LastSyncedPlayerMapView == PlayerMapView)
+		if (bHasSyncedPlayerPage && LastSyncedPlayerPageIndex == PlayerPageIndex)
 		{
 			return;
 		}
-
-		bHasManualMapViewSelection = false;
+		bHasManualPageSelection = false;
 	}
 
-	const bool bIsShowingAllowedMapView = CurrentMapView == PlayerMapView || CurrentMapView == EMapView::Area;
-	if (bHasSyncedPlayerMapView && LastSyncedPlayerMapView == PlayerMapView && bIsShowingAllowedMapView)
+	const bool bIsShowingAllowedPage = ShownPageIndex == PlayerPageIndex || ShownPageIndex == INDEX_NONE;
+	if (bHasSyncedPlayerPage && LastSyncedPlayerPageIndex == PlayerPageIndex && bIsShowingAllowedPage)
 	{
 		return;
 	}
 
-	bHasSyncedPlayerMapView = true;
-	LastSyncedPlayerMapView = PlayerMapView;
-	ApplyMapView(PlayerMapView);
+	bHasSyncedPlayerPage = true;
+	LastSyncedPlayerPageIndex = PlayerPageIndex;
+	ShowPage(PlayerPageIndex);
 }
 
 void UMapWidget::StartMapUpdateTimers()
@@ -410,7 +377,7 @@ void UMapWidget::StopMapUpdateTimers()
 
 void UMapWidget::HandleMapUpdateTick()
 {
-	SyncMapViewToPlayerMapRegion();
+	SyncShownPageToPlayerRegion();
 	UpdateCharacterMark();
 	UpdateTeamMarks();
 }
@@ -454,7 +421,7 @@ void UMapWidget::RefreshRemotePlayerPawns()
 void UMapWidget::RefreshAreaMapRegionMarkers()
 {
 	const FMapAreaRegionBoxes RegionBoxes = GetAreaRegionBoxes();
-	const bool bShowAreaMarkers = CurrentMapView == EMapView::Area;
+	const bool bShowAreaMarkers = ShownPageIndex == INDEX_NONE && Layout.HasAreaView();
 	RegionBoxes.SetVisible(bShowAreaMarkers);
 	if (!bShowAreaMarkers)
 	{
@@ -471,27 +438,19 @@ void UMapWidget::RefreshAreaMapRegionMarkers()
 
 void UMapWidget::UpdateCharacterMark()
 {
-	if (CurrentMapView == EMapView::Area)
-	{
-		PawnMarkers.HideSelfMarks();
-		return;
-	}
-
 	const APawn* OwningPawn = GetOwningPlayerPawn();
-	if (!OwningPawn)
+	if (ShownPageIndex == INDEX_NONE || !OwningPawn)
 	{
 		PawnMarkers.HideSelfMarks();
 		return;
 	}
 
-	PawnMarkers.UpdateSelfMarks(MakeMarkerCanvas(),
-		*OwningPawn,
-		DoesPawnMatchCurrentMapView(*OwningPawn));
+	PawnMarkers.UpdateSelfMarks(MakeMarkerCanvas(), *OwningPawn, DoesPawnMatchShownPage(*OwningPawn));
 }
 
 void UMapWidget::UpdateTeamMarks()
 {
-	if (!bShowRemotePlayerMarks || CurrentMapView == EMapView::Area)
+	if (!bShowRemotePlayerMarks || ShownPageIndex == INDEX_NONE)
 	{
 		PawnMarkers.HideRemoteMarks();
 		return;
@@ -505,8 +464,8 @@ void UMapWidget::UpdateTeamMarks()
 		return;
 	}
 
-	TArray<const APawn*> RemotePawnsOnShownRegion;
-	RemotePawnsOnShownRegion.Reserve(CachedRemotePlayerPawns.Num());
+	TArray<const APawn*> RemotePawnsOnShownPage;
+	RemotePawnsOnShownPage.Reserve(CachedRemotePlayerPawns.Num());
 	for (int32 PawnIndex = CachedRemotePlayerPawns.Num() - 1; PawnIndex >= 0; --PawnIndex)
 	{
 		const APawn* CandidatePawn = CachedRemotePlayerPawns[PawnIndex].Get();
@@ -523,15 +482,13 @@ void UMapWidget::UpdateTeamMarks()
 			continue;
 		}
 
-		if (!DoesPawnMatchCurrentMapView(*CandidatePawn))
+		if (DoesPawnMatchShownPage(*CandidatePawn))
 		{
-			continue;
+			RemotePawnsOnShownPage.Add(CandidatePawn);
 		}
-
-		RemotePawnsOnShownRegion.Add(CandidatePawn);
 	}
 
-	PawnMarkers.UpdateRemoteMarks(MakeMarkerCanvas(), RemotePawnsOnShownRegion);
+	PawnMarkers.UpdateRemoteMarks(MakeMarkerCanvas(), RemotePawnsOnShownPage);
 }
 
 void UMapWidget::HideDesignerMarkerWidgets() const
@@ -552,18 +509,20 @@ void UMapWidget::HideDesignerMarkerWidgets() const
 	}
 }
 
-// 표식 묶음이 현재 지역 지도 기준으로 표식을 만들고 놓을 수 있게 캔버스와 투영 정보를 모은다.
+// 표식 묶음이 지금 보이는 지도 기준으로 표식을 만들고 놓을 수 있게 캔버스와 투영 정보를 모은다.
 FMapMarkerCanvas UMapWidget::MakeMarkerCanvas()
 {
 	FMapMarkerCanvas Canvas;
 	Canvas.Outer = this;
 	Canvas.ParentPanel = GetMarkerParentPanel();
 	Canvas.MarkImages = &MarkImages;
-	Canvas.Projection.PlaneTransform = GetCurrentPlaneTransform();
-	Canvas.Projection.MapSize = GetCurrentTotalSizeBoxSize();
-	Canvas.Projection.PlaneLocalSize = ProjectionSettings.PlaneLocalSize;
-	Canvas.Projection.bRotateToForward = ProjectionSettings.bRotateMarksToPawnForward;
-	Canvas.Projection.RotationOffsetDegrees = ProjectionSettings.MarkerRotationOffsetDegrees;
+	if (Layout.Pages.IsValidIndex(ShownPageIndex))
+	{
+		Canvas.Projection.Page = Layout.Pages[ShownPageIndex];
+	}
+	Canvas.Projection.MapSize = GetShownViewSize();
+	Canvas.Projection.bRotateToForward = bRotateMarksToPawnForward;
+	Canvas.Projection.RotationOffsetDegrees = MarkerRotationOffsetDegrees;
 	return Canvas;
 }
 
@@ -602,86 +561,46 @@ FMapAreaRegionBoxes UMapWidget::GetAreaRegionBoxes() const
 	return RegionBoxes;
 }
 
-bool UMapWidget::DoesPawnMatchCurrentMapView(const APawn& Pawn) const
+// 지도가 한 장이면 모든 플레이어가 그 지도에 있다. 여러 장이면 지역 트리거가 정한 플레이어 지역의 지도다.
+int32 UMapWidget::FindPlayerPageIndex(const APawn& Pawn) const
 {
-	if (CurrentMapView == EMapView::Area)
+	if (Layout.Pages.Num() == 1)
 	{
-		return false;
+		return 0;
 	}
-
 	const APdPlayerState* PdPlayerState = Pawn.GetPlayerState<APdPlayerState>();
-	if (!PdPlayerState)
-	{
-		return false;
-	}
-
-	return MapRegionToView(PdPlayerState->GetPlayerMatchComponent()->GetPlayerMapRegion()) == CurrentMapView;
+	return PdPlayerState ? Layout.FindPageIndex(PdPlayerState->GetPlayerMatchComponent()->GetPlayerMapRegion()) : INDEX_NONE;
 }
 
-UTexture2D* UMapWidget::GetMapTexture(const EMapView MapView) const
+bool UMapWidget::DoesPawnMatchShownPage(const APawn& Pawn) const
 {
-	switch (MapView)
-	{
-	case EMapView::Windmill:
-		return WindmillMapTexture;
-	case EMapView::Dome:
-		return DomeMapTexture;
-	case EMapView::Temple:
-		return TempleMapTexture;
-	case EMapView::Area:
-	default:
-		return AreaMapTexture;
-	}
+	return ShownPageIndex != INDEX_NONE && FindPlayerPageIndex(Pawn) == ShownPageIndex;
 }
 
-FText UMapWidget::GetMapViewName(const EMapView MapView) const
+// 전체 지도는 정사각형, 지역 지도는 월드 비율 그대로 가장 큰 화면 크기 안에 넣는다.
+FVector2D UMapWidget::GetShownViewSize() const
 {
-	switch (MapView)
+	if (!Layout.Pages.IsValidIndex(ShownPageIndex))
 	{
-	case EMapView::Windmill:
-		return MenuText(TEXT("Info.Windmill"));
-	case EMapView::Dome:
-		return MenuText(TEXT("Info.Dome"));
-	case EMapView::Temple:
-		return MenuText(TEXT("Info.Temple"));
-	case EMapView::Area:
-	default:
+		return FVector2D(FMath::Min(MaxMapViewSize.X, MaxMapViewSize.Y));
+	}
+	return Layout.Pages[ShownPageIndex].FitViewSize(MaxMapViewSize);
+}
+
+FText UMapWidget::GetShownMapName() const
+{
+	if (!Layout.Pages.IsValidIndex(ShownPageIndex))
+	{
 		return MenuText(TEXT("Info.AreaMap"));
 	}
-}
-
-const FTransform& UMapWidget::GetCurrentPlaneTransform() const
-{
-	switch (CurrentMapView)
-	{
-	case EMapView::Dome:
-		return ProjectionSettings.DomePlaneTransform;
-	case EMapView::Temple:
-		return ProjectionSettings.TemplePlaneTransform;
-	case EMapView::Windmill:
-	case EMapView::Area:
-	default:
-		return ProjectionSettings.WindmillPlaneTransform;
-	}
-}
-
-FVector2D UMapWidget::GetCurrentTotalSizeBoxSize() const
-{
-	switch (CurrentMapView)
-	{
-	case EMapView::Windmill:
-		return ProjectionSettings.WindmillMapTotalSizeBoxSize;
-	case EMapView::Dome:
-		return ProjectionSettings.DomeMapTotalSizeBoxSize;
-	case EMapView::Temple:
-		return ProjectionSettings.TempleMapTotalSizeBoxSize;
-	case EMapView::Area:
-	default:
-		return ProjectionSettings.AreaMapTotalSizeBoxSize;
-	}
+	const FName NameKey = Layout.Pages[ShownPageIndex].NameKey;
+	return NameKey.IsNone() ? LevelName : MenuText(NameKey);
 }
 
 void UMapWidget::OnMenuLanguageChanged()
 {
-	ApplyMapView(CurrentMapView);
+	if (IsConstructed())
+	{
+		ShowPage(ShownPageIndex);
+	}
 }

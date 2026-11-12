@@ -436,7 +436,10 @@ def export_for_unreal(plan_path):
     lights = [{"at": list(obj.location), "color": list(obj.data.color), "candela": obj["candela"], "radius_m": obj["radius_m"],
                "source_radius_m": obj["source_radius_m"]} for obj in _collection("MD_Lights").objects]
     manifest = {"name": plan.name, "bounds": [plan.width, plan.depth], "meshes": meshes, "placements": placements, "lights": lights,
-                "spawns": [dict(spawn, z=plan.ground_height(*spawn["at"])) for spawn in plan.spawns], "materials": _module("mesh_kit").MATERIALS, "texture_dir": str(TEXTURE_DIR)}
+                "spawns": [dict(spawn, z=plan.ground_height(*spawn["at"])) for spawn in plan.spawns],
+                "chests": [dict(chest, z=plan.ground_height(*chest["at"])) for chest in plan.chests],
+                "ceiling_z": plan.data["boundary"]["block_height"],
+                "materials": _module("mesh_kit").MATERIALS, "texture_dir": str(TEXTURE_DIR)}
     (out_dir / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=1), encoding="utf-8")
     bpy.ops.wm.save_as_mainfile(filepath=str(out_dir / f"{plan.name}.blend"))
     return len(meshes), len(placements), str(out_dir)

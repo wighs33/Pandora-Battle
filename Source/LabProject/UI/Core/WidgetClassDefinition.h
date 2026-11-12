@@ -366,54 +366,6 @@ struct LABPROJECT_API FInfoAuxiliaryWidgetSettings
 };
 
 USTRUCT(BlueprintType)
-struct LABPROJECT_API FMapWidgetProjectionSettings
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Map|Size")
-	FVector2D AreaMapTotalSizeBoxSize = FVector2D(900.0f, 900.0f);
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Map|Size", meta = (FormerlySerializedAs = "SurfaceMapTotalSizeBoxSize"))
-	FVector2D WindmillMapTotalSizeBoxSize = FVector2D(900.0f, 900.0f);
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Map|Size", meta = (FormerlySerializedAs = "UndergroundMapTotalSizeBoxSize"))
-	FVector2D DomeMapTotalSizeBoxSize = FVector2D(900.0f, 900.0f);
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Map|Size")
-	FVector2D TempleMapTotalSizeBoxSize = FVector2D(900.0f, 900.0f);
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Map|Plane", meta = (FormerlySerializedAs = "SurfacePlaneTransform"))
-	FTransform WindmillPlaneTransform = FTransform::Identity;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Map|Plane")
-	FTransform TemplePlaneTransform = FTransform::Identity;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Map|Plane", meta = (FormerlySerializedAs = "UndergroundPlaneTransform"))
-	FTransform DomePlaneTransform = FTransform::Identity;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Map|Marker", meta = (ClampMin = "1.0", ForceUnits = "cm"))
-	float PlaneLocalSize = 100.0f;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Map|Marker")
-	bool bRotateMarksToPawnForward = true;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Map|Marker")
-	float MarkerRotationOffsetDegrees = 0.0f;
-};
-
-USTRUCT(BlueprintType)
-struct LABPROJECT_API FMapWidgetProjectionOverride
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Map")
-	TSoftClassPtr<UMapWidget> MapWidgetClass;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Map")
-	FMapWidgetProjectionSettings ProjectionSettings;
-};
-
-USTRUCT(BlueprintType)
 struct LABPROJECT_API FMapWidgetTeamMarkImage
 {
 	GENERATED_BODY()
@@ -433,18 +385,6 @@ struct LABPROJECT_API FMapWidgetSettings
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Map|Texture")
-	TSoftObjectPtr<UTexture2D> AreaMapTexture;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Map|Texture", meta = (FormerlySerializedAs = "SurfaceMapTexture"))
-	TSoftObjectPtr<UTexture2D> WindmillMapTexture;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Map|Texture", meta = (FormerlySerializedAs = "UndergroundMapTexture"))
-	TSoftObjectPtr<UTexture2D> DomeMapTexture;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Map|Texture")
-	TSoftObjectPtr<UTexture2D> TempleMapTexture;
-
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Map|Marker", meta = (AllowedClasses = "/Script/Engine.Texture2D,/Script/Engine.MaterialInterface"))
 	TSoftObjectPtr<UObject> CharacterMarkImage;
 
@@ -463,14 +403,16 @@ struct LABPROJECT_API FMapWidgetSettings
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Map|Marker", meta = (ClampMin = "0.1", ForceUnits = "s"))
 	float RemotePlayerListRefreshInterval = 0.5f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Map|Projection")
-	bool bUseDefaultProjectionSettings = false;
+	/** 표식을 플레이어가 보는 방향으로 돌린다. 지도 그림과 월드 범위는 레벨마다 레벨 정의(MapLayout)에 있다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Map|Marker")
+	bool bRotateMarksToPawnForward = true;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Map|Projection", meta = (EditCondition = "bUseDefaultProjectionSettings"))
-	FMapWidgetProjectionSettings DefaultProjectionSettings;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Map|Marker")
+	float MarkerRotationOffsetDegrees = 0.0f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Map|Projection", meta = (TitleProperty = "MapWidgetClass"))
-	TArray<FMapWidgetProjectionOverride> ProjectionOverrides;
+	/** 지도 그림을 넣는 가장 큰 화면 크기. 그림은 월드 비율 그대로 이 안에 가장 크게 놓인다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!UI|Widget|Map|Size")
+	FVector2D MaxMapViewSize = FVector2D(1200.0f, 900.0f);
 };
 
 USTRUCT(BlueprintType)

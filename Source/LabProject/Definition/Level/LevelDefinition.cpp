@@ -39,6 +39,33 @@ namespace
 		}
 	}
 
+	void ValidateMapLayout(FDataValidationContext& Context, EDataValidationResult& Result, const FLevelMapLayout& Layout,
+		const FText& LevelLabel)
+	{
+		for (int32 PageIndex = 0; PageIndex < Layout.Pages.Num(); ++PageIndex)
+		{
+			const FLevelMapPage& Page = Layout.Pages[PageIndex];
+			if (Page.Texture.IsNull())
+			{
+				MarkLevelDefinitionInvalid(Context, Result, FText::Format(
+					NSLOCTEXT("LevelDefinition", "MissingMapPageTexture", "{0} MapLayout.Pages[{1}] Texture is required."),
+					LevelLabel, FText::AsNumber(PageIndex)));
+			}
+			if (Layout.Pages.Num() > 1 && Layout.FindPageIndex(Page.Region) != PageIndex)
+			{
+				MarkLevelDefinitionInvalid(Context, Result, FText::Format(
+					NSLOCTEXT("LevelDefinition", "DuplicateMapPageRegion", "{0} MapLayout.Pages[{1}] repeats a region."),
+					LevelLabel, FText::AsNumber(PageIndex)));
+			}
+		}
+		if (Layout.Pages.Num() > 1 && Layout.AreaView.Texture.IsNull())
+		{
+			MarkLevelDefinitionInvalid(Context, Result, FText::Format(
+				NSLOCTEXT("LevelDefinition", "MissingMapAreaTexture", "{0} MapLayout needs an AreaView texture to choose between regions."),
+				LevelLabel));
+		}
+	}
+
 	void ValidateIngameLevels(FDataValidationContext& Context, EDataValidationResult& Result,
 		const TArray<FLobbyMatchMapOption>& IngameLevels)
 	{
@@ -91,13 +118,7 @@ namespace
 					NSLOCTEXT("LevelDefinition", "InvalidMaxPlayerCount", "{0} MaxPlayerCount must be between 1 and the session limit."),
 					LevelLabel));
 			}
-			if (!Level.GameplayMapWidgetClass.IsNull() && !Level.GameplayMapWidgetClass.ToSoftObjectPath().TryLoad())
-			{
-				MarkLevelDefinitionInvalid(Context, Result, FText::Format(
-					NSLOCTEXT("LevelDefinition", "InvalidGameplayMapWidgetClass", "{0} GameplayMapWidgetClass could not be loaded: {1}"),
-					LevelLabel,
-					FText::FromString(Level.GameplayMapWidgetClass.ToString())));
-			}
+			ValidateMapLayout(Context, Result, Level.MapLayout, LevelLabel);
 		}
 	}
 #endif
