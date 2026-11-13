@@ -185,6 +185,21 @@ void AGroundTargetActor::Tick(const float DeltaSeconds)
 	UpdateDecalGrowth();
 }
 
+void AGroundTargetActor::ConfirmTargeting()
+{
+	// 엔진의 확정 입력(LocalInputConfirm)은 한 번 보내고 나면 확정을 기다리던 쪽을 모두 지운다. 하늘·벽·사거리 밖을 겨눠
+	// 확정을 거절한 대상 액터가 다시 듣지 않으면, 그 뒤 바닥을 겨눠 눌러도 확정이 오지 않아 스킬이 끝나지 않는다(모은 화염구가 떠 있는 채로).
+	if (!IsConfirmTargetingAllowed())
+	{
+		if (GenericDelegateBoundASC)
+		{
+			GenericDelegateBoundASC->GenericLocalConfirmCallbacks.AddUniqueDynamic(this, &AGameplayAbilityTargetActor::ConfirmTargeting);
+		}
+		return;
+	}
+	Super::ConfirmTargeting();
+}
+
 void AGroundTargetActor::ConfigureDecalGrowth(const double InStartSize, const double InTargetSize,
 	const double InDuration)
 {

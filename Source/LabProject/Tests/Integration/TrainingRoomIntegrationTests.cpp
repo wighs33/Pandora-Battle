@@ -4,15 +4,19 @@
 
 #include "AbilitySystem/AttributeSet/BasicAttributeSet.h"
 #include "AbilitySystem/Effects/EquipmentStatsEffect.h"
+#include "AbilitySystem/TargetingActors/GroundTargetActor.h"
 #include "AIController.h"
 #include "BrainComponent.h"
 #include "Character/CharacterBase.h"
 #include "Character/EnemyBase.h"
 #include "Character/LagCompensationSubsystem.h"
 #include "Character/PdPlayer.h"
+#include "Common/Enum_Direction.h"
 #include "Common/InfoUiTypes.h"
 #include "Common/PdGameplayTags.h"
+#include "Component/AbilitySystem/PandoraTreeComponent.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
+#include "Component/Pandora/PandoraComponent.h"
 #include "Component/Player/CombatComponent.h"
 #include "Component/Player/ControllerPresentationComponent.h"
 #include "Component/Player/ControllerInputComponent.h"
@@ -27,6 +31,7 @@
 #include "Components/PanelWidget.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Definition/Item/ItemDefinition.h"
+#include "Definition/Pandora/PandoraDefinition.h"
 #include "Definition/Player/ControllerInputDefinition.h"
 #include "Definition/Skin/SkinDefinition.h"
 #include "EngineUtils.h"
@@ -1082,6 +1087,107 @@ bool FPdPaintBrushColorTest::RunTest(const FString& Parameters)
 			Hud->CloseInfoUi();
 		}
 	});
+	return true;
+}
+
+namespace
+{
+	const TCHAR* LoyalSwordPath = TEXT("/Game/Item/Weapon/LoyalSword/DA_LoyalSword.DA_LoyalSword");
+	const TCHAR* FirePandoraPath = TEXT("/Game/Pandora/Data/DA_Pandora_Fire.DA_Pandora_Fire");
+
+	/** 바닥 조준 스킬이 조준 중이면 나오는 조준 액터. */
+	AGroundTargetActor* FindGroundTargetActor()
+	{
+		TActorIterator<AGroundTargetActor> It(IntegrationTest::GetGameWorld());
+		return It ? *It : nullptr;
+	}
+
+	void AimPitch(const float Pitch)
+	{
+		APlayerController* Controller = IntegrationTest::GetPlayerController();
+		Controller->SetControlRotation(FRotator(Pitch, Controller->GetControlRotation().Yaw, 0.f));
+	}
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPdGroundTargetConfirmRetryTest, "LabProject.Integration.TrainingRoom.GroundTargetConfirmRetry",
+	EAutomationTestFlags::ClientContext | EAutomationTestFlags::EngineFilter)
+
+// 바닥 조준 스킬(불 3번 거대 화염구): 바닥을 못 찾는 곳에서 확정하면 거절되어 조준이 남고, 그 뒤 바닥을 겨눠 다시 확정하면 발사된다.
+// 엔진의 확정 입력은 한 번 보내면 기다리던 쪽을 모두 지우므로, 거절한 조준 액터가 다시 듣지 않으면 화염구가 끝까지 떠 있었다.
+// 바닥이 없는 곳은 맵 밖 먼 하늘(비행)으로 만든다. 조준은 사거리 끝에서 아래로 바닥을 다시 찾으므로 하늘을 보는 것만으로는 거절되지 않는다.
+bool FPdGroundTargetConfirmRetryTest::RunTest(const FString& Parameters)
+{
+	TSharedRef<FVector> Floor = MakeShared<FVector>(FVector::ZeroVector);
+	IntegrationTest::OpenMap(this, TrainingRoomMap);
+	IntegrationTest::Step(0.f, []() { StopTrainingBot(); });
+	EquipAndWait(this, LoyalSwordPath);
+	IntegrationTest::Step(0.5f, [this]()
+	{
+		const ACharacterBase* Player = GetPlayerCharacter();
+		APdPlayerState* State = Player ? Player->GetPlayerState<APdPlayerState>() : nullptr;
+		const UPandoraDefinition* Fire = LoadObject<UPandoraDefinition>(nullptr, FirePandoraPath);
+		UPandoraComponent* Pandoras = State ? State->GetPandoraComponent() : nullptr;
+		UPandoraTreeComponent* Tree = State ? State->GetPandoraTreeComponent() : nullptr;
+		if (!TestNotNull(TEXT("불 판도라"), Fire) || !TestNotNull(TEXT("판도라 컴포넌트"), Pandoras) || !TestNotNull(TEXT("판도라 성장"), Tree))
+		{
+			return;
+		}
+		Pandoras->GrantPandoraDefinition(Fire);
+		Tree->SetPointsAvailable(30);
+		if (!Tree->HasGrantedPandora(Fire))
+		{
+			Tree->GrantPandora(Fire, 3, true);
+		}
+		for (int32 Try = 0; Try < 3 && Tree->GetCurrentPandoraLevel(Fire) < 3; ++Try)
+		{
+			Tree->LevelUpGrantedPandora(Fire);
+		}
+		Pandoras->RequestAutoSetPandoraLoadoutSlot(Fire);
+	});
+	IntegrationTest::Step(1.f, [Floor]()
+	{
+		ACharacterBase* Player = GetPlayerCharacter();
+		const APdPlayerState* State = Player ? Player->GetPlayerState<APdPlayerState>() : nullptr;
+		if (UPandoraComponent* Pandoras = State ? State->GetPandoraComponent() : nullptr)
+		{
+			Pandoras->RequestPandoraSelectionForDirection(EEnum_Direction::Center, LoadObject<UPandoraDefinition>(nullptr, FirePandoraPath));
+			Pandoras->RefreshCurrentPandoraSkills();
+		}
+		*Floor = Player->GetActorLocation();
+		Player->GetCharacterMovement()->SetMovementMode(MOVE_Flying);
+		Player->TeleportTo(*Floor + FVector(400000.f, 0.f, 50000.f), Player->GetActorRotation(), false, true);
+		AimPitch(-35.f);
+	});
+	IntegrationTest::Step(0.5f, []()
+	{
+		const APdPlayer* Player = Cast<APdPlayer>(GetPlayerCharacter());
+		Player->GetPdAbilitySystemComponent()->HandleAbilityInputPressed(PdGameplayTags::Input_Ability_Skill3);
+	});
+	IntegrationTest::Step(0.2f, []()
+	{
+		const APdPlayer* Player = Cast<APdPlayer>(GetPlayerCharacter());
+		Player->GetPdAbilitySystemComponent()->HandleAbilityInputReleased(PdGameplayTags::Input_Ability_Skill3);
+	});
+	IntegrationTest::WaitUntil(this, TEXT("거대 화염구 조준 시작"), 8.f, []() { return FindGroundTargetActor() != nullptr; });
+	IntegrationTest::Step(0.5f, []()
+	{
+		const APdPlayer* Player = Cast<APdPlayer>(GetPlayerCharacter());
+		Player->GetPdAbilitySystemComponent()->LocalInputConfirm();
+	});
+	IntegrationTest::Step(0.3f, [this, Floor]()
+	{
+		TestNotNull(TEXT("바닥이 없는 곳에서 한 확정은 거절되어 조준이 남는다"), FindGroundTargetActor());
+		ACharacterBase* Player = GetPlayerCharacter();
+		Player->TeleportTo(*Floor, Player->GetActorRotation(), false, true);
+		Player->GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+		AimPitch(-35.f);
+	});
+	IntegrationTest::Step(0.5f, []()
+	{
+		const APdPlayer* Player = Cast<APdPlayer>(GetPlayerCharacter());
+		Player->GetPdAbilitySystemComponent()->LocalInputConfirm();
+	});
+	IntegrationTest::WaitUntil(this, TEXT("바닥을 겨눠 다시 확정하면 조준이 끝나고 발사된다"), 3.f, []() { return FindGroundTargetActor() == nullptr; });
 	return true;
 }
 

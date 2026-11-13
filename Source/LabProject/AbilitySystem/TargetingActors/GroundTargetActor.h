@@ -17,6 +17,9 @@ public:
 	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void Tick(float DeltaSeconds) override;
 
+	/** 바닥을 못 찾아 확정을 거절하면 다음 확정 입력을 다시 듣는다. */
+	virtual void ConfirmTargeting() override;
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
