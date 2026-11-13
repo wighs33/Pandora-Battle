@@ -1,15 +1,19 @@
 #include "Component/Player/PlayerCameraComponent.h"
 
 #include "Camera/CameraComponent.h"
+#include "Components/CapsuleComponent.h"
 #include "Components/MeshComponent.h"
 #include "Engine/World.h"
 #include "Engine/OverlapResult.h"
+#include "GameFramework/Character.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
+#include "Materials/MaterialParameterCollection.h"
+#include "Materials/MaterialParameterCollectionInstance.h"
 #include "TimerManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PlayerCameraComponent)
@@ -47,6 +51,7 @@ void UPlayerCameraComponent::ShutdownCamera()
 	}
 
 	ResetOcclusionMaterialState();
+	ResetOcclusionTarget();
 	bWeaponAimCameraActive = false;
 	bAbilityCameraOverrideActive = false;
 	if (bHasCachedDefaults && FollowCamera && CameraBoom)
@@ -61,6 +66,7 @@ void UPlayerCameraComponent::TickPresentation(const float DeltaSeconds)
 {
 	UpdateAimCamera(DeltaSeconds);
 	UpdateOcclusionMaterialState();
+	UpdateOcclusionTarget();
 }
 
 void UPlayerCameraComponent::SetWeaponAimActive(const bool bEnabled, const FWeaponAimCameraSettings& Settings)
@@ -297,18 +303,8 @@ void UPlayerCameraComponent::AppendOcclusionMeshComponents(const float ProbeRadi
 	QueryParams.AddIgnoredActor(OwnerActor);
 	QueryParams.bTraceComplex = true;
 
-	FVector CameraLocation = FollowCamera->GetComponentLocation();
-	if (const APawn* OwnerPawn = Cast<APawn>(OwnerActor))
-	{
-		if (const APlayerController* PlayerController = Cast<APlayerController>(OwnerPawn->GetController()))
-		{
-			FRotator CameraRotation;
-			PlayerController->GetPlayerViewPoint(CameraLocation, CameraRotation);
-		}
-	}
-
 	TArray<FOverlapResult> OverlapResults;
-	World->OverlapMultiByObjectType(OverlapResults, CameraLocation, FQuat::Identity, ObjectQueryParams,
+	World->OverlapMultiByObjectType(OverlapResults, GetOcclusionViewLocation(), FQuat::Identity, ObjectQueryParams,
 		FCollisionShape::MakeSphere(ProbeRadius), QueryParams);
 
 	for (const FOverlapResult& OverlapResult : OverlapResults)
@@ -404,4 +400,66 @@ void UPlayerCameraComponent::ResetOcclusionMaterialState()
 
 	OcclusionDisabledMeshComponents.Reset();
 	OcclusionMaterialInstances.Reset();
+}
+
+// 가림 처리는 플레이어 컨트롤러의 시점(카메라 매니저가 최종으로 정한 위치)을 기준으로 한다.
+FVector UPlayerCameraComponent::GetOcclusionViewLocation() const
+{
+	FVector ViewLocation = FollowCamera ? FollowCamera->GetComponentLocation() : FVector::ZeroVector;
+	if (const APawn* OwnerPawn = Cast<APawn>(GetOwner()))
+	{
+		if (const APlayerController* PlayerController = Cast<APlayerController>(OwnerPawn->GetController()))
+		{
+			FRotator ViewRotation;
+			PlayerController->GetPlayerViewPoint(ViewLocation, ViewRotation);
+		}
+	}
+	return ViewLocation;
+}
+
+UMaterialParameterCollectionInstance* UPlayerCameraComponent::FindOcclusionCollectionInstance() const
+{
+	UWorld* World = GetWorld();
+	return World && PresentationSettings.OcclusionParameterCollection
+		? World->GetParameterCollectionInstance(PresentationSettings.OcclusionParameterCollection)
+		: nullptr;
+}
+
+// 화면 가운데를 가리는 면은 플레이어를 가릴 수 있는 것만 지운다: 카메라와 플레이어 사이에 있고 발보다 높은 면.
+// 내려다볼 때 조준선 둘레에 걸리는 바닥은 그 밖이라 남는다.
+void UPlayerCameraComponent::UpdateOcclusionTarget()
+{
+	UMaterialParameterCollectionInstance* Collection = FindOcclusionCollectionInstance();
+	const ACharacter* OwnerCharacter = Cast<ACharacter>(GetOwner());
+	const UCapsuleComponent* Capsule = OwnerCharacter ? OwnerCharacter->GetCapsuleComponent() : nullptr;
+	if (!Collection || !Capsule || !FollowCamera)
+	{
+		return;
+	}
+
+	const FVector PlayerLocation = OwnerCharacter->GetActorLocation();
+	Collection->SetScalarParameterValue(PresentationSettings.OcclusionDistanceParameterName,
+		FVector::Dist(GetOcclusionViewLocation(), PlayerLocation));
+	Collection->SetScalarParameterValue(PresentationSettings.OcclusionFloorHeightParameterName,
+		PlayerLocation.Z - Capsule->GetScaledCapsuleHalfHeight() + PresentationSettings.OcclusionFloorClearance);
+}
+
+// 카메라를 내려놓을 때 컬렉션 값을 기본값(예전처럼 거리 · 높이 제한 없음)으로 되돌린다.
+void UPlayerCameraComponent::ResetOcclusionTarget()
+{
+	UMaterialParameterCollectionInstance* Collection = FindOcclusionCollectionInstance();
+	if (!Collection)
+	{
+		return;
+	}
+
+	for (const FName ParameterName : {PresentationSettings.OcclusionDistanceParameterName,
+		PresentationSettings.OcclusionFloorHeightParameterName})
+	{
+		if (const FCollectionScalarParameter* Parameter =
+			PresentationSettings.OcclusionParameterCollection->GetScalarParameterByName(ParameterName))
+		{
+			Collection->SetScalarParameterValue(Parameter->ParameterName, Parameter->DefaultValue);
+		}
+	}
 }

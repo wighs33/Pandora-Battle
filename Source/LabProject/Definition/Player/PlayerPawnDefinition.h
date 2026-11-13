@@ -16,6 +16,7 @@
 
 class UAnimMontage;
 class UGameplayEffect;
+class UMaterialParameterCollection;
 class UNiagaraSystem;
 
 USTRUCT(BlueprintType)
@@ -46,6 +47,26 @@ struct LABPROJECT_API FPlayerCameraPresentationSettings
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Player|Camera|Occlusion")
 	TArray<TEnumAsByte<ECollisionChannel>> OcclusionSurfaceObjectTypes;
+
+	/**
+	 * 화면 가운데를 가리는 면을 지우는 머티리얼 함수(MF_OcclusionFadeMask)에 플레이어 위치를 넘기는 컬렉션.
+	 * 플레이어를 가릴 수 없는 면, 곧 플레이어보다 멀거나 발보다 낮은 면(내려다볼 때의 바닥)은 지우지 않는다.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Player|Camera|Occlusion")
+	TObjectPtr<UMaterialParameterCollection> OcclusionParameterCollection;
+
+	/** 컬렉션 안의 거리 파라미터(cm): 카메라에서 플레이어까지. 이보다 먼 면은 지우지 않는다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Player|Camera|Occlusion")
+	FName OcclusionDistanceParameterName = TEXT("OcclusionDistance");
+
+	/** 컬렉션 안의 높이 파라미터(월드 Z, cm): 플레이어 발 높이 + OcclusionFloorClearance. 이보다 낮은 면은 지우지 않는다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Player|Camera|Occlusion")
+	FName OcclusionFloorHeightParameterName = TEXT("OcclusionFloorHeight");
+
+	/** 발밑 바닥과 낮은 턱이 지워지지 않게 발 높이에서 이만큼 위부터 지운다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Player|Camera|Occlusion",
+		meta = (ClampMin = "0.0", ForceUnits = "cm"))
+	float OcclusionFloorClearance = 20.0f;
 };
 
 USTRUCT(BlueprintType)

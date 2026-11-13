@@ -9,6 +9,7 @@
 
 class UCameraComponent;
 class UMaterialInstanceDynamic;
+class UMaterialParameterCollectionInstance;
 class UMeshComponent;
 class USpringArmComponent;
 
@@ -55,6 +56,10 @@ private:
 		TSet<TWeakObjectPtr<UMeshComponent>>& OutMeshComponents) const;
 	bool SetOcclusionEnabledForMesh(UMeshComponent* MeshComponent, bool bEnabled);
 	void ResetOcclusionMaterialState();
+	FVector GetOcclusionViewLocation() const;
+	UMaterialParameterCollectionInstance* FindOcclusionCollectionInstance() const;
+	void UpdateOcclusionTarget();
+	void ResetOcclusionTarget();
 
 private:
 	UPROPERTY(Transient)

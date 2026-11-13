@@ -3,6 +3,7 @@
 #include "Common/PdGameplayTags.h"
 #include "Definition/Mode/GameInstanceDefinition.h"
 #include "GameplayEffect.h"
+#include "Materials/MaterialParameterCollection.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PlayerPawnDefinition)
 
@@ -117,6 +118,19 @@ namespace
 				"PlayerPawnDefinition",
 				"InvalidOcclusionDistances",
 				"Camera occlusion distances must be finite and ReenableDistance must not be smaller than DisableDistance."));
+		}
+
+		if (Camera.OcclusionParameterCollection
+			&& (!Camera.OcclusionParameterCollection->GetScalarParameterByName(Camera.OcclusionDistanceParameterName)
+				|| !Camera.OcclusionParameterCollection->GetScalarParameterByName(Camera.OcclusionFloorHeightParameterName)))
+		{
+			MarkInvalid(NSLOCTEXT("PlayerPawnDefinition", "MissingOcclusionTargetParameters",
+				"Camera OcclusionParameterCollection must contain the scalar parameters named by OcclusionDistanceParameterName and OcclusionFloorHeightParameterName."));
+		}
+		if (!FMath::IsFinite(Camera.OcclusionFloorClearance) || Camera.OcclusionFloorClearance < 0.0f)
+		{
+			MarkInvalid(NSLOCTEXT("PlayerPawnDefinition", "InvalidOcclusionFloorClearance",
+				"Camera OcclusionFloorClearance must be finite and non-negative."));
 		}
 	}
 
