@@ -11,17 +11,19 @@
 #include "Definition/Level/LevelDefinition.h"
 #include "Engine/GameInstance.h"
 #include "Engine/LocalPlayer.h"
-#include "Engine/Font.h"
 #include "InputCoreTypes.h"
 #include "Settings/LocalPlayerSettingsSubsystem.h"
 #include "UI/Core/WidgetClassDefinition.h"
 #include "UI/Guide/GuideWidget.h"
 #include "UI/Settings/AudioVolumeControl.h"
+#include "UI/Settings/SettingsComboOption.h"
 
 namespace
 {
+	// 설정 페이지 전환기 안의 순서. 탭 버튼 순서(일반 · 화면 · 훈련장)와는 따로다.
 	constexpr int32 GeneralPageIndex = 0;
 	constexpr int32 TrainingRoomPageIndex = 1;
+	constexpr int32 DisplayPageIndex = 2;
 }
 
 void UGameSettingsWidget::NativeConstruct()
@@ -56,10 +58,10 @@ void UGameSettingsWidget::NativeConstruct()
 	RefreshMouseSensitivityText();
 	Btn_Guide->OnClicked.AddUniqueDynamic(this, &ThisClass::OpenGuide);
 	Btn_TabGeneral->OnClicked.AddUniqueDynamic(this, &ThisClass::ShowGeneralPage);
+	Btn_TabDisplay->OnClicked.AddUniqueDynamic(this, &ThisClass::ShowDisplayPage);
 	Btn_TabTrainingRoom->OnClicked.AddUniqueDynamic(this, &ThisClass::ShowTrainingRoomPage);
-	SettingsTabs->SetVisibility(ULevelDefinition::IsTrainingRoomWorld(this)
-		? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
-	TabHighlight.Initialize({Btn_TabGeneral, Btn_TabTrainingRoom}, nullptr, SelectedTabBrush);
+	Btn_TabTrainingRoom->SetVisibility(ULevelDefinition::IsTrainingRoomWorld(this) ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	TabHighlight.Initialize({Btn_TabGeneral, Btn_TabDisplay, Btn_TabTrainingRoom}, nullptr, SelectedTabBrush);
 	ShowPage(GeneralPageIndex);
 	OnMenuLanguageChanged();
 }
@@ -87,6 +89,7 @@ void UGameSettingsWidget::NativeDestruct()
 	}
 	Btn_Guide->OnClicked.RemoveDynamic(this, &ThisClass::OpenGuide);
 	Btn_TabGeneral->OnClicked.RemoveDynamic(this, &ThisClass::ShowGeneralPage);
+	Btn_TabDisplay->OnClicked.RemoveDynamic(this, &ThisClass::ShowDisplayPage);
 	Btn_TabTrainingRoom->OnClicked.RemoveDynamic(this, &ThisClass::ShowTrainingRoomPage);
 	TabHighlight.Reset();
 	CloseGuide();
@@ -126,26 +129,19 @@ void UGameSettingsWidget::HandleLanguageSelected(FString Option, ESelectInfo::Ty
 
 UWidget* UGameSettingsWidget::GenerateLanguageOption(FString Option)
 {
-	UTextBlock* Text = WidgetTree->ConstructWidget<UTextBlock>();
-	Text->SetText(FText::AsCultureInvariant(Option));
-	FSlateFontInfo Font = Text->GetFont();
-	Font.Size = 22;
-	Font.TypefaceFontName = NAME_None;
+	// 언어 이름은 그 언어의 글자로 쓰므로 줄마다 그 언어의 글꼴을 쓴다.
+	UFont* Font = nullptr;
 	if (const UMenuLocalizationSubsystem* Localization = GetLocalization())
 	{
 		for (const FString& Culture : UiLanguage::Cultures())
 		{
 			if (Option == UiLanguage::NativeName(Culture))
 			{
-				Font.FontObject = Localization->GetFontForLanguage(Culture);
+				Font = Localization->GetFontForLanguage(Culture);
 			}
 		}
 	}
-	Text->SetFont(Font);
-	// 글자색은 콤보 스타일의 전경색(로비 팀 콤보와 같은 크림색)을 따른다.
-	Text->SetColorAndOpacity(FSlateColor::UseForeground());
-	Text->SetMargin(FMargin(12.f, 6.f));
-	return Text;
+	return SettingsComboOption::Make(*WidgetTree, Option, Font);
 }
 
 void UGameSettingsWidget::HandleVolumeChanged(float Value)
@@ -235,6 +231,11 @@ void UGameSettingsWidget::ShowGeneralPage()
 	ShowPage(GeneralPageIndex);
 }
 
+void UGameSettingsWidget::ShowDisplayPage()
+{
+	ShowPage(DisplayPageIndex);
+}
+
 void UGameSettingsWidget::ShowTrainingRoomPage()
 {
 	ShowPage(TrainingRoomPageIndex);
@@ -243,7 +244,7 @@ void UGameSettingsWidget::ShowTrainingRoomPage()
 void UGameSettingsWidget::ShowPage(int32 PageIndex)
 {
 	Switcher_SettingsPages->SetActiveWidgetIndex(PageIndex);
-	TabHighlight.Select(PageIndex == GeneralPageIndex ? Btn_TabGeneral : Btn_TabTrainingRoom);
+	TabHighlight.Select(PageIndex == GeneralPageIndex ? Btn_TabGeneral : PageIndex == DisplayPageIndex ? Btn_TabDisplay : Btn_TabTrainingRoom);
 }
 
 void UGameSettingsWidget::CloseSettings()

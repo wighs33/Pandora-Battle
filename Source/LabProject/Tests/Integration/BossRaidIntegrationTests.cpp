@@ -31,7 +31,6 @@
 namespace
 {
 	const FString ColosseumMap = TEXT("/Game/Map/LV_Colosseum");
-	const FString TitleMap = TEXT("/Game/Map/LV_Title");
 
 	bool IsInMap(const FString& MapPath)
 	{
@@ -284,8 +283,8 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPdBossRaidPracticeTest, "LabProject.Integratio
 // 보스를 쓰러뜨리면 격파로 보고 타이틀로 돌아간다.
 bool FPdBossRaidPracticeTest::RunTest(const FString& Parameters)
 {
-	IntegrationTest::Step(0.f, []() { UGameplayStatics::OpenLevel(IntegrationTest::GetGameWorld(), FName(*TitleMap)); });
-	IntegrationTest::WaitUntil(this, TEXT("타이틀 열기"), 30.f, []() { return IsInMap(TitleMap) && FindActiveTitle(); });
+	IntegrationTest::Step(0.f, []() { UGameplayStatics::OpenLevel(IntegrationTest::GetGameWorld(), FName(*IntegrationTest::TitleMap)); });
+	IntegrationTest::WaitUntil(this, TEXT("타이틀 열기"), 30.f, []() { return IsInMap(IntegrationTest::TitleMap) && FindActiveTitle(); });
 	IntegrationTest::Step(1.f, [this]()
 	{
 		UTitleWidget* Title = FindActiveTitle();
@@ -322,7 +321,7 @@ bool FPdBossRaidPracticeTest::RunTest(const FString& Parameters)
 		const AWorldBossRaid* Raid = GetWorldBossRaid();
 		return Raid && Raid->IsBossDefeated();
 	});
-	IntegrationTest::WaitUntil(this, TEXT("격파 뒤 타이틀로 돌아가기"), 30.f, []() { return IsInMap(TitleMap) && FindActiveTitle(); });
+	IntegrationTest::WaitUntil(this, TEXT("격파 뒤 타이틀로 돌아가기"), 30.f, []() { return IsInMap(IntegrationTest::TitleMap) && FindActiveTitle(); });
 	return true;
 }
 

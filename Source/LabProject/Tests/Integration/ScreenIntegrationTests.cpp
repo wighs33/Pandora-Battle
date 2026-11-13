@@ -2,7 +2,13 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
+#include "Components/Button.h"
+#include "Components/ComboBoxString.h"
 #include "Components/EditableTextBox.h"
+#include "Components/WidgetSwitcher.h"
+#include "GameFramework/GameUserSettings.h"
+#include "Settings/DisplaySettingsSubsystem.h"
+#include "UI/Settings/DisplaySettingsWidget.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/TextBlock.h"
 #include "Definition/Level/LevelDefinition.h"
@@ -27,7 +33,6 @@
 
 namespace
 {
-	const FString TitleMap = TEXT("/Game/Map/LV_Title");
 	const FString RoomMap = TEXT("/Game/Map/LV_Room");
 	const FString LobbyMap = TEXT("/Game/Map/LV_Lobby");
 
@@ -115,7 +120,7 @@ namespace
 
 	void OpenTitle(FAutomationTestBase* Test)
 	{
-		OpenMenuMap<UTitleWidget>(Test, TitleMap, []() { UGameplayStatics::OpenLevel(IntegrationTest::GetGameWorld(), FName(*TitleMap)); });
+		OpenMenuMap<UTitleWidget>(Test, IntegrationTest::TitleMap, []() { UGameplayStatics::OpenLevel(IntegrationTest::GetGameWorld(), FName(*IntegrationTest::TitleMap)); });
 	}
 
 	/** 타이틀 HUD에서 Luna의 몸 자세를 따르는 메시, 곧 옷 메시 */
@@ -371,6 +376,96 @@ bool FPdTitleLunaOutfitTest::RunTest(const FString& Parameters)
 		{
 			Title->SelectLunaOutfit(Outfits->InitialIndex);
 		}
+	});
+	return true;
+}
+
+namespace
+{
+	/** 콤보에서 줄 하나를 사람이 고른 것처럼 한다. 코드로 고른 줄(Direct)은 설정을 바꾸지 않으므로, 고른 뒤 처리기를 마우스 선택으로 부른다. */
+	void PickOption(UUserWidget& Page, const TCHAR* ComboName, const TCHAR* Handler, const int32 Index)
+	{
+		UComboBoxString* Combo = Cast<UComboBoxString>(Page.GetWidgetFromName(ComboName));
+		UFunction* Function = Page.FindFunction(Handler);
+		if (!Combo || !Function)
+		{
+			return;
+		}
+		Combo->SetSelectedIndex(Index);
+		struct
+		{
+			FString Option;
+			TEnumAsByte<ESelectInfo::Type> SelectionType;
+		} Params{Combo->GetSelectedOption(), ESelectInfo::OnMouseClick};
+		Page.ProcessEvent(Function, &Params);
+	}
+
+	int32 OptionCount(const UUserWidget& Page, const TCHAR* ComboName)
+	{
+		const UComboBoxString* Combo = Cast<UComboBoxString>(Page.GetWidgetFromName(ComboName));
+		return Combo ? Combo->GetOptionCount() : 0;
+	}
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPdDisplaySettingsTest, "LabProject.Integration.Screens.DisplaySettings",
+	EAutomationTestFlags::ClientContext | EAutomationTestFlags::EngineFilter)
+
+// 게임 설정의 화면 탭: 처음 실행에 기본 프레임 제한이 걸리고, 탭을 누르면 화면 설정 페이지가 보이며, 품질·프레임 제한을 고르면 엔진 설정이 바뀐다.
+// 화면 모드는 바꾸지 않는다(테스트 창 크기가 바뀐다). 끝나면 이 PC의 품질·프레임 제한을 원래대로 돌린다.
+bool FPdDisplaySettingsTest::RunTest(const FString& Parameters)
+{
+	OpenTitle(this);
+	IntegrationTest::Step(0.2f, []()
+	{
+		if (UTitleWidget* Title = FindActiveScreen<UTitleWidget>())
+		{
+			Title->OpenGameSettings();
+		}
+	});
+	IntegrationTest::WaitUntil(this, TEXT("게임 설정 열기"), 10.f, []() { return IsScreenActive<UGameSettingsWidget>(); });
+	IntegrationTest::Step(0.3f, [this]()
+	{
+		UGameSettingsWidget* Settings = FindActiveScreen<UGameSettingsWidget>();
+		UDisplaySettingsSubsystem* Display = IntegrationTest::GetGameWorld()->GetGameInstance()->GetSubsystem<UDisplaySettingsSubsystem>();
+		if (!TestNotNull(TEXT("게임 설정"), Settings) || !TestNotNull(TEXT("화면 설정 서브시스템"), Display))
+		{
+			return;
+		}
+		TestTrue(TEXT("처음 실행에 기본 프레임 제한을 한 번 맞췄다"), UDisplaySettingsSubsystem::HasAppliedDefaultFrameRateLimit());
+		const UWidget* TrainingTab = Settings->GetWidgetFromName(TEXT("Btn_TabTrainingRoom"));
+		TestTrue(TEXT("훈련장이 아니면 훈련장 탭은 숨는다"), TrainingTab && !TrainingTab->IsVisible());
+		UButton* DisplayTab = Cast<UButton>(Settings->GetWidgetFromName(TEXT("Btn_TabDisplay")));
+		if (!TestNotNull(TEXT("화면 탭"), DisplayTab))
+		{
+			return;
+		}
+		DisplayTab->OnClicked.Broadcast();
+		const UWidgetSwitcher* Pages = Cast<UWidgetSwitcher>(Settings->GetWidgetFromName(TEXT("Switcher_SettingsPages")));
+		UDisplaySettingsWidget* Page = Pages ? Cast<UDisplaySettingsWidget>(Pages->GetActiveWidget()) : nullptr;
+		if (!TestNotNull(TEXT("화면 탭을 누르면 화면 설정 페이지가 보인다"), Page))
+		{
+			return;
+		}
+		TestEqual(TEXT("화면 모드"), OptionCount(*Page, TEXT("CB_WindowMode")), UDisplaySettingsSubsystem::GetWindowModes().Num());
+		TestEqual(TEXT("그래픽 품질"), OptionCount(*Page, TEXT("CB_GraphicsQuality")), UDisplaySettingsSubsystem::QualityLevelCount);
+		TestEqual(TEXT("프레임 제한"), OptionCount(*Page, TEXT("CB_FrameRateLimit")), UDisplaySettingsSubsystem::GetFrameRateLimits().Num());
+		TestTrue(TEXT("해상도가 하나 이상 있다"), OptionCount(*Page, TEXT("CB_Resolution")) > 0);
+		const UWidget* Resolution = Page->GetWidgetFromName(TEXT("CB_Resolution"));
+		TestEqual(TEXT("창 전체 화면일 때만 해상도를 못 고른다"), Resolution && Resolution->GetIsEnabled(), Display->CanChooseResolution());
+
+		const UComboBoxString* Quality = Cast<UComboBoxString>(Page->GetWidgetFromName(TEXT("CB_GraphicsQuality")));
+		TestTrue(TEXT("그래픽 품질 칸은 늘 한 단계를 보여 준다(항목마다 단계가 달라도)"), Quality && Quality->GetSelectedIndex() != INDEX_NONE);
+
+		UGameUserSettings* UserSettings = UGameUserSettings::GetGameUserSettings();
+		const Scalability::FQualityLevels SavedQuality = UserSettings->ScalabilityQuality;
+		const int32 SavedFrameRateLimit = Display->GetFrameRateLimit();
+		PickOption(*Page, TEXT("CB_GraphicsQuality"), TEXT("HandleQualitySelected"), 0);
+		PickOption(*Page, TEXT("CB_FrameRateLimit"), TEXT("HandleFrameRateLimitSelected"), 1);
+		TestEqual(TEXT("낮음을 고르면 엔진 품질이 0단계다"), UserSettings->GetOverallScalabilityLevel(), 0);
+		TestEqual(TEXT("두 번째 줄을 고르면 그 프레임 제한이 걸린다"), FMath::RoundToInt(UserSettings->GetFrameRateLimit()),
+			UDisplaySettingsSubsystem::GetFrameRateLimits()[1]);
+		UserSettings->ScalabilityQuality = SavedQuality;
+		Display->SetFrameRateLimit(SavedFrameRateLimit);
 	});
 	return true;
 }

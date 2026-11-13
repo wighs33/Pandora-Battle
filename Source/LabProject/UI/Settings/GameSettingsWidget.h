@@ -12,7 +12,7 @@ class USlider;
 class UTextBlock;
 class UWidgetSwitcher;
 
-/** 개인 설정만 담당한다. 로비 경기 설정은 호스트가 관리한다. 훈련장에서는 훈련 봇 설정 탭이 함께 보인다. */
+/** 개인 설정만 담당한다. 로비 경기 설정은 호스트가 관리한다. 일반·화면 탭이 있고, 훈련장에서는 훈련 봇 설정 탭이 함께 보인다. */
 UCLASS()
 class LABPROJECT_API UGameSettingsWidget : public UScreenWidget
 {
@@ -43,6 +43,7 @@ private:
 	UFUNCTION() void HandleGuideClosed(UGuideWidget* ClosedGuideWidget);
 	void CloseGuide();
 	UFUNCTION() void ShowGeneralPage();
+	UFUNCTION() void ShowDisplayPage();
 	UFUNCTION() void ShowTrainingRoomPage();
 	void ShowPage(int32 PageIndex);
 
@@ -57,12 +58,12 @@ protected:
 	UPROPERTY(meta=(BindWidget)) TObjectPtr<UTextBlock> Txt_MouseSensitivityValue;
 	UPROPERTY(meta=(BindWidget)) TObjectPtr<UButton> Btn_Guide;
 
-	/** 일반·훈련장 탭 버튼 묶음. 훈련장에서만 보인다. */
-	UPROPERTY(meta=(BindWidget)) TObjectPtr<UWidget> SettingsTabs;
+	/** 일반·화면·훈련장 탭 버튼. 훈련장 탭은 훈련장에서만 보인다. */
 	UPROPERTY(meta=(BindWidget)) TObjectPtr<UButton> Btn_TabGeneral;
+	UPROPERTY(meta=(BindWidget)) TObjectPtr<UButton> Btn_TabDisplay;
 	UPROPERTY(meta=(BindWidget)) TObjectPtr<UButton> Btn_TabTrainingRoom;
 
-	/** 0번은 일반 설정, 1번은 훈련장 설정 페이지. */
+	/** 0번은 일반 설정, 1번은 훈련장 설정, 2번은 화면 설정 페이지. */
 	UPROPERTY(meta=(BindWidget)) TObjectPtr<UWidgetSwitcher> Switcher_SettingsPages;
 
 	/** 지금 보고 있는 탭 버튼의 바탕. */

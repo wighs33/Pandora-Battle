@@ -22,6 +22,9 @@
  */
 namespace IntegrationTest
 {
+	/** 여러 테스트 파일이 여는 타이틀 맵. 익명 이름공간에 따로 두면 유니티 빌드로 묶일 때 이름이 겹친다. */
+	inline const FString TitleMap = TEXT("/Game/Map/LV_Title");
+
 	inline UWorld* GetGameWorld()
 	{
 		for (const FWorldContext& Context : GEngine->GetWorldContexts())
