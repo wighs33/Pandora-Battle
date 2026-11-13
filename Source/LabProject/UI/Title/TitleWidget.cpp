@@ -63,6 +63,9 @@ namespace
 	// 폭을 다 채운 답(줄바꿈 420 + 여백)도 오른쪽 위 게임 설정 버튼 앞에서 끝난다.
 	constexpr float LunaSpeechTailFraction = 0.75f;
 
+	/** 말풍선 윗변이 화면(캔버스) 위에서 떨어져야 하는 최소 거리. 긴 답은 이만큼까지만 올라가고 아래로 밀린다. */
+	constexpr float LunaSpeechTopMargin = 16.f;
+
 	/** 질문 칸과 그 오른쪽 DLC 받기 버튼 사이의 간격 */
 	constexpr float LunaDlcButtonGap = 12.f;
 
@@ -170,8 +173,21 @@ bool UTitleWidget::ShowLunaSpeechText(const FText& Text, const FVector2D& HeadTo
 	// 말풍선은 초상화와 앵커가 같아서, 초상화 배치로 머리 위치를 바로 옮길 수 있다.
 	const FVector2D PortraitSize = PortraitSlot->GetSize();
 	const FVector2D PortraitTopLeft = PortraitSlot->GetPosition() - PortraitSlot->GetAlignment() * PortraitSize;
-	BubbleSlot->SetPosition(PortraitTopLeft + HeadTopUV * PortraitSize);
+	FVector2D BubblePosition = PortraitTopLeft + HeadTopUV * PortraitSize;
 	LunaSpeechBubble->SetVisibility(ESlateVisibility::HitTestInvisible);
+
+	// 말풍선은 꼬리 끝에서 위로 자라므로, 긴 답은 윗변이 화면 위 여백에 닿는 만큼 아래로 내린다.
+	// 캔버스가 아직 배치되지 않은 첫 프레임에는 높이를 모르니 그대로 둔다.
+	const UCanvasPanel* Canvas = Cast<UCanvasPanel>(LunaSpeechBubble->GetParent());
+	const float CanvasHeight = Canvas ? Canvas->GetCachedGeometry().GetLocalSize().Y : 0.f;
+	if (CanvasHeight > 0.f)
+	{
+		LunaSpeechBubble->ForceLayoutPrepass();
+		const float BubbleTop = BubbleSlot->GetAnchors().Minimum.Y * CanvasHeight + BubblePosition.Y
+			- LunaSpeechBubble->GetDesiredSize().Y;
+		BubblePosition.Y += FMath::Max(0.f, LunaSpeechTopMargin - BubbleTop);
+	}
+	BubbleSlot->SetPosition(BubblePosition);
 	return true;
 }
 
@@ -442,6 +458,11 @@ void UTitleWidget::BuildVersionLabel()
 	FSlateFontInfo Font = VersionText->GetFont();
 	Font.Size = 12;
 	VersionText->SetFont(Font);
+	// 버전 표기(v1.0.3 · 해시)는 언어와 상관없어 숫자 글꼴로 쓴다.
+	if (const UMenuLocalizationSubsystem* Localization = UGameInstance::GetSubsystem<UMenuLocalizationSubsystem>(GetGameInstance()))
+	{
+		Localization->ApplyNumberFont(*VersionText);
+	}
 	VersionText->SetVisibility(ESlateVisibility::HitTestInvisible);
 	UCanvasPanelSlot* LabelSlot = Canvas->AddChildToCanvas(VersionText);
 	LabelSlot->SetAnchors(FAnchors(1.f, 1.f));

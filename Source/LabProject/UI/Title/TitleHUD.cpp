@@ -31,6 +31,10 @@ namespace
 	// 고른 옷은 이 PC의 사용자 설정(GameUserSettings.ini)에 옷 이름으로 남긴다.
 	const TCHAR* TitleOutfitConfigSection = TEXT("TitleCharacter");
 	const TCHAR* TitleOutfitConfigKey = TEXT("Outfit");
+	// 말풍선 꼬리 끝: Luna 머리 뼈에서 광륜 꼭대기(약 60 cm)에 여유를 더한 높이(cm). 메시 경계 맨 위는 초상화 캡처
+	// 위쪽 밖이라 투영이 0으로 잘려 말풍선이 늘 초상화 맨 위에 붙었고, 네 줄 대사가 화면 위로 잘렸다(2026-11-13).
+	const FName LunaHeadBoneName(TEXT("CC_Base_Head"));
+	constexpr float LunaSpeechAboveHeadBone = 64.f;
 	// MenuText string table keys: Title.LunaGreeting, then Title.LunaTip01 ... Title.LunaTip20.
 	const FName LunaGreetingKey(TEXT("Title.LunaGreeting"));
 	const FName LunaChatThinkingKey(TEXT("Title.LunaChatThinking"));
@@ -524,9 +528,12 @@ void ATitleHUD::ShowLunaChatText(const FText& Text, const bool bSpeaking)
 
 FVector2D ATitleHUD::GetTitleCharacterHeadTopUV() const
 {
-	// Luna 경계의 맨 위를 초상화 캡처로 투영한다. Img_TitleCharacter는 그 렌더 타깃을 그대로 보여 준다.
+	// Luna 머리 꼭대기를 초상화 캡처로 투영한다. Img_TitleCharacter는 그 렌더 타깃을 그대로 보여 준다.
+	// 머리 뼈가 없는 메시면 경계의 맨 위를 쓴다.
 	const FBoxSphereBounds& CharacterBounds = TitleCharacterMesh->Bounds;
-	const FVector HeadTop = CharacterBounds.Origin + FVector(0, 0, CharacterBounds.BoxExtent.Z);
+	const FVector HeadTop = TitleCharacterMesh->GetBoneIndex(LunaHeadBoneName) != INDEX_NONE
+		? TitleCharacterMesh->GetSocketLocation(LunaHeadBoneName) + FVector(0, 0, LunaSpeechAboveHeadBone)
+		: CharacterBounds.Origin + FVector(0, 0, CharacterBounds.BoxExtent.Z);
 	const FVector ViewPoint = TitleCharacterCapture->GetComponentTransform().InverseTransformPositionNoScale(HeadTop);
 	if (!TitleCharacterRenderTarget || ViewPoint.X <= UE_KINDA_SMALL_NUMBER)
 	{
