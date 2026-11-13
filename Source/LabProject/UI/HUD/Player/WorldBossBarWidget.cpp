@@ -224,9 +224,11 @@ void UWorldBossBarWidget::ApplyLanguageFonts()
 	{
 		return;
 	}
-	for (UTextBlock* Text : {NameText.Get(), HealthText.Get(), AttemptText.Get()})
+	for (UTextBlock* Text : {NameText.Get(), AttemptText.Get()})
 	{
 		Localization->ApplyLanguageFont(*Text);
 	}
+	// 체력 수치(3,000 / 3,000 (100.00%))는 숫자뿐이라 언어와 상관없는 숫자 글꼴로 쓴다.
+	Localization->ApplyNumberFont(*HealthText);
 }
 

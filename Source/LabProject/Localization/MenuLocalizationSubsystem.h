@@ -45,8 +45,14 @@ public:
 	/** 플레이어가 어느 언어로든 입력할 수 있는 칸에 쓰는 CJK 글꼴. 라틴 문자도 담고 있다. */
 	UFont* GetCjkFont() const { return CjkFont; }
 
-	/** 글상자를 현재 언어의 글꼴로 바꾼다. 크기·외곽선 같은 나머지 글꼴 설정은 그대로 둔다. */
+	/** 숫자 · 키 표시에 쓰는 언어와 상관없는 글꼴(UMenuLocalizationSettings::NumberFont). */
+	UFont* GetNumberFont() const { return NumberFont; }
+
+	/** 글상자를 현재 언어의 글꼴로 바꾼다. 표시용 · 숫자 글꼴로 정한 글상자는 그대로 둔다. 크기·외곽선 같은 나머지 설정도 그대로 둔다. */
 	void ApplyLanguageFont(UTextBlock& Text) const;
+
+	/** 코드로 만든 숫자 글상자에 숫자 글꼴을 입힌다. 크기·외곽선은 그대로 둔다. */
+	void ApplyNumberFont(UTextBlock& Text) const;
 
 public:
 	/** Culture가 바뀐 뒤에 알린다. 문자열 테이블 문구는 엔진이 다시 그리고, 받는 쪽은 글꼴과 조합한 문구를 다시 만든다. */
@@ -61,5 +67,6 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UFont> LatinFont;
 	/** 언어 글꼴로 바꾸지 않는 표시용 글꼴(UMenuLocalizationSettings::DisplayFonts). */
 	UPROPERTY(Transient) TArray<TObjectPtr<UFont>> DisplayFonts;
+	UPROPERTY(Transient) TObjectPtr<UFont> NumberFont;
 	FDelegateHandle CultureChangedHandle;
 };

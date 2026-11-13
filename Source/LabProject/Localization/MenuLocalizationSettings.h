@@ -24,4 +24,12 @@ public:
 	 */
 	UPROPERTY(Config, EditAnywhere, Category="!Localization")
 	TArray<TSoftObjectPtr<UFont>> DisplayFonts;
+
+	/**
+	 * 숫자와 키 표시(수치, 개수, 시간, 퍼센트, 슬롯 번호, Q·E·R 같은 키)처럼 언어와 상관없는 글자에 쓰는 글꼴. 언어 글꼴로 바꾸지 않으므로
+	 * 어느 언어에서나 같은 모양 · 같은 높이로 그려진다(언어마다 글꼴이 바뀌면 숫자가 그려지는 높이가 달라져 옆 아이콘과 어긋난다).
+	 * 키 이름이 번역되기도 하므로(좌SHIFT) 모든 언어의 글자가 들어 있는 글꼴이어야 한다. 단어가 섞인 문구(1,200 골드)는 언어 글꼴을 쓴다.
+	 */
+	UPROPERTY(Config, EditAnywhere, Category="!Localization")
+	TSoftObjectPtr<UFont> NumberFont;
 };

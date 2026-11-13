@@ -46,6 +46,7 @@ void UMenuLocalizationSubsystem::Initialize(FSubsystemCollectionBase& Collection
 			DisplayFonts.Add(Font);
 		}
 	}
+	NumberFont = Settings->NumberFont.LoadSynchronous();
 	if (!FStringTableRegistry::Get().FindStringTable(MenuTextTableId))
 	{
 		UE_LOG(LogMenuLocalization, Error, TEXT("String table '%s' is not registered."), *MenuTextTableId.ToString());
@@ -119,13 +120,26 @@ void UMenuLocalizationSubsystem::ApplyLanguageFont(UTextBlock& Text) const
 {
 	UFont* Font = GetCurrentFont();
 	FSlateFontInfo Info = Text.GetFont();
-	// 표시용 글꼴은 모든 언어의 글자를 갖고 있어 위젯에 정한 그대로 둔다.
+	// 표시용 글꼴(모든 언어의 글자가 있음)과 숫자 글꼴(언어와 상관없는 숫자 · 키 표시)은 위젯에 정한 그대로 둔다.
 	const UObject* CurrentFont = Info.FontObject;
-	if (!Font || DisplayFonts.ContainsByPredicate([CurrentFont](const TObjectPtr<UFont>& DisplayFont) { return DisplayFont.Get() == CurrentFont; }))
+	if (!Font || (NumberFont && CurrentFont == NumberFont)
+		|| DisplayFonts.ContainsByPredicate([CurrentFont](const TObjectPtr<UFont>& DisplayFont) { return DisplayFont.Get() == CurrentFont; }))
 	{
 		return;
 	}
 	Info.FontObject = Font;
+	Info.TypefaceFontName = NAME_None;
+	Text.SetFont(Info);
+}
+
+void UMenuLocalizationSubsystem::ApplyNumberFont(UTextBlock& Text) const
+{
+	if (!NumberFont)
+	{
+		return;
+	}
+	FSlateFontInfo Info = Text.GetFont();
+	Info.FontObject = NumberFont;
 	Info.TypefaceFontName = NAME_None;
 	Text.SetFont(Info);
 }
