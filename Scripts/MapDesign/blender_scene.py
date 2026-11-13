@@ -438,6 +438,7 @@ def export_for_unreal(plan_path):
     manifest = {"name": plan.name, "bounds": [plan.width, plan.depth], "meshes": meshes, "placements": placements, "lights": lights,
                 "spawns": [dict(spawn, z=plan.ground_height(*spawn["at"])) for spawn in plan.spawns],
                 "chests": [dict(chest, z=plan.ground_height(*chest["at"])) for chest in plan.chests],
+                "monsters": [dict(monster, z=plan.ground_height(*monster["at"])) for monster in plan.monsters],
                 "ceiling_z": plan.data["boundary"]["block_height"],
                 "materials": _module("mesh_kit").MATERIALS, "texture_dir": str(TEXTURE_DIR)}
     (out_dir / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=1), encoding="utf-8")

@@ -27,6 +27,8 @@ SPAWN_COLOR = (230, 60, 60)
 RESPAWN_COLOR = (240, 140, 60)
 CHEST_COLOR = (250, 215, 70)
 CHEST_HALF_PX = 6
+MONSTER_COLOR = (170, 90, 220)
+MONSTER_HALF_PX = 7
 TEXT_COLOR = (235, 235, 235)
 PANEL_COLOR = (28, 30, 34)
 ISSUE_COLORS = {"error": (255, 120, 110), "warning": (255, 205, 110)}
@@ -100,6 +102,14 @@ def draw_chests(plan, draw):
                        fill=CHEST_COLOR, outline=(60, 40, 20), width=2)
 
 
+def draw_monsters(plan, draw):
+    """몬스터 생성기는 마름모로 그려 원(스폰)·네모(상자)와 구별한다."""
+    for monster in plan.monsters:
+        px, py = to_px(plan, *monster["at"])
+        draw.polygon([(px, py - MONSTER_HALF_PX), (px + MONSTER_HALF_PX, py), (px, py + MONSTER_HALF_PX), (px - MONSTER_HALF_PX, py)],
+                     fill=MONSTER_COLOR, outline=(255, 255, 255))
+
+
 def draw_grid(plan, draw):
     for x in range(0, plan.width + 1, LABEL_GRID_M):
         px, _ = to_px(plan, x, 0)
@@ -137,6 +147,7 @@ def main():
     draw_buildings(plan, draw)
     draw_props(plan, draw)
     draw_chests(plan, draw)
+    draw_monsters(plan, draw)
     draw_spawns(plan, draw)
     draw_issues(plan, draw, issues)
     image.save(sys.argv[2])

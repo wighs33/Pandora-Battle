@@ -47,6 +47,12 @@ PROP_BLOCK_RADIUS_M = {
 CHEST_RADIUS_M = 0.8
 # 스폰 캡슐이 상자에 끼지 않고, 나오자마자 상자를 여는 일이 없게 스폰에서 떨어뜨린다.
 MIN_CHEST_SPAWN_GAP_M = 4.0
+# 몬스터 생성기(언리얼 BP_BugSpawner)에서 생겨난 몬스터가 바닥에서 차지하는 반지름(m). 소품·상자에 끼지 않게 한다.
+MONSTER_RADIUS_M = 1.0
+# 되살아나자마자 몬스터에게 맞지 않게 스폰에서 떨어뜨린다. 콜로세움은 가장 가까운 생성기가 시작점에서 12.7m다.
+MIN_MONSTER_SPAWN_GAP_M = 10.0
+# 몬스터가 한곳에 뭉치지 않게 생성기끼리 띄운다. 콜로세움 생성기 간격(8.2~16.4m)에 맞춘다.
+MIN_MONSTER_SPACING_M = 8.0
 
 DIRECTIONS = {"E": (1, 0), "W": (-1, 0), "N": (0, 1), "S": (0, -1)}
 OPPOSITE = {"E": "W", "W": "E", "N": "S", "S": "N"}
@@ -166,6 +172,10 @@ class MapPlan:
     @property
     def chests(self):
         return self.data.get("chests", [])
+
+    @property
+    def monsters(self):
+        return self.data.get("monsters", [])
 
     def cell(self, ix, iy):
         return self.cells.get((ix, iy))
@@ -452,32 +462,71 @@ def _check_water_exits(plan, issues):
             issues.append(Issue("error", "water", f"section near {sorted(group)[0]} has no exit stairs"))
 
 
-def _check_chests(plan, issues):
-    """보상 상자가 걸어서 닿는 평지에 있고, 소품·스폰·계단과 다리의 출입구를 막지 않는지 본다."""
+def _reached_from_first_spawn(plan):
     spawn_keys = [(math.floor(spawn["at"][0]), math.floor(spawn["at"][1])) for spawn in plan.spawns]
     start = next((key for key in spawn_keys if plan.cell(*key) and plan.cell(*key).walkable), None)
-    reached = plan.reachable_from(start) if start else set()
+    return plan.reachable_from(start) if start else set()
+
+
+def _check_open_ground(plan, label, at, radius_m, reached, issues):
+    """놓을 자리가 걸어서 닿는 평지이고 소품과 겹치지 않는지 본다. 평지가 아니면 나머지 검사를 건너뛰게 False를 준다."""
+    key = (math.floor(at[0]), math.floor(at[1]))
+    cell = plan.cell(*key)
+    if cell is None or not cell.walkable or cell.link:
+        issues.append(Issue("error", label, "is not on open walkable ground"))
+        return False
+    if key not in reached:
+        issues.append(Issue("error", label, "cannot be reached on foot from the first spawn"))
+    for prop in plan.props:
+        gap = math.dist(at, prop["at"]) - PROP_BLOCK_RADIUS_M[prop["kit"]]
+        if gap < radius_m:
+            issues.append(Issue("error", label, f"overlaps the {prop['kit']} at {prop['at']}"))
+    return True
+
+
+def _check_chests(plan, issues):
+    """보상 상자가 걸어서 닿는 평지에 있고, 소품·스폰·계단과 다리의 출입구를 막지 않는지 본다."""
+    reached = _reached_from_first_spawn(plan)
     approaches = _link_approach_cells(plan)
     for index, chest in enumerate(plan.chests):
         label = f"chest {index} at {chest['at']}"
-        key = (math.floor(chest["at"][0]), math.floor(chest["at"][1]))
-        cell = plan.cell(*key)
-        if cell is None or not cell.walkable or cell.link:
-            issues.append(Issue("error", label, "is not on open walkable ground"))
+        if not _check_open_ground(plan, label, chest["at"], CHEST_RADIUS_M, reached, issues):
             continue
-        if key not in reached:
-            issues.append(Issue("error", label, "cannot be reached on foot from the first spawn"))
+        key = (math.floor(chest["at"][0]), math.floor(chest["at"][1]))
         if key in approaches:
             link = approaches[key]
             issues.append(Issue("error", label, f"blocks the way in to {link.kind} {link.id}"))
-        for prop in plan.props:
-            gap = math.dist(chest["at"], prop["at"]) - PROP_BLOCK_RADIUS_M[prop["kit"]]
-            if gap < CHEST_RADIUS_M:
-                issues.append(Issue("error", label, f"overlaps the {prop['kit']} at {prop['at']}"))
         for spawn in plan.spawns:
             gap = math.dist(chest["at"], spawn["at"])
             if gap < MIN_CHEST_SPAWN_GAP_M:
                 issues.append(Issue("error", label, f"is only {gap:.1f} m from {spawn['tag']}"))
+
+
+def _check_monsters(plan, issues):
+    """몬스터 생성기가 걸어서 닿는 평지에 있고, 스폰에서 떨어져 있고, 서로 뭉치지 않는지 본다.
+
+    몬스터는 경험치, 소울 더스트, 물약을 주므로 게임 맵에는 꼭 있어야 한다.
+    """
+    if not plan.monsters:
+        issues.append(Issue("error", "monsters", "the plan has no monster spawners"))
+        return
+    reached = _reached_from_first_spawn(plan)
+    for index, monster in enumerate(plan.monsters):
+        label = f"monster {index} at {monster['at']}"
+        if not _check_open_ground(plan, label, monster["at"], MONSTER_RADIUS_M, reached, issues):
+            continue
+        for chest in plan.chests:
+            gap = math.dist(monster["at"], chest["at"])
+            if gap < MONSTER_RADIUS_M + CHEST_RADIUS_M:
+                issues.append(Issue("error", label, f"overlaps the chest at {chest['at']}"))
+        for spawn in plan.spawns:
+            gap = math.dist(monster["at"], spawn["at"])
+            if gap < MIN_MONSTER_SPAWN_GAP_M:
+                issues.append(Issue("error", label, f"is only {gap:.1f} m from {spawn['tag']}"))
+        for other_index, other in enumerate(plan.monsters[index + 1:], start=index + 1):
+            gap = math.dist(monster["at"], other["at"])
+            if gap < MIN_MONSTER_SPACING_M:
+                issues.append(Issue("warning", label, f"is only {gap:.1f} m from monster {other_index}"))
 
 
 def validate(plan) -> list:
@@ -489,6 +538,7 @@ def validate(plan) -> list:
     _check_spawns_and_routes(plan, issues)
     _check_water_exits(plan, issues)
     _check_chests(plan, issues)
+    _check_monsters(plan, issues)
     return issues
 
 

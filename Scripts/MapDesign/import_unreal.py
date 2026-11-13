@@ -17,10 +17,12 @@ GENERATED_TAG = "MapDesign"
 LEVEL_SETTINGS_TEMPLATE = "/Game/Map/LV_TrainingRoom"
 CM_PER_M = 100.0
 
-# 캡슐 반높이보다 조금 높게 놓아 스폰이 바닥에 끼지 않게 한다.
+# 캡슐 반높이보다 조금 높게 놓아 스폰과 몬스터가 바닥에 끼지 않게 한다. 몬스터 생성기는 제 자리에 그대로 몬스터를 만든다.
 SPAWN_HEIGHT_CM = 100.0
 # 보상 상자는 다른 맵과 같은 블루프린트다. 보상은 블루프린트 기본값(DA_Reward)이다.
 REWARD_CHEST_CLASS = "/Game/Env/BP_RewardChest.BP_RewardChest_C"
+# 몬스터 생성기도 콜로세움·마을·바람 둥지와 같은 블루프린트다. 몬스터 종류, 되살아나는 시간, 추적 범위는 블루프린트 기본값이다.
+MONSTER_SPAWNER_CLASS = "/Game/StackOBot/AI/BP_BugSpawner.BP_BugSpawner_C"
 # 맵 경계를 벗어난 캐릭터를 Respawn 시작점에서 되살리는 구(AOutOfBoundsVolume). 다른 맵의 BP_RespawnTrigger는
 # 정해 둔 한 좌표로 순간이동시키므로 새 맵에서는 쓰지 않는다.
 OUT_OF_BOUNDS_CLASS = "/Game/Env/BP_OutOfBoundsVolume.BP_OutOfBoundsVolume_C"
@@ -373,6 +375,17 @@ def place_chests(actors, manifest):
         tag(actors.spawn_actor_from_class(chest_class, to_unreal((x, y, chest["z"])), rotation), f"Chest_{index}")
 
 
+def place_monsters(actors, manifest):
+    """몬스터 생성기. 도면 검사가 자리(평지, 스폰과 다른 생성기와의 거리)를 확인했다. 높이는 도면의 땅 높이다."""
+    spawner_class = unreal.load_class(None, MONSTER_SPAWNER_CLASS)
+    for index, monster in enumerate(manifest.get("monsters", [])):
+        x, y = monster["at"]
+        location = to_unreal((x, y, monster["z"]))
+        location.z += SPAWN_HEIGHT_CM
+        rotation = unreal.Rotator(0.0, 0.0, to_unreal_yaw(monster["yaw"]))
+        tag(actors.spawn_actor_from_class(spawner_class, location, rotation), f"Monster_{index}")
+
+
 def place_out_of_bounds(actors, manifest):
     """경계 구. 막는 벽을 넘거나 바닥을 뚫고 떨어져 구 밖으로 나가면 Respawn 시작점에서 되살아난다."""
     width, depth = manifest["bounds"]
@@ -485,6 +498,7 @@ def main():
     heights = ground_heights(manifest)
     place_spawns(actors, manifest, lambda index: heights[index])
     place_chests(actors, manifest)
+    place_monsters(actors, manifest)
     place_out_of_bounds(actors, manifest)
     place_lighting(actors)
     place_navigation(actors, manifest["bounds"])
