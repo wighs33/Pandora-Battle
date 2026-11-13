@@ -30,10 +30,6 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "!Monster|Locomotion", meta = (ClampMin = "0.0", ForceUnits = "cm/s"))
 	float TurnInPlaceSpeed = 0.0f;
 
-	/** 이동 자세에서 아래턱에 더할 회전(부모 뼈 기준). 원본 애니메이션이 늘 입을 벌리고 있는 몬스터의 입을 닫는다. 공격 몽타주에는 적용하지 않는다. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Monster|Locomotion")
-	FRotator JawCloseRotation = FRotator::ZeroRotator;
-
 	/** 머리가 바라볼 곳(메시 컴포넌트 공간 = Control Rig 전역 공간). 공격 대상의 위치를 부드럽게 따라간다. */
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "!Monster|ControlRig")
 	FVector LookAtLocation = FVector::ZeroVector;
