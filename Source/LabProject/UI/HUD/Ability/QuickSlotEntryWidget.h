@@ -68,6 +68,13 @@ private:
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> QuantityTextBlock;
 
+	/** 칸 아래 개수 띠. 소모품 칸에만 보이고 몸짓 칸에서는 접힌다. */
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UImage> Img_CountBand;
+
+	/** 몸짓 칸인가(SetGestureSlotData로 채웠는가). 몸짓이 비어 있어도 몸짓 칸이다. */
+	bool bGestureSlot = false;
+
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UImage> KeyIcon;
 

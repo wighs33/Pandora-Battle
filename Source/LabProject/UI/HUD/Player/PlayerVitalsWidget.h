@@ -71,10 +71,6 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Player Vitals")
 	TObjectPtr<UTextBlock> HealthMaxValue;
 
-	/** 보호막("+20"). 보호막이 없으면 접힌다. */
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Player Vitals")
-	TObjectPtr<UTextBlock> ShieldValue;
-
 	/** 레벨이 오르면 튀어 오르는 레벨 표시 묶음. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!UI|Player Vitals")
 	TObjectPtr<UWidget> LevelBadge;

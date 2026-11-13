@@ -32,6 +32,7 @@ void UQuickSlotEntryWidget::SetQuickSlotData(const int32 InSlotIndex, UItemInsta
 	SlotIndex = FMath::Max(0, InSlotIndex);
 	ItemInstance = InItemInstance;
 	SkinDefinition = nullptr;
+	bGestureSlot = false;
 	RefreshVisual();
 }
 
@@ -40,6 +41,7 @@ void UQuickSlotEntryWidget::SetGestureSlotData(const int32 InSlotIndex, const US
 	SlotIndex = FMath::Max(0, InSlotIndex);
 	ItemInstance = nullptr;
 	SkinDefinition = InSkinDefinition;
+	bGestureSlot = true;
 	RefreshVisual();
 }
 
@@ -66,6 +68,12 @@ void UQuickSlotEntryWidget::ApplyItemVisual()
 		const bool bShowQuantity = ItemInstance && ViewData.HasContent() && ViewData.Quantity > 0;
 		QuantityTextBlock->SetText(bShowQuantity ? FText::AsNumber(ViewData.Quantity) : FText::GetEmpty());
 		QuantityTextBlock->SetVisibility(bShowQuantity ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Hidden);
+	}
+
+	if (Img_CountBand)
+	{
+		// 개수 띠는 소모품 칸에만(비어 있어도). 몸짓 칸은 개수가 없어 띠도 없다.
+		Img_CountBand->SetVisibility(bGestureSlot ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
 	}
 }
 

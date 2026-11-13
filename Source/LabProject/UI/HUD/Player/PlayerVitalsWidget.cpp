@@ -261,12 +261,8 @@ void UPlayerVitalsWidget::RefreshResourceReadouts()
 	// 체력 숫자는 굴러가며 바뀌므로 WriteHealthText가 따로 쓴다.
 	SetValue(TEXT("ManaValue"), UBasicAttributeSet::GetManaAttribute(), UBasicAttributeSet::GetMaxManaAttribute());
 	SetValue(TEXT("StaminaValue"), UBasicAttributeSet::GetStaminaAttribute(), UBasicAttributeSet::GetMaxStaminaAttribute());
-	if (ShieldValue)
-	{
-		const int32 Shield = FMath::Max(0, FMath::RoundToInt(BoundAbilitySystemComponent->GetNumericAttribute(UBasicAttributeSet::GetShieldAttribute())));
-		ShieldValue->SetText(FText::Format(INVTEXT("+{0}"), FText::AsNumber(Shield)));
-		ShieldValue->SetVisibility(Shield > 0 ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
-	}
+	// 보호막은 이름을 단 자기 줄에 늘 "현재 / 최대"로 보인다(예전 HUD처럼, 2026-11-13).
+	SetValue(TEXT("ShieldValue"), UBasicAttributeSet::GetShieldAttribute(), UBasicAttributeSet::GetMaxShieldAttribute());
 	if (UTextBlock* Text = Cast<UTextBlock>(GetWidgetFromName(TEXT("LevelValue"))))
 	{
 		Text->SetText(Number(UBasicAttributeSet::GetLevelAttribute()));
