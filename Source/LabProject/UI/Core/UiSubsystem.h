@@ -87,6 +87,8 @@ private:
 	bool BindStatusViewModelToWidget(UUserWidget* InWidget);
 
 	APlayerController* GetLocalPlayerController() const;
+	/** 화면 루트가 이 월드의 화면으로 뷰포트에 떠 있는지. 아니면 PushScreen이 루트를 새로 만든다. */
+	bool IsScreenRootShownIn(const UWorld* World) const;
 
 	void ReleaseConfiguredWidgetDefinitionPreload();
 

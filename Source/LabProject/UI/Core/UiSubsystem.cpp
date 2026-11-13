@@ -407,7 +407,7 @@ void UUiSubsystem::PushScreen(UCommonActivatableWidget* Screen, EUiScreenLayer L
 	{
 		return;
 	}
-	if (!ScreenRoot || ScreenRoot->GetWorld() != Controller->GetWorld())
+	if (!IsScreenRootShownIn(Controller->GetWorld()))
 	{
 		if (ScreenRoot)
 		{
@@ -485,8 +485,14 @@ void UUiSubsystem::OpenGameSettings(UUserWidget* OwnerMenu)
 
 bool UUiSubsystem::HasActiveScreen(const UWorld* World) const
 {
-	return ScreenRoot && ScreenRoot->GetWorld() == World && ScreenRoot->ScreenStack
-		&& ScreenRoot->ScreenStack->GetActiveWidget();
+	return IsScreenRootShownIn(World) && ScreenRoot->ScreenStack && ScreenRoot->ScreenStack->GetActiveWidget();
+}
+
+// 월드가 정리되면 뷰포트가 그 월드의 루트를 내리고 Slate를 해제한다. 그 루트에 넣은 화면은 활성화되지 않는다.
+// 정리된 월드를 잃은 루트의 GetWorld()는 로컬 플레이어의 현재 월드로 다시 잡히므로, 월드 비교만으로는 가려낼 수 없다.
+bool UUiSubsystem::IsScreenRootShownIn(const UWorld* World) const
+{
+	return ScreenRoot && ScreenRoot->IsInViewport() && ScreenRoot->GetWorld() == World;
 }
 
 bool UUiSubsystem::CloseGameSettings(const UUserWidget* ExpectedOwner)

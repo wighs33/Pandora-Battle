@@ -10,7 +10,7 @@
       3. -game 프로세스: 훈련장 게임 월드의 입력·UI·장비·전투 연결 테스트(LabProject.Integration.TrainingRoom.*),
          보스 레이드 월드의 월드 보스 피해·HUD 연결 테스트(LabProject.Integration.BossRaid.*),
          언어를 바꾸면 메뉴 문구와 애셋 텍스트가 함께 바뀌는지 보는 다국어 테스트(LabProject.Integration.Localization.*),
-         타이틀 메뉴·방 목록·로비 화면이 뜨고 닫히는지 보는 화면 테스트(LabProject.Integration.Screens.*)
+         타이틀 메뉴·방 목록·로비 화면이 뜨고 닫히는지, 로비에서 경기 맵으로 넘어가는지 보는 화면 테스트(LabProject.Integration.Screens.*)
          CommonUI는 가장 위에 그려진 화면에 입력을 주므로, 이 단계는 화면을 실제로 그리도록 창 없이 렌더링한다.
 
     단계마다 ReportDir 아래에 엔진 리포트(index.json)와 로그를 남긴다.

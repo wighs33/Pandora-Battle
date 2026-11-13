@@ -14,6 +14,7 @@
 #include "Definition/Level/LevelDefinition.h"
 #include "Framework/Application/SlateApplication.h"
 #include "GameFramework/HUD.h"
+#include "Lobby/Contents/LobbyGameMode.h"
 #include "Lobby/Contents/LobbyGameState.h"
 #include "Localization/MenuLocalizationSubsystem.h"
 #include "Luna/LunaChatSubsystem.h"
@@ -121,6 +122,19 @@ namespace
 	void OpenTitle(FAutomationTestBase* Test)
 	{
 		OpenMenuMap<UTitleWidget>(Test, IntegrationTest::TitleMap, []() { UGameplayStatics::OpenLevel(IntegrationTest::GetGameWorld(), FName(*IntegrationTest::TitleMap)); });
+	}
+
+	/** 방장으로 로비를 연다. */
+	void OpenHostedLobby(FAutomationTestBase* Test)
+	{
+		OpenMenuMap<ULobbyWidget>(Test, LobbyMap, []()
+		{
+			const UWorld* World = IntegrationTest::GetGameWorld();
+			if (const UOnlineSessionsSubsystem* Sessions = World ? World->GetGameInstance()->GetSubsystem<UOnlineSessionsSubsystem>() : nullptr)
+			{
+				Sessions->TravelToListenMap(LobbyMap);
+			}
+		});
 	}
 
 	/** 타이틀 HUD에서 Luna의 몸 자세를 따르는 메시, 곧 옷 메시 */
@@ -294,14 +308,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPdRoomAndLobbyScreensTest, "LabProject.Integra
 bool FPdRoomAndLobbyScreensTest::RunTest(const FString& Parameters)
 {
 	OpenMenuMap<URoomListWidget>(this, RoomMap, []() { UGameplayStatics::OpenLevel(IntegrationTest::GetGameWorld(), FName(*RoomMap)); });
-	OpenMenuMap<ULobbyWidget>(this, LobbyMap, []()
-	{
-		const UWorld* World = IntegrationTest::GetGameWorld();
-		if (const UOnlineSessionsSubsystem* Sessions = World ? World->GetGameInstance()->GetSubsystem<UOnlineSessionsSubsystem>() : nullptr)
-		{
-			Sessions->TravelToListenMap(LobbyMap);
-		}
-	});
+	OpenHostedLobby(this);
 	IntegrationTest::Step(0.5f, [this]()
 	{
 		const UWorld* World = IntegrationTest::GetGameWorld();
@@ -328,6 +335,78 @@ bool FPdRoomAndLobbyScreensTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("고른 맵의 정원만큼 자리가 보인다"), Seats, MapOption.MaxPlayerCount);
 		TestEqual(TEXT("나 말고는 빈 자리다"), EmptySeats, MapOption.MaxPlayerCount - 1);
 	});
+	OpenTitle(this);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPdLobbyStartTravelTest, "LabProject.Integration.Screens.LobbyStartTravel",
+	EAutomationTestFlags::ClientContext | EAutomationTestFlags::EngineFilter)
+
+// 방을 만들어 혼자 연 로비에서 시작하면 고른 경기 맵으로 seamless travel하고, 경기 화면이 뜬 것을 보고 로딩 화면이 내려간다.
+// 이동 중에 로비 월드가 정리되면 화면 루트도 뷰포트에서 빠진다. 로딩 팝업은 새 루트에 다시 올라가야 하고,
+// 빠진 루트를 다시 쓰면 팝업이 활성화되지 못한 채 같은 스택에 두 번 들어가 CommonUI ensure가 오류로 남는다.
+bool FPdLobbyStartTravelTest::RunTest(const FString& Parameters)
+{
+	const auto GetSessions = []()
+	{
+		const UWorld* World = IntegrationTest::GetGameWorld();
+		return World ? World->GetGameInstance()->GetSubsystem<UOnlineSessionsSubsystem>() : nullptr;
+	};
+	const auto IsSessionSettled = [GetSessions](const bool bExpectSession)
+	{
+		const UOnlineSessionsSubsystem* Sessions = GetSessions();
+		return Sessions && Sessions->HasNamedSession() == bExpectSession && !Sessions->IsSessionLifecyclePending();
+	};
+
+	// 경기 시작은 방 세션을 시작한 뒤에 이동하므로, 방 만들기 팝업처럼 세션부터 만든다.
+	IntegrationTest::Step(0.f, [this, GetSessions]()
+	{
+		UOnlineSessionsSubsystem* Sessions = GetSessions();
+		const UWorld* World = IntegrationTest::GetGameWorld();
+		TestTrue(TEXT("방 세션 만들기 시작"), Sessions && Sessions->BeginCreateRoomSession(
+			World->GetFirstLocalPlayerFromController(), TEXT("Integration"), TEXT("Lobby"), PdGameSession::MaxPlayerCount, true) != 0);
+	});
+	IntegrationTest::WaitUntil(this, TEXT("방 세션 만들기"), 30.f, [IsSessionSettled]() { return IsSessionSettled(true); });
+	OpenHostedLobby(this);
+	IntegrationTest::WaitUntil(this, TEXT("방장 시작 조건"), 30.f, []()
+	{
+		const UWorld* World = IntegrationTest::GetGameWorld();
+		const ALobbyGameMode* Lobby = World ? World->GetAuthGameMode<ALobbyGameMode>() : nullptr;
+		return Lobby && Lobby->CanHostStartGame();
+	});
+
+	TSharedRef<FString> MatchMap = MakeShared<FString>();
+	IntegrationTest::Step(0.f, [this, MatchMap]()
+	{
+		const UWorld* World = IntegrationTest::GetGameWorld();
+		ALobbyGameMode* Lobby = World ? World->GetAuthGameMode<ALobbyGameMode>() : nullptr;
+		const ALobbyGameState* LobbyState = World ? World->GetGameState<ALobbyGameState>() : nullptr;
+		const ULevelDefinition* Levels = ULevelDefinition::ResolveDefaultDefinition();
+		FLobbyMatchMapOption MapOption;
+		if (!TestNotNull(TEXT("로비 게임 모드"), Lobby) || !TestNotNull(TEXT("대기실 상태"), LobbyState)
+			|| !TestTrue(TEXT("고른 맵이 맵 목록에 있다"), Levels && Levels->FindIngameLevel(LobbyState->GetSelectedMapKey(), MapOption)))
+		{
+			return;
+		}
+		*MatchMap = MapOption.Map.ToSoftObjectPath().GetLongPackageName();
+		Lobby->TryStartGame();
+	});
+	IntegrationTest::WaitUntil(this, TEXT("경기 맵에 도착해 로딩 화면 내리기"), 120.f, [MatchMap]()
+	{
+		const UWorld* World = IntegrationTest::GetGameWorld();
+		return MatchMap->IsEmpty()
+			|| (World && World->GetOutermost()->GetName() == *MatchMap && !World->IsInSeamlessTravel() && !IsLoadingScreenUp());
+	});
+
+	// 다음 테스트가 새 방을 만들 수 있게 세션을 닫고 타이틀로 돌아간다.
+	IntegrationTest::Step(0.5f, [GetSessions]()
+	{
+		if (UOnlineSessionsSubsystem* Sessions = GetSessions())
+		{
+			Sessions->DestroySession();
+		}
+	});
+	IntegrationTest::WaitUntil(this, TEXT("방 세션 닫기"), 30.f, [IsSessionSettled]() { return IsSessionSettled(false); });
 	OpenTitle(this);
 	return true;
 }
