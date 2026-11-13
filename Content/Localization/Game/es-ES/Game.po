@@ -4,8 +4,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: Game\n"
-"POT-Creation-Date: 2026-11-09 15:58\n"
-"PO-Revision-Date: 2026-11-09 15:58\n"
+"POT-Creation-Date: 2026-11-13 10:43\n"
+"PO-Revision-Date: 2026-11-13 10:43\n"
 "Language-Team: \n"
 "Language: es-ES\n"
 "MIME-Version: 1.0\n"
@@ -3681,6 +3681,13 @@ msgctxt "MenuText,Lobby.EmptySeat"
 msgid "Empty seat"
 msgstr "Plaza libre"
 
+#. Key:	Lobby.EnterPlayground
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Lobby.EnterPlayground"
+msgid "Enter playground"
+msgstr "Entrar al patio"
+
 #. Key:	Lobby.Invite
 #. SourceLocation:	UI/Localization/StringTables/MenuText.csv
 #: UI/Localization/StringTables/MenuText.csv
@@ -3729,13 +3736,6 @@ msgstr "Jugadores"
 msgctxt "MenuText,Lobby.PreviousMap"
 msgid "Previous map"
 msgstr "Mapa anterior"
-
-#. Key:	Lobby.Return
-#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
-#: UI/Localization/StringTables/MenuText.csv
-msgctxt "MenuText,Lobby.Return"
-msgid "Return to lobby"
-msgstr "Volver a la sala"
 
 #. Key:	Lobby.Start
 #. SourceLocation:	UI/Localization/StringTables/MenuText.csv
@@ -4416,12 +4416,54 @@ msgctxt "MenuText,Settings.BotWeaponHint"
 msgid "Choose the weapon the training bot uses"
 msgstr "Elige el arma del bot de entrenamiento"
 
+#. Key:	Settings.Display
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Settings.Display"
+msgid "Display"
+msgstr "Pantalla"
+
+#. Key:	Settings.FrameRate.Unlimited
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Settings.FrameRate.Unlimited"
+msgid "Unlimited"
+msgstr "Sin límite"
+
+#. Key:	Settings.FrameRateLimit
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Settings.FrameRateLimit"
+msgid "Frame rate limit"
+msgstr "Límite de FPS"
+
+#. Key:	Settings.FrameRateLimitHint
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Settings.FrameRateLimitHint"
+msgid "A lower limit reduces power use and heat"
+msgstr "Un límite más bajo reduce el consumo y el calor"
+
 #. Key:	Settings.General
 #. SourceLocation:	UI/Localization/StringTables/MenuText.csv
 #: UI/Localization/StringTables/MenuText.csv
 msgctxt "MenuText,Settings.General"
 msgid "General"
 msgstr "General"
+
+#. Key:	Settings.GraphicsQuality
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Settings.GraphicsQuality"
+msgid "Graphics quality"
+msgstr "Calidad gráfica"
+
+#. Key:	Settings.GraphicsQualityHint
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Settings.GraphicsQualityHint"
+msgid "Lower settings reduce the load on your PC"
+msgstr "Reducirla alivia la carga del PC"
 
 #. Key:	Settings.Hint
 #. SourceLocation:	UI/Localization/StringTables/MenuText.csv
@@ -4458,12 +4500,89 @@ msgctxt "MenuText,Settings.MouseSensitivityHint"
 msgid "Adjust how fast the mouse turns the camera"
 msgstr "Ajusta la velocidad con la que el ratón gira la cámara"
 
+#. Key:	Settings.Quality.High
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Settings.Quality.High"
+msgid "High"
+msgstr "Alta"
+
+#. Key:	Settings.Quality.Highest
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Settings.Quality.Highest"
+msgid "Highest"
+msgstr "Máxima"
+
+#. Key:	Settings.Quality.Low
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Settings.Quality.Low"
+msgid "Low"
+msgstr "Baja"
+
+#. Key:	Settings.Quality.Medium
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Settings.Quality.Medium"
+msgid "Medium"
+msgstr "Media"
+
+#. Key:	Settings.Resolution
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Settings.Resolution"
+msgid "Resolution"
+msgstr "Resolución"
+
+#. Key:	Settings.ResolutionHint
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Settings.ResolutionHint"
+msgid "Borderless window always uses your desktop size"
+msgstr "La ventana sin bordes usa siempre la resolución del escritorio"
+
 #. Key:	Settings.SaveFailed
 #. SourceLocation:	UI/Localization/StringTables/MenuText.csv
 #: UI/Localization/StringTables/MenuText.csv
 msgctxt "MenuText,Settings.SaveFailed"
 msgid "Language applied, but saving failed. Select it again to retry."
 msgstr "Idioma aplicado, pero no guardado. Selecciónalo de nuevo."
+
+#. Key:	Settings.WindowMode
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Settings.WindowMode"
+msgid "Screen mode"
+msgstr "Modo de pantalla"
+
+#. Key:	Settings.WindowMode.Borderless
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Settings.WindowMode.Borderless"
+msgid "Borderless window"
+msgstr "Ventana sin bordes"
+
+#. Key:	Settings.WindowMode.Fullscreen
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Settings.WindowMode.Fullscreen"
+msgid "Fullscreen"
+msgstr "Pantalla completa"
+
+#. Key:	Settings.WindowMode.Windowed
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Settings.WindowMode.Windowed"
+msgid "Windowed"
+msgstr "Ventana"
+
+#. Key:	Settings.WindowModeHint
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Settings.WindowModeHint"
+msgid "Choose how the game window is shown"
+msgstr "Define cómo se muestra la ventana del juego"
 
 #. Key:	Shop.AlreadyOwned
 #. SourceLocation:	UI/Localization/StringTables/MenuText.csv

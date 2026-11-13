@@ -4,8 +4,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: Game\n"
-"POT-Creation-Date: 2026-11-09 15:58\n"
-"PO-Revision-Date: 2026-11-09 15:58\n"
+"POT-Creation-Date: 2026-11-13 10:43\n"
+"PO-Revision-Date: 2026-11-13 10:43\n"
 "Language-Team: \n"
 "Language: ko\n"
 "MIME-Version: 1.0\n"
@@ -3681,6 +3681,13 @@ msgctxt "MenuText,Lobby.EmptySeat"
 msgid "Empty seat"
 msgstr "빈 자리"
 
+#. Key:	Lobby.EnterPlayground
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Lobby.EnterPlayground"
+msgid "Enter playground"
+msgstr "운동장 입장"
+
 #. Key:	Lobby.Invite
 #. SourceLocation:	UI/Localization/StringTables/MenuText.csv
 #: UI/Localization/StringTables/MenuText.csv
@@ -3729,13 +3736,6 @@ msgstr "참가자"
 msgctxt "MenuText,Lobby.PreviousMap"
 msgid "Previous map"
 msgstr "이전 맵"
-
-#. Key:	Lobby.Return
-#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
-#: UI/Localization/StringTables/MenuText.csv
-msgctxt "MenuText,Lobby.Return"
-msgid "Return to lobby"
-msgstr "로비로 돌아가기"
 
 #. Key:	Lobby.Start
 #. SourceLocation:	UI/Localization/StringTables/MenuText.csv
@@ -4416,12 +4416,54 @@ msgctxt "MenuText,Settings.BotWeaponHint"
 msgid "Choose the weapon the training bot uses"
 msgstr "훈련 봇이 들 무기를 고릅니다"
 
+#. Key:	Settings.Display
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Settings.Display"
+msgid "Display"
+msgstr "화면"
+
+#. Key:	Settings.FrameRate.Unlimited
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Settings.FrameRate.Unlimited"
+msgid "Unlimited"
+msgstr "무제한"
+
+#. Key:	Settings.FrameRateLimit
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Settings.FrameRateLimit"
+msgid "Frame rate limit"
+msgstr "프레임 제한"
+
+#. Key:	Settings.FrameRateLimitHint
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Settings.FrameRateLimitHint"
+msgid "A lower limit reduces power use and heat"
+msgstr "낮출수록 전력 사용과 발열이 줄어듭니다"
+
 #. Key:	Settings.General
 #. SourceLocation:	UI/Localization/StringTables/MenuText.csv
 #: UI/Localization/StringTables/MenuText.csv
 msgctxt "MenuText,Settings.General"
 msgid "General"
 msgstr "일반"
+
+#. Key:	Settings.GraphicsQuality
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Settings.GraphicsQuality"
+msgid "Graphics quality"
+msgstr "그래픽 품질"
+
+#. Key:	Settings.GraphicsQualityHint
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Settings.GraphicsQualityHint"
+msgid "Lower settings reduce the load on your PC"
+msgstr "낮출수록 PC 부담이 줄어듭니다"
 
 #. Key:	Settings.Hint
 #. SourceLocation:	UI/Localization/StringTables/MenuText.csv
@@ -4458,12 +4500,89 @@ msgctxt "MenuText,Settings.MouseSensitivityHint"
 msgid "Adjust how fast the mouse turns the camera"
 msgstr "마우스로 시점을 돌리는 속도를 조절합니다"
 
+#. Key:	Settings.Quality.High
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Settings.Quality.High"
+msgid "High"
+msgstr "높음"
+
+#. Key:	Settings.Quality.Highest
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Settings.Quality.Highest"
+msgid "Highest"
+msgstr "최고"
+
+#. Key:	Settings.Quality.Low
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Settings.Quality.Low"
+msgid "Low"
+msgstr "낮음"
+
+#. Key:	Settings.Quality.Medium
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Settings.Quality.Medium"
+msgid "Medium"
+msgstr "보통"
+
+#. Key:	Settings.Resolution
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Settings.Resolution"
+msgid "Resolution"
+msgstr "해상도"
+
+#. Key:	Settings.ResolutionHint
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Settings.ResolutionHint"
+msgid "Borderless window always uses your desktop size"
+msgstr "창 전체 화면은 늘 바탕화면 해상도를 씁니다"
+
 #. Key:	Settings.SaveFailed
 #. SourceLocation:	UI/Localization/StringTables/MenuText.csv
 #: UI/Localization/StringTables/MenuText.csv
 msgctxt "MenuText,Settings.SaveFailed"
 msgid "Language applied, but saving failed. Select it again to retry."
 msgstr "언어를 적용했지만 저장하지 못했습니다. 다시 선택해 주세요."
+
+#. Key:	Settings.WindowMode
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Settings.WindowMode"
+msgid "Screen mode"
+msgstr "화면 모드"
+
+#. Key:	Settings.WindowMode.Borderless
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Settings.WindowMode.Borderless"
+msgid "Borderless window"
+msgstr "창 전체 화면"
+
+#. Key:	Settings.WindowMode.Fullscreen
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Settings.WindowMode.Fullscreen"
+msgid "Fullscreen"
+msgstr "전체 화면"
+
+#. Key:	Settings.WindowMode.Windowed
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Settings.WindowMode.Windowed"
+msgid "Windowed"
+msgstr "창 모드"
+
+#. Key:	Settings.WindowModeHint
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Settings.WindowModeHint"
+msgid "Choose how the game window is shown"
+msgstr "게임 화면을 띄우는 방식을 정합니다"
 
 #. Key:	Shop.AlreadyOwned
 #. SourceLocation:	UI/Localization/StringTables/MenuText.csv

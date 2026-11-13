@@ -4,8 +4,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: Game\n"
-"POT-Creation-Date: 2026-11-09 15:58\n"
-"PO-Revision-Date: 2026-11-09 15:58\n"
+"POT-Creation-Date: 2026-11-13 10:43\n"
+"PO-Revision-Date: 2026-11-13 10:43\n"
 "Language-Team: \n"
 "Language: ja\n"
 "MIME-Version: 1.0\n"
@@ -3681,6 +3681,13 @@ msgctxt "MenuText,Lobby.EmptySeat"
 msgid "Empty seat"
 msgstr "空き席"
 
+#. Key:	Lobby.EnterPlayground
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Lobby.EnterPlayground"
+msgid "Enter playground"
+msgstr "運動場へ入場"
+
 #. Key:	Lobby.Invite
 #. SourceLocation:	UI/Localization/StringTables/MenuText.csv
 #: UI/Localization/StringTables/MenuText.csv
@@ -3729,13 +3736,6 @@ msgstr "参加者"
 msgctxt "MenuText,Lobby.PreviousMap"
 msgid "Previous map"
 msgstr "前のマップ"
-
-#. Key:	Lobby.Return
-#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
-#: UI/Localization/StringTables/MenuText.csv
-msgctxt "MenuText,Lobby.Return"
-msgid "Return to lobby"
-msgstr "ロビーに戻る"
 
 #. Key:	Lobby.Start
 #. SourceLocation:	UI/Localization/StringTables/MenuText.csv
@@ -4416,12 +4416,54 @@ msgctxt "MenuText,Settings.BotWeaponHint"
 msgid "Choose the weapon the training bot uses"
 msgstr "トレーニングボットが使う武器を選びます"
 
+#. Key:	Settings.Display
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Settings.Display"
+msgid "Display"
+msgstr "画面"
+
+#. Key:	Settings.FrameRate.Unlimited
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Settings.FrameRate.Unlimited"
+msgid "Unlimited"
+msgstr "無制限"
+
+#. Key:	Settings.FrameRateLimit
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Settings.FrameRateLimit"
+msgid "Frame rate limit"
+msgstr "フレームレート上限"
+
+#. Key:	Settings.FrameRateLimitHint
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Settings.FrameRateLimitHint"
+msgid "A lower limit reduces power use and heat"
+msgstr "下げるほど消費電力と発熱が減ります"
+
 #. Key:	Settings.General
 #. SourceLocation:	UI/Localization/StringTables/MenuText.csv
 #: UI/Localization/StringTables/MenuText.csv
 msgctxt "MenuText,Settings.General"
 msgid "General"
 msgstr "一般"
+
+#. Key:	Settings.GraphicsQuality
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Settings.GraphicsQuality"
+msgid "Graphics quality"
+msgstr "グラフィック品質"
+
+#. Key:	Settings.GraphicsQualityHint
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Settings.GraphicsQualityHint"
+msgid "Lower settings reduce the load on your PC"
+msgstr "下げるほどPCの負荷が軽くなります"
 
 #. Key:	Settings.Hint
 #. SourceLocation:	UI/Localization/StringTables/MenuText.csv
@@ -4458,12 +4500,89 @@ msgctxt "MenuText,Settings.MouseSensitivityHint"
 msgid "Adjust how fast the mouse turns the camera"
 msgstr "マウスで視点を回す速さを調整します"
 
+#. Key:	Settings.Quality.High
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Settings.Quality.High"
+msgid "High"
+msgstr "高"
+
+#. Key:	Settings.Quality.Highest
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Settings.Quality.Highest"
+msgid "Highest"
+msgstr "最高"
+
+#. Key:	Settings.Quality.Low
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Settings.Quality.Low"
+msgid "Low"
+msgstr "低"
+
+#. Key:	Settings.Quality.Medium
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Settings.Quality.Medium"
+msgid "Medium"
+msgstr "中"
+
+#. Key:	Settings.Resolution
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Settings.Resolution"
+msgid "Resolution"
+msgstr "解像度"
+
+#. Key:	Settings.ResolutionHint
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Settings.ResolutionHint"
+msgid "Borderless window always uses your desktop size"
+msgstr "ボーダーレスウィンドウは常にデスクトップの解像度を使用"
+
 #. Key:	Settings.SaveFailed
 #. SourceLocation:	UI/Localization/StringTables/MenuText.csv
 #: UI/Localization/StringTables/MenuText.csv
 msgctxt "MenuText,Settings.SaveFailed"
 msgid "Language applied, but saving failed. Select it again to retry."
 msgstr "言語は適用されましたが保存に失敗しました。もう一度選択してください。"
+
+#. Key:	Settings.WindowMode
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Settings.WindowMode"
+msgid "Screen mode"
+msgstr "画面モード"
+
+#. Key:	Settings.WindowMode.Borderless
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Settings.WindowMode.Borderless"
+msgid "Borderless window"
+msgstr "ボーダーレスウィンドウ"
+
+#. Key:	Settings.WindowMode.Fullscreen
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Settings.WindowMode.Fullscreen"
+msgid "Fullscreen"
+msgstr "フルスクリーン"
+
+#. Key:	Settings.WindowMode.Windowed
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Settings.WindowMode.Windowed"
+msgid "Windowed"
+msgstr "ウィンドウ"
+
+#. Key:	Settings.WindowModeHint
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Settings.WindowModeHint"
+msgid "Choose how the game window is shown"
+msgstr "ゲーム画面の表示方法を設定します"
 
 #. Key:	Shop.AlreadyOwned
 #. SourceLocation:	UI/Localization/StringTables/MenuText.csv
