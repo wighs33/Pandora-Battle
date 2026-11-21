@@ -22,14 +22,6 @@ const FAnimNotifyEvent* FindNotifyState(const UAnimMontage& Montage, const UClas
 		return Notify.NotifyStateClass && Notify.NotifyStateClass->IsA(NotifyStateClass);
 	});
 }
-
-FVector GetFeetLocation(const AActor& Actor)
-{
-	float Radius = 0.0f;
-	float HalfHeight = 0.0f;
-	Actor.GetSimpleCollisionCylinder(Radius, HalfHeight);
-	return Actor.GetActorLocation() - FVector(0.0f, 0.0f, HalfHeight);
-}
 }
 
 bool FAttackTelegraphSettings::IsInsideArea(const FTransform& Origin, const FVector& FeetLocation, const float TargetRadius) const
@@ -136,6 +128,14 @@ void AAttackTelegraphActor::ConfigureDecal(UMaterialInterface& Material, const f
 FTransform AAttackTelegraphActor::GetMonsterOrigin(const AActor& Monster)
 {
 	return FTransform(FRotator(0.0f, Monster.GetActorRotation().Yaw, 0.0f), GetFeetLocation(Monster));
+}
+
+FVector AAttackTelegraphActor::GetFeetLocation(const AActor& Actor)
+{
+	float Radius = 0.0f;
+	float HalfHeight = 0.0f;
+	Actor.GetSimpleCollisionCylinder(Radius, HalfHeight);
+	return Actor.GetActorLocation() - FVector(0.0f, 0.0f, HalfHeight);
 }
 
 // 멈출 때까지 대상 발밑을 따라간다.

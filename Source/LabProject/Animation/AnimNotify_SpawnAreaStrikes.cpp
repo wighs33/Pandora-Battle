@@ -1,5 +1,6 @@
 #include "Animation/AnimNotify_SpawnAreaStrikes.h"
 
+#include "AI/Monster/AttackTelegraphActor.h"
 #include "AI/Monster/MonsterAreaStrike.h"
 #include "AI/Monster/MonsterCharacter.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -13,14 +14,6 @@ namespace
 	/** 둘레에 놓을 자리에서 바닥을 찾는 높이 범위. 경기장 계단과 언덕을 넘는 정도다. */
 	constexpr float FloorSearchUp = 500.0f;
 	constexpr float FloorSearchDown = 1500.0f;
-
-	FVector GetFeetLocation(const AActor& Actor)
-	{
-		float Radius = 0.0f;
-		float HalfHeight = 0.0f;
-		Actor.GetSimpleCollisionCylinder(Radius, HalfHeight);
-		return Actor.GetActorLocation() - FVector(0.0f, 0.0f, HalfHeight);
-	}
 
 	TOptional<FVector> FindFloor(const UWorld& World, const FVector& Location, const AActor& IgnoredActor)
 	{
@@ -46,12 +39,12 @@ void UAnimNotify_SpawnAreaStrikes::Notify(USkeletalMeshComponent* MeshComp, UAni
 	}
 
 	TArray<FVector, TInlineAllocator<16>> StrikeLocations;
-	const FVector MonsterFeet = GetFeetLocation(*Monster);
+	const FVector MonsterFeet = AAttackTelegraphActor::GetFeetLocation(*Monster);
 	for (TActorIterator<ACharacterBase> It(World); It; ++It)
 	{
 		if (Monster->IsValidMonsterDamageTarget(*It) && FVector::Dist2D(It->GetActorLocation(), MonsterFeet) <= PlayerSearchRadius)
 		{
-			StrikeLocations.Add(GetFeetLocation(**It));
+			StrikeLocations.Add(AAttackTelegraphActor::GetFeetLocation(**It));
 		}
 	}
 	for (int32 Index = 0; Index < ExtraStrikeCount; ++Index)

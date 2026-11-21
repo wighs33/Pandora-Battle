@@ -80,6 +80,9 @@ public:
 	/** 몬스터 장판이 놓이는 자리: 몬스터 발밑, 몬스터가 보는 방향. 서버의 피해 판정도 이 자리를 기준으로 한다. */
 	static FTransform GetMonsterOrigin(const AActor& Monster);
 
+	/** 액터 충돌 원기둥의 밑면 중심(발밑). 장판과 낙하 공격은 이 높이의 땅에 놓인다. */
+	static FVector GetFeetLocation(const AActor& Actor);
+
 private:
 	/** 데칼 머티리얼과 크기, 채우고 사라지는 시간을 정한다. HalfAngle이 180이면 원이다. */
 	void ConfigureDecal(UMaterialInterface& Material, float Radius, float HalfAngle, double StartTime, float FillSeconds, float EndSeconds);
