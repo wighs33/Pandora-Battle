@@ -4,7 +4,9 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
+#include "Common/GameSessionConstants.h"
 #include "Engine/Engine.h"
+#include "Engine/GameInstance.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
@@ -12,6 +14,7 @@
 #include "InputKeyEventArgs.h"
 #include "Kismet/GameplayStatics.h"
 #include "Misc/AutomationTest.h"
+#include "Online/OnlineSessionsSubsystem.h"
 #include "Tests/AutomationCommon.h"
 
 /**
@@ -22,8 +25,9 @@
  */
 namespace IntegrationTest
 {
-	/** 여러 테스트 파일이 여는 타이틀 맵. 익명 이름공간에 따로 두면 유니티 빌드로 묶일 때 이름이 겹친다. */
+	/** 여러 테스트 파일이 여는 맵. 익명 이름공간에 따로 두면 유니티 빌드로 묶일 때 이름이 겹친다. */
 	inline const FString TitleMap = TEXT("/Game/Map/LV_Title");
+	inline const FString LobbyMap = TEXT("/Game/Map/LV_Lobby");
 
 	inline UWorld* GetGameWorld()
 	{
@@ -126,6 +130,45 @@ namespace IntegrationTest
 	inline void PressKey(const FKey& Key, const bool bPressed)
 	{
 		SendKeyEvent(Key, bPressed ? IE_Pressed : IE_Released);
+	}
+
+	inline UOnlineSessionsSubsystem* GetSessions()
+	{
+		const UWorld* World = GetGameWorld();
+		return World ? World->GetGameInstance()->GetSubsystem<UOnlineSessionsSubsystem>() : nullptr;
+	}
+
+	/** 방 세션이 있는지(bExpectSession) 또는 없는지가 정해졌고, 만들거나 닫는 중이 아니다. */
+	inline bool IsRoomSessionSettled(const bool bExpectSession)
+	{
+		const UOnlineSessionsSubsystem* Sessions = GetSessions();
+		return Sessions && Sessions->HasNamedSession() == bExpectSession && !Sessions->IsSessionLifecyclePending();
+	}
+
+	/** 방 만들기 팝업처럼 방 세션부터 만든다. 대기실의 경기 시작은 방 세션을 시작한 뒤에 이동한다. */
+	inline void CreateRoomSession(FAutomationTestBase* Test)
+	{
+		Step(0.f, [Test]()
+		{
+			UOnlineSessionsSubsystem* Sessions = GetSessions();
+			const UWorld* World = GetGameWorld();
+			Test->TestTrue(TEXT("방 세션 만들기 시작"), Sessions && Sessions->BeginCreateRoomSession(
+				World->GetFirstLocalPlayerFromController(), TEXT("Integration"), TEXT("Lobby"), PdGameSession::MaxPlayerCount, true) != 0);
+		});
+		WaitUntil(Test, TEXT("방 세션 만들기"), 30.f, []() { return IsRoomSessionSettled(true); });
+	}
+
+	/** 다음 테스트가 새 방을 만들 수 있게 방 세션을 닫는다. */
+	inline void DestroyRoomSession(FAutomationTestBase* Test)
+	{
+		Step(0.5f, []()
+		{
+			if (UOnlineSessionsSubsystem* Sessions = GetSessions())
+			{
+				Sessions->DestroySession();
+			}
+		});
+		WaitUntil(Test, TEXT("방 세션 닫기"), 30.f, []() { return IsRoomSessionSettled(false); });
 	}
 }
 

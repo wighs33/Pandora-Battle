@@ -35,7 +35,6 @@
 namespace
 {
 	const FString RoomMap = TEXT("/Game/Map/LV_Room");
-	const FString LobbyMap = TEXT("/Game/Map/LV_Lobby");
 
 	/** 게임 월드에 있는 TScreen 가운데 떠 있는 화면. 닫힌 화면은 다시 열 때 새로 만들어질 수 있어 모두 살펴본다. */
 	template <typename TScreen>
@@ -127,12 +126,11 @@ namespace
 	/** 방장으로 로비를 연다. */
 	void OpenHostedLobby(FAutomationTestBase* Test)
 	{
-		OpenMenuMap<ULobbyWidget>(Test, LobbyMap, []()
+		OpenMenuMap<ULobbyWidget>(Test, IntegrationTest::LobbyMap, []()
 		{
-			const UWorld* World = IntegrationTest::GetGameWorld();
-			if (const UOnlineSessionsSubsystem* Sessions = World ? World->GetGameInstance()->GetSubsystem<UOnlineSessionsSubsystem>() : nullptr)
+			if (const UOnlineSessionsSubsystem* Sessions = IntegrationTest::GetSessions())
 			{
-				Sessions->TravelToListenMap(LobbyMap);
+				Sessions->TravelToListenMap(IntegrationTest::LobbyMap);
 			}
 		});
 	}
@@ -347,26 +345,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPdLobbyStartTravelTest, "LabProject.Integratio
 // 빠진 루트를 다시 쓰면 팝업이 활성화되지 못한 채 같은 스택에 두 번 들어가 CommonUI ensure가 오류로 남는다.
 bool FPdLobbyStartTravelTest::RunTest(const FString& Parameters)
 {
-	const auto GetSessions = []()
-	{
-		const UWorld* World = IntegrationTest::GetGameWorld();
-		return World ? World->GetGameInstance()->GetSubsystem<UOnlineSessionsSubsystem>() : nullptr;
-	};
-	const auto IsSessionSettled = [GetSessions](const bool bExpectSession)
-	{
-		const UOnlineSessionsSubsystem* Sessions = GetSessions();
-		return Sessions && Sessions->HasNamedSession() == bExpectSession && !Sessions->IsSessionLifecyclePending();
-	};
-
-	// 경기 시작은 방 세션을 시작한 뒤에 이동하므로, 방 만들기 팝업처럼 세션부터 만든다.
-	IntegrationTest::Step(0.f, [this, GetSessions]()
-	{
-		UOnlineSessionsSubsystem* Sessions = GetSessions();
-		const UWorld* World = IntegrationTest::GetGameWorld();
-		TestTrue(TEXT("방 세션 만들기 시작"), Sessions && Sessions->BeginCreateRoomSession(
-			World->GetFirstLocalPlayerFromController(), TEXT("Integration"), TEXT("Lobby"), PdGameSession::MaxPlayerCount, true) != 0);
-	});
-	IntegrationTest::WaitUntil(this, TEXT("방 세션 만들기"), 30.f, [IsSessionSettled]() { return IsSessionSettled(true); });
+	IntegrationTest::CreateRoomSession(this);
 	OpenHostedLobby(this);
 	IntegrationTest::WaitUntil(this, TEXT("방장 시작 조건"), 30.f, []()
 	{
@@ -398,15 +377,7 @@ bool FPdLobbyStartTravelTest::RunTest(const FString& Parameters)
 			|| (World && World->GetOutermost()->GetName() == *MatchMap && !World->IsInSeamlessTravel() && !IsLoadingScreenUp());
 	});
 
-	// 다음 테스트가 새 방을 만들 수 있게 세션을 닫고 타이틀로 돌아간다.
-	IntegrationTest::Step(0.5f, [GetSessions]()
-	{
-		if (UOnlineSessionsSubsystem* Sessions = GetSessions())
-		{
-			Sessions->DestroySession();
-		}
-	});
-	IntegrationTest::WaitUntil(this, TEXT("방 세션 닫기"), 30.f, [IsSessionSettled]() { return IsSessionSettled(false); });
+	IntegrationTest::DestroyRoomSession(this);
 	OpenTitle(this);
 	return true;
 }
