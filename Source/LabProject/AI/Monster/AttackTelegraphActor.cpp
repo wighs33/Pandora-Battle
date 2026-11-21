@@ -32,13 +32,17 @@ FVector GetFeetLocation(const AActor& Actor)
 }
 }
 
-bool FAttackTelegraphSettings::IsInsideFrontCone(const FTransform& Origin, const FVector& FeetLocation, const float TargetRadius) const
+bool FAttackTelegraphSettings::IsInsideArea(const FTransform& Origin, const FVector& FeetLocation, const float TargetRadius) const
 {
 	const FVector Local = Origin.InverseTransformPositionNoScale(FeetLocation);
 	const float Distance = FVector2D(Local.X, Local.Y).Size();
-	if (Shape != EAttackTelegraphShape::FrontCone || FMath::Abs(Local.Z) > DecalDepth || Distance > Radius + TargetRadius)
+	if (!UsesAreaDamage() || FMath::Abs(Local.Z) > DecalDepth || Distance > Radius + TargetRadius)
 	{
 		return false;
+	}
+	if (Shape == EAttackTelegraphShape::SelfCircle)
+	{
+		return true;
 	}
 	// 부채꼴 밖이어도 옆 가장자리까지의 거리가 캡슐 반지름 안이면 걸친 것으로 본다.
 	const float DegreesOutside = FMath::RadiansToDegrees(FMath::Atan2(FMath::Abs(Local.Y), Local.X)) - HalfAngle;
@@ -88,14 +92,8 @@ AAttackTelegraphActor* AAttackTelegraphActor::SpawnForAttack(ACharacter& Monster
 	const double StartTime = World->GetTimeSeconds();
 	const float FillSeconds = DamageWindow->GetTriggerTime() / Rate;
 	const float EndSeconds = DamageWindow->GetEndTriggerTime() / Rate;
-	UMaterialInstanceDynamic* MaterialInstance = UMaterialInstanceDynamic::Create(Material, Telegraph);
-	MaterialInstance->SetScalarParameterValue(TEXT("StartTime"), StartTime);
-	MaterialInstance->SetScalarParameterValue(TEXT("FillDuration"), FillSeconds);
-	MaterialInstance->SetScalarParameterValue(TEXT("EndTime"), StartTime + EndSeconds);
-	MaterialInstance->SetScalarParameterValue(TEXT("HalfAngle"), Settings.Shape == EAttackTelegraphShape::FrontCone ? Settings.HalfAngle : 180.0f);
-	Telegraph->Decal->SetDecalMaterial(MaterialInstance);
-	Telegraph->Decal->DecalSize = FVector(DecalDepth, Settings.Radius, Settings.Radius);
-	Telegraph->SetLifeSpan(EndSeconds + 0.2f);
+	const float HalfAngle = Settings.Shape == EAttackTelegraphShape::FrontCone ? Settings.HalfAngle : 180.0f;
+	Telegraph->ConfigureDecal(*Material, Settings.Radius, HalfAngle, StartTime, FillSeconds, EndSeconds);
 
 	if (bOnTarget)
 	{
@@ -109,6 +107,30 @@ AAttackTelegraphActor* AAttackTelegraphActor::SpawnForAttack(ACharacter& Monster
 		Telegraph->AttachToActor(&Monster, FAttachmentTransformRules::KeepWorldTransform);
 	}
 	return Telegraph;
+}
+
+AAttackTelegraphActor* AAttackTelegraphActor::SpawnTimedCircle(UWorld& World, const FVector& Center, const float Radius,
+	UMaterialInterface* Material, const float FillSeconds, const float EndSeconds)
+{
+	AAttackTelegraphActor* Telegraph = Material ? World.SpawnActor<AAttackTelegraphActor>(Center, FRotator::ZeroRotator) : nullptr;
+	if (Telegraph)
+	{
+		Telegraph->ConfigureDecal(*Material, Radius, 180.0f, World.GetTimeSeconds(), FillSeconds, EndSeconds);
+	}
+	return Telegraph;
+}
+
+void AAttackTelegraphActor::ConfigureDecal(UMaterialInterface& Material, const float Radius, const float HalfAngle, const double StartTime,
+	const float FillSeconds, const float EndSeconds)
+{
+	UMaterialInstanceDynamic* MaterialInstance = UMaterialInstanceDynamic::Create(&Material, this);
+	MaterialInstance->SetScalarParameterValue(TEXT("StartTime"), StartTime);
+	MaterialInstance->SetScalarParameterValue(TEXT("FillDuration"), FillSeconds);
+	MaterialInstance->SetScalarParameterValue(TEXT("EndTime"), StartTime + EndSeconds);
+	MaterialInstance->SetScalarParameterValue(TEXT("HalfAngle"), HalfAngle);
+	Decal->SetDecalMaterial(MaterialInstance);
+	Decal->DecalSize = FVector(DecalDepth, Radius, Radius);
+	SetLifeSpan(EndSeconds + 0.2f);
 }
 
 FTransform AAttackTelegraphActor::GetMonsterOrigin(const AActor& Monster)

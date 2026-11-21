@@ -71,6 +71,7 @@ namespace PdGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Cinematic, "State.Cinematic", "Player character is watching a shared cinematic and cannot act, so it takes no damage.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_DefenseField_Invulnerable, "State.DefenseField.Invulnerable", "Invulnerability state granted while the Defense Field effect is active.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Movement_Airborne, "State.Movement.Airborne", "Character is currently falling or jumping.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Monster_Flying, "State.Monster.Flying", "Monster body is up in the air during a flight attack while its capsule stays on the ground. Melee hits must land on the body.");
 
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Data_Damage, "Data.Damage", "SetByCaller damage magnitude tag.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Data_Heal, "Data.Heal", "SetByCaller heal magnitude tag.");

@@ -37,6 +37,18 @@ struct LABPROJECT_API FMonsterAttackPattern
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!AI|Monster|Animation")
 	FAttackTelegraphSettings Telegraph;
 
+	/** 이 공격을 쓴 뒤 다시 고를 수 있을 때까지의 시간. 0이면 곧바로 다시 고를 수 있다. 큰 공격이 연달아 나오지 않게 한다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!AI|Monster|Animation", meta = (ClampMin = "0.0", ForceUnits = "s"))
+	float Cooldown = 0.0f;
+
+	/** 맞은 캐릭터를 몬스터 반대쪽으로 날리는 수평 속도. 0이면 밀치지 않는다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!AI|Monster|Damage", meta = (ClampMin = "0.0", ForceUnits = "cm/s"))
+	float KnockbackSpeed = 0.0f;
+
+	/** 밀칠 때 함께 띄우는 수직 속도. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!AI|Monster|Damage", meta = (ClampMin = "0.0", ForceUnits = "cm/s"))
+	float KnockbackLift = 0.0f;
+
 	/** Distance가 범위 밖으로 벗어난 정도. 범위 안이면 0이다. */
 	float GetDistanceOutsideRange(float Distance) const;
 };
@@ -123,6 +135,21 @@ public:
 	bool SetLeashDistances(double MaxDistanceFromSpawnPoint, double MinDistanceToResumeRoaming);
 	bool GetLeashDistances(double& OutMaxDistanceFromSpawnPoint, double& OutMinDistanceToResumeRoaming) const;
 
+	/**
+	 * 서버: 발이 Center 둘레 Radius 안(캡슐이 걸쳐도 포함)에 있는 대상에게 이 몬스터의 공격 피해를 준다.
+	 * 공격 몽타주와 따로 떨어지는 공격(메테오)이 쓰며, 몽타주가 끝난 뒤에 떨어져도 판정한다.
+	 */
+	void ApplyAreaStrikeDamage(const FVector& Center, float Radius);
+
+	/**
+	 * 서버: Start에서 End까지 뻗은 불길(굵기 Radius)에 몸이 닿은 대상에게 이 몬스터의 공격 피해를 준다.
+	 * 한 대상은 HitInterval마다 한 번만 맞는다. 공격 몽타주가 재생되는 동안에만 준다.
+	 */
+	void ApplyBreathDamage(const FVector& Start, const FVector& End, float Radius, float HitInterval);
+
+	/** 이 몬스터가 때릴 수 있는 대상인지. 자신, 다른 몬스터, 같은 팀, 죽은 캐릭터는 아니다. */
+	bool IsValidMonsterDamageTarget(const AActor* OtherActor) const;
+
 private:
 	// Network RPCs ----------------------------------------------------------------------------------------------------
 	UFUNCTION(NetMulticast, Unreliable)
@@ -174,9 +201,9 @@ protected:
 private:
 	void CacheCollisionComponents();
 	void ApplyMeshOptimizations();
-	bool IsValidMonsterDamageTarget(const AActor* OtherActor) const;
 	void ApplyAttackDamageToCharacter(ACharacterBase* TargetCharacter);
 	bool ApplyMonsterDamageToCharacter(ACharacterBase* TargetCharacter);
+	void ApplyAttackKnockback(const FMonsterAttackPattern& Attack, ACharacterBase& TargetCharacter) const;
 	void ActivateAttackSphere();
 	void ActivateTelegraphAreaDamage();
 	void ApplyTelegraphAreaDamage();
@@ -191,7 +218,7 @@ private:
 	void RefreshHighlightStencil();
 	void EnsureHighlightPostProcess() const;
 	void EndHitFlash();
-	UAnimMontage* PickAttackMontage(float TargetDistance) const;
+	int32 PickAttackPatternIndex(float TargetDistance) const;
 	UAnimMontage* FindFirstLoadedAttackMontage() const;
 	void BindAttackDamageWindowEvents();
 	void UnbindAttackDamageWindowEvents();
@@ -299,6 +326,12 @@ private:
 	FDelegateHandle DamageWindowCloseHandle;
 	FDelegateHandle HealthChangedHandle;
 	TSet<TWeakObjectPtr<AActor>> AttackHitActorsThisSwing;
+
+	/** 서버: 이번 공격의 불길에 맞은 대상별로 다시 맞을 수 있는 월드 시간. 공격을 시작할 때 비운다. */
+	TMap<TWeakObjectPtr<AActor>, double> BreathNextHitTimes;
+
+	/** 서버: MonsterAttacks와 같은 순서로, 각 공격을 다시 고를 수 있는 월드 시간. */
+	TArray<double> AttackPatternReadyTimes;
 	TWeakObjectPtr<APdPlayerState> LastDamagingPlayerState;
 	TWeakObjectPtr<UAnimInstance> AttackAnimInstance;
 	TWeakObjectPtr<UAnimMontage> CurrentAttackMontage;

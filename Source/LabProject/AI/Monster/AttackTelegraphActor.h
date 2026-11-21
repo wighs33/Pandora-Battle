@@ -17,6 +17,8 @@ enum class EAttackTelegraphShape : uint8
 	TargetCircle,
 	/** 몬스터 앞쪽 부채꼴. 몬스터를 따라 움직이고 돈다. */
 	FrontCone,
+	/** 몬스터 발밑을 중심으로 한 원. 몬스터를 따라 움직인다(몸을 돌려 둘레를 치는 공격). */
+	SelfCircle,
 };
 
 /** 공격 예고 장판의 모양. 언제 가득 차고 사라질지는 공격 몽타주의 노티파이에서 읽는다. */
@@ -37,17 +39,20 @@ struct LABPROJECT_API FAttackTelegraphSettings
 		meta = (ClampMin = "1.0", ClampMax = "180.0", ForceUnits = "deg", EditCondition = "Shape == EAttackTelegraphShape::FrontCone"))
 	float HalfAngle = 30.0f;
 
+	/** 피해를 충돌 구가 아니라 장판과 같은 범위로 판정하는 모양인지. 몬스터에 붙어 따라가는 부채꼴과 원이 그렇다. */
+	bool UsesAreaDamage() const { return Shape == EAttackTelegraphShape::FrontCone || Shape == EAttackTelegraphShape::SelfCircle; }
+
 	/**
-	 * 발이 FeetLocation이고 반지름이 TargetRadius인 캐릭터가 부채꼴 장판 위에 서 있는지. 부채꼴 모양일 때만 참이 될 수 있다.
+	 * 발이 FeetLocation이고 반지름이 TargetRadius인 캐릭터가 장판 위에 서 있는지. UsesAreaDamage인 모양일 때만 참이 될 수 있다.
 	 * Origin은 장판이 놓이는 자리(GetMonsterOrigin)다. 캡슐이 가장자리에 걸쳐도 안으로 보고, 높이는 장판 데칼이 닿는 깊이까지만 본다.
 	 */
-	bool IsInsideFrontCone(const FTransform& Origin, const FVector& FeetLocation, float TargetRadius) const;
+	bool IsInsideArea(const FTransform& Origin, const FVector& FeetLocation, float TargetRadius) const;
 };
 
 /**
  * 공격 예고 장판을 그리는 로컬 데칼. 복제하지 않고, 화면을 그리는 인스턴스마다 공격 몽타주와 함께 만든다.
  * 채움·깜빡임·사라짐은 셰이더(Shaders/AttackTelegraph.ush)가 월드 시간으로 계산하고, 이 액터는 위치만 맞춘다.
- * 공격 피해 구간이 시작될 때 가득 차고, 피해 구간이 끝나면 사라진다.
+ * 공격 피해 구간이 시작될 때 가득 차고, 피해 구간이 끝나면 사라진다. 메테오처럼 정한 시간에 떨어지는 공격은 SpawnTimedCircle로 띄운다.
  */
 UCLASS(NotBlueprintable)
 class LABPROJECT_API AAttackTelegraphActor : public AActor
@@ -65,10 +70,20 @@ public:
 	static AAttackTelegraphActor* SpawnForAttack(ACharacter& Monster, const FAttackTelegraphSettings& Settings,
 		UMaterialInterface* Material, const UAnimMontage& AttackMontage, float PlayRate, AActor* Target);
 
-	/** 몬스터 앞쪽 장판이 놓이는 자리: 몬스터 발밑, 몬스터가 보는 방향. 서버의 피해 판정도 이 자리를 기준으로 한다. */
+	/**
+	 * Center에 반지름 Radius인 원을 띄운다. FillSeconds 뒤에 가득 차고 EndSeconds에 사라진다.
+	 * 몽타주와 상관없이 정한 시간에 떨어지는 공격(메테오)이 쓴다.
+	 */
+	static AAttackTelegraphActor* SpawnTimedCircle(UWorld& World, const FVector& Center, float Radius, UMaterialInterface* Material,
+		float FillSeconds, float EndSeconds);
+
+	/** 몬스터 장판이 놓이는 자리: 몬스터 발밑, 몬스터가 보는 방향. 서버의 피해 판정도 이 자리를 기준으로 한다. */
 	static FTransform GetMonsterOrigin(const AActor& Monster);
 
 private:
+	/** 데칼 머티리얼과 크기, 채우고 사라지는 시간을 정한다. HalfAngle이 180이면 원이다. */
+	void ConfigureDecal(UMaterialInterface& Material, float Radius, float HalfAngle, double StartTime, float FillSeconds, float EndSeconds);
+
 	UPROPERTY(VisibleAnywhere, Category = "!AI|Monster|Telegraph")
 	TObjectPtr<UDecalComponent> Decal;
 

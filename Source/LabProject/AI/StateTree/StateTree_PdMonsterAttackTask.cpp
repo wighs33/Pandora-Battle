@@ -2,6 +2,7 @@
 
 #include "AIController.h"
 #include "AI/Monster/MonsterCharacter.h"
+#include "Animation/AnimMontage.h"
 #include "Character/EnemyBase.h"
 #include "Navigation/PathFollowingComponent.h"
 #include "StateTreeExecutionContext.h"
@@ -13,6 +14,8 @@ DEFINE_LOG_CATEGORY_STATIC(LogStateTreeMonsterAttack, Log, All);
 namespace
 {
 constexpr float MoveRequestRetryInterval = 0.25f;
+/** 완료 제한 시간보다 긴 공격 몽타주는 몽타주 길이에 이만큼 더 기다린다. 프레임 순서 차이로 끝나는 순간을 한 프레임 늦게 보더라도 실패로 치지 않는다. */
+constexpr float LongAttackCompletionSlack = 1.0f;
 
 bool HasReachedTimeout(const float ElapsedTime, const float Timeout)
 {
@@ -20,6 +23,23 @@ bool HasReachedTimeout(const float ElapsedTime, const float Timeout)
 }
 
 using FAttackTaskData = FStateTreePdMonsterAttackTaskInstanceData;
+
+/**
+ * 공격이 시작된 것을 보고 끝나기를 기다리기 시작한다. 완료 제한 시간은 멈춘 공격을 걸러 내는 안전장치이므로,
+ * 지금 재생을 시작한 공격 몽타주가 제한보다 길면(보스의 비행 공격) 몽타주가 끝날 때까지는 기다린다.
+ * 몽타주가 사라지기 시작하면 재생 중인 몽타주로 잡히지 않으므로, 길이는 시작할 때 한 번 읽어 둔다. 제한을 끈(0) 설정은 그대로 둔다.
+ */
+void BeginWaitingForAttack(FAttackTaskData& InstanceData, const AEnemyBase& Enemy)
+{
+	InstanceData.bObservedAttackInProgress = true;
+	InstanceData.AttackCompletionElapsedTime = 0.0f;
+	InstanceData.ActiveAttackCompletionTimeout = InstanceData.AttackCompletionTimeout;
+	if (const UAnimMontage* Montage = Enemy.GetCurrentMontage(); Montage && InstanceData.AttackCompletionTimeout > 0.0f)
+	{
+		InstanceData.ActiveAttackCompletionTimeout =
+			FMath::Max(InstanceData.AttackCompletionTimeout, Montage->GetPlayLength() + LongAttackCompletionSlack);
+	}
+}
 
 // 이미 시작한 공격이 끝나기를 기다린다. 끝나면 성공, 완료 제한 시간을 넘기면 실패.
 EStateTreeRunStatus WaitForAttackToFinish(FAttackTaskData& InstanceData, const AEnemyBase& Enemy, const AActor* TargetActor,
@@ -31,10 +51,10 @@ EStateTreeRunStatus WaitForAttackToFinish(FAttackTaskData& InstanceData, const A
 	}
 
 	InstanceData.AttackCompletionElapsedTime += DeltaTime;
-	if (HasReachedTimeout(InstanceData.AttackCompletionElapsedTime, InstanceData.AttackCompletionTimeout))
+	if (HasReachedTimeout(InstanceData.AttackCompletionElapsedTime, InstanceData.ActiveAttackCompletionTimeout))
 	{
 		UE_LOG(LogStateTreeMonsterAttack, Warning, TEXT("%s's attack against %s did not finish within %.2f seconds."),
-			*GetNameSafe(&Enemy), *GetNameSafe(TargetActor), InstanceData.AttackCompletionTimeout);
+			*GetNameSafe(&Enemy), *GetNameSafe(TargetActor), InstanceData.ActiveAttackCompletionTimeout);
 		return EStateTreeRunStatus::Failed;
 	}
 	return EStateTreeRunStatus::Running;
@@ -96,8 +116,7 @@ EStateTreeRunStatus TryStartAttack(FAttackTaskData& InstanceData, AAIController&
 		InstanceData.AttackRetryTimeRemaining = FMath::Max(InstanceData.AttackRetryInterval, 0.0f);
 		if (Enemy.IsAttackInProgress())
 		{
-			InstanceData.bObservedAttackInProgress = true;
-			InstanceData.AttackCompletionElapsedTime = 0.0f;
+			BeginWaitingForAttack(InstanceData, Enemy);
 			return EStateTreeRunStatus::Running;
 		}
 	}
@@ -132,6 +151,7 @@ EStateTreeRunStatus FStateTreePdMonsterAttackTask::EnterState(FStateTreeExecutio
 	InstanceData.MoveRetryTimeRemaining = 0.0f;
 	InstanceData.AttackStartElapsedTime = 0.0f;
 	InstanceData.AttackCompletionElapsedTime = 0.0f;
+	InstanceData.ActiveAttackCompletionTimeout = 0.0f;
 
 	return Tick(Context, 0.0f);
 }
@@ -163,8 +183,7 @@ EStateTreeRunStatus FStateTreePdMonsterAttackTask::Tick(FStateTreeExecutionConte
 		}
 
 		InstanceData.bMoveRequested = false;
-		InstanceData.bObservedAttackInProgress = true;
-		InstanceData.AttackCompletionElapsedTime = 0.0f;
+		BeginWaitingForAttack(InstanceData, *Enemy);
 		return EStateTreeRunStatus::Running;
 	}
 

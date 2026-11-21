@@ -58,6 +58,10 @@ struct FStateTreePdMonsterAttackTaskInstanceData
 
 	UPROPERTY(Transient)
 	float AttackCompletionElapsedTime = 0.0f;
+
+	/** 지금 기다리는 공격의 완료 제한 시간. 공격이 시작될 때 AttackCompletionTimeout과 공격 몽타주 길이로 정한다. */
+	UPROPERTY(Transient)
+	float ActiveAttackCompletionTimeout = 0.0f;
 };
 
 USTRUCT(meta = (DisplayName = "Pd Monster Attack", Category = "AI|Action"))

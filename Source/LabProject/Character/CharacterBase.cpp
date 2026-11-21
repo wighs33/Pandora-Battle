@@ -691,6 +691,24 @@ void ACharacterBase::HandleDamageTaken(const float DamageAmount, const bool bCri
 	}
 }
 
+void ACharacterBase::ApplyKnockback(const FVector& LaunchVelocity)
+{
+	if (!HasAuthority() || IsDeathHandled())
+	{
+		return;
+	}
+	LaunchCharacter(LaunchVelocity, true, true);
+	if (IsPlayerControlled() && !IsLocallyControlled())
+	{
+		ClientApplyKnockback(LaunchVelocity);
+	}
+}
+
+void ACharacterBase::ClientApplyKnockback_Implementation(const FVector_NetQuantize10 LaunchVelocity)
+{
+	LaunchCharacter(LaunchVelocity, true, true);
+}
+
 // 피해 숫자가 나타날 월드 위치를 구하며, 전용 표시 컴포넌트가 없으면 캐릭터 머리 위 위치를 사용한다.
 FVector ACharacterBase::GetDamageIndicatorWorldLocation() const
 {

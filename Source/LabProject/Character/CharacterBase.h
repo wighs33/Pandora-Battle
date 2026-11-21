@@ -185,7 +185,16 @@ protected:
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastClearCharacterOverlayMaterial();
 
+	UFUNCTION(Client, Reliable)
+	void ClientApplyKnockback(FVector_NetQuantize10 LaunchVelocity);
+
 public:
+	/**
+	 * 서버에서 캐릭터를 LaunchVelocity로 날린다(수평 속도는 덮어쓰고 수직 속도도 덮어쓴다).
+	 * 조종하는 클라이언트도 같은 속도로 날려, 서버 이동 보정으로 제자리에 끌려왔다 튀는 일이 없게 한다.
+	 */
+	void ApplyKnockback(const FVector& LaunchVelocity);
+
 	// Event Handlers --------------------------------------------------------------------------------------------------
 	// 피격·사망·리스폰의 캐릭터 진입점. 서버의 확정 결과는 아래 Multicast RPC로 전달한다.
 	UFUNCTION(BlueprintImplementableEvent, Category = "!Damage", meta = (DisplayName = "On Damage Taken"))

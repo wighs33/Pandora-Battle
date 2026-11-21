@@ -206,7 +206,7 @@ bool FPdFrontConeTelegraphTest::RunTest(const FString& Parameters)
 	const FTransform Origin(FRotator::ZeroRotator, FVector(100.f, 200.f, 50.f));
 	const auto IsHit = [&Cone, &Origin](const FVector& Offset, const float CapsuleRadius = 40.f)
 	{
-		return Cone.IsInsideFrontCone(Origin, Origin.GetLocation() + Offset, CapsuleRadius);
+		return Cone.IsInsideArea(Origin, Origin.GetLocation() + Offset, CapsuleRadius);
 	};
 	const auto AtAngle = [](const float Degrees, const float Distance)
 	{
@@ -223,8 +223,8 @@ bool FPdFrontConeTelegraphTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("high above the telegraph"), IsHit(FVector(800.f, 0.f, 400.f)));
 
 	const FTransform TurnedOrigin(FRotator(0.f, 90.f, 0.f), Origin.GetLocation());
-	TestTrue(TEXT("follows the monster's facing"), Cone.IsInsideFrontCone(TurnedOrigin, Origin.GetLocation() + FVector(0.f, 1000.f, 0.f), 40.f));
-	TestFalse(TEXT("old forward is now the side"), Cone.IsInsideFrontCone(TurnedOrigin, Origin.GetLocation() + FVector(1000.f, 0.f, 0.f), 40.f));
+	TestTrue(TEXT("follows the monster's facing"), Cone.IsInsideArea(TurnedOrigin, Origin.GetLocation() + FVector(0.f, 1000.f, 0.f), 40.f));
+	TestFalse(TEXT("old forward is now the side"), Cone.IsInsideArea(TurnedOrigin, Origin.GetLocation() + FVector(1000.f, 0.f, 0.f), 40.f));
 
 	Cone.Shape = EAttackTelegraphShape::TargetCircle;
 	TestFalse(TEXT("only cone telegraphs use the cone test"), IsHit(FVector(1000.f, 0.f, 0.f)));

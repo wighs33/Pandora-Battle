@@ -7,6 +7,9 @@
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
 #include "Animation/AnimNotifyState_AttackDamageWindow.h"
+#include "Animation/AnimNotifyState_BreathAttack.h"
+#include "Animation/AnimNotifyState_StrafeFlight.h"
+#include "Animation/AnimNotify_SpawnAreaStrikes.h"
 #include "Character/PdPlayer.h"
 #include "AbilitySystem/Ability/EquipmentAbilityData.h"
 #include "Common/PdGameplayTags.h"
@@ -86,12 +89,27 @@ namespace
 		}
 		return nullptr;
 	}
-	/** 몽타주가 직접 피해 구간 노티파이를 가지고 있으면 그 구간이 판정 시점을 정한다. */
-	bool HasAttackDamageWindow(const UAnimMontage& Montage)
+	/**
+	 * 몽타주가 피해 시점을 스스로 정하는지. 피해 구간 노티파이가 판정을 열고 닫거나, 불길 노티파이가 구간 동안 판정하거나,
+	 * 노티파이가 따로 떨어지는 공격(메테오)을 만든다. 그렇지 않은 몽타주는 시작하자마자 몸 충돌 판정을 잠깐 연다.
+	 */
+	bool HasOwnDamageTiming(const UAnimMontage& Montage)
 	{
 		return Montage.Notifies.ContainsByPredicate([](const FAnimNotifyEvent& Notify)
 		{
-			return Notify.NotifyStateClass && Notify.NotifyStateClass->IsA<UAnimNotifyState_AttackDamageWindow>();
+			return (Notify.NotifyStateClass && (Notify.NotifyStateClass->IsA<UAnimNotifyState_AttackDamageWindow>()
+					|| Notify.NotifyStateClass->IsA<UAnimNotifyState_BreathAttack>()))
+				|| (Notify.Notify && Notify.Notify->IsA<UAnimNotify_SpawnAreaStrikes>());
+		});
+	}
+
+	/** 날개를 펴고 나는 몽타주는 지금 자리에서 날개가 벽이나 건물에 닿지 않을 때만 쓸 수 있다. */
+	bool HasRoomForMontage(const UAnimMontage& Montage, const ACharacter& Character)
+	{
+		return !Montage.Notifies.ContainsByPredicate([&Character](const FAnimNotifyEvent& Notify)
+		{
+			const UAnimNotifyState_StrafeFlight* Flight = Cast<UAnimNotifyState_StrafeFlight>(Notify.NotifyStateClass);
+			return Flight && !Flight->HasRoomToFly(Character);
 		});
 	}
 }
@@ -593,7 +611,7 @@ bool AMonsterCharacter::GetFallbackAttackData(FAttackData& OutAttackData) const
 }
 
 // 대상에게 접근하고 서버에서 몽타주가 실제 시작된 경우에만 타격 판정을 연다.
-// 피해 구간 노티파이가 있는 몽타주는 그 구간이 판정을 열고 닫으며, 없는 몽타주는 시작하자마자 정해진 시간만큼 연다.
+// 피해 시점을 스스로 정하는 몽타주(HasOwnDamageTiming)는 노티파이가 판정을 맡고, 그렇지 않은 몽타주는 시작하자마자 정해진 시간만큼 연다.
 bool AMonsterCharacter::TryPlayMonsterAttackMontage()
 {
 	AActor* Target = ITargetingInterface::Execute_GetAttackTarget(this);
@@ -610,13 +628,17 @@ bool AMonsterCharacter::TryPlayMonsterAttackMontage()
 	{
 		return false;
 	}
-	UAnimMontage* Montage = PickAttackMontage(GetAttackDistanceToActor(Target));
+	const int32 PatternIndex = PickAttackPatternIndex(GetAttackDistanceToActor(Target));
+	UAnimMontage* Montage = PatternIndex != INDEX_NONE ? MonsterAttacks[PatternIndex].Montage.Get() : nullptr;
 	if (!PlayMonsterAttackMontageLocal(Montage, 1.0f))
 	{
 		return false;
 	}
+	AttackPatternReadyTimes.SetNumZeroed(MonsterAttacks.Num());
+	AttackPatternReadyTimes[PatternIndex] = GetWorld()->GetTimeSeconds() + MonsterAttacks[PatternIndex].Cooldown;
+	BreathNextHitTimes.Reset();
 	MulticastPlayMonsterAttackMontage(Montage, 1.0f, Target);
-	if (!HasAttackDamageWindow(*Montage))
+	if (!HasOwnDamageTiming(*Montage))
 	{
 		ActivateAttackSphere();
 		const float ActiveDuration = FMath::IsFinite(AttackSphereActiveDuration) ? FMath::Max(AttackSphereActiveDuration, 0.01f) : 0.01f;
@@ -654,15 +676,19 @@ bool AMonsterCharacter::FaceAttackTarget(AActor& Target)
 	return false;
 }
 
-// 불러온 공격 중 대상 거리에 가장 맞는 것들을 모아 하나를 고른다. 범위 안의 공격이 있으면 그중에서, 없으면 범위에 가장 가까운 공격 중에서 고른다.
-UAnimMontage* AMonsterCharacter::PickAttackMontage(const float TargetDistance) const
+// 불러왔고 재사용 대기 중이 아니며 지금 자리에서 쓸 수 있는 공격 중 대상 거리에 가장 맞는 것들을 모아 하나를 고른다.
+// 범위 안의 공격이 있으면 그중에서, 없으면 범위에 가장 가까운 공격 중에서 고른다.
+int32 AMonsterCharacter::PickAttackPatternIndex(const float TargetDistance) const
 {
-	TArray<UAnimMontage*, TInlineAllocator<4>> BestMontages;
+	const double Now = GetWorld()->GetTimeSeconds();
+	TArray<int32, TInlineAllocator<8>> BestIndices;
 	float BestOutsideDistance = TNumericLimits<float>::Max();
-	for (const FMonsterAttackPattern& Attack : MonsterAttacks)
+	for (int32 Index = 0; Index < MonsterAttacks.Num(); ++Index)
 	{
-		UAnimMontage* Montage = Attack.Montage.Get();
-		if (!Montage)
+		const FMonsterAttackPattern& Attack = MonsterAttacks[Index];
+		const UAnimMontage* Montage = Attack.Montage.Get();
+		const bool bCoolingDown = AttackPatternReadyTimes.IsValidIndex(Index) && Now < AttackPatternReadyTimes[Index];
+		if (!Montage || bCoolingDown || !HasRoomForMontage(*Montage, *this))
 		{
 			continue;
 		}
@@ -670,14 +696,14 @@ UAnimMontage* AMonsterCharacter::PickAttackMontage(const float TargetDistance) c
 		if (OutsideDistance < BestOutsideDistance)
 		{
 			BestOutsideDistance = OutsideDistance;
-			BestMontages.Reset();
+			BestIndices.Reset();
 		}
 		if (OutsideDistance == BestOutsideDistance)
 		{
-			BestMontages.Add(Montage);
+			BestIndices.Add(Index);
 		}
 	}
-	return BestMontages.IsEmpty() ? nullptr : BestMontages[FMath::RandHelper(BestMontages.Num())];
+	return BestIndices.IsEmpty() ? INDEX_NONE : BestIndices[FMath::RandHelper(BestIndices.Num())];
 }
 
 float AMonsterCharacter::GetMaxAttackPatternDistance() const
@@ -940,7 +966,7 @@ void AMonsterCharacter::HandleAttackDamageWindowEvent(const FGameplayEventData* 
 	if (Payload->EventTag == PdGameplayTags::Notifier_Attack_DamageWindowOpen)
 	{
 		const FMonsterAttackPattern* Attack = FindAttackPattern(CurrentAttackMontage.Get());
-		if (Attack && Attack->Telegraph.Shape == EAttackTelegraphShape::FrontCone)
+		if (Attack && Attack->Telegraph.UsesAreaDamage())
 		{
 			ActivateTelegraphAreaDamage();
 		}
@@ -1036,7 +1062,93 @@ void AMonsterCharacter::ApplyAttackDamageToCharacter(ACharacterBase* TargetChara
 		return;
 	}
 	AttackHitActorsThisSwing.Add(TargetCharacter);
-	ApplyMonsterDamageToCharacter(TargetCharacter);
+	if (ApplyMonsterDamageToCharacter(TargetCharacter))
+	{
+		if (const FMonsterAttackPattern* Attack = FindAttackPattern(CurrentAttackMontage.Get()))
+		{
+			ApplyAttackKnockback(*Attack, *TargetCharacter);
+		}
+	}
+}
+
+// 몬스터 중심에서 대상 쪽으로 날린다. 대상이 몬스터 한가운데 있으면 몬스터가 보는 방향으로 날린다.
+void AMonsterCharacter::ApplyAttackKnockback(const FMonsterAttackPattern& Attack, ACharacterBase& TargetCharacter) const
+{
+	if (Attack.KnockbackSpeed <= 0.0f || TargetCharacter.IsDeathHandled())
+	{
+		return;
+	}
+	const FVector Away = (TargetCharacter.GetActorLocation() - GetActorLocation()).GetSafeNormal2D(UE_SMALL_NUMBER, GetActorForwardVector());
+	TargetCharacter.ApplyKnockback(Away * Attack.KnockbackSpeed + FVector::UpVector * Attack.KnockbackLift);
+}
+
+void AMonsterCharacter::ApplyAreaStrikeDamage(const FVector& Center, const float Radius)
+{
+	UWorld* World = GetWorld();
+	if (!HasAuthority() || bDying || !World || Radius <= 0.0f)
+	{
+		return;
+	}
+	FAttackTelegraphSettings Area;
+	Area.Shape = EAttackTelegraphShape::SelfCircle;
+	Area.Radius = Radius;
+	const FTransform Origin(Center);
+	TArray<FOverlapResult> Overlaps;
+	World->OverlapMultiByObjectType(Overlaps, Center, FQuat::Identity, FCollisionObjectQueryParams(ECC_Pawn),
+		FCollisionShape::MakeSphere(Radius), FCollisionQueryParams(SCENE_QUERY_STAT(MonsterAreaStrike), false, this));
+	TSet<const ACharacterBase*> Damaged;
+	for (const FOverlapResult& Overlap : Overlaps)
+	{
+		ACharacterBase* Character = Cast<ACharacterBase>(Overlap.GetActor());
+		if (!IsValidMonsterDamageTarget(Character) || Damaged.Contains(Character))
+		{
+			continue;
+		}
+		float CapsuleRadius = 0.0f;
+		float CapsuleHalfHeight = 0.0f;
+		Character->GetSimpleCollisionCylinder(CapsuleRadius, CapsuleHalfHeight);
+		if (Area.IsInsideArea(Origin, Character->GetActorLocation() - FVector(0.0f, 0.0f, CapsuleHalfHeight), CapsuleRadius))
+		{
+			Damaged.Add(Character);
+			ApplyMonsterDamageToCharacter(Character);
+		}
+	}
+}
+
+// 불길 선분을 감싸는 구로 후보를 모은 뒤, 캡슐 축과 불길 선분 사이 거리로 실제로 닿았는지 본다.
+void AMonsterCharacter::ApplyBreathDamage(const FVector& Start, const FVector& End, const float Radius, const float HitInterval)
+{
+	UWorld* World = GetWorld();
+	if (!HasAuthority() || bDying || !bMonsterAttackActive || !IsAttackEnabled() || IsStatusFrozen() || !World || Radius <= 0.0f)
+	{
+		return;
+	}
+	const double Now = World->GetTimeSeconds();
+	TArray<FOverlapResult> Overlaps;
+	World->OverlapMultiByObjectType(Overlaps, (Start + End) * 0.5f, FQuat::Identity, FCollisionObjectQueryParams(ECC_Pawn),
+		FCollisionShape::MakeSphere(FVector::Dist(Start, End) * 0.5f + Radius),
+		FCollisionQueryParams(SCENE_QUERY_STAT(MonsterBreath), false, this));
+	for (const FOverlapResult& Overlap : Overlaps)
+	{
+		ACharacterBase* Character = Cast<ACharacterBase>(Overlap.GetActor());
+		const double* NextHitTime = BreathNextHitTimes.Find(Character);
+		if (!IsValidMonsterDamageTarget(Character) || (NextHitTime && Now < *NextHitTime))
+		{
+			continue;
+		}
+		float CapsuleRadius = 0.0f;
+		float CapsuleHalfHeight = 0.0f;
+		Character->GetSimpleCollisionCylinder(CapsuleRadius, CapsuleHalfHeight);
+		const FVector AxisHalf(0.0f, 0.0f, FMath::Max(CapsuleHalfHeight - CapsuleRadius, 0.0f));
+		FVector OnFlame;
+		FVector OnBody;
+		FMath::SegmentDistToSegmentSafe(Start, End, Character->GetActorLocation() - AxisHalf, Character->GetActorLocation() + AxisHalf, OnFlame, OnBody);
+		if (FVector::DistSquared(OnFlame, OnBody) <= FMath::Square(Radius + CapsuleRadius))
+		{
+			BreathNextHitTimes.Add(Character, Now + HitInterval);
+			ApplyMonsterDamageToCharacter(Character);
+		}
+	}
 }
 
 // 설정된 몬스터 피해 GE를 적용한다. 플레이어는 몬스터 접촉 피해로 피격 모션을 재생하지 않는다.
@@ -1111,7 +1223,7 @@ void AMonsterCharacter::DeactivateAttackSphere()
 	AttackHitActorsThisSwing.Reset();
 }
 
-// 부채꼴 장판으로 알린 공격(브레스)은 충돌 구 대신 장판과 같은 범위로 판정한다.
+// 몬스터에 붙은 장판(브레스의 부채꼴, 꼬리 휩쓸기의 원)으로 알린 공격은 충돌 구 대신 장판과 같은 범위로 판정한다.
 // 피해 구간 동안 짧은 간격으로 다시 검사해, 구간 중에 장판으로 들어온 대상도 한 번 맞는다.
 void AMonsterCharacter::ActivateTelegraphAreaDamage()
 {
@@ -1148,7 +1260,7 @@ void AMonsterCharacter::ApplyTelegraphAreaDamage()
 		float CapsuleHalfHeight = 0.0f;
 		Character->GetSimpleCollisionCylinder(CapsuleRadius, CapsuleHalfHeight);
 		const FVector Feet = Character->GetActorLocation() - FVector(0.0f, 0.0f, CapsuleHalfHeight);
-		if (Attack->Telegraph.IsInsideFrontCone(Origin, Feet, CapsuleRadius))
+		if (Attack->Telegraph.IsInsideArea(Origin, Feet, CapsuleRadius))
 		{
 			ApplyAttackDamageToCharacter(Character);
 		}
