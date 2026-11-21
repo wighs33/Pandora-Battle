@@ -77,7 +77,7 @@ int32 MatchOutcomeRules::CountTeamMembers(const TConstArrayView<FMatchStanding> 
 	int32 TeamMemberCount = 0;
 	for (const FMatchStanding& Standing : Standings)
 	{
-		if (Standing.TeamColorIndex == TeamColorIndex)
+		if (!Standing.bBot && Standing.TeamColorIndex == TeamColorIndex)
 		{
 			++TeamMemberCount;
 		}

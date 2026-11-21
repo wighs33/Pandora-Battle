@@ -2,11 +2,13 @@
 
 #include "CoreMinimal.h"
 
-/** 승패 판정에 쓰는 참가자 한 명의 기록. 처치 점수와 팀만 본다. */
+/** 승패 판정에 쓰는 참가자 한 명의 기록. 처치 점수와 팀, 대기실에서 넣은 봇인지를 본다. */
 struct FMatchStanding
 {
 	int32 Score = 0;
 	int32 TeamColorIndex = INDEX_NONE;
+	/** 봇도 승패는 함께 가리지만, 봇과 얽힌 보상은 주지 않으므로 승리 골드의 팀 인원에는 세지 않는다. */
+	bool bBot = false;
 };
 
 enum class EMatchOutcomeType : uint8
@@ -48,7 +50,7 @@ namespace MatchOutcomeRules
 	/** 최고 점수자들의 팀 목록이 서로 다른 팀을 포함하는지 확인한다. 팀이 없는 참가자는 각자 다른 팀으로 본다. */
 	LABPROJECT_API bool IsOpposingTie(TConstArrayView<int32> LeaderTeamColorIndices);
 
-	/** 승리 골드 계산에 쓰는 팀 인원. 팀이 없으면 승자 혼자로 센다. */
+	/** 승리 골드 계산에 쓰는 팀 인원. 봇은 세지 않고, 팀이 없거나 센 사람이 없으면 승자 혼자로 센다. */
 	LABPROJECT_API int32 CountTeamMembers(TConstArrayView<FMatchStanding> Standings, int32 TeamColorIndex);
 
 	LABPROJECT_API int32 CalculateVictoryGold(

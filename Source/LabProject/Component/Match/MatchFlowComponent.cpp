@@ -89,7 +89,7 @@ namespace
 
 				const UPlayerMatchComponent* MatchComponent = PdPlayerState->GetPlayerMatchComponent();
 				Snapshot.Players.Add(PdPlayerState);
-				Snapshot.Standings.Add({MatchComponent->GetKillCount(), MatchComponent->GetMatchTeamColorIndex()});
+				Snapshot.Standings.Add({MatchComponent->GetKillCount(), MatchComponent->GetMatchTeamColorIndex(), PdPlayerState->IsABot()});
 			}
 		}
 		Snapshot.Outcome = MatchOutcomeRules::Resolve(Snapshot.Standings);
