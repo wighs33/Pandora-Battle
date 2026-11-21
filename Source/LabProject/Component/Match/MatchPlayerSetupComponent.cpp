@@ -77,7 +77,7 @@ void UMatchPlayerSetupComponent::InitializeLoggedInPlayer(APlayerController* New
 	}
 }
 
-void UMatchPlayerSetupComponent::InitializeMatchIdentity(APlayerController* NewPlayer)
+void UMatchPlayerSetupComponent::InitializeMatchIdentity(AController* NewPlayer)
 {
 	const AExperienceGameMode* GameMode = Cast<AExperienceGameMode>(GetOwner());
 	const ULobbyRuntimeSubsystem* LobbySubsystem =
@@ -99,7 +99,7 @@ void UMatchPlayerSetupComponent::InitializeMatchIdentity(APlayerController* NewP
 			FallbackDisplayNameIndex = PlayerIndex != INDEX_NONE ? PlayerIndex + 1 : CurrentGameState->PlayerArray.Num() + 1;
 		}
 		const FText DefaultNickname = LobbySubsystem
-			? LobbySubsystem->ResolveDefaultPlayerNickname(NewPlayer, PdPlayerState, FallbackDisplayNameIndex)
+			? LobbySubsystem->ResolveDefaultPlayerNickname(Cast<APlayerController>(NewPlayer), PdPlayerState, FallbackDisplayNameIndex)
 			: FText::Format(INVTEXT("User{0}"), FallbackDisplayNameIndex);
 		PlayerMatchComponent->SetMatchDisplayName(DefaultNickname);
 	}
@@ -113,7 +113,7 @@ void UMatchPlayerSetupComponent::InitializeMatchIdentity(APlayerController* NewP
 }
 
 // 로딩 중의 입장 요청은 중복 없이 보관하고, 같은 Pawn에 완료된 지급은 반복하지 않는다.
-void UMatchPlayerSetupComponent::PreparePlayerForGameplay(APlayerController* NewPlayer)
+void UMatchPlayerSetupComponent::PreparePlayerForGameplay(AController* NewPlayer)
 {
 	if (!IsValid(NewPlayer) || !IsValid(NewPlayer->GetPawn()) || IsPlayerReadyForGameplay(NewPlayer))
 	{
@@ -134,7 +134,7 @@ void UMatchPlayerSetupComponent::PreparePlayerForGameplay(APlayerController* New
 }
 
 // 로비에서 선택한 외형을 현재 Pawn에 복원한 뒤 게임 모드에 맞는 기본 지급을 실행한다.
-void UMatchPlayerSetupComponent::PreparePlayerForGameplayInternal(APlayerController* NewPlayer)
+void UMatchPlayerSetupComponent::PreparePlayerForGameplayInternal(AController* NewPlayer)
 {
 	if (!IsValid(NewPlayer) || !IsValid(NewPlayer->GetPawn()) || IsPlayerReadyForGameplay(NewPlayer))
 	{
@@ -146,27 +146,27 @@ void UMatchPlayerSetupComponent::PreparePlayerForGameplayInternal(APlayerControl
 }
 
 // 지급 함수 호출 시점이 아니라 비동기 지급까지 성공한 시점에 현재 Pawn을 준비 완료로 기록한다.
-void UMatchPlayerSetupComponent::HandlePlayerProvisioned(APlayerController* PlayerController)
+void UMatchPlayerSetupComponent::HandlePlayerProvisioned(AController* Controller)
 {
-	if (!bSkinContentReady || !IsValid(PlayerController) || !IsValid(PlayerController->GetPawn()))
+	if (!bSkinContentReady || !IsValid(Controller) || !IsValid(Controller->GetPawn()))
 	{
 		return;
 	}
 
-	ReadyGameplayPawns.Add(PlayerController, PlayerController->GetPawn());
+	ReadyGameplayPawns.Add(Controller, Controller->GetPawn());
 	OnPlayerGameplayReady.Broadcast();
 }
 
 // 이전 Pawn의 준비 완료 상태가 새 Pawn까지 준비됐다고 오인되지 않도록 인스턴스를 비교한다.
-bool UMatchPlayerSetupComponent::IsPlayerReadyForGameplay(APlayerController* PlayerController) const
+bool UMatchPlayerSetupComponent::IsPlayerReadyForGameplay(AController* Controller) const
 {
-	if (!IsValid(PlayerController) || !IsValid(PlayerController->GetPawn()))
+	if (!IsValid(Controller) || !IsValid(Controller->GetPawn()))
 	{
 		return false;
 	}
 
-	const TWeakObjectPtr<APawn>* ReadyPawn = ReadyGameplayPawns.Find(PlayerController);
-	return ReadyPawn && ReadyPawn->Get() == PlayerController->GetPawn();
+	const TWeakObjectPtr<APawn>* ReadyPawn = ReadyGameplayPawns.Find(Controller);
+	return ReadyPawn && ReadyPawn->Get() == Controller->GetPawn();
 }
 
 // 퇴장한 참가자의 대기·완료 기록과 지급 재시도를 함께 제거한다.
@@ -177,11 +177,8 @@ void UMatchPlayerSetupComponent::ClearRuntimeStateForController(AController* Con
 		return;
 	}
 
-	if (APlayerController* PlayerController = Cast<APlayerController>(Controller))
-	{
-		PendingGameplayPlayers.Remove(PlayerController);
-		ReadyGameplayPawns.Remove(PlayerController);
-	}
+	PendingGameplayPlayers.Remove(Controller);
+	ReadyGameplayPawns.Remove(Controller);
 	DefaultPlayerProvisioner->ClearRuntimeStateForController(Controller, PlayerState);
 }
 
@@ -240,9 +237,9 @@ void UMatchPlayerSetupComponent::FlushPendingGameplayProvisions()
 		return;
 	}
 
-	TArray<TWeakObjectPtr<APlayerController>> PendingPlayers = MoveTemp(PendingGameplayPlayers);
+	TArray<TWeakObjectPtr<AController>> PendingPlayers = MoveTemp(PendingGameplayPlayers);
 	PendingGameplayPlayers.Reset();
-	for (const TWeakObjectPtr<APlayerController>& Player : PendingPlayers)
+	for (const TWeakObjectPtr<AController>& Player : PendingPlayers)
 	{
 		PreparePlayerForGameplayInternal(Player.Get());
 	}
@@ -256,7 +253,7 @@ bool UMatchPlayerSetupComponent::IsTrainingRoomMap() const
 	return Levels && Levels->IsTrainingRoomMapName(UGameplayStatics::GetCurrentLevelName(GetWorld(), true));
 }
 
-void UMatchPlayerSetupComponent::ApplyLobbySkinEquipment(APlayerController* NewPlayer) const
+void UMatchPlayerSetupComponent::ApplyLobbySkinEquipment(AController* NewPlayer) const
 {
 	const AExperienceGameMode* GameMode = Cast<AExperienceGameMode>(GetOwner());
 	if (!GameMode || !GameMode->HasAuthority() || !NewPlayer)

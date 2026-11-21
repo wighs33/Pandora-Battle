@@ -140,7 +140,7 @@ void AExperienceGameMode::GenericPlayerInitialization(AController* Controller)
 	// 같은 경기의 리스폰에서는 이 초기화를 반복하지 않는다.
 	PlayerState->SetNetUpdateFrequency(100.0f);
 	SpawnComponent->ClearRuntimeStateForController(Controller);
-	PlayerSetupComponent->InitializeMatchIdentity(Cast<APlayerController>(Controller));
+	PlayerSetupComponent->InitializeMatchIdentity(Controller);
 
 	EPlayerMapRegion InitialMapRegion = EPlayerMapRegion::Dome;
 	FLobbyMatchMapOption MapOption;
@@ -231,6 +231,43 @@ void AExperienceGameMode::HandleStartingNewPlayer_Implementation(APlayerControll
 		PlayerSetupComponent->PreparePlayerForGameplay(NewPlayer);
 	}
 	TryStartServerMatch();
+}
+
+// 사람은 엔진이 HandleStartingNewPlayer로 스폰을 이어 가고, 봇은 여기서 직접 시작한다.
+void AExperienceGameMode::HandleSeamlessTravelPlayer(AController*& C)
+{
+	Super::HandleSeamlessTravelPlayer(C);
+	if (C && !C->IsPlayerController())
+	{
+		StartBotPlayer(C);
+	}
+}
+
+void AExperienceGameMode::StartBotPlayer(AController* Bot)
+{
+	if (!IsValid(Bot) || !Bot->PlayerState || !Bot->PlayerState->IsABot() || !CanStartGameplay())
+	{
+		return;
+	}
+	if (!Bot->GetPawn())
+	{
+		RestartPlayer(Bot);
+	}
+	if (Bot->GetPawn())
+	{
+		PlayerSetupComponent->PreparePlayerForGameplay(Bot);
+	}
+	TryStartServerMatch();
+}
+
+bool AExperienceGameMode::IsMatchParticipant(AController* Controller) const
+{
+	if (!IsValid(Controller) || Controller->IsActorBeingDestroyed())
+	{
+		return false;
+	}
+	APlayerController* Player = Cast<APlayerController>(Controller);
+	return Player ? !MustSpectate(Player) : Controller->PlayerState && Controller->PlayerState->IsABot();
 }
 
 // 로비에서 배정받은 스폰 위치를 우선 사용하고, 없으면 엔진의 기본 선택을 따른다.
@@ -456,11 +493,16 @@ void AExperienceGameMode::ResumeStartingPlayers()
 		return;
 	}
 
-	for (FConstPlayerControllerIterator Iterator = World->GetPlayerControllerIterator(); Iterator; ++Iterator)
+	for (FConstControllerIterator Iterator = World->GetControllerIterator(); Iterator; ++Iterator)
 	{
-		if (APlayerController* Player = Iterator->Get(); IsValid(Player))
+		AController* Controller = Iterator->Get();
+		if (APlayerController* Player = Cast<APlayerController>(Controller); IsValid(Player))
 		{
 			HandleStartingNewPlayer(Player);
+		}
+		else
+		{
+			StartBotPlayer(Controller);
 		}
 	}
 	TryStartServerMatch();
@@ -506,16 +548,16 @@ void AExperienceGameMode::TryStartServerMatch()
 	}
 
 	bool bHasParticipant = false;
-	for (FConstPlayerControllerIterator Iterator = GetWorld()->GetPlayerControllerIterator(); Iterator; ++Iterator)
+	for (FConstControllerIterator Iterator = GetWorld()->GetControllerIterator(); Iterator; ++Iterator)
 	{
-		APlayerController* Player = Iterator->Get();
-		if (!IsValid(Player) || Player->IsActorBeingDestroyed() || MustSpectate(Player))
+		AController* Controller = Iterator->Get();
+		if (!IsMatchParticipant(Controller))
 		{
 			continue;
 		}
 
 		bHasParticipant = true;
-		if (!PlayerSetupComponent->IsPlayerReadyForGameplay(Player))
+		if (!PlayerSetupComponent->IsPlayerReadyForGameplay(Controller))
 		{
 			return;
 		}

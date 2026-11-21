@@ -1,6 +1,7 @@
 #include "Definition/Provision/DefaultProvisionDefinition.h"
 
 #include "Definition/Mode/GameInstanceDefinition.h"
+#include "Definition/Pandora/PandoraDefinition.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DefaultProvisionDefinition)
 
@@ -81,6 +82,9 @@ UDefaultProvisionDefinition::UDefaultProvisionDefinition()
 	SoulDustValues.TrainingRoom = 100;
 	GrantAllWeapons.TrainingRoom = true;
 	GrantAllEquipment.TrainingRoom = true;
+	// 경기의 봇은 가져간 판도라의 스킬 세 칸을 모두 열고 짝 무기를 든다(봇 스킬 규칙대로 싸우게).
+	BotPandoraLevels.Gameplay = UPandoraDefinition::GetFixedMaxLevel();
+	GrantBotPandoraWeapons.Gameplay = true;
 }
 
 FPrimaryAssetId UDefaultProvisionDefinition::GetPrimaryAssetId() const

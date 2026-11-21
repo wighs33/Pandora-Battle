@@ -261,7 +261,7 @@ void UMatchFlowComponent::StartGoldenKill()
 		}
 	}
 
-	for (APlayerController* Player : SpawnComponent->MovePlayersToInitialSpawns())
+	for (AController* Player : SpawnComponent->MovePlayersToInitialSpawns())
 	{
 		if (APdPlayerController* PdPlayerController = Cast<APdPlayerController>(Player))
 		{
@@ -384,7 +384,8 @@ bool UMatchFlowComponent::ShouldAbortMatchForPlayerExit(const APlayerState* Exit
 {
 	const AExperienceGameMode* GameMode = GetExperienceGameMode();
 	// 보스 레이드 월드는 누가 나가도 남은 플레이어가 계속 머문다.
-	if (!GameMode || !GameMode->HasAuthority() || bGameResultShown || bBossRaid || !ExitingPlayerState
+	// 대기실에서 넣은 봇이 빠지는 것(방장이 경기를 닫을 때)은 경기를 끝낼 이유가 아니다.
+	if (!GameMode || !GameMode->HasAuthority() || bGameResultShown || bBossRaid || !ExitingPlayerState || ExitingPlayerState->IsABot()
 		|| !GameMode->IsRuntimeContentReady() || GameMode->GetPlayerSetupComponent()->IsTrainingRoomMap())
 	{
 		return false;

@@ -21,6 +21,23 @@ enum class ESkillType : uint8
 	Duration UMETA(DisplayName = "Duration")
 };
 
+/**
+ * 봇이 이 스킬을 쓴 뒤 스킬 지속 시간 동안 할 일. 사람은 스킬마다 알맞게 움직이지만 봇은 스스로 알 수 없어 스킬 데이터로 정한다.
+ * 지속 시간이 짧은 스킬도 동작이 보이도록 최소 시간(BotSkillRules)만큼은 지킨다.
+ */
+UENUM(BlueprintType)
+enum class ESkillBotFollowUp : uint8
+{
+	/** 쓰고 나면 평소처럼 싸운다. */
+	None UMETA(DisplayName = "None"),
+	/** 대상 둘레를 뛰어다닌다. 몸에 붙어 거듭 깔리는 장판(버닝 플레어)이 한곳에 쌓이지 않고 바닥에 고루 깔리게 한다. */
+	RoamAroundTarget UMETA(DisplayName = "Roam Around Target"),
+	/** 제자리에 서 있는다. 스킬이 끝날 때까지 움직이지 않는 스킬(블랙홀)에 쓴다. */
+	HoldPosition UMETA(DisplayName = "Hold Position"),
+	/** 다른 스킬 없이 기본 공격만 한다. 공격력을 올리는 스킬(다크 스테인)에 쓴다. */
+	WeaponAttacksOnly UMETA(DisplayName = "Weapon Attacks Only")
+};
+
 /** 스킬의 시간 정책. 기능 종류와 무관하게 공유한다. */
 USTRUCT(BlueprintType)
 struct LABPROJECT_API FSkillTimeSettings

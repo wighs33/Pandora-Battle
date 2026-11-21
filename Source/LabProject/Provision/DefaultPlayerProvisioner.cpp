@@ -15,7 +15,7 @@
 #include "Engine/AssetManager.h"
 #include "Engine/StreamableManager.h"
 #include "Engine/World.h"
-#include "GameFramework/PlayerController.h"
+#include "GameFramework/Controller.h"
 #include "Item/ItemInstance.h"
 #include "Engine/GameInstance.h"
 #include "Data/ContentDataSubsystem.h"
@@ -71,7 +71,8 @@ namespace
 				OutContentIds.AddUnique(Grant.SkinDefinitionId);
 			}
 		}
-		if (!HasItemPolicyGrant(Definition, Mode))
+		// 전체 지급 정책과 봇 짝 무기는 아이템 정의 목록에서 고른다.
+		if (!HasItemPolicyGrant(Definition, Mode) && !Definition.GetGrantBotPandoraWeapons().IsEnabled(Mode))
 		{
 			return true;
 		}
@@ -230,6 +231,46 @@ namespace
 		}
 	}
 
+	// 봇이 경기에 가져간 판도라마다 그 판도라가 쓸 수 있는 무기 하나를 고른다(이름순으로 처음 것). 이미 가진 무기는 다시 주지 않는다.
+	void CollectBotPandoraWeaponIds(const APdPlayerState& PlayerState, const UInventoryComponent& Inventory,
+		TArray<FPrimaryAssetId>& InOutItemIds)
+	{
+		const UContentDataSubsystem* ContentDataSubsystem =
+			UGameInstance::GetSubsystem<UContentDataSubsystem>(PlayerState.GetGameInstance());
+		if (!ContentDataSubsystem)
+		{
+			return;
+		}
+		TArray<const UItemDefinition*> Weapons;
+		UAssetManager& AssetManager = UAssetManager::Get();
+		TArray<FPrimaryAssetId> ItemDefinitionIds;
+		AssetManager.GetPrimaryAssetIdList(ItemDefinitionType, ItemDefinitionIds);
+		const UProjectTagDefinition* TagConfig = UProjectTagDefinition::GetDefaultDefinition();
+		const FGameplayTag WeaponTypeTag = TagConfig ? TagConfig->GetItemWeaponTypeTag() : PdGameplayTags::Item_Weapon;
+		for (const FPrimaryAssetId& ItemDefinitionId : ItemDefinitionIds)
+		{
+			const UItemDefinition* ItemDefinition = Cast<UItemDefinition>(AssetManager.GetPrimaryAssetObject(ItemDefinitionId));
+			if (ItemDefinition && ItemDefinition->IsWeaponDefinition(WeaponTypeTag))
+			{
+				Weapons.Add(ItemDefinition);
+			}
+		}
+		Weapons.Sort([](const UItemDefinition& A, const UItemDefinition& B) { return A.GetFName().LexicalLess(B.GetFName()); });
+
+		for (const TPair<EEnum_Direction, FName>& Pair : PlayerState.GetLobbyTravelHandoff().PandoraNamesByDirection)
+		{
+			const UPandoraDefinition* PandoraDefinition = ContentDataSubsystem->GetPandoraDefinitionByName(Pair.Value);
+			const UItemDefinition* const* Weapon = PandoraDefinition
+				? Weapons.FindByPredicate([PandoraDefinition](const UItemDefinition* Candidate) { return PandoraDefinition->IsCompatibleWithWeaponDefinition(Candidate); })
+				: nullptr;
+			const FPrimaryAssetId WeaponId = Weapon ? (*Weapon)->GetPrimaryAssetId() : FPrimaryAssetId();
+			if (WeaponId.IsValid() && GetInventoryItemQuantity(Inventory, WeaponId) == 0)
+			{
+				InOutItemIds.AddUnique(WeaponId);
+			}
+		}
+	}
+
 	// 로비에서 고른 로드아웃 슬롯을 PlayerState가 심리스 이동으로 넘겨받은 값에서 읽는다. 이번에 연 판도라만 남긴다.
 	TMap<EEnum_Direction, FPrimaryAssetId> ResolveLobbyLoadout(
 		const APdPlayerState& PlayerState, const TArray<FPrimaryAssetId>& UnlockedPandoraIds)
@@ -290,31 +331,31 @@ const UDefaultProvisionDefinition* UDefaultPlayerProvisioner::GetDefinition() co
 	return IsInitialized() ? ProvisionDefinition.Get() : nullptr;
 }
 
-void UDefaultPlayerProvisioner::ProvisionPlayer(APlayerController* PlayerController)
+void UDefaultPlayerProvisioner::ProvisionPlayer(AController* Controller)
 {
-	if (!IsInitialized() || !IsValid(PlayerController) || !PlayerController->HasAuthority())
+	if (!IsInitialized() || !IsValid(Controller) || !Controller->HasAuthority())
 	{
 		return;
 	}
 
-	if (!EnsureContentLoaded(PlayerController))
+	if (!EnsureContentLoaded(Controller))
 	{
 		return;
 	}
 
-	const EProvisionStepResult Result = TryProvisionPlayer(PlayerController);
+	const EProvisionStepResult Result = TryProvisionPlayer(Controller);
 	if (Result == EProvisionStepResult::Done)
 	{
-		ClearScheduledProvisionAttempt(PlayerController);
-		StopWaitingForProvisionInputs(TObjectKey<APlayerController>(PlayerController));
-		OnPlayerProvisioned.Broadcast(PlayerController);
+		ClearScheduledProvisionAttempt(Controller);
+		StopWaitingForProvisionInputs(TObjectKey<AController>(Controller));
+		OnPlayerProvisioned.Broadcast(Controller);
 		return;
 	}
 
-	WaitForProvisionInputs(PlayerController, Result);
+	WaitForProvisionInputs(Controller, Result);
 }
 
-bool UDefaultPlayerProvisioner::EnsureContentLoaded(APlayerController* PlayerController)
+bool UDefaultPlayerProvisioner::EnsureContentLoaded(AController* Controller)
 {
 	if (ContentState == EContentState::Ready)
 	{
@@ -324,7 +365,7 @@ bool UDefaultPlayerProvisioner::EnsureContentLoaded(APlayerController* PlayerCon
 	{
 		return false;
 	}
-	PendingContentControllers.AddUnique(PlayerController);
+	PendingContentControllers.AddUnique(Controller);
 	if (ContentState == EContentState::Loading)
 	{
 		return false;
@@ -375,8 +416,8 @@ void UDefaultPlayerProvisioner::HandleContentLoaded()
 		}
 	}
 	ContentState = EContentState::Ready;
-	const TArray<TWeakObjectPtr<APlayerController>> WaitingPlayers = PendingContentControllers;
-	for (const TWeakObjectPtr<APlayerController>& Player : WaitingPlayers)
+	const TArray<TWeakObjectPtr<AController>> WaitingPlayers = PendingContentControllers;
+	for (const TWeakObjectPtr<AController>& Player : WaitingPlayers)
 	{
 		// 앞선 플레이어의 지급 콜백이 다른 대기 플레이어를 로그아웃시키거나 이 지급 처리 객체를 종료할 수 있다.
 		if (PendingContentControllers.Remove(Player) > 0)
@@ -386,9 +427,9 @@ void UDefaultPlayerProvisioner::HandleContentLoaded()
 	}
 }
 
-UDefaultPlayerProvisioner::EProvisionStepResult UDefaultPlayerProvisioner::TryProvisionPlayer(APlayerController* PlayerController)
+UDefaultPlayerProvisioner::EProvisionStepResult UDefaultPlayerProvisioner::TryProvisionPlayer(AController* Controller)
 {
-	APdPlayerState* PlayerState = PlayerController ? PlayerController->GetPlayerState<APdPlayerState>() : nullptr;
+	APdPlayerState* PlayerState = Controller ? Controller->GetPlayerState<APdPlayerState>() : nullptr;
 	if (!PlayerState || !PlayerState->HasAuthority() || !GetDefinition())
 	{
 		return EProvisionStepResult::Failed;
@@ -399,7 +440,7 @@ UDefaultPlayerProvisioner::EProvisionStepResult UDefaultPlayerProvisioner::TryPr
 		ApplyModeValues(PlayerState),
 		ApplyItems(PlayerState),
 		ApplyPandoras(PlayerState),
-		ApplyGestures(PlayerController, PlayerState),
+		ApplyGestures(Controller, PlayerState),
 	};
 	PlayerState->ForceNetUpdate();
 
@@ -507,6 +548,10 @@ UDefaultPlayerProvisioner::EProvisionStepResult UDefaultPlayerProvisioner::Apply
 	{
 		return EProvisionStepResult::Failed;
 	}
+	if (PlayerState->IsABot() && Definition->GetGrantBotPandoraWeapons().IsEnabled(Mode))
+	{
+		CollectBotPandoraWeaponIds(*PlayerState, *InventoryComponent, PolicyItemIds);
+	}
 	if (!PolicyItemIds.IsEmpty())
 	{
 		InventoryComponent->AddItemsByPrimaryAssetIds(PolicyItemIds);
@@ -554,11 +599,26 @@ UDefaultPlayerProvisioner::EProvisionStepResult UDefaultPlayerProvisioner::Apply
 	TArray<FGrantedPandora> GrantedPandoras;
 	CollectPandoraGrants(*Definition, Mode, UnlockedPandoraIds, GrantedPandoras);
 
-	PandoraComponent->ClearAllPandoras();
-	PandoraTreeComponent->InitializeFromDefaultProvision(GrantedPandoras, Definition->GetSoulDustValues().GetCount(Mode));
 	const TMap<EEnum_Direction, FPrimaryAssetId> LoadoutByDirection = Mode == EDefaultProvisionMode::Gameplay
 		? ResolveLobbyLoadout(*PlayerState, UnlockedPandoraIds)
 		: TMap<EEnum_Direction, FPrimaryAssetId>();
+	// 봇은 판도라를 키우지 않으므로 가져간 판도라를 정한 레벨로 연다.
+	const int32 BotPandoraLevel = PlayerState->IsABot() ? Definition->GetBotPandoraLevels().GetLevel(Mode) : INDEX_NONE;
+	if (BotPandoraLevel >= 0)
+	{
+		for (const TPair<EEnum_Direction, FPrimaryAssetId>& Pair : LoadoutByDirection)
+		{
+			const UPandoraDefinition* PandoraDefinition = Cast<UPandoraDefinition>(UAssetManager::Get().GetPrimaryAssetObject(Pair.Value));
+			GrantedPandoras.RemoveAll([PandoraDefinition](const FGrantedPandora& Granted) { return Granted.Pandora == PandoraDefinition; });
+			if (PandoraDefinition && BotPandoraLevel > 0)
+			{
+				GrantedPandoras.Add(FGrantedPandora(PandoraDefinition, BotPandoraLevel));
+			}
+		}
+	}
+
+	PandoraComponent->ClearAllPandoras();
+	PandoraTreeComponent->InitializeFromDefaultProvision(GrantedPandoras, Definition->GetSoulDustValues().GetCount(Mode));
 	PandoraComponent->GrantPandorasWithLoadout(UnlockedPandoraIds, LoadoutByDirection);
 
 	FInitializedPandoraState& NewState = InitializedPandoras.FindOrAdd(PlayerStateKey);
@@ -569,7 +629,7 @@ UDefaultPlayerProvisioner::EProvisionStepResult UDefaultPlayerProvisioner::Apply
 
 // 제스처 스킨을 주고 칸에 장착한다. 장착은 캐릭터에 붙은 컴포넌트가 하므로 Pawn을 기다린다.
 UDefaultPlayerProvisioner::EProvisionStepResult UDefaultPlayerProvisioner::ApplyGestures(
-	APlayerController* PlayerController, APdPlayerState* PlayerState)
+	AController* Controller, APdPlayerState* PlayerState)
 {
 	const UDefaultProvisionDefinition* Definition = GetDefinition();
 	if (!Definition)
@@ -586,7 +646,7 @@ UDefaultPlayerProvisioner::EProvisionStepResult UDefaultPlayerProvisioner::Apply
 	{
 		return EProvisionStepResult::Failed;
 	}
-	ACharacterBase* Character = PlayerController ? Cast<ACharacterBase>(PlayerController->GetPawn()) : nullptr;
+	ACharacterBase* Character = Controller ? Cast<ACharacterBase>(Controller->GetPawn()) : nullptr;
 	USkinEquipmentComponent* SkinEquipmentComponent = Character ? Character->GetSkinEquipmentComponent() : nullptr;
 	if (!SkinEquipmentComponent)
 	{
@@ -621,37 +681,37 @@ UDefaultPlayerProvisioner::EProvisionStepResult UDefaultPlayerProvisioner::Apply
 
 // 인벤토리 아이템 로딩, 능력치 정의 준비, 제스처를 받을 캐릭터 빙의를 완료 알림으로 기다렸다가 다시 지급한다.
 // 기다릴 대상이 없는데도 끝나지 않았으면 구성 요소나 정의가 빠진 것이라 다시 시도하지 않고 오류로 알린다.
-void UDefaultPlayerProvisioner::WaitForProvisionInputs(APlayerController* PlayerController, const EProvisionStepResult Result)
+void UDefaultPlayerProvisioner::WaitForProvisionInputs(AController* Controller, const EProvisionStepResult Result)
 {
-	if (bShuttingDown || !PlayerController)
+	if (bShuttingDown || !Controller)
 	{
 		return;
 	}
 
-	APdPlayerState* PlayerState = PlayerController->GetPlayerState<APdPlayerState>();
+	APdPlayerState* PlayerState = Controller->GetPlayerState<APdPlayerState>();
 	UInventoryComponent* InventoryComponent = PlayerState ? PlayerState->GetInventoryComponent() : nullptr;
 	UStatUpgradeComponent* StatUpgradeComponent = PlayerState ? PlayerState->GetStatUpgradeComponent() : nullptr;
 	const bool bWaitForInventory = InventoryComponent && InventoryComponent->HasPendingItemLoads();
 	const bool bWaitForStatUpgrade = StatUpgradeComponent && !StatUpgradeComponent->IsDefinitionReady();
 	const UDefaultProvisionDefinition* Definition = GetDefinition();
-	const ACharacterBase* Character = Cast<ACharacterBase>(PlayerController->GetPawn());
+	const ACharacterBase* Character = Cast<ACharacterBase>(Controller->GetPawn());
 	const bool bWaitForPawn = Definition && !Definition->GetGestureGrants().IsEmpty()
 		&& (!Character || !Character->GetSkinEquipmentComponent());
 	if (!bWaitForInventory && !bWaitForStatUpgrade && !bWaitForPawn)
 	{
 		UE_LOG(LogDefaultPlayerProvisioner, Error,
 			TEXT("Default provisioning for %s %s with nothing left to wait for. Check the player state components and the provision definition."),
-			*GetNameSafe(PlayerController),
+			*GetNameSafe(Controller),
 			Result == EProvisionStepResult::Failed ? TEXT("is missing a component or definition") : TEXT("did not finish"));
 		return;
 	}
 
-	const TObjectKey<APlayerController> ControllerKey(PlayerController);
-	const TWeakObjectPtr<APlayerController> WeakPlayer(PlayerController);
+	const TObjectKey<AController> ControllerKey(Controller);
+	const TWeakObjectPtr<AController> WeakPlayer(Controller);
 	const auto Resume = [this, WeakPlayer, ControllerKey]()
 	{
 		StopWaitingForProvisionInputs(ControllerKey);
-		if (APlayerController* Player = WeakPlayer.Get())
+		if (AController* Player = WeakPlayer.Get())
 		{
 			ScheduleProvisionAttempt(Player);
 		}
@@ -676,14 +736,14 @@ void UDefaultPlayerProvisioner::WaitForProvisionInputs(APlayerController* Player
 		Wait.StatUpgrade = StatUpgradeComponent;
 		Wait.StatUpgradeHandle = StatUpgradeComponent->OnDefinitionReady().AddWeakLambda(this, Resume);
 	}
-	if (bWaitForPawn && !(Wait.Controller.Get() == PlayerController && Wait.PawnHandle.IsValid()))
+	if (bWaitForPawn && !(Wait.Controller.Get() == Controller && Wait.PawnHandle.IsValid()))
 	{
-		Wait.Controller = PlayerController;
-		Wait.PawnHandle = PlayerController->GetOnNewPawnNotifier().AddWeakLambda(this, [Resume](APawn*) { Resume(); });
+		Wait.Controller = Controller;
+		Wait.PawnHandle = Controller->GetOnNewPawnNotifier().AddWeakLambda(this, [Resume](APawn*) { Resume(); });
 	}
 }
 
-void UDefaultPlayerProvisioner::StopWaitingForProvisionInputs(const TObjectKey<APlayerController> ControllerKey)
+void UDefaultPlayerProvisioner::StopWaitingForProvisionInputs(const TObjectKey<AController> ControllerKey)
 {
 	FProvisionWait Wait;
 	if (!ProvisionWaits.RemoveAndCopyValue(ControllerKey, Wait))
@@ -699,28 +759,28 @@ void UDefaultPlayerProvisioner::StopWaitingForProvisionInputs(const TObjectKey<A
 	{
 		StatUpgradeComponent->OnDefinitionReady().Remove(Wait.StatUpgradeHandle);
 	}
-	if (APlayerController* PlayerController = Wait.Controller.Get())
+	if (AController* WaitingController = Wait.Controller.Get())
 	{
-		PlayerController->GetOnNewPawnNotifier().Remove(Wait.PawnHandle);
+		WaitingController->GetOnNewPawnNotifier().Remove(Wait.PawnHandle);
 	}
 }
 
-void UDefaultPlayerProvisioner::ScheduleProvisionAttempt(APlayerController* PlayerController)
+void UDefaultPlayerProvisioner::ScheduleProvisionAttempt(AController* Controller)
 {
 	UWorld* World = GetWorld();
-	if (bShuttingDown || !World || !PlayerController)
+	if (bShuttingDown || !World || !Controller)
 	{
 		return;
 	}
 
-	const TObjectKey<APlayerController> ControllerKey(PlayerController);
+	const TObjectKey<AController> ControllerKey(Controller);
 	const FTimerHandle* ExistingTimer = PendingProvisionAttempts.Find(ControllerKey);
 	if (ExistingTimer && World->GetTimerManager().IsTimerActive(*ExistingTimer))
 	{
 		return;
 	}
 
-	const TWeakObjectPtr<APlayerController> WeakPlayer(PlayerController);
+	const TWeakObjectPtr<AController> WeakPlayer(Controller);
 	const FTimerHandle TimerHandle = World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateWeakLambda(this,
 		[this, WeakPlayer, ControllerKey]()
 		{
@@ -730,14 +790,14 @@ void UDefaultPlayerProvisioner::ScheduleProvisionAttempt(APlayerController* Play
 	PendingProvisionAttempts.Add(ControllerKey, TimerHandle);
 }
 
-void UDefaultPlayerProvisioner::ClearScheduledProvisionAttempt(APlayerController* PlayerController)
+void UDefaultPlayerProvisioner::ClearScheduledProvisionAttempt(AController* Controller)
 {
-	if (!PlayerController)
+	if (!Controller)
 	{
 		return;
 	}
 
-	const TObjectKey<APlayerController> ControllerKey(PlayerController);
+	const TObjectKey<AController> ControllerKey(Controller);
 	UWorld* World = GetWorld();
 	if (FTimerHandle* TimerHandle = World ? PendingProvisionAttempts.Find(ControllerKey) : nullptr)
 	{
@@ -748,11 +808,11 @@ void UDefaultPlayerProvisioner::ClearScheduledProvisionAttempt(APlayerController
 
 void UDefaultPlayerProvisioner::ClearRuntimeStateForController(AController* Controller, APlayerState* PlayerState)
 {
-	if (APlayerController* PlayerController = Cast<APlayerController>(Controller))
+	if (Controller)
 	{
-		ClearScheduledProvisionAttempt(PlayerController);
-		StopWaitingForProvisionInputs(TObjectKey<APlayerController>(PlayerController));
-		PendingContentControllers.Remove(PlayerController);
+		ClearScheduledProvisionAttempt(Controller);
+		StopWaitingForProvisionInputs(TObjectKey<AController>(Controller));
+		PendingContentControllers.Remove(Controller);
 	}
 	if (!PlayerState)
 	{
@@ -771,15 +831,15 @@ void UDefaultPlayerProvisioner::Shutdown()
 	bShuttingDown = true;
 	if (UWorld* World = GetWorld())
 	{
-		for (TPair<TObjectKey<APlayerController>, FTimerHandle>& Pair : PendingProvisionAttempts)
+		for (TPair<TObjectKey<AController>, FTimerHandle>& Pair : PendingProvisionAttempts)
 		{
 			World->GetTimerManager().ClearTimer(Pair.Value);
 		}
 	}
 	PendingProvisionAttempts.Reset();
-	TArray<TObjectKey<APlayerController>> WaitingControllers;
+	TArray<TObjectKey<AController>> WaitingControllers;
 	ProvisionWaits.GetKeys(WaitingControllers);
-	for (const TObjectKey<APlayerController>& ControllerKey : WaitingControllers)
+	for (const TObjectKey<AController>& ControllerKey : WaitingControllers)
 	{
 		StopWaitingForProvisionInputs(ControllerKey);
 	}

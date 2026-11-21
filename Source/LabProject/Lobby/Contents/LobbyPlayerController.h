@@ -30,6 +30,17 @@ public:
 	UFUNCTION(BlueprintCallable, Server, Reliable, Category = "!Lobby")
 	void Server_HandleKickPlayer(APdPlayerState* TargetPlayerState);
 
+	/** 방장: 빈 자리에 봇을 넣는다. */
+	UFUNCTION(Server, Reliable, Category = "!Lobby|Bot")
+	void Server_HandleAddBot();
+
+	/** 방장: 봇의 팀 색을 바꾼다. */
+	UFUNCTION(Server, Reliable, Category = "!Lobby|Bot")
+	void Server_HandleChangeBotTeamColor(APdPlayerState* BotPlayerState, int32 InTeamColorIndex);
+
+	/** 이 조종기가 방장(리슨 서버 호스트)인지. 봇 추가·강퇴처럼 방장만 하는 일을 거른다. */
+	bool IsLobbyHost() const;
+
 	UFUNCTION(Client, Reliable, Category = "!Lobby|UI")
 	void Client_ShowGameStartConnectingPopup();
 

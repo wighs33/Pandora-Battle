@@ -13,6 +13,7 @@ class AGameplayAbilityTargetActor;
 class ASkillProjectile;
 class UAbilityTask_PlayMontageAndWait;
 class UAbilityTask_WaitConfirmCancel;
+class UAbilityTask_WaitDelay;
 class UAbilityTask_WaitGameplayEvent;
 class UAbilityTask_WaitTargetData;
 class UAnimMontage;
@@ -58,6 +59,9 @@ private:
 
 	UFUNCTION()
 	void HandleTargetDataCancelled(const FGameplayAbilityTargetDataHandle& Data);
+
+	UFUNCTION()
+	void HandleChargeWithoutPlayerFinished();
 	void FireNextSocketBarrageProjectile();
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
@@ -144,6 +148,13 @@ private:
 
 	void CleanupAimingState();
 
+	/**
+	 * 플레이어가 아닌 시전자(봇)가 조준 후 확정하는 투사체를 쏠 때, 플레이어처럼 발사 자세에서 투사체를 띄워 다 모은 뒤 대상에게 쏜다.
+	 * 확정 입력이 없으므로 모으는 시간은 GetChargeSecondsWithoutPlayer로 정한다. 조준 후 확정 방식이 아니면 false다.
+	 */
+	bool TryStartChargeWithoutPlayer(bool bPauseShootMontage);
+	float GetChargeSecondsWithoutPlayer() const;
+
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "!Settings", meta = (ShowOnlyInnerProperties))
 	FSkillProjectileSettings Settings;
@@ -181,6 +192,9 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UAbilityTask_WaitTargetData> TargetDataTask;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UAbilityTask_WaitDelay> ChargeWithoutPlayerTask;
 
 	UPROPERTY(Transient)
 	TObjectPtr<ASkillProjectile> ReadiedProjectile;

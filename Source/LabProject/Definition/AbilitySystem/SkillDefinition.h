@@ -128,4 +128,12 @@ public:
 	/** 이동 속도 증가, 이동 제한 및 접촉 피해 설정. 대시는 해당 액션에서 설정한다. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Movement", meta = (ShowOnlyInnerProperties))
 	FSkillMovementSettings Movement;
+
+	/** 봇이 이 스킬을 쓴 뒤 스킬 지속 시간(Time.Duration) 동안 할 일. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Bot")
+	ESkillBotFollowUp BotFollowUp = ESkillBotFollowUp::None;
+
+	/** 봇이 이 스킬을 쓰는 대상과의 최대 거리(두 몸 가장자리 사이). 몸 둘레에 펼치는 스킬은 짧게, 멀리 쏘는 스킬은 길게 둔다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Bot", meta = (ClampMin = "0.0", ForceUnits = "cm"))
+	float BotCastRange = 800.0f;
 };

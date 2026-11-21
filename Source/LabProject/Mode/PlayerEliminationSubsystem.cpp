@@ -89,7 +89,18 @@ void UPlayerEliminationSubsystem::HandleEliminated(AActor* VictimActor, AActor* 
 	// 킬당 1점이다. 점수판과 승패 판정은 PlayerState 점수를 처치 수로 읽는다.
 	KillerPlayerState->SetScore(KillerPlayerState->GetScore() + 1.0f);
 
+	// 대기실에서 넣은 봇과의 처치는 승리 골드에 세지 않는다(사람끼리 처치만 골드가 된다).
 	const APdPlayerState* KillerPdPlayerState = Cast<APdPlayerState>(KillerPlayerState);
+	const APdPlayerState* VictimPdPlayerState = Cast<APdPlayerState>(VictimPlayerState);
+	if (KillerPdPlayerState && VictimPdPlayerState && VictimPlayerState->IsABot())
+	{
+		KillerPdPlayerState->GetPlayerMatchComponent()->RecordBotKill();
+	}
+	if (KillerPdPlayerState && VictimPdPlayerState && KillerPlayerState->IsABot())
+	{
+		VictimPdPlayerState->GetPlayerMatchComponent()->RecordDeathByBot();
+	}
+
 	if (UPlayerRewardComponent* RewardComponent = KillerPdPlayerState ? KillerPdPlayerState->GetPlayerRewardComponent() : nullptr)
 	{
 		RewardComponent->GrantKillExperience(VictimPlayerState);

@@ -31,6 +31,17 @@ struct LABPROJECT_API FGameResultPlayerStat
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!GameResult")
 	bool bVictoryRewardEligible = false;
+
+	/** 승리 골드에 쓰는 처치·사망 수. 대기실에서 넣은 봇과의 처치는 세지 않는다. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!GameResult")
+	int32 RewardKillCount = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!GameResult")
+	int32 RewardDeathCount = 0;
+
+	/** 대기실에서 넣은 봇이다. 봇이 낀 경기는 전적과 업적에 남기지 않는다. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "!GameResult")
+	bool bBot = false;
 };
 
 USTRUCT(BlueprintType)

@@ -5,6 +5,7 @@
 #include "Components/Button.h"
 #include "Components/CheckBox.h"
 #include "Components/Image.h"
+#include "Component/Character/TrainingBotPandoraComponent.h"
 #include "Data/ContentDataSubsystem.h"
 #include "Data/ContentLease.h"
 #include "Definition/Item/ItemDefinition.h"
@@ -75,6 +76,12 @@ void UTrainingRoomSettingsWidget::NativeConstruct()
 	Chk_BotCanAttack->OnCheckStateChanged.AddUniqueDynamic(this, &ThisClass::HandleBotCanAttackChanged);
 	ApplyAttackEnabledToTrainingBots(bAttackEnabled);
 
+	const UTrainingBotPandoraComponent* BotPandora = TrainingBot ? TrainingBot->FindComponentByClass<UTrainingBotPandoraComponent>() : nullptr;
+	const bool bPandorasEnabled = BotPandora ? BotPandora->ArePandorasEnabled() : bInitialBotPandoraEnabled;
+	Chk_BotUsePandora->SetIsChecked(bPandorasEnabled);
+	Chk_BotUsePandora->OnCheckStateChanged.AddUniqueDynamic(this, &ThisClass::HandleBotUsePandoraChanged);
+	RefreshWeaponButtonsEnabled(bPandorasEnabled);
+
 	SyncSelectionFromTrainingBot();
 	RefreshSelectionBorders();
 }
@@ -84,6 +91,7 @@ void UTrainingRoomSettingsWidget::NativeDestruct()
 	PendingWeaponLease.Reset();
 	WeaponPreloadLease.Reset();
 	Chk_BotCanAttack->OnCheckStateChanged.RemoveDynamic(this, &ThisClass::HandleBotCanAttackChanged);
+	Chk_BotUsePandora->OnCheckStateChanged.RemoveDynamic(this, &ThisClass::HandleBotUsePandoraChanged);
 	for (UButtonClickRelay* ClickRelay : WeaponClickRelays)
 	{
 		ClickRelay->Unbind();
@@ -122,6 +130,12 @@ void UTrainingRoomSettingsWidget::SelectWeaponOption(const int32 OptionIndex)
 void UTrainingRoomSettingsWidget::HandleBotCanAttackChanged(const bool bIsChecked)
 {
 	ApplyAttackEnabledToTrainingBots(bIsChecked);
+}
+
+void UTrainingRoomSettingsWidget::HandleBotUsePandoraChanged(const bool bIsChecked)
+{
+	ApplyPandorasEnabledToTrainingBots(bIsChecked);
+	RefreshWeaponButtonsEnabled(bIsChecked);
 }
 
 void UTrainingRoomSettingsWidget::CompletePendingWeaponSelection(const int32 OptionIndex)
@@ -167,11 +181,39 @@ void UTrainingRoomSettingsWidget::ApplyAttackEnabledToTrainingBots(const bool bE
 	}
 }
 
+void UTrainingRoomSettingsWidget::ApplyPandorasEnabledToTrainingBots(const bool bEnabled) const
+{
+	for (TActorIterator<AEnemyBase> It(GetWorld()); It; ++It)
+	{
+		UTrainingBotPandoraComponent* BotPandora = IsTrainingBot(*It) ? It->FindComponentByClass<UTrainingBotPandoraComponent>() : nullptr;
+		if (BotPandora)
+		{
+			BotPandora->SetPandorasEnabled(bEnabled);
+		}
+	}
+}
+
+void UTrainingRoomSettingsWidget::RefreshWeaponButtonsEnabled(const bool bPandorasEnabled) const
+{
+	for (const FTrainingBotWeaponOption& Option : WeaponOptions)
+	{
+		if (UButton* Button = Cast<UButton>(GetWidgetFromName(Option.ButtonWidgetName)))
+		{
+			Button->SetIsEnabled(!bPandorasEnabled);
+			Button->SetRenderOpacity(bPandorasEnabled ? LockedWeaponButtonOpacity : 1.0f);
+		}
+	}
+}
+
+// 판도라를 쓰는 동안 봇은 판도라의 짝 무기를 들므로, 선택 표시는 판도라를 끄면 돌아갈 무기에 둔다.
 void UTrainingRoomSettingsWidget::SyncSelectionFromTrainingBot()
 {
 	if (const AEnemyBase* TrainingBot = FindTrainingBot(GetWorld()))
 	{
-		SelectedOptionIndex = FindWeaponOptionIndex(TrainingBot->GetCurrentOrStartingEnemyWeaponDefinition());
+		const UTrainingBotPandoraComponent* BotPandora = TrainingBot->FindComponentByClass<UTrainingBotPandoraComponent>();
+		SelectedOptionIndex = FindWeaponOptionIndex(BotPandora && BotPandora->ArePandorasEnabled()
+			? BotPandora->GetWeaponBeforePandoras()
+			: TrainingBot->GetCurrentOrStartingEnemyWeaponDefinition());
 	}
 }
 

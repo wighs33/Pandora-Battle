@@ -118,7 +118,9 @@ void AExperienceGameState::SaveLocalMatchRecord(APlayerController* LocalPlayerCo
 			return PlayerStat.PlayerStateId != INDEX_NONE && PlayerStat.PlayerStateId == LocalPlayerStateId;
 		});
 
-	if (!LocalPlayerStat)
+	// 대기실에서 넣은 봇이 낀 경기는 전적(승수)과 그 전적으로 세는 업적에 남기지 않는다.
+	const bool bBotsPlayed = PlayerStats.ContainsByPredicate([](const FGameResultPlayerStat& PlayerStat) { return PlayerStat.bBot; });
+	if (!LocalPlayerStat || bBotsPlayed)
 	{
 		return;
 	}

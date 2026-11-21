@@ -283,8 +283,8 @@ void UMatchRewardComponent::GrantVictoryGoldToController(AController* WinnerCont
 	const UPlayerMatchComponent* MatchComponent = WinnerPlayerState ? WinnerPlayerState->GetPlayerMatchComponent() : nullptr;
 	const int32 GoldReward = MatchComponent
 		? MatchOutcomeRules::CalculateVictoryGold(
-			MatchComponent->GetKillCount(),
-			MatchComponent->GetDeathCount(),
+			MatchComponent->GetRewardKillCount(),
+			MatchComponent->GetRewardDeathCount(),
 			WinnerTeamMemberCount,
 			GameMode->GetVictoryGoldRates())
 		: 0;

@@ -4,8 +4,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: Game\n"
-"POT-Creation-Date: 2026-11-13 10:43\n"
-"PO-Revision-Date: 2026-11-13 10:43\n"
+"POT-Creation-Date: 2026-11-20 15:16\n"
+"PO-Revision-Date: 2026-11-20 15:16\n"
 "Language-Team: \n"
 "Language: ko\n"
 "MIME-Version: 1.0\n"
@@ -129,15 +129,15 @@ msgstr "[ 조작 방법 ]\n\n■ 이동\n\n• 이동: W/A/S/D\n• 카메라: �
 #. SourceLocation:	/Game/Data/DA_Guide.DA_Guide.Pages(2).Pages.Content
 #: /Game/Data/DA_Guide.DA_Guide.Pages(2).Pages.Content
 msgctxt ",B66EF5794C427591771F8B9310E0841F"
-msgid "[ Game Rules ]\n\n■ Score\n\n• You get 1 point for each other player you defeat.\n• Defeating monsters, falling, or defeating yourself does not change your score.\n• When you are defeated, you respawn after a short time.\n\n■ Victory\n\n• When the match timer runs out, the player with the highest score wins.\n• In team matches, the whole team of that player wins.\n\n■ Golden Kill\n\n• Golden Kill begins when the timer runs out and the highest score is tied between players of different teams, or between players without a team.\n• Everyone's Health, Mana, and Stamina are refilled and everyone returns to the starting points. Respawns also happen at the starting points.\n• A tied leader wins immediately with the next kill. Players below the top score must first pass it.\n• If the tied players are on the same team, that team wins without Golden Kill.\n\n■ Rewards\n\n• Every member of the winning team receives Gold.\n• Your own kills increase the Gold and your deaths reduce it, but it never goes below 0.\n• Results are saved in Records.\n\n■ Leaving a Match\n\n• In a match with two or more players, the match ends as soon as someone leaves, and the result is decided by the players who remain.\n• This does not apply to Training or Boss Raid."
-msgstr "[ 게임 규칙 ]\n\n■ 점수\n\n• 다른 플레이어를 처치할 때마다 1점을 얻습니다.\n• 몬스터 처치, 추락, 자기 자신을 처치한 경우에는 점수가 바뀌지 않습니다.\n• 쓰러지면 잠시 후 다시 부활합니다.\n\n■ 승리\n\n• 경기 시간이 끝났을 때 점수가 가장 높은 플레이어가 승리합니다.\n• 팀전에서는 그 플레이어의 팀 전체가 승리합니다.\n\n■ 골든 킬\n\n• 경기 시간이 끝났을 때 최고 점수가 서로 다른 팀의 플레이어끼리, 또는 팀이 없는 플레이어끼리 같으면 골든 킬이 시작됩니다.\n• 모든 플레이어의 체력, 마나, 스태미나가 다시 채워지고 시작 지점으로 돌아갑니다. 이후 부활도 시작 지점에서 합니다.\n• 동점인 선두 플레이어는 다음 처치를 하는 즉시 승리합니다. 최고 점수보다 낮은 플레이어는 먼저 최고 점수를 넘어야 합니다.\n• 동점인 플레이어들이 같은 팀이면 골든 킬 없이 그 팀이 승리합니다.\n\n■ 보상\n\n• 승리한 팀의 모든 플레이어가 골드를 받습니다.\n• 자신의 처치가 많을수록 골드가 늘고 사망할수록 줄어들지만, 0 밑으로 내려가지는 않습니다.\n• 경기 결과는 전적에 저장됩니다.\n\n■ 경기 이탈\n\n• 2명 이상이 참가한 경기에서 누군가 나가면 경기가 바로 끝나고, 남은 플레이어로 결과를 정합니다.\n• 훈련장과 보스 레이드에는 적용되지 않습니다."
+msgid "[ Game Rules ]\n\n■ Score\n\n• You get 1 point for each other player you defeat.\n• Defeating monsters, falling, or defeating yourself does not change your score.\n• When you are defeated, you respawn after a short time.\n\n■ Victory\n\n• When the match timer runs out, the player with the highest score wins.\n• In team matches, the whole team of that player wins.\n\n■ Golden Kill\n\n• Golden Kill begins when the timer runs out and the highest score is tied between players of different teams, or between players without a team.\n• Everyone's Health, Mana, and Stamina are refilled and everyone returns to the starting points. Respawns also happen at the starting points.\n• A tied leader wins immediately with the next kill. Players below the top score must first pass it.\n• If the tied players are on the same team, that team wins without Golden Kill.\n\n■ Rewards\n\n• Every member of the winning team receives Gold.\n• Your own kills increase the Gold and your deaths reduce it, but it never goes below 0.\n• Defeating a bot or being defeated by a bot does not change the Gold.\n• Results are saved in Records. Matches with bots are not saved, so they do not count toward wins, tiers, or match achievements.\n\n■ Leaving a Match\n\n• In a match with two or more players, the match ends as soon as someone leaves, and the result is decided by the players who remain.\n• This does not apply to Training or Boss Raid."
+msgstr "[ 게임 규칙 ]\n\n■ 점수\n\n• 다른 플레이어를 처치할 때마다 1점을 얻습니다.\n• 몬스터 처치, 추락, 자기 자신을 처치한 경우에는 점수가 바뀌지 않습니다.\n• 쓰러지면 잠시 후 다시 부활합니다.\n\n■ 승리\n\n• 경기 시간이 끝났을 때 점수가 가장 높은 플레이어가 승리합니다.\n• 팀전에서는 그 플레이어의 팀 전체가 승리합니다.\n\n■ 골든 킬\n\n• 경기 시간이 끝났을 때 최고 점수가 서로 다른 팀의 플레이어끼리, 또는 팀이 없는 플레이어끼리 같으면 골든 킬이 시작됩니다.\n• 모든 플레이어의 체력, 마나, 스태미나가 다시 채워지고 시작 지점으로 돌아갑니다. 이후 부활도 시작 지점에서 합니다.\n• 동점인 선두 플레이어는 다음 처치를 하는 즉시 승리합니다. 최고 점수보다 낮은 플레이어는 먼저 최고 점수를 넘어야 합니다.\n• 동점인 플레이어들이 같은 팀이면 골든 킬 없이 그 팀이 승리합니다.\n\n■ 보상\n\n• 승리한 팀의 모든 플레이어가 골드를 받습니다.\n• 자신의 처치가 많을수록 골드가 늘고 사망할수록 줄어들지만, 0 밑으로 내려가지는 않습니다.\n• 봇을 처치하거나 봇에게 처치당한 것은 골드에 반영되지 않습니다.\n• 경기 결과는 전적에 저장됩니다. 봇이 참가한 경기는 저장되지 않으므로 승리 수, 티어, 경기 업적에도 반영되지 않습니다.\n\n■ 경기 이탈\n\n• 2명 이상이 참가한 경기에서 누군가 나가면 경기가 바로 끝나고, 남은 플레이어로 결과를 정합니다.\n• 훈련장과 보스 레이드에는 적용되지 않습니다."
 
 #. Key:	1339923E43546CEA0B2B6798B2084104
 #. SourceLocation:	/Game/Data/DA_Guide.DA_Guide.Pages(3).Pages.Content
 #: /Game/Data/DA_Guide.DA_Guide.Pages(3).Pages.Content
 msgctxt ",1339923E43546CEA0B2B6798B2084104"
-msgid "[ Training ]\n\n• A private practice room that does not affect normal matches.\n• Try movement, weapons, Pandora skills, consumables, painting, and combat.\n• All registered items are available, and extra Status Points and Soul Dust are provided so you can test different builds.\n• Training bots can use selected weapons, their attacks can be turned on or off, and they respawn after being defeated.\n• The game pauses while the Character Hub is open.\n\n[ Quick Match ]\n\n• Joins a public room that has free slots. If there are several, one is chosen at random.\n• If no room is found, a new room is created and you enter its lobby as the host.\n\n[ Room List ]\n\n• Shows each room's name, map, and number of players. Press Refresh to update the list.\n• You can cancel a search or connection in progress.\n• Create a room by entering a room name. You enter its lobby as the host.\n\n[ Lobby ]\n\n• See the players in the room, edit your nickname, and choose your team color.\n• Invite Steam friends to the room, or add other players as Steam friends.\n• The host chooses the map and can remove players.\n• The host can start the game when playing alone, or when everyone has chosen a team, there are at least two teams, and every team has the same number of players. The players must also fit the selected map.\n• A short countdown runs before the match, and game content is loaded before everyone moves to the map.\n\n[ Boss Raid ]\n\n• Boss Raid opens only on scheduled dates for a limited time. While it is closed, the button cannot be pressed, and hovering over it shows that it is not open yet.\n• Press Boss Raid on the title screen to enter a shared world and hunt monsters with other players.\n• There is no win or loss. While it is open, you can join or leave at any time.\n• Players do not fight each other.\n• Monsters give experience, Soul Dust, and potions.\n\n[ Shop ]\n\n• Buy Pandora and skins with Gold.\n• Check each product's information and price against your Gold.\n• Purchased products are unlocked permanently and saved to your profile.\n• Products that are not available yet are marked as coming in a future update.\n\n[ Records ]\n\n• Review your recent matches: wins, losses, kills, deaths, and Gold earned.\n• Your total wins decide your tier. The tier image and the progress bar show how close you are to the next tier.\n\n[ Ask Luna ]\n\n• Type a question in the box below Luna on the title screen and press Enter.\n• Luna answers based on this guide. If she is not sure, check the Guide menu."
-msgstr "[ 훈련장 ]\n\n• 일반 경기에 영향을 주지 않는 혼자만의 연습 공간입니다.\n• 이동, 무기, 판도라 스킬, 소모품, 페인트, 전투를 시험해 볼 수 있습니다.\n• 등록된 모든 아이템을 쓸 수 있고, 여러 조합을 시험하도록 추가 능력치 포인트와 소울 더스트가 주어집니다.\n• 훈련용 봇은 정해진 무기를 쓸 수 있고, 공격을 켜거나 끌 수 있으며, 쓰러지면 다시 나타납니다.\n• 캐릭터 허브를 열어 둔 동안에는 게임이 멈춥니다.\n\n[ 빠른 매칭 ]\n\n• 자리가 남은 공개 방에 들어갑니다. 여러 개면 그중 하나를 무작위로 고릅니다.\n• 들어갈 방이 없으면 새 방을 만들고 방장으로 대기실에 들어갑니다.\n\n[ 방 목록 ]\n\n• 방마다 이름, 맵, 인원을 보여 줍니다. 새로고침을 누르면 목록을 다시 불러옵니다.\n• 진행 중인 검색이나 접속을 취소할 수 있습니다.\n• 방 이름을 입력해 방을 만들 수 있고, 방장으로 대기실에 들어갑니다.\n\n[ 대기실 ]\n\n• 방에 있는 플레이어를 확인하고, 닉네임을 바꾸고, 팀 색상을 고릅니다.\n• Steam 친구를 방에 초대하거나, 다른 플레이어를 Steam 친구로 추가할 수 있습니다.\n• 맵은 방장이 고르고, 방장은 플레이어를 내보낼 수 있습니다.\n• 방장은 혼자일 때, 또는 모두가 팀을 고르고 팀이 2개 이상이며 팀마다 인원이 같을 때 게임을 시작할 수 있습니다. 인원은 고른 맵의 최대 인원 안이어야 합니다.\n• 경기 전 짧은 카운트다운이 진행되고, 모두가 맵으로 이동하기 전에 게임 콘텐츠를 미리 불러옵니다.\n\n[ 보스 레이드 ]\n\n• 보스 레이드는 예정된 날짜에 일정 시간 동안만 열립니다. 열리지 않은 동안에는 버튼을 누를 수 없고, 마우스를 올리면 아직 개최되지 않았다고 표시됩니다.\n• 타이틀 화면에서 보스 레이드를 누르면 공유 월드에 들어가 다른 플레이어와 함께 몬스터를 사냥합니다.\n• 승패가 없고, 열려 있는 동안 언제든 들어오고 나갈 수 있습니다.\n• 플레이어끼리는 싸우지 않습니다.\n• 몬스터는 경험치, 소울 더스트, 물약을 줍니다.\n\n[ 상점 ]\n\n• 골드로 판도라와 스킨을 구매합니다.\n• 상품 정보와 가격을 보유 골드와 비교할 수 있습니다.\n• 구매한 상품은 영구히 해금되어 프로필에 저장됩니다.\n• 아직 구매할 수 없는 상품은 업데이트 예정으로 표시됩니다.\n\n[ 전적 ]\n\n• 최근 경기의 승리, 패배, 처치, 사망, 획득 골드를 확인합니다.\n• 누적 승리 수로 티어가 정해지고, 티어 이미지와 승리 진행도로 다음 티어까지 남은 정도를 보여 줍니다.\n\n[ 루나에게 묻기 ]\n\n• 타이틀 화면에서 루나 아래 입력창에 질문을 쓰고 Enter를 누르세요.\n• 루나는 이 가이드를 바탕으로 답합니다. 루나가 잘 모르는 내용은 가이드 메뉴에서 확인하세요."
+msgid "[ Training ]\n\n• A private practice room that does not affect normal matches.\n• Try movement, weapons, Pandora skills, consumables, painting, and combat.\n• All registered items are available, and extra Status Points and Soul Dust are provided so you can test different builds.\n• Training bots respawn after being defeated. In the Training tab of Game settings, choose the Bot weapon and turn Bot attacks on or off.\n• Turn on Bot pandoras in the same tab to make the bot use the skills of three random Pandoras. While it is on, the bot's weapon follows the Pandora it is using, so the Bot weapon cannot be chosen. It is off by default.\n• The game pauses while the Character Hub is open.\n\n[ Quick Match ]\n\n• Joins a public room that has free slots. If there are several, one is chosen at random.\n• If no room is found, a new room is created and you enter its lobby as the host.\n\n[ Room List ]\n\n• Shows each room's name, map, and number of players. Press Refresh to update the list.\n• You can cancel a search or connection in progress.\n• Create a room by entering a room name. You enter its lobby as the host.\n\n[ Lobby ]\n\n• See the players in the room, edit your nickname, and choose your team color.\n• Invite Steam friends to the room, or add other players as Steam friends.\n• The host chooses the map and can remove players.\n• The host can start the game when playing alone, or when everyone has chosen a team, there are at least two teams, and every team has the same number of players. The players must also fit the selected map.\n• A short countdown runs before the match, and game content is loaded before everyone moves to the map.\n\n[ Playground ]\n\n• In the lobby, press Enter playground to close the lobby window and walk around the lobby map with your character.\n• Every weapon, six Pandoras at Level 3, 500 of each potion, and extra Status Points are provided so you can warm up while you wait.\n• Press L to open the lobby window again. When the host starts the game, it opens for everyone.\n\n[ Lobby Bots ]\n\n• The host can press Add bot in the lobby to fill an empty seat with a bot.\n• The host chooses each bot's team color and can remove bots. Bots count as players for the team rules and the map's player limit.\n• If a player joins a full room, or the host chooses a map with fewer seats, the most recently added bot leaves to make room.\n• In a match, each bot fights with three random Pandoras at Level 3 and weapons that match them. Defeated bots respawn like players.\n• Defeating a bot or being defeated by a bot does not change your Gold, and matches with bots are not saved in Records.\n\n[ Boss Raid ]\n\n• Boss Raid opens only on scheduled dates for a limited time. While it is closed, the button cannot be pressed, and hovering over it shows that it is not open yet.\n• Press Boss Raid on the title screen to enter a shared world and hunt monsters with other players.\n• There is no win or loss. While it is open, you can join or leave at any time.\n• Players do not fight each other.\n• Monsters give experience, Soul Dust, and potions.\n\n[ Shop ]\n\n• Buy Pandora and skins with Gold.\n• Check each product's information and price against your Gold.\n• Purchased products are unlocked permanently and saved to your profile.\n• Products that are not available yet are marked as coming in a future update.\n\n[ Records ]\n\n• Review your recent matches: wins, losses, kills, deaths, and Gold earned.\n• Your total wins decide your tier. The tier image and the progress bar show how close you are to the next tier.\n• Matches with bots are not recorded.\n\n[ Ask Luna ]\n\n• Type a question in the box below Luna on the title screen and press Enter.\n• Luna answers based on this guide. If she is not sure, check the Guide menu."
+msgstr "[ 훈련장 ]\n\n• 일반 경기에 영향을 주지 않는 혼자만의 연습 공간입니다.\n• 이동, 무기, 판도라 스킬, 소모품, 페인트, 전투를 시험해 볼 수 있습니다.\n• 등록된 모든 아이템을 쓸 수 있고, 여러 조합을 시험하도록 추가 능력치 포인트와 소울 더스트가 주어집니다.\n• 훈련용 봇은 쓰러지면 다시 나타납니다. 게임 설정의 훈련장 탭에서 봇 무기를 고르고 봇 공격을 켜거나 끌 수 있습니다.\n• 같은 탭에서 봇 판도라를 켜면 봇이 무작위 판도라 3개의 스킬을 씁니다. 켜 둔 동안에는 봇의 무기가 쓰고 있는 판도라를 따라 바뀌므로 봇 무기를 고를 수 없습니다. 처음에는 꺼져 있습니다.\n• 캐릭터 허브를 열어 둔 동안에는 게임이 멈춥니다.\n\n[ 빠른 매칭 ]\n\n• 자리가 남은 공개 방에 들어갑니다. 여러 개면 그중 하나를 무작위로 고릅니다.\n• 들어갈 방이 없으면 새 방을 만들고 방장으로 대기실에 들어갑니다.\n\n[ 방 목록 ]\n\n• 방마다 이름, 맵, 인원을 보여 줍니다. 새로고침을 누르면 목록을 다시 불러옵니다.\n• 진행 중인 검색이나 접속을 취소할 수 있습니다.\n• 방 이름을 입력해 방을 만들 수 있고, 방장으로 대기실에 들어갑니다.\n\n[ 대기실 ]\n\n• 방에 있는 플레이어를 확인하고, 닉네임을 바꾸고, 팀 색상을 고릅니다.\n• Steam 친구를 방에 초대하거나, 다른 플레이어를 Steam 친구로 추가할 수 있습니다.\n• 맵은 방장이 고르고, 방장은 플레이어를 내보낼 수 있습니다.\n• 방장은 혼자일 때, 또는 모두가 팀을 고르고 팀이 2개 이상이며 팀마다 인원이 같을 때 게임을 시작할 수 있습니다. 인원은 고른 맵의 최대 인원 안이어야 합니다.\n• 경기 전 짧은 카운트다운이 진행되고, 모두가 맵으로 이동하기 전에 게임 콘텐츠를 미리 불러옵니다.\n\n[ 운동장 ]\n\n• 대기실에서 운동장 입장을 누르면 대기실 창이 닫히고, 캐릭터로 대기실 맵을 돌아다닐 수 있습니다.\n• 모든 무기, 레벨 3 판도라 6개, 물약 종류별 500개, 추가 능력치 포인트가 주어져 기다리는 동안 몸을 풀 수 있습니다.\n• L을 누르면 대기실 창이 다시 열립니다. 방장이 게임을 시작하면 모두에게 대기실 창이 열립니다.\n\n[ 대기실 봇 ]\n\n• 방장은 대기실에서 봇 추가를 눌러 빈자리를 봇으로 채울 수 있습니다.\n• 방장은 봇마다 팀 색상을 고르고 봇을 내보낼 수 있습니다. 봇도 팀 규칙과 맵 최대 인원에서 플레이어로 셉니다.\n• 방이 가득 찼을 때 플레이어가 들어오거나 방장이 자리가 더 적은 맵을 고르면, 가장 나중에 넣은 봇부터 자리를 비웁니다.\n• 경기에서 봇은 무작위 판도라 3개를 레벨 3으로 쓰고, 그 판도라에 맞는 무기를 듭니다. 쓰러진 봇은 플레이어처럼 부활합니다.\n• 봇을 처치하거나 봇에게 처치당한 것은 골드에 반영되지 않고, 봇이 참가한 경기는 전적에 저장되지 않습니다.\n\n[ 보스 레이드 ]\n\n• 보스 레이드는 예정된 날짜에 일정 시간 동안만 열립니다. 열리지 않은 동안에는 버튼을 누를 수 없고, 마우스를 올리면 아직 개최되지 않았다고 표시됩니다.\n• 타이틀 화면에서 보스 레이드를 누르면 공유 월드에 들어가 다른 플레이어와 함께 몬스터를 사냥합니다.\n• 승패가 없고, 열려 있는 동안 언제든 들어오고 나갈 수 있습니다.\n• 플레이어끼리는 싸우지 않습니다.\n• 몬스터는 경험치, 소울 더스트, 물약을 줍니다.\n\n[ 상점 ]\n\n• 골드로 판도라와 스킨을 구매합니다.\n• 상품 정보와 가격을 보유 골드와 비교할 수 있습니다.\n• 구매한 상품은 영구히 해금되어 프로필에 저장됩니다.\n• 아직 구매할 수 없는 상품은 업데이트 예정으로 표시됩니다.\n\n[ 전적 ]\n\n• 최근 경기의 승리, 패배, 처치, 사망, 획득 골드를 확인합니다.\n• 누적 승리 수로 티어가 정해지고, 티어 이미지와 승리 진행도로 다음 티어까지 남은 정도를 보여 줍니다.\n• 봇이 참가한 경기는 전적에 남지 않습니다.\n\n[ 루나에게 묻기 ]\n\n• 타이틀 화면에서 루나 아래 입력창에 질문을 쓰고 Enter를 누르세요.\n• 루나는 이 가이드를 바탕으로 답합니다. 루나가 잘 모르는 내용은 가이드 메뉴에서 확인하세요."
 
 #. Key:	128B80664F70B1A1D0C732BC903BD796
 #. SourceLocation:	/Game/Data/DA_Guide.DA_Guide.Pages(4).Pages.Content
@@ -2723,15 +2723,15 @@ msgid "Tier {0}"
 msgstr "티어 {0}"
 
 #. Key:	KickedByHost
-#. SourceLocation:	Source/LabProject/Lobby/Contents/LobbyGameMode.cpp(305)
-#: Source/LabProject/Lobby/Contents/LobbyGameMode.cpp(305)
+#. SourceLocation:	Source/LabProject/Lobby/Contents/LobbyGameMode.cpp(337)
+#: Source/LabProject/Lobby/Contents/LobbyGameMode.cpp(337)
 msgctxt "Lobby,KickedByHost"
 msgid "Kicked by host"
 msgstr "방장이 방에서 내보냈습니다"
 
 #. Key:	EnvironmentKillerName
-#. SourceLocation:	Source/LabProject/Mode/PlayerEliminationSubsystem.cpp(109)
-#: Source/LabProject/Mode/PlayerEliminationSubsystem.cpp(109)
+#. SourceLocation:	Source/LabProject/Mode/PlayerEliminationSubsystem.cpp(120)
+#: Source/LabProject/Mode/PlayerEliminationSubsystem.cpp(120)
 msgctxt "KillLog,EnvironmentKillerName"
 msgid "Environment"
 msgstr "환경"
@@ -3674,6 +3674,20 @@ msgctxt "MenuText,Info.Windmill"
 msgid "Windmill"
 msgstr "풍차"
 
+#. Key:	Lobby.AddBot
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Lobby.AddBot"
+msgid "Add bot"
+msgstr "봇 추가"
+
+#. Key:	Lobby.BotName
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Lobby.BotName"
+msgid "Bot {0}"
+msgstr "봇 {0}"
+
 #. Key:	Lobby.EmptySeat
 #. SourceLocation:	UI/Localization/StringTables/MenuText.csv
 #: UI/Localization/StringTables/MenuText.csv
@@ -4401,6 +4415,20 @@ msgstr "봇 공격"
 msgctxt "MenuText,Settings.BotAttackHint"
 msgid "When off, the training bot does not attack"
 msgstr "끄면 훈련 봇이 공격하지 않습니다"
+
+#. Key:	Settings.BotPandora
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Settings.BotPandora"
+msgid "Bot pandoras"
+msgstr "봇 판도라"
+
+#. Key:	Settings.BotPandoraHint
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Settings.BotPandoraHint"
+msgid "When on, the training bot uses skills from three random pandoras"
+msgstr "켜면 훈련 봇이 무작위 판도라 3개의 스킬을 씁니다"
 
 #. Key:	Settings.BotWeapon
 #. SourceLocation:	UI/Localization/StringTables/MenuText.csv

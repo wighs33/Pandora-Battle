@@ -114,6 +114,32 @@ bool UPlayerMatchComponent::RecordDeath(const int32 Amount)
 	return true;
 }
 
+void UPlayerMatchComponent::RecordBotKill()
+{
+	if (HasAuthority())
+	{
+		++BotKillCount;
+	}
+}
+
+void UPlayerMatchComponent::RecordDeathByBot()
+{
+	if (HasAuthority())
+	{
+		++DeathByBotCount;
+	}
+}
+
+int32 UPlayerMatchComponent::GetRewardKillCount() const
+{
+	return FMath::Max(GetKillCount() - BotKillCount, 0);
+}
+
+int32 UPlayerMatchComponent::GetRewardDeathCount() const
+{
+	return FMath::Max(DeathCount - DeathByBotCount, 0);
+}
+
 // 구역 진입 시 현재 맵 구역을 서버에서 갱신해 지도 UI가 플레이어를 알맞은 구역에 표시하도록 한다.
 void UPlayerMatchComponent::SetPlayerMapRegion(const EPlayerMapRegion InMapRegion)
 {
@@ -138,6 +164,8 @@ void UPlayerMatchComponent::ResetForNewMatch(const EPlayerMapRegion InitialMapRe
 
 	PlayerState->SetScore(0.0f);
 	SetDeathCount(0);
+	BotKillCount = 0;
+	DeathByBotCount = 0;
 	SetPlayerMapRegion(InitialMapRegion);
 }
 

@@ -171,9 +171,10 @@ void ULobbyUserWidget::RefreshUI()
 	{
 		Img_LocalFrame->SetVisibility(bLocalPlayer ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 	}
-	const bool bCanKick = CanLocalPlayerKick() && !bLocalPlayer;
+	const bool bCanKick = IsLocalPlayerHost() && !bLocalPlayer;
 	uint64 ParsedSteamId = 0;
 	const bool bCanAddFriend = !bLocalPlayer && TryParseSteamId64(GetRepresentedSteamIdString(), ParsedSteamId);
+	const bool bBot = IsRepresentingBot();
 
 	if (Btn_KickPlayer)
 	{
@@ -187,7 +188,7 @@ void ULobbyUserWidget::RefreshUI()
 
 	if (Overlay_AddFriend)
 	{
-		Overlay_AddFriend->SetVisibility(bLocalPlayer ? ESlateVisibility::Hidden : ESlateVisibility::Visible);
+		Overlay_AddFriend->SetVisibility(bLocalPlayer || bBot ? ESlateVisibility::Hidden : ESlateVisibility::Visible);
 	}
 
 	if (Img_OwnerMark)
@@ -270,7 +271,8 @@ void ULobbyUserWidget::HandleTeamColorSelectionChanged(FString SelectedItem, ESe
 
 	SetColorBorderByTeamColorIndex(SelectedTeamColorIndex);
 
-	if (SelectionType == ESelectInfo::Direct || !PlayerState || !IsRepresentingLocalPlayer())
+	const bool bBotRowOfHost = IsRepresentingBot() && IsLocalPlayerHost();
+	if (SelectionType == ESelectInfo::Direct || !PlayerState || !(IsRepresentingLocalPlayer() || bBotRowOfHost))
 	{
 		return;
 	}
@@ -280,7 +282,12 @@ void ULobbyUserWidget::HandleTeamColorSelectionChanged(FString SelectedItem, ESe
 		return;
 	}
 
-	if (ALobbyPlayerController* LobbyPlayerController = Cast<ALobbyPlayerController>(GetOwningPlayer()))
+	ALobbyPlayerController* LobbyPlayerController = Cast<ALobbyPlayerController>(GetOwningPlayer());
+	if (LobbyPlayerController && bBotRowOfHost)
+	{
+		LobbyPlayerController->Server_HandleChangeBotTeamColor(PlayerState, SelectedTeamColorIndex);
+	}
+	else if (LobbyPlayerController)
 	{
 		LobbyPlayerController->Server_HandleChangeTeamColor(SelectedTeamColorIndex);
 	}
@@ -292,11 +299,16 @@ bool ULobbyUserWidget::IsRepresentingLocalPlayer() const
 	return LocalPlayerController && LocalPlayerController->PlayerState == PlayerState;
 }
 
-bool ULobbyUserWidget::CanLocalPlayerKick() const
+bool ULobbyUserWidget::IsLocalPlayerHost() const
 {
 	const UWorld* World = GetWorld();
 	const APlayerController* LocalPlayerController = GetOwningPlayer();
 	return World && World->GetAuthGameMode() && LocalPlayerController && LocalPlayerController->IsLocalController();
+}
+
+bool ULobbyUserWidget::IsRepresentingBot() const
+{
+	return PlayerState && PlayerState->IsABot();
 }
 
 bool ULobbyUserWidget::IsLobbyOwnerPlayer() const
@@ -317,7 +329,8 @@ bool ULobbyUserWidget::IsLobbyOwnerPlayer() const
 	for (APlayerState* CandidateState : GameState->PlayerArray)
 	{
 		const APdPlayerState* LobbyPlayerState = Cast<APdPlayerState>(CandidateState);
-		if (!LobbyPlayerState || LobbyPlayerState->GetLobbyPlayerStateComponent()->IsLeavingLobby())
+		// 방장은 가장 먼저 들어온 사람이다. 봇은 방장이 될 수 없다.
+		if (!LobbyPlayerState || LobbyPlayerState->IsABot() || LobbyPlayerState->GetLobbyPlayerStateComponent()->IsLeavingLobby())
 		{
 			continue;
 		}
@@ -408,7 +421,7 @@ void ULobbyUserWidget::RefreshTeamColorUI()
 			const int32 OptionIndex = FMath::Clamp(TeamColorIndex, 0, OptionCount - 1);
 			Cbb_TeamColor->SetSelectedOption(Cbb_TeamColor->GetOptionAtIndex(OptionIndex));
 		}
-		Cbb_TeamColor->SetIsEnabled(IsRepresentingLocalPlayer());
+		Cbb_TeamColor->SetIsEnabled(IsRepresentingLocalPlayer() || (IsRepresentingBot() && IsLocalPlayerHost()));
 	}
 
 	SetColorBorderByTeamColorIndex(TeamColorIndex);

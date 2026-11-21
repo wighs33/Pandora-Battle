@@ -84,12 +84,7 @@ void ALobbyPlayerController::Server_HandleChangeTeamColor_Implementation(const i
 
 void ALobbyPlayerController::Server_HandleKickPlayer_Implementation(APdPlayerState* TargetPlayerState)
 {
-	if (!HasAuthority() || !TargetPlayerState)
-	{
-		return;
-	}
-
-	if (!IsLocalController())
+	if (!IsLobbyHost() || !TargetPlayerState)
 	{
 		return;
 	}
@@ -103,6 +98,30 @@ void ALobbyPlayerController::Server_HandleKickPlayer_Implementation(APdPlayerSta
 	{
 		LobbyGameMode->KickPlayer(TargetPlayerState);
 	}
+}
+
+void ALobbyPlayerController::Server_HandleAddBot_Implementation()
+{
+	ALobbyGameMode* LobbyGameMode = GetWorld()->GetAuthGameMode<ALobbyGameMode>();
+	if (IsLobbyHost() && LobbyGameMode)
+	{
+		LobbyGameMode->AddBot();
+	}
+}
+
+void ALobbyPlayerController::Server_HandleChangeBotTeamColor_Implementation(APdPlayerState* BotPlayerState, const int32 InTeamColorIndex)
+{
+	ALobbyGameMode* LobbyGameMode = GetWorld()->GetAuthGameMode<ALobbyGameMode>();
+	if (IsLobbyHost() && LobbyGameMode)
+	{
+		LobbyGameMode->SetBotTeamColor(BotPlayerState, InTeamColorIndex);
+	}
+}
+
+// 리슨 서버에서 서버 쪽 조종기이면서 이 기기의 플레이어인 것은 호스트뿐이다.
+bool ALobbyPlayerController::IsLobbyHost() const
+{
+	return HasAuthority() && IsLocalController();
 }
 
 void ALobbyPlayerController::Client_ShowGameStartConnectingPopup_Implementation()

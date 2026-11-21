@@ -76,6 +76,9 @@ TArray<FGameResultPlayerStat> MatchResultReport::BuildPlayerStats(const AGameSta
 		PlayerStat.TeamName = ResolveTeamName(PlayerStat.TeamColorIndex);
 		PlayerStat.KillCount = MatchComponent->GetKillCount();
 		PlayerStat.DeathCount = MatchComponent->GetDeathCount();
+		PlayerStat.RewardKillCount = MatchComponent->GetRewardKillCount();
+		PlayerStat.RewardDeathCount = MatchComponent->GetRewardDeathCount();
+		PlayerStat.bBot = PdPlayerState->IsABot();
 	}
 
 	SortPlayerStats(PlayerStats);
@@ -100,10 +103,11 @@ void MatchResultReport::ApplyVictoryRewards(TArray<FGameResultPlayerStat>& Playe
 		const bool bIsSoloWinner = WinnerTeamColorIndex == INDEX_NONE
 			&& PlayerStat.PlayerName.EqualTo(WinnerPlayerName);
 		PlayerStat.bVictoryRewardEligible = !bIsExcludedPlayer && (bIsWinningTeamMember || bIsSoloWinner);
-		PlayerStat.GoldReward = PlayerStat.bVictoryRewardEligible
+		// 봇은 골드를 받을 프로필이 없다.
+		PlayerStat.GoldReward = PlayerStat.bVictoryRewardEligible && !PlayerStat.bBot
 			? MatchOutcomeRules::CalculateVictoryGold(
-				PlayerStat.KillCount,
-				PlayerStat.DeathCount,
+				PlayerStat.RewardKillCount,
+				PlayerStat.RewardDeathCount,
 				WinnerTeamMemberCount,
 				Rates)
 			: 0;
@@ -146,6 +150,11 @@ void MatchResultReport::ReportToBackend(const AExperienceGameMode& GameMode, con
 	UMatchReportSubsystem* Reports = GameInstance ? GameInstance->GetSubsystem<UMatchReportSubsystem>() : nullptr;
 	const AGameStateBase* GameState = GameMode.GetGameState<AGameStateBase>();
 	if (!Reports || !GameState || GameMode.GetPlayerSetupComponent()->IsTrainingRoomMap())
+	{
+		return;
+	}
+	// 대기실에서 넣은 봇이 낀 경기는 서버 전적(승패)에 남기지 않는다.
+	if (GameState->PlayerArray.ContainsByPredicate([](const APlayerState* PlayerState) { return PlayerState && PlayerState->IsABot(); }))
 	{
 		return;
 	}

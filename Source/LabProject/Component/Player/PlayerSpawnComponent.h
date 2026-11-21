@@ -10,7 +10,7 @@ class APlayerStart;
 class UMatchRuleDefinition;
 
 enum class EPlayerRespawnLocation : uint8 { InitialSpawn, RandomPlayerStart };
-DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPlayerRespawned, APlayerController*, bool /* bCreatedPawn */);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPlayerRespawned, AController*, bool /* bCreatedPawn */);
 
 /** 서버의 PlayerStart 배정, 최초 위치 기록과 플레이어 부활을 관리한다. 모드 정책은 호출자가 지정한다. */
 UCLASS(ClassGroup = (Player))
@@ -29,7 +29,8 @@ public:
 	void MarkPlayerStartUsed(AController* Player, AActor* PlayerStart);
 	void RecordInitialSpawn(AController* PlayerController, const FTransform& InitialSpawnTransform);
 	void RequestPlayerRespawn(AController* PlayerController, APawn* DeadPawn);
-	TArray<APlayerController*> MovePlayersToInitialSpawns();
+	/** 사람과 대기실에서 넣은 봇을 처음 스폰 위치로 옮기고, 옮긴 참가자를 돌려준다. */
+	TArray<AController*> MovePlayersToInitialSpawns();
 	void ClearRuntimeStateForController(AController* Controller);
 	void StopRespawning();
 	void SetRespawnLocation(EPlayerRespawnLocation Location) { RespawnLocation = Location; }

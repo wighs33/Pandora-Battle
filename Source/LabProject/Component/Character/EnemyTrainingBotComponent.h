@@ -34,6 +34,9 @@ public:
 	bool RequestWeaponChange(const UItemDefinition* WeaponDefinition);
 	bool RequestUnarmed();
 
+	/** 무기를 바꾸는 중이면 바꿔 들 무기(맨손이면 없음), 아니면 지금 무기. */
+	const UItemDefinition* GetRequestedWeaponDefinition() const;
+
 	bool IsHitStunned() const { return bHitStunned; }
 	bool IsWeaponChangeInProgress() const
 	{

@@ -742,7 +742,7 @@ bool FPdPlayerRespawnRebindTest::RunTest(const FString& Parameters)
 		{
 			return;
 		}
-		Spawn->OnPlayerRespawned.AddLambda([State](APlayerController*, bool) { ++State->Respawns; });
+		Spawn->OnPlayerRespawned.AddLambda([State](AController*, bool) { ++State->Respawns; });
 
 		ACharacterBase* Player = GetPlayerCharacter();
 		AEnemyBase* Bot = GetTrainingBot();

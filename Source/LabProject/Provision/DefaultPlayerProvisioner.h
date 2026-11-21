@@ -8,7 +8,6 @@
 #include "DefaultPlayerProvisioner.generated.h"
 
 class AController;
-class APlayerController;
 class APlayerState;
 class APdPlayerState;
 class UInventoryComponent;
@@ -18,7 +17,7 @@ class USkinEquipmentComponent;
 class UStatUpgradeComponent;
 struct FStreamableHandle;
 
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnDefaultPlayerProvisioned, APlayerController*);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnDefaultPlayerProvisioned, AController*);
 
 /**
  * 플레이어에게 DA_DefaultProvision의 기본 지급 설정을 적용한다.
@@ -58,7 +57,7 @@ private:
 		FDelegateHandle InventoryHandle;
 		TWeakObjectPtr<UStatUpgradeComponent> StatUpgrade;
 		FDelegateHandle StatUpgradeHandle;
-		TWeakObjectPtr<APlayerController> Controller;
+		TWeakObjectPtr<AController> Controller;
 		FDelegateHandle PawnHandle;
 	};
 
@@ -76,7 +75,7 @@ public:
 	// Public API ------------------------------------------------------------------------------------------------------
 	bool Initialize(const UDefaultProvisionDefinition* InDefinition, EDefaultProvisionMode InMode);
 	bool IsInitialized() const { return ProvisionDefinition != nullptr && !bShuttingDown; }
-	void ProvisionPlayer(APlayerController* PlayerController);
+	void ProvisionPlayer(AController* Controller);
 	void ClearRuntimeStateForController(AController* Controller, APlayerState* PlayerState);
 	void Shutdown();
 
@@ -86,16 +85,16 @@ private:
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	const UDefaultProvisionDefinition* GetDefinition() const;
-	bool EnsureContentLoaded(APlayerController* PlayerController);
-	EProvisionStepResult TryProvisionPlayer(APlayerController* PlayerController);
+	bool EnsureContentLoaded(AController* Controller);
+	EProvisionStepResult TryProvisionPlayer(AController* Controller);
 	EProvisionStepResult ApplyModeValues(APdPlayerState* PlayerState);
 	EProvisionStepResult ApplyItems(APdPlayerState* PlayerState);
 	EProvisionStepResult ApplyPandoras(APdPlayerState* PlayerState);
-	EProvisionStepResult ApplyGestures(APlayerController* PlayerController, APdPlayerState* PlayerState);
-	void WaitForProvisionInputs(APlayerController* PlayerController, EProvisionStepResult Result);
-	void StopWaitingForProvisionInputs(TObjectKey<APlayerController> ControllerKey);
-	void ScheduleProvisionAttempt(APlayerController* PlayerController);
-	void ClearScheduledProvisionAttempt(APlayerController* PlayerController);
+	EProvisionStepResult ApplyGestures(AController* Controller, APdPlayerState* PlayerState);
+	void WaitForProvisionInputs(AController* Controller, EProvisionStepResult Result);
+	void StopWaitingForProvisionInputs(TObjectKey<AController> ControllerKey);
+	void ScheduleProvisionAttempt(AController* Controller);
+	void ClearScheduledProvisionAttempt(AController* Controller);
 
 private:
 	UPROPERTY(Transient)
@@ -105,11 +104,11 @@ private:
 	TArray<FPrimaryAssetId> RequiredContentIds;
 	TSharedPtr<FStreamableHandle> ContentLoadHandle;
 	EContentState ContentState = EContentState::NotStarted;
-	TArray<TWeakObjectPtr<APlayerController>> PendingContentControllers;
+	TArray<TWeakObjectPtr<AController>> PendingContentControllers;
 
 	// 다시 지급할 플레이어의 다음 틱 예약과 기다리는 완료 알림
-	TMap<TObjectKey<APlayerController>, FTimerHandle> PendingProvisionAttempts;
-	TMap<TObjectKey<APlayerController>, FProvisionWait> ProvisionWaits;
+	TMap<TObjectKey<AController>, FTimerHandle> PendingProvisionAttempts;
+	TMap<TObjectKey<AController>, FProvisionWait> ProvisionWaits;
 
 	// 단계별로 지급을 마친 플레이어. 로그아웃하면 지운다.
 	TSet<TObjectKey<APlayerState>> InitializedModeValues;

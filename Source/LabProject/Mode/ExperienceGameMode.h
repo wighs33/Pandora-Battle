@@ -45,6 +45,7 @@ public:
 	virtual void OnPostLogin(AController* NewPlayer) override;
 	virtual void Logout(AController* Exiting) override;
 	virtual void HandleStartingNewPlayer_Implementation(APlayerController* NewPlayer) override;
+	virtual void HandleSeamlessTravelPlayer(AController*& C) override;
 	virtual AActor* ChoosePlayerStart_Implementation(AController* Player) override;
 	virtual UClass* GetDefaultPawnClassForController_Implementation(AController* InController) override;
 	virtual APawn* SpawnDefaultPawnAtTransform_Implementation(AController* NewPlayer, const FTransform& SpawnTransform) override;
@@ -93,6 +94,10 @@ protected:
 private:
 	UExperienceManagerComponent* GetExperienceManager() const;
 	void ResumeStartingPlayers();
+	/** 대기실에서 넣은 봇을 스폰하고 지급한다. 엔진은 봇에게 경기 시작(HandleStartingNewPlayer)을 불러 주지 않는다. */
+	void StartBotPlayer(AController* Bot);
+	/** 경기 시작을 기다려야 하는 참가자인지: 관전자가 아닌 사람, 또는 대기실에서 넣은 봇. */
+	bool IsMatchParticipant(AController* Controller) const;
 	void NotifyBossRaidWorldReadyIfNeeded();
 	void StartWorldBossRaidIfNeeded();
 	void BeginRuntimeContentPreload();

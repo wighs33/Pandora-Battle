@@ -186,6 +186,8 @@ public:
 	const TArray<FDefaultProvisionPandoraGrant>& GetPandoraGrants() const { return PandoraGrants; }
 	const TArray<FDefaultProvisionItemStackGrant>& GetItemGrants() const { return ItemGrants; }
 	const TArray<FDefaultProvisionGestureSlotGrant>& GetGestureGrants() const { return GestureGrants; }
+	const FDefaultProvisionModeLevels& GetBotPandoraLevels() const { return BotPandoraLevels; }
+	const FDefaultProvisionModeFlags& GetGrantBotPandoraWeapons() const { return GrantBotPandoraWeapons; }
 
 	bool HasPandoraGrants(EDefaultProvisionMode Mode) const;
 	bool IsPandoraKeyGranted(FName PandoraKeyName, EDefaultProvisionMode Mode) const;
@@ -228,4 +230,17 @@ private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Default Provision|Assets|Gesture",
 		meta = (AllowPrivateAccess = "true", TitleProperty = "SkinDefinitionId"))
 	TArray<FDefaultProvisionGestureSlotGrant> GestureGrants;
+
+	/**
+	 * 대기실에서 넣은 봇이 경기에 가져간 판도라(좌·상·우 칸)의 시작 레벨. 봇은 상자를 열거나 몬스터를 잡아 판도라를 키우지 않으므로
+	 * 정한 레벨로 시작한다. -1이면 사람과 같은 지급(PandoraGrants)을 따른다.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Default Provision|Bot",
+		meta = (AllowPrivateAccess = "true"))
+	FDefaultProvisionModeLevels BotPandoraLevels;
+
+	/** 봇이 가져간 판도라마다 짝 무기를 하나씩 주는지. 봇은 상자에서 무기를 줍지 않는다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Default Provision|Bot",
+		meta = (AllowPrivateAccess = "true"))
+	FDefaultProvisionModeFlags GrantBotPandoraWeapons;
 };

@@ -5,6 +5,7 @@
 #include "UObject/ObjectKey.h"
 #include "MatchPlayerSetupComponent.generated.h"
 
+class AController;
 class APlayerController;
 class APawn;
 class UDefaultPlayerProvisioner;
@@ -27,12 +28,13 @@ public:
 
 	// Public API ------------------------------------------------------------------------------------------------------
 	UMatchPlayerSetupComponent();
-	bool IsPlayerReadyForGameplay(APlayerController* PlayerController) const;
+	bool IsPlayerReadyForGameplay(AController* Controller) const;
 
 	void InitializeRuntime();
 	void InitializeLoggedInPlayer(APlayerController* NewPlayer);
-	void InitializeMatchIdentity(APlayerController* NewPlayer);
-	void PreparePlayerForGameplay(APlayerController* NewPlayer);
+	/** 사람과 대기실에서 넣은 봇 모두 받는다(봇은 AI 조종기가 PlayerState를 가진다). */
+	void InitializeMatchIdentity(AController* NewPlayer);
+	void PreparePlayerForGameplay(AController* NewPlayer);
 	void ClearRuntimeStateForController(
 		AController* Controller,
 		APlayerState* PlayerState);
@@ -41,14 +43,14 @@ public:
 private:
 	// Event Handlers --------------------------------------------------------------------------------------------------
 	void HandleSkinContentPreloaded();
-	void HandlePlayerProvisioned(APlayerController* PlayerController);
+	void HandlePlayerProvisioned(AController* Controller);
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	void BeginSkinContentPreload();
 	void ReleaseSkinContentPreload();
 	void FlushPendingGameplayProvisions();
-	void PreparePlayerForGameplayInternal(APlayerController* NewPlayer);
-	void ApplyLobbySkinEquipment(APlayerController* NewPlayer) const;
+	void PreparePlayerForGameplayInternal(AController* NewPlayer);
+	void ApplyLobbySkinEquipment(AController* NewPlayer) const;
 
 public:
 	FSimpleMulticastDelegate OnPlayerGameplayReady;
@@ -59,8 +61,8 @@ private:
 	TObjectPtr<UDefaultPlayerProvisioner>
 		DefaultPlayerProvisioner;
 
-	TArray<TWeakObjectPtr<APlayerController>> PendingGameplayPlayers;
-	TMap<TObjectKey<APlayerController>, TWeakObjectPtr<APawn>> ReadyGameplayPawns;
+	TArray<TWeakObjectPtr<AController>> PendingGameplayPlayers;
+	TMap<TObjectKey<AController>, TWeakObjectPtr<APawn>> ReadyGameplayPawns;
 	TSharedPtr<FStreamableHandle> SkinContentLoadHandle;
 	bool bSkinContentLoadPending = false;
 	bool bSkinContentReady = false;

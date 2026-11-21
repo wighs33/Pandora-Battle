@@ -87,6 +87,13 @@ public:
 	UFUNCTION(BlueprintPure, Category = "!Match|Stats")
 	int32 GetDeathCount() const { return DeathCount; }
 
+	/** 대기실에서 넣은 봇을 잡았거나 봇에게 잡혔다(서버). 봇과의 처치는 점수판에는 세고 골드에는 세지 않는다. */
+	void RecordBotKill();
+	void RecordDeathByBot();
+	/** 승리 골드에 쓰는 처치·사망 수(봇과의 처치를 뺀 수, 서버). */
+	int32 GetRewardKillCount() const;
+	int32 GetRewardDeathCount() const;
+
 	/** 킬 로그·결과 화면·전적에 쓰는 이름. 경기 표시 이름이 없으면 PlayerState 이름을 쓴다. */
 	static FText ResolveDisplayName(const APlayerState* PlayerState);
 
@@ -122,4 +129,8 @@ private:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Replicated, Category = "!Match|Map", meta = (AllowPrivateAccess = "true"))
 	EPlayerMapRegion PlayerMapRegion = EPlayerMapRegion::Dome;
+
+	/** 서버에서 결과와 골드를 계산할 때만 쓰므로 복제하지 않는다. */
+	int32 BotKillCount = 0;
+	int32 DeathByBotCount = 0;
 };

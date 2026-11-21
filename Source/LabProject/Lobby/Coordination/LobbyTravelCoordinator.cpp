@@ -1,6 +1,8 @@
 #include "Lobby/Coordination/LobbyTravelCoordinator.h"
 
+#include "AI/Bot/BotSkillRules.h"
 #include "Component/Lobby/LobbyConfigurationComponent.h"
+#include "Data/ContentDataSubsystem.h"
 #include "Character/PdPlayer.h"
 #include "Common/Enum_Direction.h"
 #include "Common/GameSessionConstants.h"
@@ -144,6 +146,12 @@ void ULobbyTravelCoordinator::PrepareLobbyTravelHandoffs() const
 FLobbyTravelHandoff ULobbyTravelCoordinator::BuildLobbyTravelHandoff(const APdPlayerState& LobbyPlayerState) const
 {
 	FLobbyTravelHandoff Handoff;
+	// 봇은 외형과 판도라를 고르지 않는다. 기본 외형으로 들어가고 판도라는 무작위로 받는다.
+	if (LobbyPlayerState.IsABot())
+	{
+		Handoff.PandoraNamesByDirection = PickBotPandoraNames();
+		return Handoff;
+	}
 	const ALobbyGameMode* GameMode = GetLobbyGameMode();
 	const APlayerController* LobbyPlayerController = LobbyPlayerState.GetPlayerController();
 	if (!LobbyPlayerController && GameMode)
@@ -170,6 +178,34 @@ FLobbyTravelHandoff ULobbyTravelCoordinator::BuildLobbyTravelHandoff(const APdPl
 		}
 	}
 	return Handoff;
+}
+
+TMap<EEnum_Direction, FName> ULobbyTravelCoordinator::PickBotPandoraNames() const
+{
+	TMap<EEnum_Direction, FName> PandoraNamesByDirection;
+	const ALobbyGameMode* GameMode = GetLobbyGameMode();
+	const UContentDataSubsystem* ContentData = GameMode ? UGameInstance::GetSubsystem<UContentDataSubsystem>(GameMode->GetGameInstance()) : nullptr;
+	if (!ContentData)
+	{
+		return PandoraNamesByDirection;
+	}
+	TMap<FName, TObjectPtr<UPandoraDefinition>> LoadedPandoras;
+	ContentData->GetLoadedPandoraDefinitionsByName(LoadedPandoras);
+	TArray<const UPandoraDefinition*> Candidates;
+	for (const TPair<FName, TObjectPtr<UPandoraDefinition>>& Entry : LoadedPandoras)
+	{
+		if (Entry.Value && BotSkillRules::IsPandoraUsableByBots(*Entry.Value))
+		{
+			Candidates.Add(Entry.Value);
+		}
+	}
+	constexpr EEnum_Direction LoadoutDirections[] = {EEnum_Direction::Left, EEnum_Direction::Up, EEnum_Direction::Right};
+	const TArray<const UPandoraDefinition*> Picked = BotSkillRules::PickRandomPandoras(Candidates, UE_ARRAY_COUNT(LoadoutDirections));
+	for (int32 Index = 0; Index < Picked.Num(); ++Index)
+	{
+		PandoraNamesByDirection.Add(LoadoutDirections[Index], Picked[Index]->GetFName());
+	}
+	return PandoraNamesByDirection;
 }
 
 // 로비 Pawn의 장착 스킨을 슬롯 태그와 애셋 이름으로 변환해, 새 맵에서 같은 외형을 복구할 수 있게 한다.

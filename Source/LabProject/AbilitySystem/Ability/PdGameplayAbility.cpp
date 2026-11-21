@@ -336,15 +336,27 @@ bool UPdGameplayAbility::HasPlayerController() const
 	return Controller && Controller->IsPlayerController();
 }
 
+// 공격 대상은 캐릭터가 스스로 알거나(몬스터·훈련 봇), 캐릭터를 조종하는 봇이 안다(대기실에서 넣은 봇).
 AActor* UPdGameplayAbility::GetAttackTargetFromAvatar() const
 {
 	AActor* AvatarActor = GetAvatarActorFromActorInfo();
-	if (!IsValid(AvatarActor) || !AvatarActor->GetClass()->ImplementsInterface(UTargetingInterface::StaticClass()))
+	const APawn* AvatarPawn = Cast<APawn>(AvatarActor);
+	AController* AvatarController = AvatarPawn ? AvatarPawn->GetController() : nullptr;
+	UObject* TargetSource = nullptr;
+	if (IsValid(AvatarActor) && AvatarActor->Implements<UTargetingInterface>())
+	{
+		TargetSource = AvatarActor;
+	}
+	else if (IsValid(AvatarController) && AvatarController->Implements<UTargetingInterface>())
+	{
+		TargetSource = AvatarController;
+	}
+	if (!TargetSource)
 	{
 		return nullptr;
 	}
 
-	AActor* AttackTarget = ITargetingInterface::Execute_GetAttackTarget(AvatarActor);
+	AActor* AttackTarget = ITargetingInterface::Execute_GetAttackTarget(TargetSource);
 	const ACharacterBase* TargetCharacter = Cast<ACharacterBase>(AttackTarget);
 	return TargetCharacter && TargetCharacter->IsDead() ? nullptr : AttackTarget;
 }

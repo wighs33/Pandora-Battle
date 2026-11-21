@@ -57,6 +57,9 @@ protected:
 	void HandleInviteClicked();
 
 	UFUNCTION()
+	void HandleAddBotClicked();
+
+	UFUNCTION()
 	void HandleMapPreviousClicked();
 
 	UFUNCTION()
@@ -107,6 +110,10 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Lobby|Bind")
 	TObjectPtr<UButton> Btn_Invite;
+
+	/** 방장만 보인다. 빈 자리가 있으면 봇을 하나 넣는다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Lobby|Bind")
+	TObjectPtr<UButton> Btn_AddBot;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Lobby|Bind")
 	TObjectPtr<UButton> Btn_MapPrevious;

@@ -4,8 +4,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: Game\n"
-"POT-Creation-Date: 2026-11-13 10:43\n"
-"PO-Revision-Date: 2026-11-13 10:43\n"
+"POT-Creation-Date: 2026-11-20 15:16\n"
+"PO-Revision-Date: 2026-11-20 15:16\n"
 "Language-Team: \n"
 "Language: zh-Hant\n"
 "MIME-Version: 1.0\n"
@@ -129,15 +129,15 @@ msgstr "[ 操作方式 ]\n\n■ 移動\n\n• 移動：W/A/S/D\n• 鏡頭：滑
 #. SourceLocation:	/Game/Data/DA_Guide.DA_Guide.Pages(2).Pages.Content
 #: /Game/Data/DA_Guide.DA_Guide.Pages(2).Pages.Content
 msgctxt ",B66EF5794C427591771F8B9310E0841F"
-msgid "[ Game Rules ]\n\n■ Score\n\n• You get 1 point for each other player you defeat.\n• Defeating monsters, falling, or defeating yourself does not change your score.\n• When you are defeated, you respawn after a short time.\n\n■ Victory\n\n• When the match timer runs out, the player with the highest score wins.\n• In team matches, the whole team of that player wins.\n\n■ Golden Kill\n\n• Golden Kill begins when the timer runs out and the highest score is tied between players of different teams, or between players without a team.\n• Everyone's Health, Mana, and Stamina are refilled and everyone returns to the starting points. Respawns also happen at the starting points.\n• A tied leader wins immediately with the next kill. Players below the top score must first pass it.\n• If the tied players are on the same team, that team wins without Golden Kill.\n\n■ Rewards\n\n• Every member of the winning team receives Gold.\n• Your own kills increase the Gold and your deaths reduce it, but it never goes below 0.\n• Results are saved in Records.\n\n■ Leaving a Match\n\n• In a match with two or more players, the match ends as soon as someone leaves, and the result is decided by the players who remain.\n• This does not apply to Training or Boss Raid."
-msgstr "[ 遊戲規則 ]\n\n■ 分數\n\n• 每擊敗一名其他玩家，可獲得 1 分。\n• 擊敗怪物、墜落或自我擊殺都不會改變分數。\n• 被擊敗後，稍待片刻即可重生。\n\n■ 勝利\n\n• 比賽計時結束時，分數最高的玩家獲勝。\n• 在團隊賽中，該玩家所在的整支隊伍獲勝。\n\n■ Golden Kill\n\n• 計時結束時，如果最高分由不同隊伍的玩家並列，或由沒有隊伍的玩家並列，便會進入 Golden Kill。\n• 所有人的生命、法力和耐力都會回滿，並返回起始點。之後的重生也在起始點進行。\n• 並列領先的玩家只要再完成一次擊殺即可立即獲勝。低於最高分的玩家必須先超越最高分。\n• 如果並列的玩家屬於同一隊伍，該隊伍會直接獲勝，不進行 Golden Kill。\n\n■ 獎勵\n\n• 獲勝隊伍的所有成員都會獲得金幣。\n• 自己的擊殺會增加金幣，死亡會減少金幣，但不會低於 0。\n• 比賽結果會儲存在「戰績」中。\n\n■ 離開比賽\n\n• 在兩名以上玩家參加的比賽中，只要有人離開，比賽就會立即結束，並由剩餘的玩家決定結果。\n• 訓練場和首領突襲不受此規則影響。"
+msgid "[ Game Rules ]\n\n■ Score\n\n• You get 1 point for each other player you defeat.\n• Defeating monsters, falling, or defeating yourself does not change your score.\n• When you are defeated, you respawn after a short time.\n\n■ Victory\n\n• When the match timer runs out, the player with the highest score wins.\n• In team matches, the whole team of that player wins.\n\n■ Golden Kill\n\n• Golden Kill begins when the timer runs out and the highest score is tied between players of different teams, or between players without a team.\n• Everyone's Health, Mana, and Stamina are refilled and everyone returns to the starting points. Respawns also happen at the starting points.\n• A tied leader wins immediately with the next kill. Players below the top score must first pass it.\n• If the tied players are on the same team, that team wins without Golden Kill.\n\n■ Rewards\n\n• Every member of the winning team receives Gold.\n• Your own kills increase the Gold and your deaths reduce it, but it never goes below 0.\n• Defeating a bot or being defeated by a bot does not change the Gold.\n• Results are saved in Records. Matches with bots are not saved, so they do not count toward wins, tiers, or match achievements.\n\n■ Leaving a Match\n\n• In a match with two or more players, the match ends as soon as someone leaves, and the result is decided by the players who remain.\n• This does not apply to Training or Boss Raid."
+msgstr "[ 遊戲規則 ]\n\n■ 分數\n\n• 每擊敗一名其他玩家，可獲得 1 分。\n• 擊敗怪物、墜落或自我擊殺都不會改變分數。\n• 被擊敗後，稍待片刻即可重生。\n\n■ 勝利\n\n• 比賽計時結束時，分數最高的玩家獲勝。\n• 在團隊賽中，該玩家所在的整支隊伍獲勝。\n\n■ Golden Kill\n\n• 計時結束時，如果最高分由不同隊伍的玩家並列，或由沒有隊伍的玩家並列，便會進入 Golden Kill。\n• 所有人的生命、法力和耐力都會回滿，並返回起始點。之後的重生也在起始點進行。\n• 並列領先的玩家只要再完成一次擊殺即可立即獲勝。低於最高分的玩家必須先超越最高分。\n• 如果並列的玩家屬於同一隊伍，該隊伍會直接獲勝，不進行 Golden Kill。\n\n■ 獎勵\n\n• 獲勝隊伍的所有成員都會獲得金幣。\n• 自己的擊殺會增加金幣，死亡會減少金幣，但不會低於 0。\n• 擊敗機器人或被機器人擊敗都不會改變金幣。\n• 比賽結果會儲存在「戰績」中。有機器人參加的比賽不會儲存，因此也不計入勝場、段位和比賽成就。\n\n■ 離開比賽\n\n• 在兩名以上玩家參加的比賽中，只要有人離開，比賽就會立即結束，並由剩餘的玩家決定結果。\n• 訓練場和首領突襲不受此規則影響。"
 
 #. Key:	1339923E43546CEA0B2B6798B2084104
 #. SourceLocation:	/Game/Data/DA_Guide.DA_Guide.Pages(3).Pages.Content
 #: /Game/Data/DA_Guide.DA_Guide.Pages(3).Pages.Content
 msgctxt ",1339923E43546CEA0B2B6798B2084104"
-msgid "[ Training ]\n\n• A private practice room that does not affect normal matches.\n• Try movement, weapons, Pandora skills, consumables, painting, and combat.\n• All registered items are available, and extra Status Points and Soul Dust are provided so you can test different builds.\n• Training bots can use selected weapons, their attacks can be turned on or off, and they respawn after being defeated.\n• The game pauses while the Character Hub is open.\n\n[ Quick Match ]\n\n• Joins a public room that has free slots. If there are several, one is chosen at random.\n• If no room is found, a new room is created and you enter its lobby as the host.\n\n[ Room List ]\n\n• Shows each room's name, map, and number of players. Press Refresh to update the list.\n• You can cancel a search or connection in progress.\n• Create a room by entering a room name. You enter its lobby as the host.\n\n[ Lobby ]\n\n• See the players in the room, edit your nickname, and choose your team color.\n• Invite Steam friends to the room, or add other players as Steam friends.\n• The host chooses the map and can remove players.\n• The host can start the game when playing alone, or when everyone has chosen a team, there are at least two teams, and every team has the same number of players. The players must also fit the selected map.\n• A short countdown runs before the match, and game content is loaded before everyone moves to the map.\n\n[ Boss Raid ]\n\n• Boss Raid opens only on scheduled dates for a limited time. While it is closed, the button cannot be pressed, and hovering over it shows that it is not open yet.\n• Press Boss Raid on the title screen to enter a shared world and hunt monsters with other players.\n• There is no win or loss. While it is open, you can join or leave at any time.\n• Players do not fight each other.\n• Monsters give experience, Soul Dust, and potions.\n\n[ Shop ]\n\n• Buy Pandora and skins with Gold.\n• Check each product's information and price against your Gold.\n• Purchased products are unlocked permanently and saved to your profile.\n• Products that are not available yet are marked as coming in a future update.\n\n[ Records ]\n\n• Review your recent matches: wins, losses, kills, deaths, and Gold earned.\n• Your total wins decide your tier. The tier image and the progress bar show how close you are to the next tier.\n\n[ Ask Luna ]\n\n• Type a question in the box below Luna on the title screen and press Enter.\n• Luna answers based on this guide. If she is not sure, check the Guide menu."
-msgstr "[ 訓練場 ]\n\n• 不影響一般比賽的個人練習房間。\n• 可以嘗試移動、武器、潘朵拉技能、消耗品、塗鴉和戰鬥。\n• 所有已登記的物品皆可使用，還會額外提供屬性點數和靈魂之塵，方便你嘗試不同的配裝。\n• 訓練機器人可以使用指定的武器，其攻擊可以開啟或關閉，被擊敗後會重生。\n• 開啟角色中心期間，遊戲會暫停。\n\n[ 快速配對 ]\n\n• 加入有空位的公開房間。如果有多個，會隨機選擇其中一個。\n• 如果找不到房間，會建立新房間，你將以房主身分進入大廳。\n\n[ 房間列表 ]\n\n• 顯示每個房間的名稱、地圖和人數。按下「重新整理」可更新列表。\n• 可以取消正在進行的搜尋或連線。\n• 輸入房間名稱即可建立房間，你將以房主身分進入大廳。\n\n[ 大廳 ]\n\n• 查看房間內的玩家，修改暱稱並選擇隊伍顏色。\n• 可以邀請 Steam 好友進入房間，或將其他玩家新增為 Steam 好友。\n• 地圖由房主選擇，房主還可以移除玩家。\n• 房主在單人遊玩時，或在所有人都已選擇隊伍、隊伍至少有兩支且各隊人數相同時，可以開始遊戲。玩家人數也必須符合所選地圖的要求。\n• 比賽開始前會進行短暫倒數，並在所有人進入地圖前載入遊戲內容。\n\n[ 首領突襲 ]\n\n• 「首領突襲」只在預定日期開放一段時間。未開放時無法按下按鈕，將滑鼠移到按鈕上會顯示尚未開放。\n• 在標題畫面按下「首領突襲」，即可進入共享世界，與其他玩家一起狩獵怪物。\n• 沒有勝負，開放期間可以隨時加入或離開。\n• 玩家之間不會互相戰鬥。\n• 擊敗怪物可獲得經驗值、靈魂之塵和藥水。\n\n[ 商店 ]\n\n• 使用金幣購買潘朵拉和外觀。\n• 可以查看每件商品的資訊和價格，並與持有金幣進行比較。\n• 已購買的商品會永久解鎖，並儲存至個人資料。\n• 尚未開放的商品會顯示為「將於後續更新推出」。\n\n[ 戰績 ]\n\n• 查看最近比賽的勝利、敗北、擊殺、死亡和獲得的金幣。\n• 段位由「累計勝場」決定。段位圖片和「勝場進度」條會顯示你距離下一個段位還有多遠。\n\n[ 向露娜提問 ]\n\n• 在標題畫面露娜下方的輸入框中輸入問題，然後按下 Enter。\n• 露娜會根據本指南回答。如果她不確定，請查看「指南」選單。"
+msgid "[ Training ]\n\n• A private practice room that does not affect normal matches.\n• Try movement, weapons, Pandora skills, consumables, painting, and combat.\n• All registered items are available, and extra Status Points and Soul Dust are provided so you can test different builds.\n• Training bots respawn after being defeated. In the Training tab of Game settings, choose the Bot weapon and turn Bot attacks on or off.\n• Turn on Bot pandoras in the same tab to make the bot use the skills of three random Pandoras. While it is on, the bot's weapon follows the Pandora it is using, so the Bot weapon cannot be chosen. It is off by default.\n• The game pauses while the Character Hub is open.\n\n[ Quick Match ]\n\n• Joins a public room that has free slots. If there are several, one is chosen at random.\n• If no room is found, a new room is created and you enter its lobby as the host.\n\n[ Room List ]\n\n• Shows each room's name, map, and number of players. Press Refresh to update the list.\n• You can cancel a search or connection in progress.\n• Create a room by entering a room name. You enter its lobby as the host.\n\n[ Lobby ]\n\n• See the players in the room, edit your nickname, and choose your team color.\n• Invite Steam friends to the room, or add other players as Steam friends.\n• The host chooses the map and can remove players.\n• The host can start the game when playing alone, or when everyone has chosen a team, there are at least two teams, and every team has the same number of players. The players must also fit the selected map.\n• A short countdown runs before the match, and game content is loaded before everyone moves to the map.\n\n[ Playground ]\n\n• In the lobby, press Enter playground to close the lobby window and walk around the lobby map with your character.\n• Every weapon, six Pandoras at Level 3, 500 of each potion, and extra Status Points are provided so you can warm up while you wait.\n• Press L to open the lobby window again. When the host starts the game, it opens for everyone.\n\n[ Lobby Bots ]\n\n• The host can press Add bot in the lobby to fill an empty seat with a bot.\n• The host chooses each bot's team color and can remove bots. Bots count as players for the team rules and the map's player limit.\n• If a player joins a full room, or the host chooses a map with fewer seats, the most recently added bot leaves to make room.\n• In a match, each bot fights with three random Pandoras at Level 3 and weapons that match them. Defeated bots respawn like players.\n• Defeating a bot or being defeated by a bot does not change your Gold, and matches with bots are not saved in Records.\n\n[ Boss Raid ]\n\n• Boss Raid opens only on scheduled dates for a limited time. While it is closed, the button cannot be pressed, and hovering over it shows that it is not open yet.\n• Press Boss Raid on the title screen to enter a shared world and hunt monsters with other players.\n• There is no win or loss. While it is open, you can join or leave at any time.\n• Players do not fight each other.\n• Monsters give experience, Soul Dust, and potions.\n\n[ Shop ]\n\n• Buy Pandora and skins with Gold.\n• Check each product's information and price against your Gold.\n• Purchased products are unlocked permanently and saved to your profile.\n• Products that are not available yet are marked as coming in a future update.\n\n[ Records ]\n\n• Review your recent matches: wins, losses, kills, deaths, and Gold earned.\n• Your total wins decide your tier. The tier image and the progress bar show how close you are to the next tier.\n• Matches with bots are not recorded.\n\n[ Ask Luna ]\n\n• Type a question in the box below Luna on the title screen and press Enter.\n• Luna answers based on this guide. If she is not sure, check the Guide menu."
+msgstr "[ 訓練場 ]\n\n• 不影響一般比賽的個人練習房間。\n• 可以嘗試移動、武器、潘朵拉技能、消耗品、塗鴉和戰鬥。\n• 所有已登記的物品皆可使用，還會額外提供屬性點數和靈魂之塵，方便你嘗試不同的配裝。\n• 訓練機器人被擊敗後會重生。在遊戲設定的「訓練場」分頁中，可以選擇「機器人武器」，並開啟或關閉「機器人攻擊」。\n• 在同一分頁開啟「機器人潘朵拉」後，機器人會使用隨機 3 個潘朵拉的技能。開啟期間，機器人的武器會隨使用中的潘朵拉切換，因此無法選擇「機器人武器」。預設為關閉。\n• 開啟角色中心期間，遊戲會暫停。\n\n[ 快速配對 ]\n\n• 加入有空位的公開房間。如果有多個，會隨機選擇其中一個。\n• 如果找不到房間，會建立新房間，你將以房主身分進入大廳。\n\n[ 房間列表 ]\n\n• 顯示每個房間的名稱、地圖和人數。按下「重新整理」可更新列表。\n• 可以取消正在進行的搜尋或連線。\n• 輸入房間名稱即可建立房間，你將以房主身分進入大廳。\n\n[ 大廳 ]\n\n• 查看房間內的玩家，修改暱稱並選擇隊伍顏色。\n• 可以邀請 Steam 好友進入房間，或將其他玩家新增為 Steam 好友。\n• 地圖由房主選擇，房主還可以移除玩家。\n• 房主在單人遊玩時，或在所有人都已選擇隊伍、隊伍至少有兩支且各隊人數相同時，可以開始遊戲。玩家人數也必須符合所選地圖的要求。\n• 比賽開始前會進行短暫倒數，並在所有人進入地圖前載入遊戲內容。\n\n[ 操場 ]\n\n• 在大廳按下「進入操場」後，大廳視窗會關閉，你可以操控角色在大廳地圖中自由走動。\n• 會提供所有武器、6 個等級 3 的潘朵拉、每種藥水各 500 個以及額外的屬性點數，方便你在等待時熱身。\n• 按 L 可以重新開啟大廳視窗。房主開始遊戲時，所有人的大廳視窗都會開啟。\n\n[ 大廳機器人 ]\n\n• 房主可以在大廳按下「加入機器人」，用機器人補滿空位。\n• 房主可以為每個機器人選擇隊伍顏色，也可以移除機器人。在隊伍條件和地圖人數上限中，機器人也算作玩家。\n• 房間已滿時有玩家加入，或房主選擇座位較少的地圖時，最後加入的機器人會先讓出位置。\n• 比賽中，每個機器人會使用隨機 3 個潘朵拉（皆為等級 3），並手持相符的武器作戰。被擊敗的機器人會像玩家一樣重生。\n• 擊敗機器人或被機器人擊敗都不會改變金幣，有機器人參加的比賽也不會儲存在「戰績」中。\n\n[ 首領突襲 ]\n\n• 「首領突襲」只在預定日期開放一段時間。未開放時無法按下按鈕，將滑鼠移到按鈕上會顯示尚未開放。\n• 在標題畫面按下「首領突襲」，即可進入共享世界，與其他玩家一起狩獵怪物。\n• 沒有勝負，開放期間可以隨時加入或離開。\n• 玩家之間不會互相戰鬥。\n• 擊敗怪物可獲得經驗值、靈魂之塵和藥水。\n\n[ 商店 ]\n\n• 使用金幣購買潘朵拉和外觀。\n• 可以查看每件商品的資訊和價格，並與持有金幣進行比較。\n• 已購買的商品會永久解鎖，並儲存至個人資料。\n• 尚未開放的商品會顯示為「將於後續更新推出」。\n\n[ 戰績 ]\n\n• 查看最近比賽的勝利、敗北、擊殺、死亡和獲得的金幣。\n• 段位由「累計勝場」決定。段位圖片和「勝場進度」條會顯示你距離下一個段位還有多遠。\n• 有機器人參加的比賽不會被記錄。\n\n[ 向露娜提問 ]\n\n• 在標題畫面露娜下方的輸入框中輸入問題，然後按下 Enter。\n• 露娜會根據本指南回答。如果她不確定，請查看「指南」選單。"
 
 #. Key:	128B80664F70B1A1D0C732BC903BD796
 #. SourceLocation:	/Game/Data/DA_Guide.DA_Guide.Pages(4).Pages.Content
@@ -2723,15 +2723,15 @@ msgid "Tier {0}"
 msgstr "階級{0}"
 
 #. Key:	KickedByHost
-#. SourceLocation:	Source/LabProject/Lobby/Contents/LobbyGameMode.cpp(305)
-#: Source/LabProject/Lobby/Contents/LobbyGameMode.cpp(305)
+#. SourceLocation:	Source/LabProject/Lobby/Contents/LobbyGameMode.cpp(337)
+#: Source/LabProject/Lobby/Contents/LobbyGameMode.cpp(337)
 msgctxt "Lobby,KickedByHost"
 msgid "Kicked by host"
 msgstr "已被房主移出"
 
 #. Key:	EnvironmentKillerName
-#. SourceLocation:	Source/LabProject/Mode/PlayerEliminationSubsystem.cpp(109)
-#: Source/LabProject/Mode/PlayerEliminationSubsystem.cpp(109)
+#. SourceLocation:	Source/LabProject/Mode/PlayerEliminationSubsystem.cpp(120)
+#: Source/LabProject/Mode/PlayerEliminationSubsystem.cpp(120)
 msgctxt "KillLog,EnvironmentKillerName"
 msgid "Environment"
 msgstr "環境"
@@ -3674,6 +3674,20 @@ msgctxt "MenuText,Info.Windmill"
 msgid "Windmill"
 msgstr "風車"
 
+#. Key:	Lobby.AddBot
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Lobby.AddBot"
+msgid "Add bot"
+msgstr "加入機器人"
+
+#. Key:	Lobby.BotName
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Lobby.BotName"
+msgid "Bot {0}"
+msgstr "機器人 {0}"
+
 #. Key:	Lobby.EmptySeat
 #. SourceLocation:	UI/Localization/StringTables/MenuText.csv
 #: UI/Localization/StringTables/MenuText.csv
@@ -4401,6 +4415,20 @@ msgstr "機器人攻擊"
 msgctxt "MenuText,Settings.BotAttackHint"
 msgid "When off, the training bot does not attack"
 msgstr "關閉後訓練機器人不會攻擊"
+
+#. Key:	Settings.BotPandora
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Settings.BotPandora"
+msgid "Bot pandoras"
+msgstr "機器人潘朵拉"
+
+#. Key:	Settings.BotPandoraHint
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Settings.BotPandoraHint"
+msgid "When on, the training bot uses skills from three random pandoras"
+msgstr "開啟後訓練機器人會使用隨機3個潘朵拉的技能"
 
 #. Key:	Settings.BotWeapon
 #. SourceLocation:	UI/Localization/StringTables/MenuText.csv

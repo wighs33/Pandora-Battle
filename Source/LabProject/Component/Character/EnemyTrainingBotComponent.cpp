@@ -326,6 +326,16 @@ bool UEnemyTrainingBotComponent::RequestWeaponChange(const UItemDefinition* Weap
 	return true;
 }
 
+const UItemDefinition* UEnemyTrainingBotComponent::GetRequestedWeaponDefinition() const
+{
+	if (bWeaponChangeInProgress)
+	{
+		return bPendingUnarmed ? nullptr : PendingWeaponDefinition.Get();
+	}
+	const AEnemyBase* Enemy = GetEnemyOwnerConst();
+	return Enemy ? Enemy->GetCurrentOrStartingEnemyWeaponDefinition() : nullptr;
+}
+
 bool UEnemyTrainingBotComponent::RequestUnarmed()
 {
 	AEnemyBase* Enemy = GetEnemyOwner();

@@ -7,6 +7,7 @@
 #include "Abilities/GameplayAbilityTargetActor_Trace.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitConfirmCancel.h"
+#include "Abilities/Tasks/AbilityTask_WaitDelay.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "Abilities/Tasks/AbilityTask_WaitTargetData.h"
 #include "Component/AbilitySystem/PdAbilitySystemComponent.h"
@@ -23,6 +24,14 @@
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SkillProjectileCastAction)
 
 DEFINE_LOG_CATEGORY_STATIC(LogProjectileAbility, Log, All);
+
+namespace
+{
+	/** 커지지 않는 투사체도 모으는 자세가 보이도록, 플레이어가 아닌 시전자는 최소한 이만큼은 모은다. */
+	constexpr float MinimumChargeSecondsWithoutPlayer = 1.5f;
+	/** 다 모은 뒤 쏘기 전에 잠깐 더 들고 있어, 다 모은 모습이 보이게 한다. */
+	constexpr float FullChargeHoldSecondsWithoutPlayer = 0.3f;
+}
 
 USkillProjectileCastAction::USkillProjectileCastAction()
 {
@@ -94,7 +103,10 @@ void USkillProjectileCastAction::HandleShootProjectileEvent(FGameplayEventData P
 
 	if (!GetAbility()->HasPlayerController())
 	{
-		FireAtCurrentTargetOrFallback();
+		if (!TryStartChargeWithoutPlayer(true))
+		{
+			FireAtCurrentTargetOrFallback();
+		}
 		return;
 	}
 
@@ -233,6 +245,50 @@ void USkillProjectileCastAction::StartShotWithoutMontage()
 		return;
 	}
 
+	if (!TryStartChargeWithoutPlayer(false))
+	{
+		FireAtCurrentTargetOrFallback();
+	}
+}
+
+// 플레이어 조준(StartPlayerAiming)과 같은 자세·투사체를 쓰되, 확정 입력 대신 정해진 시간이 지나면 쏜다.
+// 시전 몽타주가 없으면 멈출 몽타주도 없으므로 그대로 둔다.
+bool USkillProjectileCastAction::TryStartChargeWithoutPlayer(const bool bPauseShootMontage)
+{
+	if (Settings.FireMode != EProjectileFireMode::HoldThenConfirm)
+	{
+		return false;
+	}
+	ChargeWithoutPlayerTask = UAbilityTask_WaitDelay::WaitDelay(GetAbility(), GetChargeSecondsWithoutPlayer());
+	if (!ChargeWithoutPlayerTask)
+	{
+		return false;
+	}
+	if (bPauseShootMontage)
+	{
+		bPausedForPlayerAim = true;
+		PauseProjectileMontageForAiming();
+	}
+	SpawnReadiedProjectile();
+	ChargeWithoutPlayerTask->OnFinish.AddDynamic(this, &ThisClass::HandleChargeWithoutPlayerFinished);
+	ChargeWithoutPlayerTask->ReadyForActivation();
+	return true;
+}
+
+// 투사체가 다 커지는 시간을 기다린다. 커지지 않는 투사체도 최소 시간만큼은 모은다.
+float USkillProjectileCastAction::GetChargeSecondsWithoutPlayer() const
+{
+	return FMath::Max(GetConfiguredReadiedProjectileScaleDuration(), MinimumChargeSecondsWithoutPlayer) + FullChargeHoldSecondsWithoutPlayer;
+}
+
+void USkillProjectileCastAction::HandleChargeWithoutPlayerFinished()
+{
+	ChargeWithoutPlayerTask = nullptr;
+	if (bPausedForPlayerAim)
+	{
+		ResumeProjectileMontageAfterAiming();
+		bPausedForPlayerAim = false;
+	}
 	FireAtCurrentTargetOrFallback();
 }
 
@@ -746,6 +802,12 @@ void USkillProjectileCastAction::CleanupAimingState()
 	{
 		ConfirmCancelTask->EndTask();
 		ConfirmCancelTask = nullptr;
+	}
+
+	if (ChargeWithoutPlayerTask)
+	{
+		ChargeWithoutPlayerTask->EndTask();
+		ChargeWithoutPlayerTask = nullptr;
 	}
 
 	if (ShootProjectileEventTask)

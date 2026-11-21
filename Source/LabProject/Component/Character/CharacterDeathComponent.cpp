@@ -107,7 +107,8 @@ void UCharacterDeathComponent::HandleDeadTagChanged(const int32 NewCount,
 
 	Character->MulticastHandleDeath();
 	AController* DeathController = Character->GetController();
-	if (!DeathController || !DeathController->IsPlayerController())
+	// 참가자(사람과 대기실에서 넣은 봇)만 부활한다. 참가자 조종기에는 PlayerState가 있다.
+	if (!DeathController || !DeathController->PlayerState)
 	{
 		return;
 	}

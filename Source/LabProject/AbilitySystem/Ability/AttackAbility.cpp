@@ -753,9 +753,14 @@ bool UAttackAbility::IsAITargetInComboRange() const
 		return true;
 	}
 
+	// 몬스터만 대상과의 거리로 콤보를 끊는다. 봇이 조종하는 플레이어 캐릭터는 사람처럼 공격 입력으로 콤보를 잇는다.
 	const AEnemyBase* Enemy = Cast<AEnemyBase>(GetPdCharacterFromActorInfo());
+	if (!IsValid(Enemy))
+	{
+		return true;
+	}
 	const AActor* AttackTarget = GetAttackTargetFromAvatar();
-	if (!IsValid(Enemy) || !IsValid(AttackTarget))
+	if (!IsValid(AttackTarget))
 	{
 		return false;
 	}

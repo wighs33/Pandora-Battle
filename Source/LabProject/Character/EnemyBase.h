@@ -100,6 +100,9 @@ public:
 	const UItemDefinition*
 	GetCurrentOrStartingEnemyWeaponDefinition() const;
 
+	/** 적 정의(체력·시작 무기 등)를 적용해 전투를 시작할 준비가 끝났는지. */
+	bool IsEnemyRuntimeInitialized() const { return bEnemyRuntimeInitialized; }
+
 	virtual bool GetFallbackAttackData(FAttackData& OutAttackData) const;
 
 	UFUNCTION(BlueprintPure, Category = "!AI|Combat")

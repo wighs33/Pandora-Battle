@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Common/Enum_Direction.h"
 #include "GameplayTagContainer.h"
 #include "UObject/Object.h"
 #include "LobbyTravelCoordinator.generated.h"
@@ -45,6 +46,8 @@ private:
 	void PrepareLobbyTravelHandoffs() const;
 	FLobbyTravelHandoff BuildLobbyTravelHandoff(const APdPlayerState& LobbyPlayerState) const;
 	TMap<FGameplayTag, FName> BuildEquippedSkinNamesBySlot(const APlayerController* PlayerController) const;
+	/** 봇이 쓸 수 있는 판도라 가운데 무작위로 좌·상·우 칸에 하나씩 고른다(판도라 정의는 봇을 넣을 때 GameMode가 불러 둔다). */
+	TMap<EEnum_Direction, FName> PickBotPandoraNames() const;
 
 	// 콘텐츠 로딩과 클라이언트의 진입 화면을 준비한 후 서버 이동.
 	void SetGameStartConnectingPopupVisible(bool bVisible) const;

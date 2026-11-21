@@ -97,7 +97,8 @@ void UPlayerSpawnComponent::RecordInitialSpawn(AController* PlayerController, co
 void UPlayerSpawnComponent::RequestPlayerRespawn(AController* PlayerController, APawn* DeadPawn)
 {
 	AGameModeBase* GameMode = Cast<AGameModeBase>(GetOwner());
-	if (!GameMode || !GameMode->HasAuthority() || !PlayerController || !PlayerController->IsPlayerController())
+	// 참가자(사람과 대기실에서 넣은 봇)는 PlayerState가 있다. 몬스터 조종기에는 없다.
+	if (!GameMode || !GameMode->HasAuthority() || !PlayerController || !PlayerController->PlayerState)
 	{
 		return;
 	}
@@ -180,9 +181,9 @@ bool UPlayerSpawnComponent::TryGetPlayerInitialSpawnTransform(AController* Playe
 	return false;
 }
 
-TArray<APlayerController*> UPlayerSpawnComponent::MovePlayersToInitialSpawns()
+TArray<AController*> UPlayerSpawnComponent::MovePlayersToInitialSpawns()
 {
-	TArray<APlayerController*> MovedPlayers;
+	TArray<AController*> MovedPlayers;
 	const AGameModeBase* GameMode = Cast<AGameModeBase>(GetOwner());
 	UWorld* World = GetWorld();
 	if (!GameMode || !GameMode->HasAuthority() || !World)
@@ -190,13 +191,11 @@ TArray<APlayerController*> UPlayerSpawnComponent::MovePlayersToInitialSpawns()
 		return MovedPlayers;
 	}
 
-	for (FConstPlayerControllerIterator Iterator = World->GetPlayerControllerIterator();
-		Iterator;
-		++Iterator)
+	for (FConstControllerIterator Iterator = World->GetControllerIterator(); Iterator; ++Iterator)
 	{
-		APlayerController* PlayerController = Iterator->Get();
+		AController* PlayerController = Iterator->Get();
 		APawn* Pawn = PlayerController ? PlayerController->GetPawn() : nullptr;
-		if (!PlayerController || !Pawn)
+		if (!PlayerController || !PlayerController->PlayerState || !Pawn)
 		{
 			continue;
 		}
@@ -369,7 +368,7 @@ void UPlayerSpawnComponent::FinishPlayerRespawn(TWeakObjectPtr<AController> Weak
 	}
 	if (IsValid(Pawn))
 	{
-		OnPlayerRespawned.Broadcast(Cast<APlayerController>(Controller), bCreatedPawn);
+		OnPlayerRespawned.Broadcast(Controller, bCreatedPawn);
 	}
 }
 

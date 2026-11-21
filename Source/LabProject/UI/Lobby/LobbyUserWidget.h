@@ -57,7 +57,9 @@ private:
 	/** 사람이 앉은 자리와 빈 자리 가운데 하나만 보인다. */
 	void SetSeatOccupied(bool bOccupied) const;
 	bool IsRepresentingLocalPlayer() const;
-	bool CanLocalPlayerKick() const;
+	/** 이 화면의 주인이 방장(리슨 서버 호스트)인지. 방장은 다른 참가자를 내보내고 봇의 팀을 정한다. */
+	bool IsLocalPlayerHost() const;
+	bool IsRepresentingBot() const;
 	bool IsLobbyOwnerPlayer() const;
 	FString GetRepresentedSteamIdString() const;
 	bool OpenSteamFriendAddOverlay() const;

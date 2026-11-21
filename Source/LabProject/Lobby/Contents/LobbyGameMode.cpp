@@ -1,5 +1,6 @@
 #include "Lobby/Contents/LobbyGameMode.h"
 
+#include "AI/Bot/PdBotController.h"
 #include "Character/PdPlayer.h"
 #include "Component/Lobby/LobbyConfigurationComponent.h"
 #include "Component/Experience/ExperienceManagerComponent.h"
@@ -16,10 +17,13 @@
 #include "Component/Player/PlayerMatchComponent.h"
 #include "Online/OnlineSessionsSubsystem.h"
 #include "Online/GameLift/GameLiftServerSubsystem.h"
+#include "Data/ContentDataSubsystem.h"
 #include "Engine/GameInstance.h"
+#include "Engine/StreamableManager.h"
 #include "HAL/IConsoleManager.h"
 #include "TimerManager.h"
 #include "Lobby/Coordination/LobbyTravelCoordinator.h"
+#include "Localization/MenuLocalizationSubsystem.h"
 #include "Mode/PdPlayerController.h"
 #include "Provision/DefaultPlayerProvisioner.h"
 #if WITH_EDITOR
@@ -82,6 +86,7 @@ ALobbyGameMode::ALobbyGameMode(const FObjectInitializer& ObjectInitializer) : Su
 	GameStateClass = ALobbyGameState::StaticClass();
 	PlayerStateClass = APdPlayerState::StaticClass();
 	DefaultPawnClass = APdPlayer::StaticClass();
+	BotControllerClass = APdBotController::StaticClass();
 	bUseSeamlessTravel = true;
 }
 
@@ -123,6 +128,7 @@ void ALobbyGameMode::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	GetWorldTimerManager().ClearTimer(StartCountdownTimerHandle);
 	GetWorldTimerManager().ClearTimer(DedicatedServerAutoStartTimerHandle);
 	bGameStartRequested = false;
+	BotPandoraPreloadHandle.Reset();
 	TravelCoordinator->CancelPendingTravel();
 	DefaultPlayerProvisioner->Shutdown();
 	SpawnComponent->OnPlayerRespawned.RemoveAll(this);
@@ -141,7 +147,7 @@ void ALobbyGameMode::PreLogin(
 	const FString& Options, const FString& Address, const FUniqueNetIdRepl& UniqueId, FString& ErrorMessage)
 {
 	Super::PreLogin(Options, Address, UniqueId, ErrorMessage);
-	if (ErrorMessage.IsEmpty() && LobbyConfigurationComponent->IsRuntimeReady() && GameState && GameState->PlayerArray.Num() >= LobbyConfigurationComponent->GetConfiguredMaxPlayerCount())
+	if (ErrorMessage.IsEmpty() && LobbyConfigurationComponent->IsRuntimeReady() && GetHumanPlayerCount() >= LobbyConfigurationComponent->GetConfiguredMaxPlayerCount())
 	{
 		ErrorMessage = TEXT("Server is full.");
 	}
@@ -151,20 +157,27 @@ void ALobbyGameMode::PreLogin(
 	}
 }
 
+// 사람이 들어와 정원을 넘으면 봇이 자리를 비켜 준다.
+void ALobbyGameMode::PostLogin(APlayerController* NewPlayer)
+{
+	Super::PostLogin(NewPlayer);
+	RemoveBotsOverCapacity();
+}
+
 // 일반 접속과 심리스 트래블 모두에서 Pawn 생성 전에 이름, 팀과 스폰 식별 정보를 준비한다.
+// 봇은 방장이 넣을 때와 경기에서 돌아올 때 여기를 지난다(로비 Pawn과 지급은 없다).
 void ALobbyGameMode::GenericPlayerInitialization(AController* Controller)
 {
 	Super::GenericPlayerInitialization(Controller);
-	APlayerController* PlayerController = Cast<APlayerController>(Controller);
-	APdPlayerState* LobbyPlayerState = PlayerController ? PlayerController->GetPlayerState<APdPlayerState>() : nullptr;
+	APdPlayerState* LobbyPlayerState = Controller ? Controller->GetPlayerState<APdPlayerState>() : nullptr;
 	if (!LobbyPlayerState)
 	{
 		return;
 	}
 
 	SpawnComponent->ClearRuntimeStateForController(Controller);
-	LobbyPlayerSetupComponent->InitializeLobbyPlayerState(PlayerController, LobbyPlayerState);
-	if (APdPlayerController* PdPlayerController = Cast<APdPlayerController>(PlayerController))
+	LobbyPlayerSetupComponent->InitializeLobbyPlayerState(Cast<APlayerController>(Controller), LobbyPlayerState);
+	if (APdPlayerController* PdPlayerController = Cast<APdPlayerController>(Controller))
 	{
 		PdPlayerController->Client_RequestLocalCosmeticProfileSync();
 	}
@@ -207,11 +220,24 @@ UClass* ALobbyGameMode::GetDefaultPawnClassForController_Implementation(AControl
 }
 
 // 퇴장 플레이어의 지급 상태를 정리한다. UI의 목록 갱신은 GameState의 제거 알림이 담당한다.
+// 마지막 사람이 나가면 봇도 뺀다(퇴장하는 사람의 PlayerState는 아직 목록에 있다).
 void ALobbyGameMode::Logout(AController* Exiting)
 {
+	const bool bLastHumanLeaving = Exiting && Exiting->IsPlayerController() && GetHumanPlayerCount(Exiting->PlayerState) == 0;
 	DefaultPlayerProvisioner->ClearRuntimeStateForController(Exiting, Exiting ? Exiting->PlayerState : nullptr);
 	SpawnComponent->ClearRuntimeStateForController(Exiting);
 	Super::Logout(Exiting);
+	if (bLastHumanLeaving)
+	{
+		RemoveAllBots();
+	}
+}
+
+// 경기에서 돌아온 봇은 사람과 달리 엔진이 시작 처리를 불러 주지 않는다. 사람이 모두 떠난 채 돌아왔으면(빈 전용 서버) 봇도 뺀다.
+void ALobbyGameMode::PostSeamlessTravel()
+{
+	Super::PostSeamlessTravel();
+	RemoveBotsWithoutHumans();
 }
 
 // 호스트가 확정한 로비 설정을 적용한다.
@@ -231,6 +257,7 @@ void ALobbyGameMode::SelectLobbyMap(FName MapKey)
 		CancelPendingGameStart();
 	}
 	LobbyConfigurationComponent->SelectLobbyMap(MapKey);
+	RemoveBotsOverCapacity();
 	UpdateAdvertisedSessionSettings();
 }
 
@@ -281,6 +308,11 @@ void ALobbyGameMode::KickPlayer(APdPlayerState* TargetPlayerState)
 	{
 		return;
 	}
+	if (TargetPlayerState->IsABot())
+	{
+		RemoveBot(TargetPlayerState);
+		return;
+	}
 	APlayerController* Controller = TargetPlayerState->GetPlayerController();
 	if (!Controller)
 	{
@@ -305,14 +337,169 @@ void ALobbyGameMode::KickPlayer(APdPlayerState* TargetPlayerState)
 	GameSession->KickPlayer(Controller, NSLOCTEXT("Lobby", "KickedByHost", "Kicked by host"));
 }
 
-// Pawn이 준비된 플레이어에게 로비 장비와 기본 상태를 지급한다. 반복 요청의 중복 방지는 지급기가 담당한다.
-void ALobbyGameMode::ProvisionLobbyPlayer(APlayerController* PlayerController)
+// 봇은 로비 Pawn 없이 자리만 차지한다. 이름·스폰 번호·팀은 사람처럼 정한다. 플레이어 번호는 엔진이 사람에게 주는 번호에서 이어 받는다
+// (엔진은 사람이 접속할 때만 번호를 매긴다. 그대로 두면 봇은 모두 0이 되어 목록 맨 앞에 서고 결과 화면에서 서로 구분되지 않는다).
+bool ALobbyGameMode::AddBot()
 {
-	if (!PlayerController || !PlayerController->GetPawn() || !IsReadyForPlayerStart())
+	if (!CanAddBot())
+	{
+		return false;
+	}
+	FActorSpawnParameters SpawnParameters;
+	SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	APdBotController* Bot = GetWorld()->SpawnActor<APdBotController>(BotControllerClass, SpawnParameters);
+	APdPlayerState* BotPlayerState = Bot ? Bot->GetPlayerState<APdPlayerState>() : nullptr;
+	if (!BotPlayerState)
+	{
+		if (Bot)
+		{
+			Bot->Destroy();
+		}
+		return false;
+	}
+	BotPlayerState->SetPlayerId(GameSession->GetNextPlayerID());
+	BotPlayerState->GetPlayerMatchComponent()->SetMatchDisplayName(MakeBotDisplayName());
+	GenericPlayerInitialization(Bot);
+	AssignLobbyTeamColorIfNeeded(BotPlayerState);
+	NotifyLobbyTeamChanged();
+	PreloadBotPandoras();
+	return true;
+}
+
+// 경기로 갈 때 봇의 판도라를 고르려면(LobbyTravelCoordinator) 판도라 정의와 스킬이 불러와져 있어야 한다.
+void ALobbyGameMode::PreloadBotPandoras()
+{
+	UContentDataSubsystem* ContentData = UGameInstance::GetSubsystem<UContentDataSubsystem>(GetGameInstance());
+	if (!BotPandoraPreloadHandle.IsValid() && ContentData)
+	{
+		BotPandoraPreloadHandle = ContentData->PreloadPandoraDataAssetsAsync();
+	}
+}
+
+// 봇은 사람과 함께 놀려고 넣는 것이므로, 사람이 아무도 없으면 남겨 두지 않는다(빈 전용 서버가 봇끼리 경기를 시작하지 않게).
+void ALobbyGameMode::RemoveBotsWithoutHumans()
+{
+	if (GetHumanPlayerCount() == 0)
+	{
+		RemoveAllBots();
+	}
+}
+
+bool ALobbyGameMode::CanAddBot() const
+{
+	return HasAuthority() && GameState && GameSession && BotControllerClass && LobbyConfigurationComponent->IsRuntimeReady() && !bGameStartRequested
+		&& GetActiveLobbyPlayerCount() < LobbyConfigurationComponent->GetConfiguredMaxPlayerCount();
+}
+
+void ALobbyGameMode::RemoveBot(APdPlayerState* BotPlayerState)
+{
+	AController* BotController = BotPlayerState && BotPlayerState->IsABot() ? Cast<AController>(BotPlayerState->GetOwner()) : nullptr;
+	if (!HasAuthority() || !BotController)
 	{
 		return;
 	}
-	DefaultPlayerProvisioner->ProvisionPlayer(PlayerController);
+	NotifyLobbyTeamChanged();
+	BotController->Destroy();
+}
+
+void ALobbyGameMode::SetBotTeamColor(APdPlayerState* BotPlayerState, const int32 TeamColorIndex)
+{
+	if (!HasAuthority() || !BotPlayerState || !BotPlayerState->IsABot())
+	{
+		return;
+	}
+	const int32 LastTeamColorIndex = FMath::Max(LobbyConfigurationComponent->GetConfiguredMaxPlayerCount(), 1) - 1;
+	const int32 ClampedIndex = FMath::Clamp(TeamColorIndex, 0, LastTeamColorIndex);
+	if (BotPlayerState->GetPlayerMatchComponent()->GetMatchTeamColorIndex() != ClampedIndex)
+	{
+		BotPlayerState->GetPlayerMatchComponent()->SetMatchTeamColorIndex(ClampedIndex);
+		NotifyLobbyTeamChanged();
+	}
+}
+
+void ALobbyGameMode::RemoveAllBots()
+{
+	for (APdPlayerState* BotPlayerState : GetBotPlayerStates())
+	{
+		RemoveBot(BotPlayerState);
+	}
+}
+
+int32 ALobbyGameMode::GetHumanPlayerCount(const APlayerState* IgnoredPlayerState) const
+{
+	int32 HumanPlayerCount = 0;
+	if (!GameState)
+	{
+		return HumanPlayerCount;
+	}
+	for (const APlayerState* PlayerState : GameState->PlayerArray)
+	{
+		const APdPlayerState* LobbyPlayerState = Cast<APdPlayerState>(PlayerState);
+		if (LobbyPlayerState && LobbyPlayerState != IgnoredPlayerState && !LobbyPlayerState->IsABot()
+			&& !LobbyPlayerState->GetLobbyPlayerStateComponent()->IsLeavingLobby())
+		{
+			++HumanPlayerCount;
+		}
+	}
+	return HumanPlayerCount;
+}
+
+TArray<APdPlayerState*> ALobbyGameMode::GetBotPlayerStates() const
+{
+	TArray<APdPlayerState*> Bots;
+	if (!GameState)
+	{
+		return Bots;
+	}
+	for (APlayerState* PlayerState : GameState->PlayerArray)
+	{
+		APdPlayerState* LobbyPlayerState = Cast<APdPlayerState>(PlayerState);
+		if (LobbyPlayerState && LobbyPlayerState->IsABot() && !LobbyPlayerState->GetLobbyPlayerStateComponent()->IsLeavingLobby())
+		{
+			Bots.Add(LobbyPlayerState);
+		}
+	}
+	Bots.Sort([](const APdPlayerState& A, const APdPlayerState& B) { return A.GetPlayerId() < B.GetPlayerId(); });
+	return Bots;
+}
+
+void ALobbyGameMode::RemoveBotsOverCapacity()
+{
+	TArray<APdPlayerState*> Bots = GetBotPlayerStates();
+	const int32 MaxPlayerCount = LobbyConfigurationComponent->GetConfiguredMaxPlayerCount();
+	for (int32 ExcessCount = GetActiveLobbyPlayerCount() - MaxPlayerCount; ExcessCount > 0 && !Bots.IsEmpty(); --ExcessCount)
+	{
+		RemoveBot(Bots.Pop());
+	}
+}
+
+// 지금 봇들이 쓰지 않는 가장 작은 번호로 'Bot 1' 같은 이름을 짓는다.
+FText ALobbyGameMode::MakeBotDisplayName() const
+{
+	const FText NameFormat = UMenuLocalizationSubsystem::GetTextOrFallback(TEXT("Lobby.BotName"), INVTEXT("Bot {0}"));
+	TSet<FString> UsedNames;
+	for (const APdPlayerState* Bot : GetBotPlayerStates())
+	{
+		UsedNames.Add(Bot->GetPlayerMatchComponent()->GetMatchDisplayName().ToString());
+	}
+	for (int32 BotNumber = 1;; ++BotNumber)
+	{
+		const FText Name = FText::Format(NameFormat, BotNumber);
+		if (!UsedNames.Contains(Name.ToString()))
+		{
+			return Name;
+		}
+	}
+}
+
+// Pawn이 준비된 플레이어에게 로비 장비와 기본 상태를 지급한다. 반복 요청의 중복 방지는 지급기가 담당한다.
+void ALobbyGameMode::ProvisionLobbyPlayer(AController* Player)
+{
+	if (!Player || !Player->GetPawn() || !IsReadyForPlayerStart())
+	{
+		return;
+	}
+	DefaultPlayerProvisioner->ProvisionPlayer(Player);
 }
 
 bool ALobbyGameMode::IsReadyForPlayerStart() const
@@ -360,7 +547,7 @@ APawn* ALobbyGameMode::SpawnDefaultPawnAtTransform_Implementation(AController* P
 	return Pawn;
 }
 
-void ALobbyGameMode::HandlePlayerRespawned(APlayerController* Player, bool bCreatedPawn)
+void ALobbyGameMode::HandlePlayerRespawned(AController* Player, bool bCreatedPawn)
 {
 	// 재사용한 Pawn의 지급 상태는 보존하며 새 Pawn에만 기존 로비 지급을 실행한다.
 	if (bCreatedPawn)
@@ -447,7 +634,7 @@ bool ALobbyGameMode::AreMatchStartConditionsMet() const
 
 	const int32 ActivePlayerCount = GetActiveLobbyPlayerCount();
 	const int32 MaxPlayerCount = LobbyConfigurationComponent->GetConfiguredMaxPlayerCount();
-	return ActivePlayerCount > 0 && ActivePlayerCount <= MaxPlayerCount && AreLobbyTeamsBalanced();
+	return GetHumanPlayerCount() > 0 && ActivePlayerCount <= MaxPlayerCount && AreLobbyTeamsBalanced();
 }
 
 int32 ALobbyGameMode::GetActiveLobbyPlayerCount() const

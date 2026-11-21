@@ -19,6 +19,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Lobby/Contents/LobbyGameState.h"
 #include "Lobby/Contents/LobbyGameMode.h"
+#include "Lobby/Contents/LobbyPlayerController.h"
 #include "UI/Lobby/LobbyHUD.h"
 #include "Mode/PdPlayerState.h"
 #include "UI/Lobby/LobbyUserWidget.h"
@@ -67,6 +68,11 @@ void ULobbyWidget::NativeConstruct()
 	if (Btn_Invite)
 	{
 		Btn_Invite->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleInviteClicked);
+	}
+
+	if (Btn_AddBot)
+	{
+		Btn_AddBot->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleAddBotClicked);
 	}
 
 	if (UButton* PreviousMapButton = Btn_MapPrevious)
@@ -144,6 +150,11 @@ void ULobbyWidget::NativeDestruct()
 	if (Btn_Invite)
 	{
 		Btn_Invite->OnClicked.RemoveDynamic(this, &ThisClass::HandleInviteClicked);
+	}
+
+	if (Btn_AddBot)
+	{
+		Btn_AddBot->OnClicked.RemoveDynamic(this, &ThisClass::HandleAddBotClicked);
 	}
 
 	if (UButton* PreviousMapButton = Btn_MapPrevious)
@@ -290,6 +301,13 @@ void ULobbyWidget::RefreshUI()
 		Btn_Invite->SetIsEnabled(bCanInvite);
 	}
 
+	if (Btn_AddBot)
+	{
+		const bool bShowAddBotButton = bIsServer && !bStartPending;
+		Btn_AddBot->SetVisibility(bShowAddBotButton ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+		Btn_AddBot->SetIsEnabled(bShowAddBotButton && LobbyGameMode && LobbyGameMode->CanAddBot());
+	}
+
 	if (UTextBlock* WarningText = Txt_Warning)
 	{
 		const ALobbyGameState* GameState = GetLobbyGameState();
@@ -369,6 +387,15 @@ void ULobbyWidget::HandleCloseClicked()
 	}
 
 	OnlineSessionsSubsystem->DestroySession();
+}
+
+// 방장의 요청도 다른 로비 명령처럼 조종기의 서버 요청으로 보낸다(서버가 방장인지 다시 확인한다).
+void ULobbyWidget::HandleAddBotClicked()
+{
+	if (ALobbyPlayerController* LobbyPlayerController = Cast<ALobbyPlayerController>(GetOwningPlayer()))
+	{
+		LobbyPlayerController->Server_HandleAddBot();
+	}
 }
 
 void ULobbyWidget::HandleGameStartClicked()
