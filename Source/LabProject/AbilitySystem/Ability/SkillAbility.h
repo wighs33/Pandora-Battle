@@ -20,7 +20,7 @@ enum class ESkillPresentationFlags : uint8;
 class USkillDefinition;
 
 /**
- * SkillDefinition의 Action 트리를 실행하는 공통 스킬 Ability.
+ * SkillDefinition의 Action을 실행하는 공통 스킬 Ability.
  *
  * 스킬별 입력, 지속시간, 비용·쿨다운과 Pandora 출처를 관리하고,
  * 실제 기능 실행은 SkillAction에 위임한다.

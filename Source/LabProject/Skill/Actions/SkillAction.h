@@ -28,7 +28,7 @@ struct LABPROJECT_API FSkillActionContext
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnSkillActionFinished, USkillAction*, bool);
 
-/** 에셋에는 설정만 저장한다. 실행할 때 전체 트리를 복제해 시전자별 상태를 분리한다. */
+/** 에셋에는 설정만 저장한다. 실행할 때 액션을 복제해 시전자별 상태를 분리한다. */
 UCLASS(Abstract, BlueprintType, EditInlineNew, DefaultToInstanced)
 class LABPROJECT_API USkillAction : public UObject
 {

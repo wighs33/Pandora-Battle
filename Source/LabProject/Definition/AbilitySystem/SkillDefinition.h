@@ -43,7 +43,7 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Skill|Execution", meta = (ShowOnlyInnerProperties))
 	FSkillActivationSettings Activation;
 
-	/** SkillAbility가 실행할 액션 트리. 순차·병렬 액션으로 기능을 조합한다. */
+	/** SkillAbility가 실행할 액션. 스킬 종류에 맞는 액션 하나를 고르고 값을 정한다. */
 	UPROPERTY(EditDefaultsOnly, Instanced, BlueprintReadOnly, Category = "!Skill|Execution")
 	TObjectPtr<USkillAction> Action;
 
