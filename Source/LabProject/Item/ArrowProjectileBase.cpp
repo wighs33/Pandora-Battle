@@ -13,6 +13,7 @@
 #include "Kismet/KismetSystemLibrary.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
+#include "NiagaraComponent.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
 #include "Sound/SoundBase.h"
@@ -116,6 +117,18 @@ void AArrowProjectileBase::BeginPlay()
 	RefreshFlightEffects();
 }
 
+// 풀에서 빌린 궤적은 화살이 아니라 풀의 것이라 화살과 함께 지워지지 않는다. 멈추고 돌려주면 남은 입자가 사라진 뒤 풀로 돌아간다.
+void AArrowProjectileBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (TrailComponent)
+	{
+		TrailComponent->Deactivate();
+		TrailComponent->ReleaseToPool();
+		TrailComponent = nullptr;
+	}
+	Super::EndPlay(EndPlayReason);
+}
+
 void AArrowProjectileBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
@@ -148,8 +161,8 @@ void AArrowProjectileBase::RefreshFlightEffects()
 		}
 		if (TrailSystem)
 		{
-			UNiagaraFunctionLibrary::SpawnSystemAttached(TrailSystem, GetCollisionComponent(), NAME_None, FVector::ZeroVector,
-				FRotator::ZeroRotator, EAttachLocation::KeepRelativeOffset, true);
+			TrailComponent = UNiagaraFunctionLibrary::SpawnSystemAttached(TrailSystem, GetCollisionComponent(), NAME_None,
+				FVector::ZeroVector, FRotator::ZeroRotator, EAttachLocation::KeepRelativeOffset, true, true, ENCPoolMethod::ManualRelease, true);
 		}
 	}
 	if (bHasImpacted && bSeenBeforeImpact && !bImpactEffectsPlayed)

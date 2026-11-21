@@ -12,7 +12,8 @@ class UUserWidget;
 
 /**
  * 모든 ACharacterBase 유형의 월드 체력바 위젯·뷰 모델·로컬 표시 정책을 관리한다.
- * 위젯은 캐릭터 초기화 때 붙이고, 값 연결은 AbilityStateComponent가 ASC 연결을 마칠 때 갱신한다.
+ * 위젯은 막대가 처음 보일 때 UCombatUiPool에서 꺼내 붙이고, 캐릭터가 떠나면 풀에 돌려준다.
+ * 값 연결은 AbilityStateComponent가 ASC 연결을 마칠 때 갱신한다.
  * 캐릭터는 ICharacterHealthBarInterface로만 부르고, 이 클래스는 프로젝트 설정(Project Bootstrap)에서 지정된다.
  */
 UCLASS(ClassGroup = (Character), meta = (BlueprintSpawnableComponent))
@@ -21,6 +22,9 @@ class LABPROJECT_API UCharacterHealthBarComponent : public UWidgetComponent, pub
 	GENERATED_BODY()
 
 public:
+	// Engine Overrides ------------------------------------------------------------------------------------------------
+	virtual void InitWidget() override;
+
 	// Public API ------------------------------------------------------------------------------------------------------
 	UCharacterHealthBarComponent();
 
@@ -39,8 +43,10 @@ private:
 	// Internal Helpers ------------------------------------------------------------------------------------------------
 	ACharacterBase* GetCharacterOwner() const;
 	void ConfigureWidget();
+	void AcquireWidget();
+	void ReleaseWidget();
+	void ClearWidgetOwner(UUserWidget& PooledWidget) const;
 	bool TryApplyViewModelToWidget(UUserWidget* InWidget);
-	bool TryApplyViewModelToWidget();
 	bool BindViewModelToASC(UAbilitySystemComponent* AbilitySystemComponent);
 	bool IsAttributeDataReady(const UAbilitySystemComponent* AbilitySystemComponent) const;
 	void UpdateFacing();

@@ -10,6 +10,7 @@
 #include "Engine/Engine.h"
 #include "UI/Core/WidgetClassDefinition.h"
 #include "GameFramework/PlayerController.h"
+#include "UI/HUD/Combat/CombatUiPool.h"
 #include "UI/HUD/Combat/EnemyAvatarWidget.h"
 #include "UI/HUD/Combat/EnemyHealthBarWidget.h"
 #include "UI/HUD/Combat/EnemyShieldBarWidget.h"
@@ -49,11 +50,22 @@ void UCharacterHealthBarComponent::InitializeHealthBar()
 
 void UCharacterHealthBarComponent::ShutdownHealthBar()
 {
+	ReleaseWidget();
 	BindViewModelToASC(nullptr);
 	HealthBarViewModel = nullptr;
 }
 
-// 위젯을 먼저 붙이고 ASC가 연결돼 있으면 값도 연결한다. ASC가 아직이면 연결 완료 시 AbilityStateComponent가 다시 호출한다.
+// 엔진은 BeginPlay에서 위젯을 만든다. 이 컴포넌트는 막대가 처음 보일 때 풀에서 꺼내므로(AcquireWidget) 여기서는 만들지 않는다.
+// 체력이 가득하면 막대를 숨기는 졸개는 맞기 전까지 위젯이 없다.
+void UCharacterHealthBarComponent::InitWidget()
+{
+	if (IsRunningDedicatedServer())
+	{
+		Super::InitWidget();
+	}
+}
+
+// ASC가 연결돼 있으면 값을 연결하고, 위젯이 이미 있으면 그 위젯에도 붙인다. ASC가 아직이면 연결 완료 시 AbilityStateComponent가 다시 호출한다.
 void UCharacterHealthBarComponent::RefreshViewModel()
 {
 	ACharacterBase* Character = GetCharacterOwner();
@@ -68,7 +80,36 @@ void UCharacterHealthBarComponent::RefreshViewModel()
 	}
 
 	BindViewModelToASC(Character->GetAbilitySystemComponent());
-	TryApplyViewModelToWidget();
+	TryApplyViewModelToWidget(GetWidget());
+}
+
+void UCharacterHealthBarComponent::AcquireWidget()
+{
+	UCombatUiPool* Pool = UWorld::GetSubsystem<UCombatUiPool>(GetWorld());
+	if (GetWidget() || !GetWidgetClass() || !Pool)
+	{
+		return;
+	}
+
+	SetWidget(Pool->AcquireOverheadWidget(GetWidgetClass()));
+	TryApplyViewModelToWidget(GetWidget());
+}
+
+// 위젯을 떼어 이 캐릭터를 더 보지 않게 한 뒤 풀에 돌려준다. 화면에서 빠지면서 위젯의 NativeDestruct가 구독과 타이머를 정리한다.
+void UCharacterHealthBarComponent::ReleaseWidget()
+{
+	UUserWidget* PooledWidget = GetWidget();
+	if (!PooledWidget)
+	{
+		return;
+	}
+
+	SetWidget(nullptr);
+	ClearWidgetOwner(*PooledWidget);
+	if (UCombatUiPool* Pool = UWorld::GetSubsystem<UCombatUiPool>(GetWorld()))
+	{
+		Pool->ReleaseOverheadWidget(*PooledWidget);
+	}
 }
 
 void UCharacterHealthBarComponent::ConfigureWidget()
@@ -103,7 +144,9 @@ void UCharacterHealthBarComponent::ConfigureWidget()
 		: !CurrentWidgetClass;
 	if (bApplyResolvedWidgetClass)
 	{
-		SetWidgetClass(ResolvedWidgetClass);
+		// SetWidgetClass는 BeginPlay 뒤에 부르면 위젯을 바로 만든다. 위젯은 보일 때 꺼내므로 클래스만 바꾸고 지난 클래스의 위젯은 돌려준다.
+		ReleaseWidget();
+		WidgetClass = ResolvedWidgetClass;
 	}
 }
 
@@ -156,16 +199,31 @@ bool UCharacterHealthBarComponent::TryApplyViewModelToWidget(UUserWidget* InWidg
 	return HealthBarViewModel->IsViewModelInitialized();
 }
 
-bool UCharacterHealthBarComponent::TryApplyViewModelToWidget()
+// 풀로 돌아가는 위젯이 떠난 캐릭터의 ASC와 뷰 모델을 붙잡지 않게 한다. 다음 캐릭터가 꺼내면 TryApplyViewModelToWidget이 다시 붙인다.
+void UCharacterHealthBarComponent::ClearWidgetOwner(UUserWidget& PooledWidget) const
 {
-	const ACharacterBase* Character = GetCharacterOwner();
-	if (!Character || Character->GetNetMode() == NM_DedicatedServer || !GetWidgetClass())
+	if (UEnemyAvatarWidget* EnemyAvatarWidget = Cast<UEnemyAvatarWidget>(&PooledWidget))
 	{
-		return false;
+		EnemyAvatarWidget->SetOwnerActor(nullptr);
+		return;
 	}
 
-	InitWidget();
-	return TryApplyViewModelToWidget(GetUserWidgetObject());
+	if (UEnemyHealthBarWidget* EnemyHealthBarWidget = Cast<UEnemyHealthBarWidget>(&PooledWidget))
+	{
+		EnemyHealthBarWidget->SetOwnerActor(nullptr);
+		return;
+	}
+
+	if (UEnemyShieldBarWidget* EnemyShieldBarWidget = Cast<UEnemyShieldBarWidget>(&PooledWidget))
+	{
+		EnemyShieldBarWidget->SetOwnerActor(nullptr);
+		return;
+	}
+
+	if (UMVVMView* View = PooledWidget.GetExtension<UMVVMView>())
+	{
+		View->SetViewModel(UHealthBarViewModel::ViewModelName, nullptr);
+	}
 }
 
 bool UCharacterHealthBarComponent::BindViewModelToASC(UAbilitySystemComponent* AbilitySystemComponent)
@@ -208,6 +266,11 @@ void UCharacterHealthBarComponent::SetVisibleForLocalViewer(const bool bRequeste
 		const UAbilitySystemComponent* ASC = Character->GetAbilitySystemComponent();
 		bShouldBeVisible = !Character->IsDeathHandled()
 			&& !(ASC && ASC->HasMatchingGameplayTag(PdGameplayTags::State_Dead));
+	}
+
+	if (bShouldBeVisible)
+	{
+		AcquireWidget();
 	}
 
 	if (IsVisible() != bShouldBeVisible)

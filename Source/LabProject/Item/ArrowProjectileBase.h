@@ -5,6 +5,7 @@
 #include "GameFramework/Actor.h"
 #include "ArrowProjectileBase.generated.h"
 
+class UNiagaraComponent;
 class UNiagaraSystem;
 class ACharacterBase;
 class UBoxComponent;
@@ -21,6 +22,7 @@ class LABPROJECT_API AArrowProjectileBase : public AActor
 protected:
 	// Engine Overrides ------------------------------------------------------------------------------------------------
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void Tick(float DeltaSeconds) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
@@ -112,6 +114,10 @@ protected:
 	/** 이 화면에서 연출을 이미 재생했는지. 같은 연출이 두 번 나오지 않게 한다. */
 	bool bLaunchEffectsPlayed = false;
 	bool bImpactEffectsPlayed = false;
+
+	/** Niagara 풀에서 빌린 궤적. 화살이 끝까지 들고 있다가 사라질 때 직접 돌려준다(ManualRelease). */
+	UPROPERTY(Transient)
+	TObjectPtr<UNiagaraComponent> TrailComponent = nullptr;
 
 	/** 이 화면이 꽂히기 전의 화살을 본 적이 있는지. 처음 봤을 때 이미 꽂혀 있던 화살은 충돌음을 내지 않는다. */
 	bool bSeenBeforeImpact = false;

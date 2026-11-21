@@ -6,6 +6,7 @@
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
+#include "UI/HUD/Combat/CombatUiPool.h"
 #include "UI/HUD/Combat/DamageIndicatorActor.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DamageIndicatorComponent)
 
@@ -37,16 +38,8 @@ void UDamageIndicatorComponent::ShowDamageIndicator(float DamageAmount, FVector 
 	const float EndRightOffset = FMath::FRandRange(EndCameraRightOffsetMin, EndCameraRightOffsetMax);
 	const FVector EndLocation = StartLocation + CameraUp * EndUpOffset + CameraRight * EndRightOffset;
 
-	const FTransform SpawnTransform(FRotator::ZeroRotator, StartLocation);
-
-	FActorSpawnParameters SpawnParameters;
-	SpawnParameters.Owner = GetOwner();
-	SpawnParameters.Instigator = Cast<APawn>(GetOwner());
-	SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-
-	ADamageIndicatorActor* DamageIndicatorActor =
-		World->SpawnActorDeferred<ADamageIndicatorActor>(DamageIndicatorActorClass, SpawnTransform, SpawnParameters.Owner, SpawnParameters.Instigator, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
-	if (!DamageIndicatorActor)
+	UCombatUiPool* Pool = UWorld::GetSubsystem<UCombatUiPool>(World);
+	if (!Pool)
 	{
 		return;
 	}
@@ -57,9 +50,7 @@ void UDamageIndicatorComponent::ShowDamageIndicator(float DamageAmount, FVector 
 	Payload.StartLocation = StartLocation;
 	Payload.EndLocation = EndLocation;
 	Payload.DamagedActor = GetOwner();
-
-	DamageIndicatorActor->InitializeDamageIndicator(Payload);
-	DamageIndicatorActor->FinishSpawning(SpawnTransform);
+	Pool->ShowDamageIndicator(DamageIndicatorActorClass, Payload);
 }
 
 FVector UDamageIndicatorComponent::ResolveDamageIndicatorWorldLocation() const

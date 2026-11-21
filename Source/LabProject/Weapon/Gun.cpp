@@ -13,8 +13,8 @@
 #include "Definition/Item/ItemDefinition.h"
 #include "DrawDebugHelpers.h"
 #include "Kismet/KismetSystemLibrary.h"
-#include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInterface.h"
+#include "Weapon/ImpactDecalPool.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(Gun)
 
 namespace
@@ -302,8 +302,8 @@ float AGun::MakeImpactDecalSize() const
 
 void AGun::SpawnImpactDecal(const FVector& ImpactLocation, const FVector& ImpactNormal, float DecalSize) const
 {
-	UWorld* World = GetWorld();
-	if (!World || World->GetNetMode() == NM_DedicatedServer)
+	UImpactDecalPool* DecalPool = UWorld::GetSubsystem<UImpactDecalPool>(GetWorld());
+	if (!DecalPool)
 	{
 		return;
 	}
@@ -325,7 +325,7 @@ void AGun::SpawnImpactDecal(const FVector& ImpactLocation, const FVector& Impact
 	const FRotator DecalRotation = (SafeImpactNormal.Rotation() + GunData->ImpactDecalRotationOffset).GetNormalized();
 	const float LifeSpan = FMath::Max(0.0f, GunData->ImpactDecalLifeSpan);
 
-	UGameplayStatics::SpawnDecalAtLocation(World, DecalMaterial, DecalSizeVector, ImpactLocation, DecalRotation, LifeSpan);
+	DecalPool->PlaceDecal(*DecalMaterial, DecalSizeVector, ImpactLocation, DecalRotation, LifeSpan);
 }
 
 bool AGun::SupportsAutomaticFire() const

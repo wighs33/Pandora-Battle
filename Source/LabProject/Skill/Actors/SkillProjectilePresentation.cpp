@@ -137,9 +137,10 @@ void SkillProjectilePresentation::SpawnImpactEffect(AActor& Projectile, UNiagara
 		return;
 	}
 
+	// 한 번 터지고 끝나는 효과라 근접 베기·피격 효과처럼 Niagara 풀에서 빌려 쓰고, 끝나면 풀로 돌아간다.
 	const FTransform SpawnTransform = ResolveImpactEffectTransform(Projectile, Location, bOnGround);
 	UNiagaraFunctionLibrary::SpawnSystemAtLocation(&Projectile, HitEffect, SpawnTransform.GetLocation(),
-		SpawnTransform.GetRotation().Rotator());
+		SpawnTransform.GetRotation().Rotator(), FVector::OneVector, true, true, ENCPoolMethod::AutoRelease, true);
 }
 
 void SkillProjectilePresentation::SetNiagaraVector2D(const AActor& Projectile, const FName ParameterName, const FVector2D Value)

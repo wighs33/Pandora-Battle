@@ -9,6 +9,7 @@
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
+#include "UI/HUD/Combat/CombatUiPool.h"
 #include "UObject/UnrealType.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DamageIndicatorActor)
 
@@ -47,30 +48,15 @@ namespace
 		}
 	}
 
+	/** 내 캐릭터가 맞은 숫자의 글자 테두리 색. */
+	const FLinearColor LocalPlayerDamageOutlineColor(0.1f, 0.0f, 0.05f, 1.0f);
+
 	bool IsDamageForLocalPlayer(const AActor* DamagedActor)
 	{
 		const APawn* DamagedPawn = Cast<APawn>(DamagedActor);
 		const APlayerController* PlayerController =
 			DamagedPawn ? Cast<APlayerController>(DamagedPawn->GetController()) : nullptr;
 		return PlayerController && PlayerController->IsLocalController();
-	}
-
-	void ApplyLocalPlayerDamageOutline(UUserWidget* UserWidget, const AActor* DamagedActor)
-	{
-		if (!UserWidget || !IsDamageForLocalPlayer(DamagedActor))
-		{
-			return;
-		}
-
-		UTextBlock* DamageText = Cast<UTextBlock>(UserWidget->GetWidgetFromName(TEXT("DamageText")));
-		if (!DamageText)
-		{
-			return;
-		}
-
-		FSlateFontInfo FontInfo = DamageText->GetFont();
-		FontInfo.OutlineSettings.OutlineColor = FLinearColor(0.1f, 0.0f, 0.05f, 1.0f);
-		DamageText->SetFont(FontInfo);
 	}
 }
 
@@ -141,8 +127,10 @@ void ADamageIndicatorActor::InitializeDamageIndicator(const FDamageIndicatorPayl
 
 	SetActorLocation(Payload.StartLocation);
 
+	// 풀에서 다시 꺼낸 액터는 이미 BeginPlay를 지났으므로 여기서 다시 띄운다.
 	if (HasActorBegunPlay())
 	{
+		SetPresented(true);
 		ApplyPayloadToWidget();
 		ReceiveDamageIndicatorInitialized(Payload);
 		StartMovement();
@@ -163,9 +151,31 @@ void ADamageIndicatorActor::ApplyPayloadToWidget()
 		return;
 	}
 
+	// 다시 쓰는 위젯은 지난 숫자의 등장 애니메이션 상태가 남아 있을 수 있어, BP가 애니메이션을 처음부터 다시 틀도록 멈춰 둔다.
+	UserWidget->StopAllAnimations();
 	SetNumericProperty(UserWidget, TEXT("Damage"), Payload.DamageAmount);
 	SetBoolProperty(UserWidget, TEXT("bCriticalHit"), Payload.bCriticalHit);
-	ApplyLocalPlayerDamageOutline(UserWidget, Payload.DamagedActor);
+	ApplyDamageOutline(*UserWidget);
+}
+
+// 내 캐릭터가 맞은 숫자만 글자 테두리 색을 바꾸고, 다른 숫자는 원래 색으로 둔다. 위젯을 다시 쓰므로 매번 둘 중 하나로 정한다.
+void ADamageIndicatorActor::ApplyDamageOutline(UUserWidget& UserWidget)
+{
+	UTextBlock* DamageText = Cast<UTextBlock>(UserWidget.GetWidgetFromName(TEXT("DamageText")));
+	if (!DamageText)
+	{
+		return;
+	}
+
+	FSlateFontInfo FontInfo = DamageText->GetFont();
+	if (!DefaultDamageOutlineColor.IsSet())
+	{
+		DefaultDamageOutlineColor = FontInfo.OutlineSettings.OutlineColor;
+	}
+	FontInfo.OutlineSettings.OutlineColor = IsDamageForLocalPlayer(Payload.DamagedActor)
+		? LocalPlayerDamageOutlineColor
+		: DefaultDamageOutlineColor.GetValue();
+	DamageText->SetFont(FontInfo);
 }
 
 void ADamageIndicatorActor::StartMovement()
@@ -192,10 +202,25 @@ void ADamageIndicatorActor::FinishMovement()
 	bMovementActive = false;
 	SetActorTickEnabled(false);
 	ReceiveDamageIndicatorFinished();
+	SetPresented(false);
+	Payload = FDamageIndicatorPayload();
 
-	if (bDestroyOnFinish)
+	if (UCombatUiPool* Pool = UWorld::GetSubsystem<UCombatUiPool>(GetWorld()))
 	{
-		Destroy();
+		Pool->ReleaseDamageIndicator(*this);
+		return;
+	}
+	Destroy();
+}
+
+// 쉬는 동안은 숨기고 위젯 컴포넌트도 멈춰, 월드 공간 위젯을 다시 그리지 않게 한다.
+void ADamageIndicatorActor::SetPresented(const bool bPresented)
+{
+	SetActorHiddenInGame(!bPresented);
+	if (DamageWidget)
+	{
+		DamageWidget->SetHiddenInGame(!bPresented);
+		DamageWidget->SetComponentTickEnabled(bPresented);
 	}
 }
 
