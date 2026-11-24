@@ -10,18 +10,22 @@
 #include "Character/PdPlayer.h"
 #include "Common/Enum_Direction.h"
 #include "Common/GameResultTypes.h"
+#include "Component/AbilitySystem/PandoraTreeComponent.h"
+#include "Component/Item/InventoryComponent.h"
 #include "Component/Lobby/LobbyConfigurationComponent.h"
 #include "Component/Lobby/LobbyPlayerStateComponent.h"
 #include "Component/Match/MatchOutcomeRules.h"
 #include "Component/Match/MatchPlayerSetupComponent.h"
 #include "Component/Pandora/PandoraComponent.h"
 #include "Component/Player/CombatComponent.h"
-#include "Component/Player/EquipmentComponent.h"
 #include "Component/Player/PlayerMatchComponent.h"
 #include "Components/Button.h"
+#include "Definition/Item/ItemDefinition.h"
 #include "Definition/Level/LevelDefinition.h"
 #include "Definition/Match/MatchRuleDefinition.h"
 #include "Definition/Pandora/PandoraDefinition.h"
+#include "Engine/AssetManager.h"
+#include "Item/ItemInstance.h"
 #include "Lobby/Contents/LobbyGameMode.h"
 #include "Lobby/Contents/LobbyGameState.h"
 #include "Mode/ExperienceGameMode.h"
@@ -39,8 +43,12 @@ namespace
 {
 	/** 봇 경기의 봇 수. 팀 인원이 같아야 시작할 수 있어, 방장과 봇 하나 대 봇 둘로 나눈다. */
 	constexpr int32 BotMatchBotCount = 3;
-	/** 경기가 끝나는 길까지 보려고 이 실행에서만 줄이는 경기 시간. 봇이 스폰되어 스킬을 쓰고, 잡힌 봇이 다시 태어날 만큼 둔다. */
-	constexpr float ShortMatchTimerSeconds = 60.f;
+	/** 경기가 끝나는 길까지 보려고 이 실행에서만 줄이는 경기 시간. 봇이 상자를 열고 판도라를 키워 스킬을 쓰고, 잡힌 봇이 다시 태어날 만큼 둔다. */
+	constexpr float ShortMatchTimerSeconds = 90.f;
+	/** 판도라 하나를 1레벨부터 끝까지 키우고 남는 소울 더스트 */
+	constexpr int32 PandoraSoulDust = 10;
+	/** 내 편 봇이 곧바로 싸울 상대 봇과의 거리 */
+	constexpr float AllyDistance = 250.f;
 	/** 방어력과 보호막을 넘어 한 번에 쓰러뜨리는 피해 */
 	constexpr float LethalDamage = 1.0e6f;
 
@@ -136,16 +144,35 @@ namespace
 		return nullptr;
 	}
 
-	/** 봇 조종기가 스폰된 캐릭터를 조종하고, 경기 지급을 받아 지금 판도라에 맞는 무기를 들었다. */
-	bool IsBotReadyToFight(const APdPlayerState& Bot)
+	/** 봇 조종기가 스폰된 캐릭터를 조종하고, 경기 지급을 받아 첫 판도라를 들었다. */
+	bool IsBotReady(const APdPlayerState& Bot)
 	{
-		APdPlayer* Character = GetCharacterOf(&Bot);
+		const APdPlayer* Character = GetCharacterOf(&Bot);
 		AController* Controller = Character ? Character->GetController() : nullptr;
 		const AExperienceGameMode* GameMode = GetMatchGameMode();
-		const UPandoraDefinition* Pandora = Bot.GetPandoraComponent()->GetCurrentPandoraDefinition();
-		const UItemDefinition* Weapon = Character ? Character->GetEquipmentComponent()->GetCurrentWeaponDefinition() : nullptr;
 		return Cast<APdBotController>(Controller) && GameMode && GameMode->GetPlayerSetupComponent()->IsPlayerReadyForGameplay(Controller)
-			&& Pandora && Weapon && Pandora->IsCompatibleWithWeaponDefinition(Weapon);
+			&& Bot.GetPandoraComponent()->GetCurrentPandoraDefinition();
+	}
+
+	bool HasWeapon(const APdPlayerState& Bot)
+	{
+		return Bot.GetInventoryComponent()->GetAllItems().Items.ContainsByPredicate([](const UItemInstance* Item)
+		{
+			return Item && Item->ItemDefinition && Item->ItemDefinition->HasFragment<FItemFragment_Weapon>();
+		});
+	}
+
+	/** 판도라에 맞는 무기 하나. 상자가 아이템 정의를 모두 불러 두므로 메모리에서 찾는다. */
+	FPrimaryAssetId FindMatchingWeaponId(const UPandoraDefinition& Pandora)
+	{
+		TArray<FPrimaryAssetId> ItemIds;
+		UAssetManager::Get().GetPrimaryAssetIdList(FPrimaryAssetType(TEXT("ItemDefinition")), ItemIds);
+		const FPrimaryAssetId* WeaponId = ItemIds.FindByPredicate([&Pandora](const FPrimaryAssetId& ItemId)
+		{
+			const UItemDefinition* Item = UAssetManager::Get().GetPrimaryAssetObject<UItemDefinition>(ItemId);
+			return Item && Item->HasFragment<FItemFragment_Weapon>() && Pandora.IsCompatibleWithWeaponDefinition(Item);
+		});
+		return WeaponId ? *WeaponId : FPrimaryAssetId();
 	}
 
 	/** 상대 봇이 스스로 쫓거나 치지 않게 세운다. 조종기는 다시 태어난 캐릭터도 그대로 조종하므로 경기 내내 서 있다. */
@@ -269,7 +296,8 @@ bool FPdLobbyBotSeatsTest::RunTest(const FString& Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPdLobbyBotMatchTest, "LabProject.Integration.LobbyBots.Match",
 	EAutomationTestFlags::ClientContext | EAutomationTestFlags::EngineFilter)
 
-// 방장과 봇 하나 대 봇 둘로 경기를 시작한다. 봇은 봇 조종기로 경기에 스폰되어 서로 다른 판도라 세 개와 그에 맞는 무기를 받고, 판도라 스킬을 쓴다.
+// 방장과 봇 하나 대 봇 둘로 경기를 시작한다. 봇은 봇 조종기로 경기에 스폰되어, 사람처럼 무기 없이 서로 다른 0레벨 판도라 세 개로 시작한다.
+// 내 편 봇은 상자를 열어 무기를 얻고, 짝 무기와 소울 더스트가 생기면 스스로 무기를 끼우고 판도라를 키워 스킬을 쓴다.
 // 사람이 봇을 잡으면 처치 수만 오르고 골드용 처치 수는 그대로이며, 잡힌 봇은 다시 태어난다.
 // 경기가 끝나면 승리 골드의 팀 인원에 봇을 세지 않고, 모두 봇과 함께 대기실로 돌아오며, 봇이 낀 경기는 전적에 남지 않는다.
 // 승패가 정해지게 상대 봇 둘은 경기 내내 세워 두고, 경기 시간은 이 실행에서만 줄인다(애셋은 저장하지 않는다).
@@ -361,10 +389,10 @@ bool FPdLobbyBotMatchTest::RunTest(const FString& Parameters)
 	{
 		return !Match->MatchMap.IsEmpty() && IsSettledInMap(Match->MatchMap) && GetMatchGameMode();
 	});
-	IntegrationTest::WaitUntil(this, TEXT("봇 셋이 경기에 스폰되어 판도라에 맞는 무기를 든다"), 60.f, []()
+	IntegrationTest::WaitUntil(this, TEXT("봇 셋이 경기에 스폰되어 판도라를 든다"), 60.f, []()
 	{
 		const TArray<APdPlayerState*> Bots = GetParticipantStates(true);
-		return Bots.Num() == BotMatchBotCount && !Bots.ContainsByPredicate([](const APdPlayerState* Bot) { return !IsBotReadyToFight(*Bot); });
+		return Bots.Num() == BotMatchBotCount && !Bots.ContainsByPredicate([](const APdPlayerState* Bot) { return !IsBotReady(*Bot); });
 	});
 
 	IntegrationTest::Step(0.f, [this, Match]()
@@ -374,9 +402,12 @@ bool FPdLobbyBotMatchTest::RunTest(const FString& Parameters)
 			TSet<const UPandoraDefinition*> Pandoras;
 			for (const EEnum_Direction Direction : {EEnum_Direction::Left, EEnum_Direction::Up, EEnum_Direction::Right})
 			{
-				Pandoras.Add(Bot->GetPandoraComponent()->GetPandoraLoadoutDefinition(Direction));
+				const UPandoraDefinition* Pandora = Bot->GetPandoraComponent()->GetPandoraLoadoutDefinition(Direction);
+				Pandoras.Add(Pandora);
+				TestEqual(TEXT("봇의 판도라는 0레벨로 시작한다"), Bot->GetPandoraTreeComponent()->GetCurrentPandoraLevel(Pandora), 0);
 			}
 			TestTrue(TEXT("봇은 서로 다른 판도라 세 개를 받는다"), Pandoras.Num() == 3 && !Pandoras.Contains(nullptr));
+			TestFalse(TEXT("봇은 무기 없이 시작한다"), HasWeapon(*Bot));
 			const bool bAlly = Bot->GetPlayerId() == Match->AllyBotId;
 			TestTrue(TEXT("봇 팀은 대기실에서 정한 그대로다"), bAlly == (GetTeamOf(*Bot) == Match->HostTeam));
 		}
@@ -446,6 +477,38 @@ bool FPdLobbyBotMatchTest::RunTest(const FString& Parameters)
 	IntegrationTest::WaitUntil(this, TEXT("잡힌 봇이 다시 태어난다"), 30.f, [Match]()
 	{
 		return IsCharacterAlive(FindParticipantById(Match->VictimId));
+	});
+	IntegrationTest::WaitUntil(this, TEXT("내 편 봇이 상자를 열어 무기를 얻는다"), 45.f, [Match]()
+	{
+		const APdPlayerState* Ally = FindParticipantById(Match->AllyBotId);
+		return Ally && HasWeapon(*Ally);
+	});
+	// 상자에서 나오는 무기와 몬스터의 소울 더스트는 운에 달렸으므로, 여기서부터는 짝 무기와 소울 더스트를 쥐여 주고 상대 봇 앞에 세워 봇이 쓰는지만 본다.
+	IntegrationTest::Step(0.f, [this, Match]()
+	{
+		const APdPlayerState* Ally = FindParticipantById(Match->AllyBotId);
+		const UPandoraDefinition* Pandora = Ally ? Ally->GetPandoraComponent()->GetPandoraLoadoutDefinition(EEnum_Direction::Left) : nullptr;
+		const FPrimaryAssetId WeaponId = Pandora ? FindMatchingWeaponId(*Pandora) : FPrimaryAssetId();
+		if (TestTrue(TEXT("내 편 봇의 첫 판도라에 맞는 무기가 있다"), WeaponId.IsValid()))
+		{
+			Ally->GetInventoryComponent()->AddItemsByPrimaryAssetIds({WeaponId});
+			Ally->GetPandoraTreeComponent()->AddSoulDust(PandoraSoulDust);
+		}
+		const int32* EnemyId = Match->EnemyBotIds.FindByPredicate([](const int32 Id) { return IsCharacterAlive(FindParticipantById(Id)); });
+		const APdPlayer* Enemy = EnemyId ? GetCharacterOf(FindParticipantById(*EnemyId)) : nullptr;
+		APdPlayer* AllyCharacter = GetCharacterOf(Ally);
+		if (TestNotNull(TEXT("앞에 세울 상대 봇"), Enemy) && TestNotNull(TEXT("내 편 봇 캐릭터"), AllyCharacter))
+		{
+			AllyCharacter->TeleportTo(Enemy->GetActorLocation() + Enemy->GetActorForwardVector() * AllyDistance, Enemy->GetActorRotation());
+		}
+	});
+	IntegrationTest::WaitUntil(this, TEXT("내 편 봇이 짝 무기를 끼우고 판도라를 키운다"), 20.f, [Match]()
+	{
+		const APdPlayerState* Ally = FindParticipantById(Match->AllyBotId);
+		const UPandoraDefinition* Pandora = Ally ? Ally->GetPandoraComponent()->GetPandoraLoadoutDefinition(EEnum_Direction::Left) : nullptr;
+		const UItemInstance* Weapon = Ally ? Ally->GetInventoryComponent()->FindWeaponForLoadoutSlot(EEnum_Direction::Left) : nullptr;
+		return Pandora && Weapon && Pandora->IsCompatibleWithWeaponDefinition(Weapon->ItemDefinition)
+			&& Ally->GetPandoraTreeComponent()->GetCurrentPandoraLevel(Pandora) > 0;
 	});
 	IntegrationTest::WaitUntil(this, TEXT("내 편 봇이 판도라 스킬을 쓴다"), 45.f, [Match]() { return Match->AllySkillCount > 0; });
 	IntegrationTest::Step(0.f, [Match]()

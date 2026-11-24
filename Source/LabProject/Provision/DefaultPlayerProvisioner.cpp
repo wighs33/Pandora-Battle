@@ -71,8 +71,7 @@ namespace
 				OutContentIds.AddUnique(Grant.SkinDefinitionId);
 			}
 		}
-		// 전체 지급 정책과 봇 짝 무기는 아이템 정의 목록에서 고른다.
-		if (!HasItemPolicyGrant(Definition, Mode) && !Definition.GetGrantBotPandoraWeapons().IsEnabled(Mode))
+		if (!HasItemPolicyGrant(Definition, Mode))
 		{
 			return true;
 		}
@@ -227,46 +226,6 @@ namespace
 			if (Level > 0)
 			{
 				OutGrantedPandoras.Add(FGrantedPandora(PandoraDefinition, Level));
-			}
-		}
-	}
-
-	// 봇이 경기에 가져간 판도라마다 그 판도라가 쓸 수 있는 무기 하나를 고른다(이름순으로 처음 것). 이미 가진 무기는 다시 주지 않는다.
-	void CollectBotPandoraWeaponIds(const APdPlayerState& PlayerState, const UInventoryComponent& Inventory,
-		TArray<FPrimaryAssetId>& InOutItemIds)
-	{
-		const UContentDataSubsystem* ContentDataSubsystem =
-			UGameInstance::GetSubsystem<UContentDataSubsystem>(PlayerState.GetGameInstance());
-		if (!ContentDataSubsystem)
-		{
-			return;
-		}
-		TArray<const UItemDefinition*> Weapons;
-		UAssetManager& AssetManager = UAssetManager::Get();
-		TArray<FPrimaryAssetId> ItemDefinitionIds;
-		AssetManager.GetPrimaryAssetIdList(ItemDefinitionType, ItemDefinitionIds);
-		const UProjectTagDefinition* TagConfig = UProjectTagDefinition::GetDefaultDefinition();
-		const FGameplayTag WeaponTypeTag = TagConfig ? TagConfig->GetItemWeaponTypeTag() : PdGameplayTags::Item_Weapon;
-		for (const FPrimaryAssetId& ItemDefinitionId : ItemDefinitionIds)
-		{
-			const UItemDefinition* ItemDefinition = Cast<UItemDefinition>(AssetManager.GetPrimaryAssetObject(ItemDefinitionId));
-			if (ItemDefinition && ItemDefinition->IsWeaponDefinition(WeaponTypeTag))
-			{
-				Weapons.Add(ItemDefinition);
-			}
-		}
-		Weapons.Sort([](const UItemDefinition& A, const UItemDefinition& B) { return A.GetFName().LexicalLess(B.GetFName()); });
-
-		for (const TPair<EEnum_Direction, FName>& Pair : PlayerState.GetLobbyTravelHandoff().PandoraNamesByDirection)
-		{
-			const UPandoraDefinition* PandoraDefinition = ContentDataSubsystem->GetPandoraDefinitionByName(Pair.Value);
-			const UItemDefinition* const* Weapon = PandoraDefinition
-				? Weapons.FindByPredicate([PandoraDefinition](const UItemDefinition* Candidate) { return PandoraDefinition->IsCompatibleWithWeaponDefinition(Candidate); })
-				: nullptr;
-			const FPrimaryAssetId WeaponId = Weapon ? (*Weapon)->GetPrimaryAssetId() : FPrimaryAssetId();
-			if (WeaponId.IsValid() && GetInventoryItemQuantity(Inventory, WeaponId) == 0)
-			{
-				InOutItemIds.AddUnique(WeaponId);
 			}
 		}
 	}
@@ -548,10 +507,6 @@ UDefaultPlayerProvisioner::EProvisionStepResult UDefaultPlayerProvisioner::Apply
 	{
 		return EProvisionStepResult::Failed;
 	}
-	if (PlayerState->IsABot() && Definition->GetGrantBotPandoraWeapons().IsEnabled(Mode))
-	{
-		CollectBotPandoraWeaponIds(*PlayerState, *InventoryComponent, PolicyItemIds);
-	}
 	if (!PolicyItemIds.IsEmpty())
 	{
 		InventoryComponent->AddItemsByPrimaryAssetIds(PolicyItemIds);
@@ -602,21 +557,6 @@ UDefaultPlayerProvisioner::EProvisionStepResult UDefaultPlayerProvisioner::Apply
 	const TMap<EEnum_Direction, FPrimaryAssetId> LoadoutByDirection = Mode == EDefaultProvisionMode::Gameplay
 		? ResolveLobbyLoadout(*PlayerState, UnlockedPandoraIds)
 		: TMap<EEnum_Direction, FPrimaryAssetId>();
-	// 봇은 판도라를 키우지 않으므로 가져간 판도라를 정한 레벨로 연다.
-	const int32 BotPandoraLevel = PlayerState->IsABot() ? Definition->GetBotPandoraLevels().GetLevel(Mode) : INDEX_NONE;
-	if (BotPandoraLevel >= 0)
-	{
-		for (const TPair<EEnum_Direction, FPrimaryAssetId>& Pair : LoadoutByDirection)
-		{
-			const UPandoraDefinition* PandoraDefinition = Cast<UPandoraDefinition>(UAssetManager::Get().GetPrimaryAssetObject(Pair.Value));
-			GrantedPandoras.RemoveAll([PandoraDefinition](const FGrantedPandora& Granted) { return Granted.Pandora == PandoraDefinition; });
-			if (PandoraDefinition && BotPandoraLevel > 0)
-			{
-				GrantedPandoras.Add(FGrantedPandora(PandoraDefinition, BotPandoraLevel));
-			}
-		}
-	}
-
 	PandoraComponent->ClearAllPandoras();
 	PandoraTreeComponent->InitializeFromDefaultProvision(GrantedPandoras, Definition->GetSoulDustValues().GetCount(Mode));
 	PandoraComponent->GrantPandorasWithLoadout(UnlockedPandoraIds, LoadoutByDirection);
