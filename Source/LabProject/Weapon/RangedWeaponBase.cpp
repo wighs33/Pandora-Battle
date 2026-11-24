@@ -237,6 +237,12 @@ FVector ARangedWeaponBase::GetAITargetAimLocation(const AActor* TargetActor)
 		return FVector::ZeroVector;
 	}
 
+	// 무기는 캡슐이 아니라 몸(메시)에 맞는다. 캡슐보다 몸이 낮은 작은 몬스터도 맞게 몸 가운데를 겨눈다.
+	if (const ACharacter* TargetCharacter = Cast<ACharacter>(TargetActor))
+	{
+		return TargetCharacter->GetMesh()->Bounds.Origin;
+	}
+
 	float TargetRadius = 0.0f;
 	float TargetHalfHeight = 0.0f;
 	TargetActor->GetSimpleCollisionCylinder(TargetRadius, TargetHalfHeight);

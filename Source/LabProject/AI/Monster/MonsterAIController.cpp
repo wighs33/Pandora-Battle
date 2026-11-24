@@ -322,10 +322,10 @@ bool AMonsterAIController::ValidateComponentConfiguration()
 	return false;
 }
 
-// 죽었거나 같은 팀인 대상 등 공격할 수 없는 플레이어를 제외한다.
+// 참가자(사람과 대기실에서 넣은 봇)만 노린다. 참가자의 폰에는 PlayerState가 있다. 죽었거나 같은 팀이라 공격할 수 없는 참가자는 제외한다.
 bool AMonsterAIController::IsValidPerceivedPlayerTarget(APawn* PlayerPawn) const
 {
-	if (bAIStopped || !IsValid(PlayerPawn) || !PlayerPawn->IsPlayerControlled())
+	if (bAIStopped || !IsValid(PlayerPawn) || !PlayerPawn->GetPlayerState())
 	{
 		return false;
 	}
@@ -501,7 +501,7 @@ void AMonsterAIController::HandleTargetPerceptionUpdated(AActor* Actor, FAIStimu
 void AMonsterAIController::HandleTargetPerceptionForgotten(AActor* Actor)
 {
 	APawn* ForgottenPawn = Cast<APawn>(Actor);
-	if (!ForgottenPawn || !ForgottenPawn->IsPlayerControlled())
+	if (!ForgottenPawn || !ForgottenPawn->GetPlayerState())
 	{
 		return;
 	}
