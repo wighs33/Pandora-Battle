@@ -72,7 +72,7 @@ namespace
 	/** 질문 칸의 아래 가장자리가 초상화 아래 가장자리에서 떨어진 거리 */
 	constexpr float LunaChatInputBottomInset = 24.f;
 
-	// Luna 옷 버튼: 초상화 오른쪽에 세로로 쌓고, 맨 아래 버튼을 질문 칸 아래 가장자리에 맞춘다.
+	// Luna 옷 버튼: 초상화 오른쪽에 세로로 쌓는다.
 	constexpr float LunaOutfitButtonSize = 76.f;
 	constexpr float LunaOutfitButtonGap = 10.f;
 	constexpr float LunaOutfitColumnGap = 16.f;
@@ -735,7 +735,6 @@ void UTitleWidget::SetLunaOutfits(const TConstArrayView<FTitleCharacterOutfit> O
 	const FVector2D PortraitSize = PortraitSlot->GetSize();
 	const FVector2D PortraitTopLeft = PortraitSlot->GetPosition() - PortraitSlot->GetAlignment() * PortraitSize;
 	const float ColumnLeft = PortraitTopLeft.X + PortraitSize.X + LunaOutfitColumnGap;
-	const float ColumnBottom = PortraitTopLeft.Y + PortraitSize.Y - LunaChatInputBottomInset;
 	for (int32 Index = 0; Index < Outfits.Num(); ++Index)
 	{
 		UButton* Button = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
@@ -753,8 +752,7 @@ void UTitleWidget::SetLunaOutfits(const TConstArrayView<FTitleCharacterOutfit> O
 		UCanvasPanelSlot* ButtonSlot = Canvas->AddChildToCanvas(Button);
 		ButtonSlot->SetAnchors(PortraitSlot->GetAnchors());
 		ButtonSlot->SetAlignment(FVector2D(0.f, 1.f));
-		const int32 RowsBelow = Outfits.Num() - 1 - Index;
-		ButtonSlot->SetPosition(FVector2D(ColumnLeft, ColumnBottom - RowsBelow * (LunaOutfitButtonSize + LunaOutfitButtonGap)));
+		ButtonSlot->SetPosition(FVector2D(ColumnLeft, 0.f));
 		ButtonSlot->SetSize(FVector2D(LunaOutfitButtonSize));
 		ButtonSlot->SetZOrder(PortraitSlot->GetZOrder() + 2);
 
@@ -762,8 +760,28 @@ void UTitleWidget::SetLunaOutfits(const TConstArrayView<FTitleCharacterOutfit> O
 		LunaOutfitButtonRelays.Add(Relay);
 		LunaOutfitNameKeys.Add(Outfits[Index].NameKey);
 	}
+	PlaceLunaOutfitButtons();
 	ApplyLunaOutfitStyles();
 	ApplyLunaOutfitTooltips();
+}
+
+// 맨 아래 버튼을 질문 칸 아래 가장자리에 맞춘다. DLC 받기 버튼이 보이는 동안은 질문 칸 줄이 옷 버튼 자리까지 뻗으므로 그 줄 위로 올린다.
+void UTitleWidget::PlaceLunaOutfitButtons()
+{
+	const UCanvasPanelSlot* InputSlot = LunaChatInput ? Cast<UCanvasPanelSlot>(LunaChatInput->Slot) : nullptr;
+	if (!InputSlot)
+	{
+		return;
+	}
+
+	const float InputRowHeight = LunaServerState == ELunaServerState::NotInstalled ? InputSlot->GetSize().Y + LunaOutfitButtonGap : 0.f;
+	for (int32 Index = 0; Index < LunaOutfitButtons.Num(); ++Index)
+	{
+		const int32 RowsBelow = LunaOutfitButtons.Num() - 1 - Index;
+		const float Bottom = InputSlot->GetPosition().Y - InputRowHeight - RowsBelow * (LunaOutfitButtonSize + LunaOutfitButtonGap);
+		UCanvasPanelSlot* ButtonSlot = CastChecked<UCanvasPanelSlot>(LunaOutfitButtons[Index]->Slot);
+		ButtonSlot->SetPosition(FVector2D(ButtonSlot->GetPosition().X, Bottom));
+	}
 }
 
 void UTitleWidget::SetSelectedLunaOutfit(const int32 OutfitIndex)
@@ -820,6 +838,7 @@ void UTitleWidget::ApplyLunaChatAvailability()
 	LunaChatInput->SetHintText(MenuText(GetLunaChatHintKey(LunaServerState)));
 	LunaDlcLabel->SetText(MenuText(LunaDlcButtonKey));
 	LunaDlcButton->SetVisibility(LunaServerState == ELunaServerState::NotInstalled ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	PlaceLunaOutfitButtons();
 }
 
 void UTitleWidget::HandleLunaChatCommitted(const FText& Text, const ETextCommit::Type CommitMethod)

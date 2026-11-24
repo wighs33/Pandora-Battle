@@ -161,6 +161,7 @@ private:
 	void BuildLunaSpeechBubble();
 	void BuildLunaChatInput();
 	void BuildLunaDlcButton(UCanvasPanel& Canvas, const UCanvasPanelSlot& InputSlot);
+	void PlaceLunaOutfitButtons();
 	void ApplyLunaOutfitStyles();
 	void ApplyLunaOutfitTooltips();
 	void ApplyLunaChatAvailability();
