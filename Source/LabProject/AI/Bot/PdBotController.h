@@ -79,6 +79,8 @@ private:
 	void StopChasing();
 	void FaceTarget(APdPlayer& Self, const AActor& Target, float DeltaSeconds);
 	bool IsUsingRangedWeapon(const APdPlayer& Self) const;
+	/** 총·활을 든 채 쏠 자리에 서면 조준하고, 움직이거나 스킬을 쓰면 조준을 푼다. */
+	void SetAiming(APdPlayer& Self, bool bAiming);
 	float GetWeaponReach(const APdPlayer& Self) const;
 	void ReleaseHeldInputs();
 

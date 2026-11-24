@@ -328,7 +328,11 @@ void UCombatComponent::ProcessAttackInput()
 
 	if (ShouldUseRangedAttackAbility(CurrentWeaponActor))
 	{
-		TryActivateAttackAbility(AbilitySystemComponent, AttackTagContainer);
+		// 봇은 능력이 겨눈 뒤 쏘므로, 누르고 있는 동안 처음부터 다시 겨누지 않고 쏘던 공격을 마친다.
+		if (PlayerCharacter->IsPlayerControlled() || !PlayerCharacter->GetPdAbilitySystemComponent()->HasActiveAbilityWithTags(AttackTagContainer))
+		{
+			TryActivateAttackAbility(AbilitySystemComponent, AttackTagContainer);
+		}
 		return;
 	}
 
@@ -364,7 +368,8 @@ bool UCombatComponent::TryProcessWeaponPrimaryAttack(APdPlayer* PlayerCharacter,
 		return true;
 	}
 
-	return PlayerCharacter && WeaponActor->HandlePrimaryAttack(PlayerCharacter);
+	// 봇은 겨눌 카메라가 없어, 무기 대신 원거리 공격 능력이 봇이 쫓는 대상에게 쏜다.
+	return PlayerCharacter && (!PlayerCharacter->IsPlayerControlled() || WeaponActor->HandlePrimaryAttack(PlayerCharacter));
 }
 
 bool UCombatComponent::ShouldUseRangedAttackAbility(const AWeaponBase* WeaponActor) const

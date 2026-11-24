@@ -49,7 +49,6 @@ protected:
 	void CleanupAttackState();
 	AWeaponBase* GetCurrentWeaponActor() const;
 	void SetCurrentWeaponTraceEnabled(bool bEnabled) const;
-	AActor* ResolveAttackTarget(ACharacterBase* Character) const;
 	bool ShouldUseAIWeaponFire(ACharacterBase* Character, AWeaponBase* CurrentWeapon) const;
 	bool TryCacheAIPrimaryAttackTarget(ACharacterBase* Character);
 	bool TryExecuteScheduledAIWeaponFire();

@@ -257,6 +257,7 @@ void APdBotController::TickFight(APdPlayer& Self, AActor& Target, const float De
 		if (SkillSlot != INDEX_NONE)
 		{
 			StopChasing();
+			SetAiming(Self, false);
 			Phase = EPhase::Preparing;
 			PendingSkillSlot = SkillSlot;
 			PhaseStartTime = Now;
@@ -277,6 +278,7 @@ void APdBotController::TickFight(APdPlayer& Self, AActor& Target, const float De
 	}
 	StopChasing();
 	FaceTarget(Self, Target, DeltaSeconds);
+	SetAiming(Self, IsUsingRangedWeapon(Self));
 	if (!bAttackHeld && Now >= NextAttackTime && Self.GetVelocity().Size2D() <= BotSkillRules::SettledSpeed)
 	{
 		if (UCombatComponent* Combat = Self.GetCombatComponent())
@@ -511,6 +513,7 @@ void APdBotController::Chase(APdPlayer& Self, const AActor& Target)
 		}
 		bAttackHeld = false;
 	}
+	SetAiming(Self, false);
 	const float AcceptanceRadius = GetWeaponReach(Self) * ChaseReachRatio;
 	if (GetMoveStatus() != EPathFollowingStatus::Moving || GetCurrentMoveRequestID() == FAIRequestID::InvalidRequest)
 	{
@@ -550,6 +553,23 @@ bool APdBotController::IsUsingRangedWeapon(const APdPlayer& Self) const
 	return Equipment && Cast<ARangedWeaponBase>(Equipment->GetCurrentWeaponActor());
 }
 
+void APdBotController::SetAiming(APdPlayer& Self, const bool bAiming)
+{
+	UCombatComponent* Combat = Self.GetCombatComponent();
+	if (!Combat || Self.IsWeaponAimActive() == bAiming)
+	{
+		return;
+	}
+	if (bAiming)
+	{
+		Combat->StartAim();
+	}
+	else
+	{
+		Combat->StopAim();
+	}
+}
+
 float APdBotController::GetWeaponReach(const APdPlayer& Self) const
 {
 	return IsUsingRangedWeapon(Self) ? RangedReach : MeleeReach;
@@ -566,6 +586,10 @@ void APdBotController::ReleaseHeldInputs()
 		}
 	}
 	bAttackHeld = false;
+	if (Self)
+	{
+		SetAiming(*Self, false);
+	}
 	if (HeldSkillInput.IsValid())
 	{
 		if (UPdAbilitySystemComponent* ASC = GetAbilitySystem())

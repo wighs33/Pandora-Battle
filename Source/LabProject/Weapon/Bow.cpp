@@ -539,6 +539,8 @@ bool ABow::LaunchArrowAtLocationOnServer(ACharacterBase* AttackingCharacter, con
 		return false;
 	}
 
+	// 조준하는 봇이 시위에 걸어 둔 화살은 지금 날아간 것으로 본다. 다음 화살은 다시 당길 때 건다.
+	DestroyDrawnArrow();
 	RecordServerArrowLaunch();
 	return true;
 }

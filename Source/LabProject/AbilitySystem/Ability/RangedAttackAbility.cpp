@@ -13,7 +13,6 @@
 #include "GameFramework/Controller.h"
 #include "Definition/Item/ItemDefinition.h"
 #include "Component/Player/EquipmentComponent.h"
-#include "Interface/TargetingInterface.h"
 #include "Weapon/WeaponBase.h"
 #include "Weapon/RangedWeaponBase.h"
 #include "Weapon/MeleeWeapon.h"
@@ -166,16 +165,6 @@ AWeaponBase* URangedAttackAbility::GetCurrentWeaponActor() const
 	return EquipmentComponent ? EquipmentComponent->GetCurrentWeaponActor() : nullptr;
 }
 
-AActor* URangedAttackAbility::ResolveAttackTarget(ACharacterBase* Character) const
-{
-	if (!Character || !Character->GetClass()->ImplementsInterface(UTargetingInterface::StaticClass()))
-	{
-		return nullptr;
-	}
-
-	return ITargetingInterface::Execute_GetAttackTarget(Character);
-}
-
 bool URangedAttackAbility::ShouldUseAIWeaponFire(ACharacterBase* Character, AWeaponBase* CurrentWeapon) const
 {
 	const ARangedWeaponBase* RangedWeapon = Cast<ARangedWeaponBase>(CurrentWeapon);
@@ -190,7 +179,7 @@ bool URangedAttackAbility::TryCacheAIPrimaryAttackTarget(ACharacterBase* Charact
 		return false;
 	}
 
-	AActor* AttackTarget = ResolveAttackTarget(Character);
+	AActor* AttackTarget = GetAttackTargetFromAvatar();
 	const FVector TargetLocation = ARangedWeaponBase::GetAITargetAimLocation(AttackTarget);
 	if (!IsValid(AttackTarget) || TargetLocation.IsNearlyZero())
 	{
