@@ -4,8 +4,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: Game\n"
-"POT-Creation-Date: 2026-11-24 07:30\n"
-"PO-Revision-Date: 2026-11-24 07:30\n"
+"POT-Creation-Date: 2026-11-24 11:13\n"
+"PO-Revision-Date: 2026-11-24 11:13\n"
 "Language-Team: \n"
 "Language: de\n"
 "MIME-Version: 1.0\n"
@@ -5176,8 +5176,8 @@ msgstr "Story"
 #. SourceLocation:	UI/Localization/StringTables/MenuText.csv
 #: UI/Localization/StringTables/MenuText.csv
 msgctxt "MenuText,Title.StoryHint"
-msgid "Play the story alone on this PC. Prologue: The Goddess Reborn."
-msgstr "Spiele die Geschichte allein auf diesem PC. Prolog: Die Wiedergeburt der Göttin."
+msgid "Prologue: The Goddess Reborn"
+msgstr "Prolog: Die Wiedergeburt der Göttin"
 
 #. Key:	Title.Training
 #. SourceLocation:	UI/Localization/StringTables/MenuText.csv
