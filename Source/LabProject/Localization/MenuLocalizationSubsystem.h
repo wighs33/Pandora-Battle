@@ -24,9 +24,9 @@ public:
 	virtual void Deinitialize() override;
 
 	// Public API ------------------------------------------------------------------------------------------------------
-	/** 문자열 테이블 MenuText를 등록한다. 게임 모듈이 시작할 때 부른다. */
-	static void RegisterMenuTextTable();
-	static void UnregisterMenuTextTable();
+	/** 문자열 테이블 MenuText와 StoryText를 등록한다. 게임 모듈이 시작할 때 부른다. */
+	static void RegisterTextTables();
+	static void UnregisterTextTables();
 
 	/** 현재 언어의 Culture 이름. 지원하지 않는 Culture면 원문 언어인 영어로 본다. */
 	FString GetLanguage() const;
@@ -35,6 +35,9 @@ public:
 	bool SetLanguage(const FString& Culture);
 
 	static FText GetText(FName Key);
+
+	/** 스토리 모드의 대사·이름·안내 문구(문자열 테이블 StoryText). */
+	static FText GetStoryText(FName Key);
 
 	/** 표에 Key가 없으면 Fallback을 돌려준다. 세션의 맵 이름처럼 실행 중에 정해지는 키에 쓴다. */
 	static FText GetTextOrFallback(FName Key, const FText& Fallback);

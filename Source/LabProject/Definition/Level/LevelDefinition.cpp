@@ -213,6 +213,11 @@ FString ULevelDefinition::GetBossRaidTravelMapName() const
 	return ResolveMapPackageName(BossRaidLevel);
 }
 
+FString ULevelDefinition::GetStoryTravelMapName() const
+{
+	return ResolveMapPackageName(StoryLevel);
+}
+
 bool ULevelDefinition::IsLobbyMapName(const FString& LevelName) const
 {
 	return !LevelName.TrimStartAndEnd().IsEmpty() && DoesMapMatchLevelName(LobbyLevel, LevelName);
@@ -244,6 +249,7 @@ EDataValidationResult ULevelDefinition::IsDataValid(FDataValidationContext& Cont
 	ValidateRequiredLevel(Context, Result, RoomLevel, TEXT("RoomLevel"));
 	ValidateRequiredLevel(Context, Result, TrainingLevel, TEXT("TrainingLevel"));
 	ValidateRequiredLevel(Context, Result, BossRaidLevel, TEXT("BossRaidLevel"));
+	ValidateRequiredLevel(Context, Result, StoryLevel, TEXT("StoryLevel"));
 	return Result;
 }
 #endif

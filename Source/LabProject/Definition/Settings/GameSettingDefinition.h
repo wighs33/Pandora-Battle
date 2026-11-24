@@ -19,7 +19,8 @@ enum class EBgmContext : uint8
 	Shop,
 	TrainingRoom,
 	Gameplay,
-	Guide
+	Guide,
+	Story
 };
 
 UCLASS(BlueprintType, Blueprintable)
@@ -224,6 +225,21 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Setting|Audio|Guide")
 	bool bPersistGuideBgmAcrossLevelTransition = false;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Setting|Audio|Story")
+	bool bPlayStoryBgm = true;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Setting|Audio|Story", meta = (AssetBundles = "Client"))
+	TSoftObjectPtr<USoundBase> StoryBgm;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Setting|Audio|Story", meta = (ClampMin = "0.0"))
+	float StoryBgmVolume = 1.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Setting|Audio|Story", meta = (ClampMin = "0.01"))
+	float StoryBgmPitch = 1.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Setting|Audio|Story")
+	bool bPersistStoryBgmAcrossLevelTransition = false;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Setting|Audio|Training Room")
 	bool bPlayTrainingRoomBgm = true;

@@ -18,18 +18,26 @@ namespace
 {
 	// LOCTABLE_FROMFILE_GAME의 ID와 같아야 한다. 매크로는 수집기가 읽도록 문자열을 그대로 받는다.
 	const FName MenuTextTableId(TEXT("MenuText"));
+	const FName StoryTextTableId(TEXT("StoryText"));
 	const FString LegacySettingsSlot(TEXT("MenuLanguageSettings"));
 	const FString NativeCulture(TEXT("en"));
 }
 
-void UMenuLocalizationSubsystem::RegisterMenuTextTable()
+void UMenuLocalizationSubsystem::RegisterTextTables()
 {
 	LOCTABLE_FROMFILE_GAME("MenuText", "MenuText", "UI/Localization/StringTables/MenuText.csv");
+	LOCTABLE_FROMFILE_GAME("StoryText", "StoryText", "UI/Localization/StringTables/StoryText.csv");
 }
 
-void UMenuLocalizationSubsystem::UnregisterMenuTextTable()
+void UMenuLocalizationSubsystem::UnregisterTextTables()
 {
 	FStringTableRegistry::Get().UnregisterStringTable(MenuTextTableId);
+	FStringTableRegistry::Get().UnregisterStringTable(StoryTextTableId);
+}
+
+FText UMenuLocalizationSubsystem::GetStoryText(const FName Key)
+{
+	return FText::FromStringTable(StoryTextTableId, Key.ToString());
 }
 
 void UMenuLocalizationSubsystem::Initialize(FSubsystemCollectionBase& Collection)

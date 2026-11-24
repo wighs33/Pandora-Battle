@@ -73,6 +73,7 @@ public:
 	FString GetRoomTravelMapName() const;
 	FString GetTrainingRoomTravelMapName() const;
 	FString GetBossRaidTravelMapName() const;
+	FString GetStoryTravelMapName() const;
 	bool IsLobbyMapName(const FString& LevelName) const;
 	bool IsTrainingRoomMapName(const FString& LevelName) const;
 	static bool IsTrainingRoomWorld(const UObject* WorldContextObject);
@@ -103,4 +104,8 @@ public:
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Boss Raid Level")
 	TSoftObjectPtr<UWorld> BossRaidLevel;
+
+	/** 타이틀의 스토리 모드가 여는 첫 장의 맵. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "!Story Level")
+	TSoftObjectPtr<UWorld> StoryLevel;
 };

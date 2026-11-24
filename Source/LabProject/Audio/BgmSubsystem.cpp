@@ -82,6 +82,13 @@ namespace
 			OutSettings.Pitch = SettingDefinition->GuideBgmPitch;
 			OutSettings.bPersistAcrossLevelTransition = SettingDefinition->bPersistGuideBgmAcrossLevelTransition;
 			return true;
+		case EBgmContext::Story:
+			OutSettings.bEnabled = SettingDefinition->bPlayStoryBgm;
+			OutSettings.Sound = SettingDefinition->StoryBgm;
+			OutSettings.Volume = SettingDefinition->StoryBgmVolume;
+			OutSettings.Pitch = SettingDefinition->StoryBgmPitch;
+			OutSettings.bPersistAcrossLevelTransition = SettingDefinition->bPersistStoryBgmAcrossLevelTransition;
+			return true;
 		default:
 			return false;
 		}
@@ -288,6 +295,11 @@ EBgmContext UBgmSubsystem::ResolveWorldBgmContext(UWorld* World) const
 	if (CurrentLevelName.Contains(TEXT("Title"), ESearchCase::IgnoreCase))
 	{
 		return EBgmContext::Startup;
+	}
+
+	if (CurrentLevelName.Contains(TEXT("Prologue"), ESearchCase::IgnoreCase))
+	{
+		return EBgmContext::Story;
 	}
 
 	if (CurrentLevelName.Contains(TEXT("Training"), ESearchCase::IgnoreCase))

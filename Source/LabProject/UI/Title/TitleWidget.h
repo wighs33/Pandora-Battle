@@ -141,6 +141,9 @@ protected:
 	void HandleBossRaidPracticeClicked();
 
 	UFUNCTION()
+	void HandleStoryClicked();
+
+	UFUNCTION()
 	void HandleWebsiteClicked();
 
 private:
@@ -156,7 +159,7 @@ private:
 	void HandleLunaDlcClicked();
 
 	// Internal Helpers ------------------------------------------------------------------------------------------------
-	TArray<FButtonClickBinding, TInlineAllocator<11>> GetMenuButtonBindings() const;
+	TArray<FButtonClickBinding, TInlineAllocator<12>> GetMenuButtonBindings() const;
 	void ApplyWidgetDefinitionSettings();
 	void BuildLunaSpeechBubble();
 	void BuildLunaChatInput();
@@ -177,6 +180,7 @@ private:
 	void OpenRoomList();
 	void OpenTrainingRoom();
 	void OpenBossRaidPractice();
+	void OpenStory();
 	void OpenShop();
 	void OpenGuide();
 	void OpenRecord();
@@ -215,6 +219,10 @@ protected:
 	/** 보스 레이드 연습: 백엔드 없이 이 PC에서 보스 레이드 맵을 열어 혼자 보스와 싸운다. 레이드가 닫혀 있어도 열려 있다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Lobby|Bind")
 	TObjectPtr<UButton> Btn_BossRaidPractice;
+
+	/** 스토리 모드: 백엔드 없이 이 PC에서 이야기 맵을 연다. */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Lobby|Bind")
+	TObjectPtr<UButton> Btn_Story;
 
 	/** 공식 웹사이트를 시스템 브라우저로 연다. 브라우저를 열 수 없는 플랫폼에서는 보이지 않는다. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "!Lobby|Bind")

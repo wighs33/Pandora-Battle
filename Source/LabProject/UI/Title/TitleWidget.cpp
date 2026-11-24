@@ -395,7 +395,7 @@ void UTitleWidget::NativeDestruct()
 	Super::NativeDestruct();
 }
 
-TArray<FButtonClickBinding, TInlineAllocator<11>> UTitleWidget::GetMenuButtonBindings() const
+TArray<FButtonClickBinding, TInlineAllocator<12>> UTitleWidget::GetMenuButtonBindings() const
 {
 	return {
 		{ Btn_RoomList, GET_FUNCTION_NAME_CHECKED(ThisClass, HandleRoomListClicked) },
@@ -403,6 +403,7 @@ TArray<FButtonClickBinding, TInlineAllocator<11>> UTitleWidget::GetMenuButtonBin
 		{ Btn_TrainingMode, GET_FUNCTION_NAME_CHECKED(ThisClass, HandleTrainingModeClicked) },
 		{ Btn_BossRaid, GET_FUNCTION_NAME_CHECKED(ThisClass, HandleBossRaidClicked) },
 		{ Btn_BossRaidPractice, GET_FUNCTION_NAME_CHECKED(ThisClass, HandleBossRaidPracticeClicked) },
+		{ Btn_Story, GET_FUNCTION_NAME_CHECKED(ThisClass, HandleStoryClicked) },
 		{ Btn_Website, GET_FUNCTION_NAME_CHECKED(ThisClass, HandleWebsiteClicked) },
 		{ Btn_PandoraShop, GET_FUNCTION_NAME_CHECKED(ThisClass, HandlePandoraShopClicked) },
 		{ Btn_Guide, GET_FUNCTION_NAME_CHECKED(ThisClass, HandleGuideClicked) },
@@ -480,7 +481,7 @@ void UTitleWidget::BuildMenuHoverHighlight()
 	}
 	MenuHoverHighlight = NewObject<UMenuHoverHighlight>(this);
 	MenuHoverHighlight->SetStyle(MenuHoverStyle);
-	for (UButton* Row : { Btn_QuickMatch.Get(), Btn_RoomList.Get(), Btn_TrainingMode.Get(), Btn_BossRaid.Get(), Btn_BossRaidPractice.Get() })
+	for (UButton* Row : { Btn_QuickMatch.Get(), Btn_RoomList.Get(), Btn_TrainingMode.Get(), Btn_BossRaid.Get(), Btn_BossRaidPractice.Get(), Btn_Story.Get() })
 	{
 		if (Row)
 		{
@@ -883,6 +884,11 @@ void UTitleWidget::HandleBossRaidPracticeClicked()
 	OpenBossRaidPractice();
 }
 
+void UTitleWidget::HandleStoryClicked()
+{
+	OpenStory();
+}
+
 void UTitleWidget::HandleWebsiteClicked()
 {
 	FString Error;
@@ -987,6 +993,19 @@ void UTitleWidget::OpenBossRaidPractice()
 	EditorTransaction::ResetIfContainsPieObjects();
 	UGameplayStatics::OpenLevel(this, FName(*BossRaidMapName), true,
 		FString::Printf(TEXT("%s=1"), PdGameSession::BossRaidPracticeOption));
+}
+
+void UTitleWidget::OpenStory()
+{
+	const ULevelDefinition* Levels = ULevelDefinition::ResolveDefaultDefinition();
+	const FString StoryMapName = Levels ? Levels->GetStoryTravelMapName() : FString();
+	if (StoryMapName.IsEmpty())
+	{
+		return;
+	}
+
+	EditorTransaction::ResetIfContainsPieObjects();
+	UGameplayStatics::OpenLevel(this, FName(*StoryMapName));
 }
 
 void UTitleWidget::OpenShop()
