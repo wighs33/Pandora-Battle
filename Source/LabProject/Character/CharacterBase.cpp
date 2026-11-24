@@ -792,6 +792,10 @@ void ACharacterBase::ResetDeathStateForRespawnAtTransform(const FTransform& Resp
 
 	if (HasAuthority())
 	{
+		if (AbilityStateComponent)
+		{
+			AbilityStateComponent->BeginRespawnFall();
+		}
 		MulticastResetDeathStateForRespawnAtTransform(RespawnTransform);
 		ForceNetUpdate();
 	}

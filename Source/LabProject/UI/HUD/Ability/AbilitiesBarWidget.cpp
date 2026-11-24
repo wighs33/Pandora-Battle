@@ -140,6 +140,12 @@ void UAbilitiesBarWidget::HandlePossessedCharacterReady(
 	FillAbilitiesBar();
 }
 
+// 부활해 떨어지는 동안에는 스킬을 쓸 수 없으므로 칸을 어둡게 한다.
+void UAbilitiesBarWidget::HandleRespawnFallTagChanged(FGameplayTag, int32)
+{
+	FillAbilitiesBar();
+}
+
 void UAbilitiesBarWidget::RebuildAbilitiesBar()
 {
 	RebuildBarTimerHandle.Invalidate();
@@ -154,12 +160,14 @@ void UAbilitiesBarWidget::RebuildAbilitiesBar()
 
 	if (const UPandoraDefinition* SelectedPandoraDefinition = GetSelectedPandoraDefinition())
 	{
-		const bool bSelectedPandoraEnabled = IsSelectedPandoraCompatibleWithCurrentWeapon();
 		UAbilitySystemComponent* AbilitySystemComponent = CachedAbilitySystemComponent.Get();
 		if (!AbilitySystemComponent)
 		{
 			AbilitySystemComponent = GetOwningAbilitySystemComponent();
 		}
+		const bool bRespawnFalling = AbilitySystemComponent
+			&& AbilitySystemComponent->HasMatchingGameplayTag(PdGameplayTags::State_Movement_RespawnFall);
+		const bool bSelectedPandoraEnabled = IsSelectedPandoraCompatibleWithCurrentWeapon() && !bRespawnFalling;
 
 		const int32 NumPandoraSkillSlots = FMath::Clamp(PandoraSkillSlots, 0, UPandoraDefinition::GetFixedMaxLevel());
 		const int32 SelectedPandoraLevel = GetSelectedPandoraLevel(SelectedPandoraDefinition);
@@ -462,6 +470,9 @@ void UAbilitiesBarWidget::BindAbilitiesChangedEvents()
 	{
 		AbilitiesChangedNativeHandle = PdAbilitySystemComponent->OnAbilitiesChangedNative.AddUObject(this, &ThisClass::FillAbilitiesBar);
 	}
+	RespawnFallTagChangedHandle = AbilitySystemComponent
+		->RegisterGameplayTagEvent(PdGameplayTags::State_Movement_RespawnFall, EGameplayTagEventType::NewOrRemoved)
+		.AddUObject(this, &ThisClass::HandleRespawnFallTagChanged);
 }
 
 void UAbilitiesBarWidget::UnbindAbilitiesChangedEvents()
@@ -477,8 +488,14 @@ void UAbilitiesBarWidget::UnbindAbilitiesChangedEvents()
 			PdAbilitySystemComponent->OnAbilitiesChangedNative.Remove(AbilitiesChangedNativeHandle);
 		}
 	}
+	if (AbilitySystemComponent)
+	{
+		AbilitySystemComponent->RegisterGameplayTagEvent(PdGameplayTags::State_Movement_RespawnFall, EGameplayTagEventType::NewOrRemoved)
+			.Remove(RespawnFallTagChangedHandle);
+	}
 
 	AbilitiesChangedNativeHandle.Reset();
+	RespawnFallTagChangedHandle.Reset();
 	CachedAbilitySystemComponent.Reset();
 }
 

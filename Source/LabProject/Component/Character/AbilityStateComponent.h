@@ -49,6 +49,8 @@ public:
 	// 캐릭터 Tick·이동 모드 변경·리스폰에서 호출하는 상태 반영.
 	void MaintainFrozenRotationLock();
 	void RefreshAirborneGameplayTag();
+	/** 서버: 부활 자리가 공중이면 떨어지기 시작하고, 땅에 닿을 때까지 스킬을 막는다. */
+	void BeginRespawnFall();
 
 	bool IsFrozen() const { return bFrozenMovementActive; }
 	bool NeedsCharacterTick() const { return bFrozenMovementActive; }

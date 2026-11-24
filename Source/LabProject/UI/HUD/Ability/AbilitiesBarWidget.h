@@ -52,6 +52,7 @@ public:
 private:
 	// Event Handlers --------------------------------------------------------------------------------------------------
 	void HandlePossessedCharacterReady(ACharacterBase* Character, UPdAbilitySystemComponent* AbilitySystemComponent);
+	void HandleRespawnFallTagChanged(FGameplayTag Tag, int32 NewCount);
 	void RebuildAbilitiesBar();
 
 	UFUNCTION()
@@ -104,6 +105,7 @@ private:
 	TWeakObjectPtr<UAbilitySystemComponent> CachedAbilitySystemComponent;
 	TWeakObjectPtr<UPandoraTreeComponent> BoundPandoraTreeComponent;
 	FDelegateHandle AbilitiesChangedNativeHandle;
+	FDelegateHandle RespawnFallTagChangedHandle;
 	FTimerHandle RebuildBarTimerHandle;
 	FAbilitySystemReadySubscription PossessedCharacterReadySubscription;
 };

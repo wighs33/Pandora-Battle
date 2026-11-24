@@ -24,6 +24,8 @@ USkillAbility::USkillAbility(const FObjectInitializer& ObjectInitializer)
 	FGameplayTagContainer Tags;
 	Tags.AddTag(PdGameplayTags::GameplayAbility);
 	SetAssetTags(Tags);
+
+	ActivationBlockedTags.AddTag(PdGameplayTags::State_Movement_RespawnFall);
 }
 
 const USkillDefinition* USkillAbility::ResolveSkill(const FGameplayAbilitySpecHandle Handle,

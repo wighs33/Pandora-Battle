@@ -163,6 +163,10 @@ void UAbilityStateComponent::ClearAbilitySystemActorInfo()
 	{
 		ASC->SetLooseGameplayTagCount(PdGameplayTags::State_Movement_Airborne, 0,
 			Character->HasAuthority() ? EGameplayTagReplicationState::CountToOwner : EGameplayTagReplicationState::None);
+		if (Character->HasAuthority())
+		{
+			ASC->SetLooseGameplayTagCount(PdGameplayTags::State_Movement_RespawnFall, 0, EGameplayTagReplicationState::CountToOwner);
+		}
 		ASC->CancelAbility(UReactiveRecoveryAbility::StaticClass()->GetDefaultObject<UGameplayAbility>());
 		if (ASC->GetAvatarActor() == Character)
 		{
@@ -379,6 +383,33 @@ void UAbilityStateComponent::RefreshAirborneGameplayTag()
 		AttackAbilityTags.AddTag(PdGameplayTags::Action_RangedAttack);
 		ASC->CancelAbilities(&AttackAbilityTags);
 	}
+
+	// 갈고리처럼 잠깐 다른 방식으로 나는 동안에는 아직 땅에 닿은 것이 아니다.
+	if (Character->HasAuthority() && MovementComponent && (MovementComponent->IsMovingOnGround() || MovementComponent->IsSwimming()))
+	{
+		ASC->SetLooseGameplayTagCount(PdGameplayTags::State_Movement_RespawnFall, 0, EGameplayTagReplicationState::CountToOwner);
+	}
+}
+
+// 부활한 직후의 이동 방식은 늘 걷기라서, 발밑에 설 바닥이 있는지 직접 찾아 떨어질 자리인지 정한다.
+void UAbilityStateComponent::BeginRespawnFall()
+{
+	const ACharacterBase* Character = GetCharacterOwner();
+	UAbilitySystemComponent* ASC = BoundAbilitySystemComponent.Get();
+	UCharacterMovementComponent* MovementComponent = Character ? Character->GetCharacterMovement() : nullptr;
+	if (!Character || !Character->HasAuthority() || !ASC || ASC->GetAvatarActor() != Character || !MovementComponent)
+	{
+		return;
+	}
+
+	FFindFloorResult Floor;
+	MovementComponent->FindFloor(Character->GetActorLocation(), Floor, false);
+	if (Floor.IsWalkableFloor())
+	{
+		return;
+	}
+	ASC->SetLooseGameplayTagCount(PdGameplayTags::State_Movement_RespawnFall, 1, EGameplayTagReplicationState::CountToOwner);
+	MovementComponent->SetMovementMode(MOVE_Falling);
 }
 
 // ASC의 Dead 태그 변경을 구독하고 이미 사망한 상태로 연결됐다면 사망 컴포넌트에 즉시 전달한다.
