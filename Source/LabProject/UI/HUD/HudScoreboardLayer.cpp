@@ -51,7 +51,7 @@ void UHudScoreboardLayer::Show()
 	Refresh();
 	if (!ScoreboardWidget->IsActivated())
 	{
-		ScoreboardWidget->ConfigureScreen(ScoreboardWidget, FSimpleDelegate::CreateUObject(this, &ThisClass::Hide), ECommonInputMode::All,
+		ScoreboardWidget->ConfigureScreen(nullptr, FSimpleDelegate::CreateUObject(this, &ThisClass::Hide), ECommonInputMode::All,
 			EMouseCaptureMode::CapturePermanently_IncludingInitialMouseDown);
 		Controller->GetLocalPlayer()->GetSubsystem<UUiSubsystem>()->PushScreen(ScoreboardWidget, EUiScreenLayer::Overlay);
 	}

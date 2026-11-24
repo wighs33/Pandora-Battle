@@ -23,7 +23,6 @@ public:
 	virtual void NativeDestruct() override;
 
 	// Public API ------------------------------------------------------------------------------------------------------
-	UGameResultWidget(const FObjectInitializer& ObjectInitializer);
 	void ShowResultScreen();
 
 	UFUNCTION(BlueprintCallable, Category = "!GameResult")

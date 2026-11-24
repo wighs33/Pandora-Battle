@@ -17,12 +17,6 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameResultWidget)
 
-UGameResultWidget::UGameResultWidget(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
-	SetIsFocusable(true);
-}
-
 void UGameResultWidget::NativePreConstruct()
 {
 	Super::NativePreConstruct();
@@ -33,8 +27,6 @@ void UGameResultWidget::NativePreConstruct()
 void UGameResultWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
-
-	SetIsFocusable(true);
 
 	if (Btn_Exit)
 	{

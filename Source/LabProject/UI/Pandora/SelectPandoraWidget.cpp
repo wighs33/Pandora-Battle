@@ -49,8 +49,6 @@ USelectPandoraWidget::USelectPandoraWidget(const FObjectInitializer& ObjectIniti
 void USelectPandoraWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
-	SetIsFocusable(true);
-
 	CacheDefaultPandoraBrushes();
 	RefreshSelectedLoadoutNumber();
 	RefreshCenterLabel();

@@ -32,7 +32,11 @@ public:
 	// Public API ------------------------------------------------------------------------------------------------------
 	UScreenWidget(const FObjectInitializer& ObjectInitializer);
 
-	/** FocusTarget이 없으면 CommonUI가 뷰포트에 포커스를 유지하여 누르고 있는 입력을 지킨다. 마우스는 기본으로 잡지 않는다. */
+	/**
+	 * FocusTarget이 없으면 CommonUI가 뷰포트에 포커스를 유지하여 누르고 있는 입력을 지킨다(누르는 동안만 여는 판도라 휠·점수판).
+	 * 이때 화면은 포커스를 받지 않는 위젯이어야 한다. 받을 수 있으면 CommonUI가 화면에 포커스를 주고, 뷰포트는 누르고 있던 키를 모두 뗀다.
+	 * 마우스는 기본으로 잡지 않는다.
+	 */
 	void ConfigureScreen(UWidget* FocusTarget, FSimpleDelegate BackAction, ECommonInputMode InputMode = ECommonInputMode::Menu,
 		EMouseCaptureMode MouseCapture = EMouseCaptureMode::NoCapture);
 
