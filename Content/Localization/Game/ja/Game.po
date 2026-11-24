@@ -4,8 +4,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: Game\n"
-"POT-Creation-Date: 2026-11-20 15:16\n"
-"PO-Revision-Date: 2026-11-20 15:16\n"
+"POT-Creation-Date: 2026-11-24 07:30\n"
+"PO-Revision-Date: 2026-11-24 07:30\n"
 "Language-Team: \n"
 "Language: ja\n"
 "MIME-Version: 1.0\n"
@@ -5165,6 +5165,20 @@ msgctxt "MenuText,Title.Shop"
 msgid "Shop"
 msgstr "ショップ"
 
+#. Key:	Title.Story
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Title.Story"
+msgid "Story"
+msgstr "ストーリー"
+
+#. Key:	Title.StoryHint
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Title.StoryHint"
+msgid "Play the story alone on this PC. Prologue: The Goddess Reborn."
+msgstr "このPCで一人で物語を楽しみます。プロローグ「女神の転生」。"
+
 #. Key:	Title.Training
 #. SourceLocation:	UI/Localization/StringTables/MenuText.csv
 #: UI/Localization/StringTables/MenuText.csv
@@ -5227,4 +5241,508 @@ msgstr "剣"
 msgctxt "MenuText,Weapon.Unarmed"
 msgid "Unarmed"
 msgstr "素手"
+
+#. Key:	Story.Hint.Advance
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Hint.Advance"
+msgid "Space · Click  Next"
+msgstr "スペース・クリック  次へ"
+
+#. Key:	Story.Name.Emotion
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Name.Emotion"
+msgid "Emotional Persona"
+msgstr "感性の人格"
+
+#. Key:	Story.Name.Hero
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Name.Hero"
+msgid "Me"
+msgstr "私"
+
+#. Key:	Story.Name.Intellect
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Name.Intellect"
+msgid "Rational Persona"
+msgstr "知性の人格"
+
+#. Key:	Story.Pause.Resume
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Pause.Resume"
+msgid "Resume"
+msgstr "続ける"
+
+#. Key:	Story.Pause.Settings
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Pause.Settings"
+msgid "Settings"
+msgstr "設定"
+
+#. Key:	Story.Pause.Skip
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Pause.Skip"
+msgid "Skip"
+msgstr "スキップ"
+
+#. Key:	Story.Pause.Title
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Pause.Title"
+msgid "Back to Title"
+msgstr "タイトルへ"
+
+#. Key:	Story.Prologue.Chapter
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.Chapter"
+msgid "Prologue"
+msgstr "プロローグ"
+
+#. Key:	Story.Prologue.Continued
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.Continued"
+msgid "To Be Continued"
+msgstr "つづく"
+
+#. Key:	Story.Prologue.HoldOn
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.HoldOn"
+msgid "Mash Space to hold on!"
+msgstr "スペース連打で踏ん張れ！"
+
+#. Key:	Story.Prologue.L01
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L01"
+msgid "Ugh... It's cold..."
+msgstr "うう....寒い..."
+
+#. Key:	Story.Prologue.L02
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L02"
+msgid "???"
+msgstr "???"
+
+#. Key:	Story.Prologue.L03
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L03"
+msgid "Ohh...!\nYou're finally awake!"
+msgstr "おお...！\nやっと起きたか！"
+
+#. Key:	Story.Prologue.L04
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L04"
+msgid "......?!"
+msgstr "......?!"
+
+#. Key:	Story.Prologue.L05
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L05"
+msgid "Wh-who are you?"
+msgstr "だ、誰ですか？"
+
+#. Key:	Story.Prologue.L06
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L06"
+msgid "I am Divine, the god who rules over dimensions!\nMwahaha!"
+msgstr "我こそ次元を司る神、ディヴァインだ！\nワハハ！"
+
+#. Key:	Story.Prologue.L07
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L07"
+msgid "To be precise, we are the two personas Divine, god of dimensions, split into after becoming incomplete."
+msgstr "正確には、次元神ディヴァインが不完全な状態となり、二つに分かれた人格です。"
+
+#. Key:	Story.Prologue.L08
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L08"
+msgid "?? A god...?\nWhere... am I?"
+msgstr "?? 神...？\nここは...どこですか？"
+
+#. Key:	Story.Prologue.L09
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L09"
+msgid "What a boring reaction!\nThis is the dimension between Eradion and the world you came from!"
+msgstr "つまらん反応だな！\nここはエラディオンとお前がいた世界の間にある次元だ！"
+
+#. Key:	Story.Prologue.L10
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L10"
+msgid "...Eradion...?"
+msgstr "...エラディオン...？"
+
+#. Key:	Story.Prologue.L11
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L11"
+msgid "I'm not religious, I don't believe in gods...\nCan I leave now...?"
+msgstr "僕、神とか信じない無宗教なんですけど......\nここから出てもいいですか...？"
+
+#. Key:	Story.Prologue.L12
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L12"
+msgid "...What did you say?"
+msgstr "..何だと？"
+
+#. Key:	Story.Prologue.L13
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L13"
+msgid "No, I mean...\nI don't know much about this kind of thing.\nIf I'm bothering you, I'll just—"
+msgstr "いや、その......\nこういうのはよく分からなくて。\nお邪魔でしたら、このまま—"
+
+#. Key:	Story.Prologue.L14
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L14"
+msgid "Regrettably, this place has no exit."
+msgstr "残念ながら、ここに出口はありません。"
+
+#. Key:	Story.Prologue.L15
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L15"
+msgid "Then...\nhow did I get here?"
+msgstr "じゃあ......\n僕はどうやってここに？"
+
+#. Key:	Story.Prologue.L16
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L16"
+msgid "We summoned you to this dimension."
+msgstr "私たちがあなたをこの次元に召喚しました。"
+
+#. Key:	Story.Prologue.L17
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L17"
+msgid "Why... why me?\nNo, wait, summoned...?\nThat only happens in games and comics..."
+msgstr "ど......どうして僕を？\nいやいや、召喚って...\nゲームか漫画じゃあるまいし..."
+
+#. Key:	Story.Prologue.L18
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L18"
+msgid "For hundreds of years after the gods died,\nwe have watched war after war in Eradion."
+msgstr "神々が死んでから数百年の間、\n私たちはエラディオンで戦争が絶えないのを見守ってきました。"
+
+#. Key:	Story.Prologue.L19
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L19"
+msgid "You keep saying it, but what is Eradion?"
+msgstr "さっきから言ってるエラディオンって何ですか？"
+
+#. Key:	Story.Prologue.L20
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L20"
+msgid "It is another world.\nSince the gods vanished, it has known long ages of chaos and war.\nAnd we have reached a single conclusion."
+msgstr "ここは違う、別の世界です。\n神々が消えて以来、そこでは長い間、混乱と戦争が続きました。\nそして私たちは一つの結論に達しました。"
+
+#. Key:	Story.Prologue.L21
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L21"
+msgid "Eradion needs its gods again."
+msgstr "エラディオンには再び神々が必要だ。"
+
+#. Key:	Story.Prologue.L22
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L22"
+msgid "So we started looking for the dead gods, reborn.\nFrom one dimension to the next."
+msgstr "だから死んだ神々の転生を探し始めたのさ。\nあちこちの次元を渡り歩いてな。"
+
+#. Key:	Story.Prologue.L23
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L23"
+msgid "Pandora, goddess of blessings.\nWe searched countless dimensions for her reincarnation, and at last we found it."
+msgstr "祝福の女神パンドラ。\nその転生を見つけるため数多の次元を調査し、ついに見つけました。"
+
+#. Key:	Story.Prologue.L24
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L24"
+msgid "You."
+msgstr "あなたです。"
+
+#. Key:	Story.Prologue.L25
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L25"
+msgid "......\nI think you've got the wrong person."
+msgstr "......\n人違いだと思うんですけど。"
+
+#. Key:	Story.Prologue.L26
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L26"
+msgid "We verified it 2,817 times.\nThe chance of error is extremely low."
+msgstr "計2,817回検証しました。\n誤りの可能性は極めて低いです。"
+
+#. Key:	Story.Prologue.L27
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L27"
+msgid "Hold on...\nSo to sum up...\nthe gods died, you're looking for their reincarnations...\nand I'm one of them?"
+msgstr "ちょっと待って......\nつまりまとめると......\n神々が死んで、その転生を探していて......\n僕がその一人ってことですか？"
+
+#. Key:	Story.Prologue.L28
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L28"
+msgid "Correct.\nWe have implanted a Pandora in your body.\nIt will help you live in Eradion."
+msgstr "そのとおりです。\nあなたの体にパンドラを移植しておきました。\nエラディオンで生きていく助けになるでしょう。"
+
+#. Key:	Story.Prologue.L29
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L29"
+msgid "......!"
+msgstr "......！"
+
+#. Key:	Story.Prologue.L30
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L30"
+msgid "No abnormal reactions so far, it seems."
+msgstr "今のところ異常反応はないようですね。"
+
+#. Key:	Story.Prologue.L31
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L31"
+msgid "What on earth is a Pandora?"
+msgstr "パンドラって一体何なんですか？"
+
+#. Key:	Story.Prologue.L32
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L32"
+msgid "With a Pandora you can use a unique power, such as controlling elements like fire and water or transforming your body."
+msgstr "パンドラを得ると、火や水のような元素を操ったり、体を変化させたりといった固有の能力を使えるようになります。"
+
+#. Key:	Story.Prologue.L33
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L33"
+msgid "Wow!\nSo it's like a superpower?\nWhat does mine do?"
+msgstr "うわあ！\nじゃあ超能力みたいなものですか？\n僕のはどんな能力なんですか？"
+
+#. Key:	Story.Prologue.L34
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L34"
+msgid "Oh dear. There is no time left to explain.\nThe portal will close soon. Please proceed to it quickly.\nYou may learn the details on site."
+msgstr "おや。説明する時間が足りませんね。\nまもなくポータルが閉じます。速やかに移動してください。\n詳しい使い方は現地で習得してください。"
+
+#. Key:	Story.Prologue.L35
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L35"
+msgid "Wait, wait!\nHow do I get back home?\nYou haven't told me the most important part!"
+msgstr "待って、待って！\n家にはどうやって帰れるんですか？\n一番大事なことをまだ聞いてません！"
+
+#. Key:	Story.Prologue.L36
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L36"
+msgid "......I can go back, right?\nHello...?"
+msgstr "......帰れるんですよね？\nあの...？"
+
+#. Key:	Story.Prologue.L37
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L37"
+msgid "If you reach the end of the fate given to you in Eradion,\nyou will find the way back as well."
+msgstr "エラディオンであなたに与えられた運命の果てに辿り着けば、\n帰る方法も見つかるでしょう。"
+
+#. Key:	Story.Prologue.L38
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L38"
+msgid "......What's that supposed to mean...\nSo you're not sure."
+msgstr "......何ですか、それ...\n確実じゃないってことですね。"
+
+#. Key:	Story.Prologue.L39
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L39"
+msgid "It'll work out once you're there!\nDon't worry about it, kid!"
+msgstr "行けば何とかなる！\n心配すんなって！"
+
+#. Key:	Story.Prologue.L40
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L40"
+msgid "Regrettably, there is no more time to explain."
+msgstr "残念ですが、これ以上説明する時間はありません。"
+
+#. Key:	Story.Prologue.L41
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L41"
+msgid "......Already?"
+msgstr "......もうですか？"
+
+#. Key:	Story.Prologue.L42
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L42"
+msgid "I mean...\nI just got here out of nowhere and my head's still spinning..."
+msgstr "いや、その......\n急にここに来たばかりで、まだ頭が追いつかなくて......"
+
+#. Key:	Story.Prologue.L43
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L43"
+msgid "I won't know where I am over there,\nor who to look for...\nso maybe we could talk a little more before—"
+msgstr "向こうに着いてもどこかも分からないし、\n誰を訪ねればいいのかも分からないし......\nだからもう少しだけ話をしてから—"
+
+#. Key:	Story.Prologue.L44
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L44"
+msgid "There is no time."
+msgstr "時間がありません。"
+
+#. Key:	Story.Prologue.L45
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L45"
+msgid "At least tell me what's in there..."
+msgstr "せめて中に何があるのかくらい......"
+
+#. Key:	Story.Prologue.L46
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L46"
+msgid "You'll find out when you get there!"
+msgstr "行けば分かる！"
+
+#. Key:	Story.Prologue.L47
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L47"
+msgid "Then...\ncould I ask just a few last things—"
+msgstr "じゃあ......\n本当に最後にいくつかだけ—"
+
+#. Key:	Story.Prologue.L48
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L48"
+msgid "Ugh, you talk too much!"
+msgstr "ああもう、口数の多いやつだな！"
+
+#. Key:	Story.Prologue.L49
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L49"
+msgid "Huh...?"
+msgstr "え......？"
+
+#. Key:	Story.Prologue.L50
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L50"
+msgid "Have a nice trip, kid!"
+msgstr "行ってこい、ひよっこ！"
+
+#. Key:	Story.Prologue.L51
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L51"
+msgid "Wait...!\nI'm not ready for—"
+msgstr "待って...！\nまだ心の準備が—"
+
+#. Key:	Story.Prologue.L52
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L52"
+msgid "Aaagh?!"
+msgstr "うわあっ?!"
+
+#. Key:	Story.Prologue.L53
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L53"
+msgid "Go and save Eradion!"
+msgstr "エラディオンを救ってこい！"
+
+#. Key:	Story.Prologue.L54
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L54"
+msgid "AAAAAAAAAGH!!"
+msgstr "うわああああああっ!!"
+
+#. Key:	Story.Prologue.L55
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L55"
+msgid "Would it not have been better to explain a little more?"
+msgstr "もう少し説明した方がよかったのではありませんか？"
+
+#. Key:	Story.Prologue.L56
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L56"
+msgid "It's fine.\nThe kid will figure it out."
+msgstr "大丈夫だ。\n行けば何とかやるだろ。"
+
+#. Key:	Story.Prologue.L57
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L57"
+msgid "The estimated chance of survival is currently 63.4%."
+msgstr "現在の予想生存確率は63.4%です。"
+
+#. Key:	Story.Prologue.L58
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L58"
+msgid "......\nThat's lower than I thought."
+msgstr "......\n思ったより低いな？"
+
+#. Key:	Story.Prologue.OpenEyes
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.OpenEyes"
+msgid "Press Space to open your eyes"
+msgstr "スペースを押して目を開けよう"
+
+#. Key:	Story.Prologue.Title
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.Title"
+msgid "The Goddess Reborn"
+msgstr "女神の転生"
+
+#. Key:	Story.Prologue.WalkToPortal
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.WalkToPortal"
+msgid "Walk up to the portal"
+msgstr "ポータルに近づこう"
 

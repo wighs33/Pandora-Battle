@@ -4,8 +4,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: Game\n"
-"POT-Creation-Date: 2026-11-20 15:16\n"
-"PO-Revision-Date: 2026-11-20 15:16\n"
+"POT-Creation-Date: 2026-11-24 07:30\n"
+"PO-Revision-Date: 2026-11-24 07:30\n"
 "Language-Team: \n"
 "Language: de\n"
 "MIME-Version: 1.0\n"
@@ -5165,6 +5165,20 @@ msgctxt "MenuText,Title.Shop"
 msgid "Shop"
 msgstr "Shop"
 
+#. Key:	Title.Story
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Title.Story"
+msgid "Story"
+msgstr "Story"
+
+#. Key:	Title.StoryHint
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Title.StoryHint"
+msgid "Play the story alone on this PC. Prologue: The Goddess Reborn."
+msgstr "Spiele die Geschichte allein auf diesem PC. Prolog: Die Wiedergeburt der Göttin."
+
 #. Key:	Title.Training
 #. SourceLocation:	UI/Localization/StringTables/MenuText.csv
 #: UI/Localization/StringTables/MenuText.csv
@@ -5227,4 +5241,508 @@ msgstr "Schwert"
 msgctxt "MenuText,Weapon.Unarmed"
 msgid "Unarmed"
 msgstr "Unbewaffnet"
+
+#. Key:	Story.Hint.Advance
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Hint.Advance"
+msgid "Space · Click  Next"
+msgstr "Leertaste · Klick  Weiter"
+
+#. Key:	Story.Name.Emotion
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Name.Emotion"
+msgid "Emotional Persona"
+msgstr "Gefühls-Persönlichkeit"
+
+#. Key:	Story.Name.Hero
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Name.Hero"
+msgid "Me"
+msgstr "Ich"
+
+#. Key:	Story.Name.Intellect
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Name.Intellect"
+msgid "Rational Persona"
+msgstr "Verstandes-Persönlichkeit"
+
+#. Key:	Story.Pause.Resume
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Pause.Resume"
+msgid "Resume"
+msgstr "Fortsetzen"
+
+#. Key:	Story.Pause.Settings
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Pause.Settings"
+msgid "Settings"
+msgstr "Einstellungen"
+
+#. Key:	Story.Pause.Skip
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Pause.Skip"
+msgid "Skip"
+msgstr "Überspringen"
+
+#. Key:	Story.Pause.Title
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Pause.Title"
+msgid "Back to Title"
+msgstr "Zum Titelbildschirm"
+
+#. Key:	Story.Prologue.Chapter
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.Chapter"
+msgid "Prologue"
+msgstr "Prolog"
+
+#. Key:	Story.Prologue.Continued
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.Continued"
+msgid "To Be Continued"
+msgstr "Fortsetzung folgt"
+
+#. Key:	Story.Prologue.HoldOn
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.HoldOn"
+msgid "Mash Space to hold on!"
+msgstr "Hämmere auf die Leertaste, um dich zu halten!"
+
+#. Key:	Story.Prologue.L01
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L01"
+msgid "Ugh... It's cold..."
+msgstr "Ugh... Kalt..."
+
+#. Key:	Story.Prologue.L02
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L02"
+msgid "???"
+msgstr "???"
+
+#. Key:	Story.Prologue.L03
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L03"
+msgid "Ohh...!\nYou're finally awake!"
+msgstr "Ohh...!\nEndlich wach!"
+
+#. Key:	Story.Prologue.L04
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L04"
+msgid "......?!"
+msgstr "......?!"
+
+#. Key:	Story.Prologue.L05
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L05"
+msgid "Wh-who are you?"
+msgstr "W-wer seid ihr?"
+
+#. Key:	Story.Prologue.L06
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L06"
+msgid "I am Divine, the god who rules over dimensions!\nMwahaha!"
+msgstr "Ich bin Divine, der Gott, der über die Dimensionen herrscht!\nMwahaha!"
+
+#. Key:	Story.Prologue.L07
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L07"
+msgid "To be precise, we are the two personas Divine, god of dimensions, split into after becoming incomplete."
+msgstr "Genauer gesagt sind wir die zwei Persönlichkeiten, in die sich Divine, Gott der Dimensionen, aufspaltete, als er unvollständig wurde."
+
+#. Key:	Story.Prologue.L08
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L08"
+msgid "?? A god...?\nWhere... am I?"
+msgstr "?? Ein Gott...?\nWo... bin ich?"
+
+#. Key:	Story.Prologue.L09
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L09"
+msgid "What a boring reaction!\nThis is the dimension between Eradion and the world you came from!"
+msgstr "Was für eine lahme Reaktion!\nDas hier ist die Dimension zwischen Eradion und deiner Welt!"
+
+#. Key:	Story.Prologue.L10
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L10"
+msgid "...Eradion...?"
+msgstr "...Eradion...?"
+
+#. Key:	Story.Prologue.L11
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L11"
+msgid "I'm not religious, I don't believe in gods...\nCan I leave now...?"
+msgstr "Ich bin nicht religiös, ich glaube nicht an Götter...\nKann ich jetzt gehen...?"
+
+#. Key:	Story.Prologue.L12
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L12"
+msgid "...What did you say?"
+msgstr "...Was hast du gesagt?"
+
+#. Key:	Story.Prologue.L13
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L13"
+msgid "No, I mean...\nI don't know much about this kind of thing.\nIf I'm bothering you, I'll just—"
+msgstr "Nein, ich meine...\nIch kenne mich mit so was nicht aus.\nWenn ich störe, dann werde ich einfach—"
+
+#. Key:	Story.Prologue.L14
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L14"
+msgid "Regrettably, this place has no exit."
+msgstr "Bedauerlicherweise gibt es hier keinen Ausgang."
+
+#. Key:	Story.Prologue.L15
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L15"
+msgid "Then...\nhow did I get here?"
+msgstr "Aber...\nwie bin ich dann hierhergekommen?"
+
+#. Key:	Story.Prologue.L16
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L16"
+msgid "We summoned you to this dimension."
+msgstr "Wir haben dich in diese Dimension beschworen."
+
+#. Key:	Story.Prologue.L17
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L17"
+msgid "Why... why me?\nNo, wait, summoned...?\nThat only happens in games and comics..."
+msgstr "Wa... warum mich?\nMoment, beschworen...?\nSo was gibt es doch nur in Spielen und Comics..."
+
+#. Key:	Story.Prologue.L18
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L18"
+msgid "For hundreds of years after the gods died,\nwe have watched war after war in Eradion."
+msgstr "Seit die Götter vor Jahrhunderten starben,\nsehen wir in Eradion einen Krieg nach dem anderen."
+
+#. Key:	Story.Prologue.L19
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L19"
+msgid "You keep saying it, but what is Eradion?"
+msgstr "Was ist denn dieses Eradion, von dem ihr redet?"
+
+#. Key:	Story.Prologue.L20
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L20"
+msgid "It is another world.\nSince the gods vanished, it has known long ages of chaos and war.\nAnd we have reached a single conclusion."
+msgstr "Es ist eine andere Welt.\nSeit die Götter verschwanden, herrschen dort seit langer Zeit Chaos und Krieg.\nUnd wir kamen zu einem einzigen Schluss."
+
+#. Key:	Story.Prologue.L21
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L21"
+msgid "Eradion needs its gods again."
+msgstr "Eradion braucht wieder Götter."
+
+#. Key:	Story.Prologue.L22
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L22"
+msgid "So we started looking for the dead gods, reborn.\nFrom one dimension to the next."
+msgstr "Also begannen wir, die wiedergeborenen Götter zu suchen.\nVon einer Dimension zur nächsten."
+
+#. Key:	Story.Prologue.L23
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L23"
+msgid "Pandora, goddess of blessings.\nWe searched countless dimensions for her reincarnation, and at last we found it."
+msgstr "Pandora, Göttin des Segens.\nWir durchsuchten unzählige Dimensionen nach ihrer Wiedergeburt und haben sie endlich gefunden."
+
+#. Key:	Story.Prologue.L24
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L24"
+msgid "You."
+msgstr "Dich."
+
+#. Key:	Story.Prologue.L25
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L25"
+msgid "......\nI think you've got the wrong person."
+msgstr "......\nIch glaube, ihr habt die falsche Person."
+
+#. Key:	Story.Prologue.L26
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L26"
+msgid "We verified it 2,817 times.\nThe chance of error is extremely low."
+msgstr "Wir haben es 2.817-mal überprüft.\nEin Irrtum ist äußerst unwahrscheinlich."
+
+#. Key:	Story.Prologue.L27
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L27"
+msgid "Hold on...\nSo to sum up...\nthe gods died, you're looking for their reincarnations...\nand I'm one of them?"
+msgstr "Moment mal...\nAlso zusammengefasst...\ndie Götter sind tot, ihr sucht ihre Wiedergeburten...\nund ich bin eine davon?"
+
+#. Key:	Story.Prologue.L28
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L28"
+msgid "Correct.\nWe have implanted a Pandora in your body.\nIt will help you live in Eradion."
+msgstr "Richtig.\nWir haben dir eine Pandora eingepflanzt.\nSie wird dir helfen, in Eradion zu leben."
+
+#. Key:	Story.Prologue.L29
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L29"
+msgid "......!"
+msgstr "......!"
+
+#. Key:	Story.Prologue.L30
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L30"
+msgid "No abnormal reactions so far, it seems."
+msgstr "Bisher keine abnormalen Reaktionen, wie es scheint."
+
+#. Key:	Story.Prologue.L31
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L31"
+msgid "What on earth is a Pandora?"
+msgstr "Was ist denn überhaupt eine Pandora?"
+
+#. Key:	Story.Prologue.L32
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L32"
+msgid "With a Pandora you can use a unique power, such as controlling elements like fire and water or transforming your body."
+msgstr "Mit einer Pandora kannst du eine einzigartige Kraft nutzen, etwa Elemente wie Feuer und Wasser beherrschen oder deinen Körper verwandeln."
+
+#. Key:	Story.Prologue.L33
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L33"
+msgid "Wow!\nSo it's like a superpower?\nWhat does mine do?"
+msgstr "Wow!\nAlso wie eine Superkraft?\nWas kann meine?"
+
+#. Key:	Story.Prologue.L34
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L34"
+msgid "Oh dear. There is no time left to explain.\nThe portal will close soon. Please proceed to it quickly.\nYou may learn the details on site."
+msgstr "Oje. Für Erklärungen bleibt keine Zeit.\nDas Portal schließt sich bald. Begib dich bitte zügig dorthin.\nDie Einzelheiten lernst du vor Ort."
+
+#. Key:	Story.Prologue.L35
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L35"
+msgid "Wait, wait!\nHow do I get back home?\nYou haven't told me the most important part!"
+msgstr "Wartet, wartet!\nWie komme ich wieder nach Hause?\nDas Wichtigste habt ihr noch nicht gesagt!"
+
+#. Key:	Story.Prologue.L36
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L36"
+msgid "......I can go back, right?\nHello...?"
+msgstr "......Ich kann doch zurück, oder?\nHallo...?"
+
+#. Key:	Story.Prologue.L37
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L37"
+msgid "If you reach the end of the fate given to you in Eradion,\nyou will find the way back as well."
+msgstr "Wenn du das Ende deines Schicksals in Eradion erreichst,\nwirst du auch den Weg zurück finden."
+
+#. Key:	Story.Prologue.L38
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L38"
+msgid "......What's that supposed to mean...\nSo you're not sure."
+msgstr "......Was soll das denn heißen...\nAlso ist es nicht sicher."
+
+#. Key:	Story.Prologue.L39
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L39"
+msgid "It'll work out once you're there!\nDon't worry about it, kid!"
+msgstr "Wenn du erst da bist, wird das schon!\nKeine Sorge, Kleiner!"
+
+#. Key:	Story.Prologue.L40
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L40"
+msgid "Regrettably, there is no more time to explain."
+msgstr "Bedauerlicherweise bleibt keine Zeit für weitere Erklärungen."
+
+#. Key:	Story.Prologue.L41
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L41"
+msgid "......Already?"
+msgstr "......Jetzt schon?"
+
+#. Key:	Story.Prologue.L42
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L42"
+msgid "I mean...\nI just got here out of nowhere and my head's still spinning..."
+msgstr "Na ja...\nich bin gerade erst hier gelandet und mir schwirrt noch der Kopf..."
+
+#. Key:	Story.Prologue.L43
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L43"
+msgid "I won't know where I am over there,\nor who to look for...\nso maybe we could talk a little more before—"
+msgstr "Ich weiß dann nicht, wo ich bin,\nund zu wem ich soll...\nalso könnten wir noch ein bisschen reden, bevor—"
+
+#. Key:	Story.Prologue.L44
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L44"
+msgid "There is no time."
+msgstr "Es ist keine Zeit."
+
+#. Key:	Story.Prologue.L45
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L45"
+msgid "At least tell me what's in there..."
+msgstr "Sagt mir wenigstens, was da drin ist..."
+
+#. Key:	Story.Prologue.L46
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L46"
+msgid "You'll find out when you get there!"
+msgstr "Das siehst du, wenn du da bist!"
+
+#. Key:	Story.Prologue.L47
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L47"
+msgid "Then...\ncould I ask just a few last things—"
+msgstr "Dann...\ndarf ich noch ein paar letzte Dinge—"
+
+#. Key:	Story.Prologue.L48
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L48"
+msgid "Ugh, you talk too much!"
+msgstr "Mann, redest du viel!"
+
+#. Key:	Story.Prologue.L49
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L49"
+msgid "Huh...?"
+msgstr "Hä......?"
+
+#. Key:	Story.Prologue.L50
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L50"
+msgid "Have a nice trip, kid!"
+msgstr "Gute Reise, Grünschnabel!"
+
+#. Key:	Story.Prologue.L51
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L51"
+msgid "Wait...!\nI'm not ready for—"
+msgstr "Wartet...!\nIch bin noch nicht bereit—"
+
+#. Key:	Story.Prologue.L52
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L52"
+msgid "Aaagh?!"
+msgstr "Uaaah?!"
+
+#. Key:	Story.Prologue.L53
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L53"
+msgid "Go and save Eradion!"
+msgstr "Geh und rette Eradion!"
+
+#. Key:	Story.Prologue.L54
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L54"
+msgid "AAAAAAAAAGH!!"
+msgstr "UAAAAAAAAAH!!"
+
+#. Key:	Story.Prologue.L55
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L55"
+msgid "Would it not have been better to explain a little more?"
+msgstr "Wäre es nicht besser gewesen, etwas mehr zu erklären?"
+
+#. Key:	Story.Prologue.L56
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L56"
+msgid "It's fine.\nThe kid will figure it out."
+msgstr "Passt schon.\nDer kriegt das hin."
+
+#. Key:	Story.Prologue.L57
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L57"
+msgid "The estimated chance of survival is currently 63.4%."
+msgstr "Die geschätzte Überlebenschance liegt derzeit bei 63,4 %."
+
+#. Key:	Story.Prologue.L58
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L58"
+msgid "......\nThat's lower than I thought."
+msgstr "......\nWeniger, als ich dachte."
+
+#. Key:	Story.Prologue.OpenEyes
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.OpenEyes"
+msgid "Press Space to open your eyes"
+msgstr "Drücke die Leertaste, um die Augen zu öffnen"
+
+#. Key:	Story.Prologue.Title
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.Title"
+msgid "The Goddess Reborn"
+msgstr "Die Wiedergeburt der Göttin"
+
+#. Key:	Story.Prologue.WalkToPortal
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.WalkToPortal"
+msgid "Walk up to the portal"
+msgstr "Geh zum Portal"
 

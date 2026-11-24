@@ -4,8 +4,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: Game\n"
-"POT-Creation-Date: 2026-11-20 15:16\n"
-"PO-Revision-Date: 2026-11-20 15:16\n"
+"POT-Creation-Date: 2026-11-24 07:30\n"
+"PO-Revision-Date: 2026-11-24 07:30\n"
 "Language-Team: \n"
 "Language: zh-Hans\n"
 "MIME-Version: 1.0\n"
@@ -5165,6 +5165,20 @@ msgctxt "MenuText,Title.Shop"
 msgid "Shop"
 msgstr "商店"
 
+#. Key:	Title.Story
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Title.Story"
+msgid "Story"
+msgstr "故事"
+
+#. Key:	Title.StoryHint
+#. SourceLocation:	UI/Localization/StringTables/MenuText.csv
+#: UI/Localization/StringTables/MenuText.csv
+msgctxt "MenuText,Title.StoryHint"
+msgid "Play the story alone on this PC. Prologue: The Goddess Reborn."
+msgstr "在这台电脑上独自体验故事。序章：女神转生。"
+
 #. Key:	Title.Training
 #. SourceLocation:	UI/Localization/StringTables/MenuText.csv
 #: UI/Localization/StringTables/MenuText.csv
@@ -5227,4 +5241,508 @@ msgstr "剑"
 msgctxt "MenuText,Weapon.Unarmed"
 msgid "Unarmed"
 msgstr "徒手"
+
+#. Key:	Story.Hint.Advance
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Hint.Advance"
+msgid "Space · Click  Next"
+msgstr "空格 · 点击  继续"
+
+#. Key:	Story.Name.Emotion
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Name.Emotion"
+msgid "Emotional Persona"
+msgstr "感性人格"
+
+#. Key:	Story.Name.Hero
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Name.Hero"
+msgid "Me"
+msgstr "我"
+
+#. Key:	Story.Name.Intellect
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Name.Intellect"
+msgid "Rational Persona"
+msgstr "理性人格"
+
+#. Key:	Story.Pause.Resume
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Pause.Resume"
+msgid "Resume"
+msgstr "继续"
+
+#. Key:	Story.Pause.Settings
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Pause.Settings"
+msgid "Settings"
+msgstr "设置"
+
+#. Key:	Story.Pause.Skip
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Pause.Skip"
+msgid "Skip"
+msgstr "跳过"
+
+#. Key:	Story.Pause.Title
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Pause.Title"
+msgid "Back to Title"
+msgstr "返回标题"
+
+#. Key:	Story.Prologue.Chapter
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.Chapter"
+msgid "Prologue"
+msgstr "序章"
+
+#. Key:	Story.Prologue.Continued
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.Continued"
+msgid "To Be Continued"
+msgstr "未完待续"
+
+#. Key:	Story.Prologue.HoldOn
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.HoldOn"
+msgid "Mash Space to hold on!"
+msgstr "连按空格键撑住！"
+
+#. Key:	Story.Prologue.L01
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L01"
+msgid "Ugh... It's cold..."
+msgstr "呜呜....好冷..."
+
+#. Key:	Story.Prologue.L02
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L02"
+msgid "???"
+msgstr "???"
+
+#. Key:	Story.Prologue.L03
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L03"
+msgid "Ohh...!\nYou're finally awake!"
+msgstr "哦哦...！\n终于醒了！"
+
+#. Key:	Story.Prologue.L04
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L04"
+msgid "......?!"
+msgstr "......?!"
+
+#. Key:	Story.Prologue.L05
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L05"
+msgid "Wh-who are you?"
+msgstr "您、您是谁？"
+
+#. Key:	Story.Prologue.L06
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L06"
+msgid "I am Divine, the god who rules over dimensions!\nMwahaha!"
+msgstr "我乃掌管次元之神，迪瓦恩！\n哇哈哈！"
+
+#. Key:	Story.Prologue.L07
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L07"
+msgid "To be precise, we are the two personas Divine, god of dimensions, split into after becoming incomplete."
+msgstr "准确地说，是次元神迪瓦恩变得不完整后分裂出的两个人格。"
+
+#. Key:	Story.Prologue.L08
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L08"
+msgid "?? A god...?\nWhere... am I?"
+msgstr "?? 神...？\n这里...是哪里？"
+
+#. Key:	Story.Prologue.L09
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L09"
+msgid "What a boring reaction!\nThis is the dimension between Eradion and the world you came from!"
+msgstr "真是无趣的反应！\n这里是埃拉迪昂与你原来世界之间的次元！"
+
+#. Key:	Story.Prologue.L10
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L10"
+msgid "...Eradion...?"
+msgstr "...埃拉迪昂...？"
+
+#. Key:	Story.Prologue.L11
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L11"
+msgid "I'm not religious, I don't believe in gods...\nCan I leave now...?"
+msgstr "我不信神，没有宗教信仰......\n我可以离开这里吗...？"
+
+#. Key:	Story.Prologue.L12
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L12"
+msgid "...What did you say?"
+msgstr "..你说什么？"
+
+#. Key:	Story.Prologue.L13
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L13"
+msgid "No, I mean...\nI don't know much about this kind of thing.\nIf I'm bothering you, I'll just—"
+msgstr "不是，那个......\n我不太懂这方面的事。\n要是打扰到你们，我这就—"
+
+#. Key:	Story.Prologue.L14
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L14"
+msgid "Regrettably, this place has no exit."
+msgstr "很遗憾，这里没有出口。"
+
+#. Key:	Story.Prologue.L15
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L15"
+msgid "Then...\nhow did I get here?"
+msgstr "那......\n我是怎么到这里来的？"
+
+#. Key:	Story.Prologue.L16
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L16"
+msgid "We summoned you to this dimension."
+msgstr "是我们把您召唤到这个次元的。"
+
+#. Key:	Story.Prologue.L17
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L17"
+msgid "Why... why me?\nNo, wait, summoned...?\nThat only happens in games and comics..."
+msgstr "为......为什么是我？\n不是，召唤什么的...\n这种事只会出现在游戏或漫画里吧..."
+
+#. Key:	Story.Prologue.L18
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L18"
+msgid "For hundreds of years after the gods died,\nwe have watched war after war in Eradion."
+msgstr "众神死后的数百年间，\n我们一直看着埃拉迪昂战火不断。"
+
+#. Key:	Story.Prologue.L19
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L19"
+msgid "You keep saying it, but what is Eradion?"
+msgstr "从刚才起就在说的埃拉迪昂到底是什么？"
+
+#. Key:	Story.Prologue.L20
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L20"
+msgid "It is another world.\nSince the gods vanished, it has known long ages of chaos and war.\nAnd we have reached a single conclusion."
+msgstr "那是另一个世界。\n自众神消失以来，那里经历了漫长的混乱与战争。\n于是我们得出了一个结论。"
+
+#. Key:	Story.Prologue.L21
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L21"
+msgid "Eradion needs its gods again."
+msgstr "埃拉迪昂需要众神再次降临。"
+
+#. Key:	Story.Prologue.L22
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L22"
+msgid "So we started looking for the dead gods, reborn.\nFrom one dimension to the next."
+msgstr "所以我们开始寻找死去众神的转世。\n在一个又一个次元之间奔走。"
+
+#. Key:	Story.Prologue.L23
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L23"
+msgid "Pandora, goddess of blessings.\nWe searched countless dimensions for her reincarnation, and at last we found it."
+msgstr "祝福女神潘多拉。\n为了寻找她的转世，我们调查了无数次元，终于找到了。"
+
+#. Key:	Story.Prologue.L24
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L24"
+msgid "You."
+msgstr "那就是您。"
+
+#. Key:	Story.Prologue.L25
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L25"
+msgid "......\nI think you've got the wrong person."
+msgstr "......\n你们好像找错人了。"
+
+#. Key:	Story.Prologue.L26
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L26"
+msgid "We verified it 2,817 times.\nThe chance of error is extremely low."
+msgstr "我们共验证了2,817次。\n出错的可能性极低。"
+
+#. Key:	Story.Prologue.L27
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L27"
+msgid "Hold on...\nSo to sum up...\nthe gods died, you're looking for their reincarnations...\nand I'm one of them?"
+msgstr "等一下......\n所以总结一下......\n众神死了，你们在找他们的转世......\n而我是其中之一？"
+
+#. Key:	Story.Prologue.L28
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L28"
+msgid "Correct.\nWe have implanted a Pandora in your body.\nIt will help you live in Eradion."
+msgstr "没错。\n我们已将潘多拉植入您的身体。\n它会帮助您在埃拉迪昂生存下去。"
+
+#. Key:	Story.Prologue.L29
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L29"
+msgid "......!"
+msgstr "......！"
+
+#. Key:	Story.Prologue.L30
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L30"
+msgid "No abnormal reactions so far, it seems."
+msgstr "目前看来没有异常反应。"
+
+#. Key:	Story.Prologue.L31
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L31"
+msgid "What on earth is a Pandora?"
+msgstr "潘多拉到底是什么？"
+
+#. Key:	Story.Prologue.L32
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L32"
+msgid "With a Pandora you can use a unique power, such as controlling elements like fire and water or transforming your body."
+msgstr "获得潘多拉后，就能使用独有的能力，例如操控火、水等元素，或改变身体形态。"
+
+#. Key:	Story.Prologue.L33
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L33"
+msgid "Wow!\nSo it's like a superpower?\nWhat does mine do?"
+msgstr "哇！\n那就像超能力一样吗？\n我的是什么能力？"
+
+#. Key:	Story.Prologue.L34
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L34"
+msgid "Oh dear. There is no time left to explain.\nThe portal will close soon. Please proceed to it quickly.\nYou may learn the details on site."
+msgstr "糟糕。说明的时间不够了。\n传送门很快就要关闭，请尽快前往。\n具体用法请到当地学习。"
+
+#. Key:	Story.Prologue.L35
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L35"
+msgid "Wait, wait!\nHow do I get back home?\nYou haven't told me the most important part!"
+msgstr "等等，等等！\n我要怎么回家？\n最重要的还没告诉我呢！"
+
+#. Key:	Story.Prologue.L36
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L36"
+msgid "......I can go back, right?\nHello...?"
+msgstr "......我能回去的吧？\n喂...？"
+
+#. Key:	Story.Prologue.L37
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L37"
+msgid "If you reach the end of the fate given to you in Eradion,\nyou will find the way back as well."
+msgstr "若您抵达在埃拉迪昂被赋予的命运终点，\n也就能找到回去的方法。"
+
+#. Key:	Story.Prologue.L38
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L38"
+msgid "......What's that supposed to mean...\nSo you're not sure."
+msgstr "......这算什么...\n就是说不确定嘛。"
+
+#. Key:	Story.Prologue.L39
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L39"
+msgid "It'll work out once you're there!\nDon't worry about it, kid!"
+msgstr "去了总会有办法的！\n别担心，小子！"
+
+#. Key:	Story.Prologue.L40
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L40"
+msgid "Regrettably, there is no more time to explain."
+msgstr "很遗憾，没有时间再说明了。"
+
+#. Key:	Story.Prologue.L41
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L41"
+msgid "......Already?"
+msgstr "......这就走？"
+
+#. Key:	Story.Prologue.L42
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L42"
+msgid "I mean...\nI just got here out of nowhere and my head's still spinning..."
+msgstr "不是，那个......\n我突然来到这里，脑子还一片混乱......"
+
+#. Key:	Story.Prologue.L43
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L43"
+msgid "I won't know where I am over there,\nor who to look for...\nso maybe we could talk a little more before—"
+msgstr "到了那边也不知道是哪里，\n也不知道该找谁......\n所以再多聊一会儿再走—"
+
+#. Key:	Story.Prologue.L44
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L44"
+msgid "There is no time."
+msgstr "没有时间了。"
+
+#. Key:	Story.Prologue.L45
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L45"
+msgid "At least tell me what's in there..."
+msgstr "至少告诉我里面有什么......"
+
+#. Key:	Story.Prologue.L46
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L46"
+msgid "You'll find out when you get there!"
+msgstr "去了就知道！"
+
+#. Key:	Story.Prologue.L47
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L47"
+msgid "Then...\ncould I ask just a few last things—"
+msgstr "那......\n最后再问几个问题—"
+
+#. Key:	Story.Prologue.L48
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L48"
+msgid "Ugh, you talk too much!"
+msgstr "啊，话真多！"
+
+#. Key:	Story.Prologue.L49
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L49"
+msgid "Huh...?"
+msgstr "咦......？"
+
+#. Key:	Story.Prologue.L50
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L50"
+msgid "Have a nice trip, kid!"
+msgstr "一路顺风，小鬼！"
+
+#. Key:	Story.Prologue.L51
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L51"
+msgid "Wait...!\nI'm not ready for—"
+msgstr "等等...！\n我还没做好心理准备—"
+
+#. Key:	Story.Prologue.L52
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L52"
+msgid "Aaagh?!"
+msgstr "哇啊?!"
+
+#. Key:	Story.Prologue.L53
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L53"
+msgid "Go and save Eradion!"
+msgstr "去拯救埃拉迪昂吧！"
+
+#. Key:	Story.Prologue.L54
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L54"
+msgid "AAAAAAAAAGH!!"
+msgstr "哇啊啊啊啊啊啊!!"
+
+#. Key:	Story.Prologue.L55
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L55"
+msgid "Would it not have been better to explain a little more?"
+msgstr "再多说明一些是否更好？"
+
+#. Key:	Story.Prologue.L56
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L56"
+msgid "It's fine.\nThe kid will figure it out."
+msgstr "没事。\n去了自然会搞定的。"
+
+#. Key:	Story.Prologue.L57
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L57"
+msgid "The estimated chance of survival is currently 63.4%."
+msgstr "目前预计生存概率为63.4%。"
+
+#. Key:	Story.Prologue.L58
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.L58"
+msgid "......\nThat's lower than I thought."
+msgstr "......\n比想象的低啊？"
+
+#. Key:	Story.Prologue.OpenEyes
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.OpenEyes"
+msgid "Press Space to open your eyes"
+msgstr "按空格键睁开眼睛"
+
+#. Key:	Story.Prologue.Title
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.Title"
+msgid "The Goddess Reborn"
+msgstr "女神转生"
+
+#. Key:	Story.Prologue.WalkToPortal
+#. SourceLocation:	UI/Localization/StringTables/StoryText.csv
+#: UI/Localization/StringTables/StoryText.csv
+msgctxt "StoryText,Story.Prologue.WalkToPortal"
+msgid "Walk up to the portal"
+msgstr "走近传送门"
 
