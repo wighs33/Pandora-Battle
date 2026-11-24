@@ -80,6 +80,8 @@ void UPandoraComponent::GrantPandoraSkills(
 		Spec.GetDynamicSpecSourceTags().AppendTags(Skill->Activation.Tags);
 		Spec.GetDynamicSpecSourceTags().AddTag(PdGameplayTags::Ability_Source_Pandora);
 		Spec.GetDynamicSpecSourceTags().AddTag(PdGameplayTags::Ability_Pandora_Selected);
+		// 능력 실행 중(무기 장착 등)의 부여는 뒤로 미뤄져 이어지는 입력 연결 갱신이 놓치므로, 부여할 때 입력까지 묶는다.
+		Spec.GetDynamicSpecSourceTags().AddTag(GetPandoraInputTag(SkillIndex));
 		if (Skill->SkillType == ESkillType::Press)
 		{
 			Spec.GetDynamicSpecSourceTags().AddTag(PdGameplayTags::Skill_Type_Press);
