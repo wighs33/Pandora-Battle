@@ -88,27 +88,18 @@
 
 ```mermaid
 flowchart LR
-    subgraph CLIENT["게임 클라이언트"]
-        direction TB
-        UI["화면<br/>CommonUI · ViewModel"]
-        PLAY["전투<br/>GAS · 스킬 액션"]
-        EXP["모드 조립<br/>Experience · Game Features"]
-        UI --- PLAY --- EXP
-    end
-    LLM["Luna<br/>llama-server · Gemma 3 4B"]
-    LISTEN["리슨 서버<br/>PvP 아레나"]
-    DEDI["전용 서버<br/>보스 레이드 · GameLift"]
-    STEAM["Steam<br/>세션 · 업적 · 로그인 티켓"]
-    subgraph BACK["백엔드 · AWS"]
-        direction TB
-        GW["API Gateway"] --> API["FastAPI · EC2"] --> DB[("MySQL · RDS")]
-    end
+    CLIENT["<b>게임 클라이언트</b><br/>화면 · CommonUI, ViewModel<br/>전투 · GAS, 스킬 액션<br/>모드 · Experience, Game Features"]
+    LLM["<b>Luna</b><br/>llama-server<br/>Gemma 3 4B"]
+    LISTEN["<b>리슨 서버</b><br/>PvP 아레나"]
+    DEDI["<b>전용 서버</b><br/>보스 레이드<br/>GameLift"]
+    STEAM["<b>Steam</b><br/>세션 · 업적<br/>로그인 티켓"]
+    BACK["<b>백엔드 · AWS</b><br/>API Gateway<br/>FastAPI · EC2<br/>MySQL · RDS"]
     CLIENT -- "같은 PC에서만" --> LLM
+    CLIENT --> STEAM
     CLIENT <-- "Iris 복제" --> LISTEN
     CLIENT <-- "Iris 복제" --> DEDI
-    CLIENT --> STEAM
-    CLIENT -- "로그인 · 참가" --> GW
-    DEDI -- "피해 · 결과 보고" --> GW
+    DEDI -- "피해 · 결과 보고" --> BACK
+    CLIENT -- "로그인 · 참가" --> BACK
 ```
 
 | 영역 | 쓰인 기술 |
