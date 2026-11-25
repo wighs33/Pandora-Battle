@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 320" role="img" aria-label="몬스터 200마리 교전 때 서버 작업 시간: 평균 36.4에서 18.2밀리초, p95 40.7에서 21.7밀리초. 30Hz 예산은 33.3밀리초">
+<style>text{font-family:Pretendard,"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",sans-serif}</style>
+<rect width="880" height="320" rx="10" fill="#1a1a19"/>
+<text x="28" y="40" font-size="18" font-weight="700" fill="#f0efec">몬스터 200마리 교전 · 서버 한 프레임의 작업 시간 (ms)</text>
+<rect x="28" y="60" width="12" height="12" rx="3" fill="#7d7c77"/><text x="47" y="71" font-size="14" fill="#c3c2b7">개선 전</text>
+<rect x="112" y="60" width="12" height="12" rx="3" fill="#3987e5"/><text x="131" y="71" font-size="14" fill="#c3c2b7">개선 후</text>
+<line x1="150.0" y1="112" x2="150.0" y2="272" stroke="#3a3a38"/><text x="150.0" y="294" font-size="13" fill="#c3c2b7" text-anchor="middle">0</text>
+<line x1="294.4" y1="112" x2="294.4" y2="272" stroke="#3a3a38"/><text x="294.4" y="294" font-size="13" fill="#c3c2b7" text-anchor="middle">10</text>
+<line x1="438.9" y1="112" x2="438.9" y2="272" stroke="#3a3a38"/><text x="438.9" y="294" font-size="13" fill="#c3c2b7" text-anchor="middle">20</text>
+<line x1="583.3" y1="112" x2="583.3" y2="272" stroke="#3a3a38"/><text x="583.3" y="294" font-size="13" fill="#c3c2b7" text-anchor="middle">30</text>
+<line x1="727.8" y1="112" x2="727.8" y2="272" stroke="#3a3a38"/><text x="727.8" y="294" font-size="13" fill="#c3c2b7" text-anchor="middle">40</text>
+<line x1="631.0" y1="104" x2="631.0" y2="272" stroke="#c3c2b7" stroke-width="2"/><text x="631.0" y="97" font-size="13" fill="#c3c2b7" text-anchor="middle">30Hz 예산 33.3</text>
+<text x="136" y="153" font-size="15" fill="#f0efec" text-anchor="end">교전 평균</text>
+<path d="M150 124h521.8a4 4 0 0 1 4 4v14a4 4 0 0 1 -4 4h-521.8z" fill="#7d7c77"/>
+<text x="683.8" y="140" font-size="15" font-weight="700" fill="#f0efec" stroke="#1a1a19" stroke-width="5" paint-order="stroke">36.4</text>
+<path d="M150 148h258.9a4 4 0 0 1 4 4v14a4 4 0 0 1 -4 4h-258.9z" fill="#3987e5"/>
+<text x="420.9" y="164" font-size="15" font-weight="700" fill="#f0efec" stroke="#1a1a19" stroke-width="5" paint-order="stroke">18.2</text>
+<text x="136" y="233" font-size="15" fill="#f0efec" text-anchor="end">교전 p95</text>
+<path d="M150 204h583.9a4 4 0 0 1 4 4v14a4 4 0 0 1 -4 4h-583.9z" fill="#7d7c77"/>
+<text x="745.9" y="220" font-size="15" font-weight="700" fill="#f0efec" stroke="#1a1a19" stroke-width="5" paint-order="stroke">40.7</text>
+<path d="M150 228h309.4a4 4 0 0 1 4 4v14a4 4 0 0 1 -4 4h-309.4z" fill="#3987e5"/>
+<text x="471.4" y="244" font-size="15" font-weight="700" fill="#f0efec" stroke="#1a1a19" stroke-width="5" paint-order="stroke">21.7</text>
+<line x1="150" y1="112" x2="150" y2="272" stroke="#c3c2b7"/></svg>
